@@ -1,0 +1,22 @@
+{
+  "name": "scoutscluj-utilities",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "verify": "turbo run verify",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f db",
+    "api": "pnpm --filter api",
+    "web": "pnpm --filter web"
+  },
+  "devDependencies": {
+    "turbo": "^2.6.3"
+  }
+}

@@ -63,6 +63,54 @@ pnpm --filter api migration:create
 pnpm --filter api migration:up
 ```
 
+## Railway Deployment
+
+This monorepo is prepared for two Railway services that both deploy from the
+repository root:
+
+- API service config file: `/railway.api.json`
+- Web service config file: `/railway.web.json`
+
+When connecting the repository in Railway, create a Postgres service plus one
+API service and one web service. For each app service, leave the root directory
+as `/` and set the Railway config file path to the matching file above.
+
+The API service config builds only `apps/api`, runs compiled MikroORM migrations
+as a pre-deploy step, starts `node dist/main` through the API package, and uses
+`/api/health` for health checks. The web service config builds only `apps/web`,
+starts the SvelteKit node adapter with `HOST=0.0.0.0`, and uses `/health` for
+health checks.
+
+Railway injects `PORT`; do not set it manually. The API also supports
+`API_PORT` for local development.
+
+Set these API service variables:
+
+```bash
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+AUTH_SESSION_SECRET=replace-with-a-long-random-secret
+ORGO_OAUTH_BASE_URL=https://membri.scout.ro
+ORGO_OAUTH_CLIENT_ID=replace-me
+ORGO_OAUTH_CLIENT_SECRET=replace-me
+WEB_ORIGIN=https://your-web-service.up.railway.app
+WEB_ORIGINS=https://your-web-service.up.railway.app
+```
+
+Set this web service variable:
+
+```bash
+PUBLIC_API_BASE_URL=https://your-api-service.up.railway.app
+```
+
+After Railway generates the API domain, configure the Orgo app callback URL as:
+
+```text
+https://your-api-service.up.railway.app/api/orgo/callback
+```
+
+The Orgo callback lands on the API service first, then redirects back to the web
+service callback so the browser session cookie is stored on the web domain.
+
 ## References
 
 - Legacy behavior/data source: `/Users/florin/Projects/scouts/utilities-scouts-cluj`

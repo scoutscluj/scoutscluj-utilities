@@ -8,7 +8,11 @@ import {
 } from './cookies';
 import { getSafeRedirectTarget } from './redirects';
 
-export const completeOrgoCallback = async (cookies: Cookies, successToken: string | null) => {
+export const completeOrgoCallback = async (
+	cookies: Cookies,
+	successToken: string | null,
+	redirectTo?: string | null
+) => {
 	if (!successToken) {
 		clearAuthCookies(cookies);
 		error(400, 'Lipseste tokenul de autentificare Orgo.');
@@ -26,7 +30,9 @@ export const completeOrgoCallback = async (cookies: Cookies, successToken: strin
 		error(401, payload?.message ?? 'Autentificarea prin Orgo a esuat.');
 	}
 
-	const redirectTarget = getSafeRedirectTarget(cookies.get(ORGO_REDIRECT_COOKIE_NAME));
+	const redirectTarget = getSafeRedirectTarget(
+		redirectTo ?? cookies.get(ORGO_REDIRECT_COOKIE_NAME)
+	);
 
 	setSessionCookie(cookies, payload.session_token);
 	setOrgoSuccessCookie(cookies, successToken);

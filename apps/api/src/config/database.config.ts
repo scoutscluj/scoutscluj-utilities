@@ -1,4 +1,5 @@
 import type { Options } from '@mikro-orm/core';
+import { Migrator } from '@mikro-orm/migrations';
 import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 
 export const DEFAULT_DATABASE_URL =
@@ -12,6 +13,7 @@ export const createMikroOrmOptions = (): Partial<
 > => ({
   driver: PostgreSqlDriver,
   clientUrl: getDatabaseUrl(),
+  extensions: [Migrator],
   entities: ['./dist/**/*.entity.js'],
   entitiesTs: ['./src/**/*.entity.ts'],
   migrations: {

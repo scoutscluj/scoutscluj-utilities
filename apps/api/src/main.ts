@@ -22,10 +22,22 @@ const getAllowedOrigins = (config: ConfigService) => {
   );
 };
 
+const getPort = (config: ConfigService) => {
+  const configuredPort =
+    config.get<string>('PORT') ?? config.get<string>('API_PORT') ?? '3000';
+  const port = Number(configuredPort);
+
+  if (!Number.isInteger(port) || port <= 0) {
+    throw new Error(`Invalid API port: ${configuredPort}`);
+  }
+
+  return port;
+};
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
-  const port = config.get<number>('API_PORT') ?? 3000;
+  const port = getPort(config);
 
   app.setGlobalPrefix('api');
   app.enableCors({
@@ -44,6 +56,6 @@ async function bootstrap() {
     SwaggerModule.createDocument(app, documentConfig),
   );
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 }
 void bootstrap();

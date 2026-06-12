@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
@@ -10,6 +13,11 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "verify": "turbo run verify",
+    "railway:build:api": "pnpm --filter api build",
+    "railway:start:api": "pnpm --filter api start:prod",
+    "railway:migrate:api": "pnpm --filter api migrate:prod",
+    "railway:build:web": "pnpm --filter web build",
+    "railway:start:web": "HOST=0.0.0.0 node apps/web/build/index.js",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
     "db:logs": "docker compose logs -f db",

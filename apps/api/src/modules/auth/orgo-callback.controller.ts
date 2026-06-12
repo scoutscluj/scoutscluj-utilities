@@ -1,12 +1,10 @@
 import { Controller, Get, Query, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
-import { AuthService } from './auth.service';
 import {
   ORGO_REDIRECT_COOKIE_NAME,
   ORGO_WEB_ORIGIN_COOKIE_NAME,
 } from './session.constants';
-import { SessionService } from './session.service';
 
 const parseCookies = (cookieHeader?: string) => {
   if (!cookieHeader) {
@@ -40,14 +38,10 @@ const getSafePath = (value?: string) => {
 
 @Controller('orgo')
 export class OrgoCallbackController {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly configService: ConfigService,
-    private readonly sessionService: SessionService,
-  ) {}
+  constructor(private readonly configService: ConfigService) {}
 
   @Get('callback')
-  async callback(
+  callback(
     @Query('successToken') successToken: string | undefined,
     @Req() request: Request,
     @Res() response: Response,
@@ -59,26 +53,19 @@ export class OrgoCallbackController {
       );
     }
 
-    try {
-      await this.authService.signInWithOrgo(successToken, response);
-      this.sessionService.setOrgoSuccessCookie(response, successToken);
+    const cookies = parseCookies(request.headers.cookie);
+    const redirectPath = getSafePath(cookies[ORGO_REDIRECT_COOKIE_NAME]);
+    const callbackUrl = new URL(
+      '/auth/orgo/callback',
+      this.getWebOrigin(request),
+    );
+    callbackUrl.searchParams.set('successToken', successToken);
+    callbackUrl.searchParams.set('redirectTo', redirectPath);
 
-      const cookies = parseCookies(request.headers.cookie);
-      const redirectPath = getSafePath(cookies[ORGO_REDIRECT_COOKIE_NAME]);
+    response.clearCookie(ORGO_REDIRECT_COOKIE_NAME, { path: '/' });
+    response.clearCookie(ORGO_WEB_ORIGIN_COOKIE_NAME, { path: '/' });
 
-      response.clearCookie(ORGO_REDIRECT_COOKIE_NAME, { path: '/' });
-      response.clearCookie(ORGO_WEB_ORIGIN_COOKIE_NAME, { path: '/' });
-
-      return response.redirect(
-        303,
-        `${this.getWebOrigin(request)}${redirectPath}`,
-      );
-    } catch {
-      return response.redirect(
-        303,
-        `${this.getWebOrigin(request)}/login?orgo=error`,
-      );
-    }
+    return response.redirect(303, callbackUrl.toString());
   }
 
   private getWebOrigin(request: Request) {

@@ -2,7 +2,7 @@ import { env } from '$env/dynamic/public';
 import type { CurrentUser } from '$lib/auth/types';
 import { SESSION_COOKIE_NAME } from './cookies';
 
-const getApiBaseUrl = () => env.PUBLIC_API_BASE_URL || 'http://localhost:3000';
+export const getApiBaseUrl = () => env.PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
 export type OrgoRequestTokenResponse = {
 	request_token?: string;

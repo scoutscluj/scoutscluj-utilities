@@ -20,6 +20,36 @@ pnpm dev
 The API defaults to `http://localhost:3000`.
 The web app defaults to `http://localhost:5173`.
 
+## Authentication Setup
+
+Orgo SSO is the initial login method. Configure these values before testing the
+real OAuth flow:
+
+```bash
+AUTH_SESSION_SECRET=replace-with-a-long-random-secret
+ORGO_OAUTH_BASE_URL=https://membri.scout.ro
+ORGO_OAUTH_CLIENT_ID=replace-me
+ORGO_OAUTH_CLIENT_SECRET=replace-me
+PUBLIC_API_BASE_URL=http://localhost:3000
+WEB_ORIGIN=http://localhost:5173
+WEB_ORIGINS=http://localhost:5173,http://localhost:5174
+```
+
+Run the auth migration before using the login flow:
+
+```bash
+pnpm --filter api migration:up
+```
+
+The Orgo OAuth redirect URI should point to the API callback route:
+`http://localhost:3000/api/orgo/callback`.
+
+The first `super_admin` is assigned manually after that user has logged in once:
+
+```sql
+update users set roles = array['super_admin']::user_role[] where email = 'user@example.com';
+```
+
 ## Scripts
 
 ```bash

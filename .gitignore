@@ -9,3 +9,4 @@ build
 .svelte-kit
 coverage
 *.log
+old_app

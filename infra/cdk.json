@@ -1,0 +1,14 @@
+{
+  "app": "pnpm exec tsx bin/scoutscluj-infra.ts",
+  "context": {
+    "environmentName": "production",
+    "region": "eu-central-1",
+    "domainName": "scoutscluj.ro",
+    "appHostName": "resurse.scoutscluj.ro",
+    "manageDns": true,
+    "dbName": "scoutscluj_utilities",
+    "ec2InstanceType": "t4g.small",
+    "rdsInstanceType": "t4g.micro",
+    "githubBranch": "main"
+  }
+}

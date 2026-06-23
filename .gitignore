@@ -10,3 +10,4 @@ build
 coverage
 *.log
 old_app
+cdk.out

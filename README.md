@@ -117,3 +117,24 @@ service callback so the browser session cookie is stored on the web domain.
 - Local monorepo pattern reference: `/Users/florin/Projects/scouts/contingent-management-app`
 
 Use OpenSpec proposals for major migrated capabilities before implementation.
+
+## AWS Infrastructure
+
+The first AWS target is CDK-managed EC2 plus RDS:
+
+- `https://resurse.scoutscluj.ro` is the only public hostname.
+- The EC2 host exposes only ports `80` and `443`.
+- The API is not exposed on a public port; `/api/*` is reverse-proxied locally.
+- PostgreSQL runs on private RDS.
+- GitHub Actions owns build, image push, migrations, and deploy orchestration.
+
+See `docs/infrastructure/aws.md` and
+`docs/adr/0001-use-ec2-rds-for-initial-aws-infrastructure.md`.
+
+Common commands:
+
+```bash
+pnpm infra:synth
+pnpm infra:diff
+pnpm infra:deploy
+```

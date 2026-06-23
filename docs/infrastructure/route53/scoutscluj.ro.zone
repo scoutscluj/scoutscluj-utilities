@@ -1,0 +1,20 @@
+$ORIGIN scoutscluj.ro.
+$TTL 300
+
+; Import this file into the new Route 53 public hosted zone for scoutscluj.ro.
+; Do not import the old hosted zone NS/SOA records. Route 53 creates new ones.
+
+@                               300 IN A     76.76.21.21
+www                             300 IN A     76.76.21.21
+
+consiliu                        300 IN CNAME cname.vercel-dns.com.
+formular230                     300 IN CNAME cname.vercel-dns.com.
+info                            300 IN CNAME b8ca247025c7f531.vercel-dns-017.com.
+new                             300 IN CNAME da204fbc2d1e64bf.vercel-dns-017.com.
+
+firebase1._domainkey.resurse    300 IN CNAME mail-resurse-scoutscluj-ro.dkim1._domainkey.firebasemail.com.
+firebase2._domainkey.resurse    300 IN CNAME mail-resurse-scoutscluj-ro.dkim2._domainkey.firebasemail.com.
+
+; resurse.scoutscluj.ro is intentionally managed by the CDK app stack.
+; The old record was:
+; resurse                       300 IN CNAME cname.vercel-dns.com.

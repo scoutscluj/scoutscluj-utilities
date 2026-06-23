@@ -8,11 +8,29 @@ export const DEFAULT_DATABASE_URL =
 export const getDatabaseUrl = () =>
   process.env.DATABASE_URL || DEFAULT_DATABASE_URL;
 
+const isDatabaseSslEnabled = () =>
+  process.env.DATABASE_SSL === 'true' ||
+  getDatabaseUrl().includes('sslmode=require');
+
+const getDatabaseDriverOptions = () => {
+  if (!isDatabaseSslEnabled()) {
+    return {};
+  }
+
+  return {
+    ssl: {
+      rejectUnauthorized:
+        process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false',
+    },
+  };
+};
+
 export const createMikroOrmOptions = (): Partial<
   Options<PostgreSqlDriver>
 > => ({
   driver: PostgreSqlDriver,
   clientUrl: getDatabaseUrl(),
+  driverOptions: getDatabaseDriverOptions(),
   extensions: [Migrator],
   entities: ['./dist/**/*.entity.js'],
   entitiesTs: ['./src/**/*.entity.ts'],

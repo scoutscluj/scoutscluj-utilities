@@ -93,6 +93,8 @@ write_env_value "${API_ENV_FILE}" NODE_ENV production
 write_env_value "${API_ENV_FILE}" PORT 3000
 write_env_value "${API_ENV_FILE}" API_PORT 3000
 write_env_value "${API_ENV_FILE}" DATABASE_URL "${DATABASE_URL}"
+write_env_value "${API_ENV_FILE}" DATABASE_SSL true
+write_env_value "${API_ENV_FILE}" DATABASE_SSL_REJECT_UNAUTHORIZED false
 write_env_value "${API_ENV_FILE}" AUTH_SESSION_SECRET "${AUTH_SESSION_SECRET}"
 write_env_value "${API_ENV_FILE}" ORGO_OAUTH_BASE_URL "${ORGO_OAUTH_BASE_URL}"
 write_env_value "${API_ENV_FILE}" ORGO_OAUTH_CLIENT_ID "${ORGO_OAUTH_CLIENT_ID}"

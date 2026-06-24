@@ -1,5 +1,5 @@
-export type UserRole = 'moderator' | 'admin' | 'super_admin';
-export type AppHref = '/' | '/profile' | '/admin';
+export type UserRole = 'moderator' | 'admin' | 'finance_manager' | 'super_admin';
+export type AppHref = '/' | '/profile' | '/admin' | '/finance' | '/finance/documents';
 
 export type CurrentUser = {
 	id: number;

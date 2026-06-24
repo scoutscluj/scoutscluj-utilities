@@ -38,4 +38,24 @@ describe('RolesGuard', () => {
       guard.canActivate(createContext([UserRole.Moderator])),
     ).toThrow(ForbiddenException);
   });
+
+  it('does not let admins inherit finance permissions', () => {
+    const reflector = {
+      getAllAndOverride: jest.fn(() => [UserRole.FinanceManager]),
+    } as unknown as Reflector;
+    const guard = new RolesGuard(reflector);
+
+    expect(() => guard.canActivate(createContext([UserRole.Admin]))).toThrow(
+      ForbiddenException,
+    );
+  });
+
+  it('lets super admins cover finance permissions', () => {
+    const reflector = {
+      getAllAndOverride: jest.fn(() => [UserRole.FinanceManager]),
+    } as unknown as Reflector;
+    const guard = new RolesGuard(reflector);
+
+    expect(guard.canActivate(createContext([UserRole.SuperAdmin]))).toBe(true);
+  });
 });

@@ -1,9 +1,10 @@
 import type { CurrentUser, UserRole } from './types';
 
-const roleRank: Record<UserRole, number> = {
-	moderator: 1,
-	admin: 2,
-	super_admin: 3
+const impliedRoles: Record<UserRole, UserRole[]> = {
+	moderator: ['moderator'],
+	admin: ['admin', 'moderator'],
+	finance_manager: ['finance_manager'],
+	super_admin: ['super_admin', 'admin', 'moderator', 'finance_manager']
 };
 
 export const hasRole = (user: CurrentUser | null | undefined, role: UserRole) => {
@@ -11,7 +12,7 @@ export const hasRole = (user: CurrentUser | null | undefined, role: UserRole) =>
 		return false;
 	}
 
-	return user.roles.some((userRole) => roleRank[userRole] >= roleRank[role]);
+	return user.roles.some((userRole) => impliedRoles[userRole]?.includes(role));
 };
 
 export const formatRole = (role: UserRole) => {
@@ -20,6 +21,8 @@ export const formatRole = (role: UserRole) => {
 			return 'Moderator';
 		case 'admin':
 			return 'Admin';
+		case 'finance_manager':
+			return 'Responsabil financiar';
 		case 'super_admin':
 			return 'Super admin';
 	}

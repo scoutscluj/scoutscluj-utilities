@@ -42,6 +42,10 @@
 				return resolve('/profile');
 			case '/admin':
 				return resolve('/admin');
+			case '/finance':
+				return resolve('/finance');
+			case '/finance/documents':
+				return resolve('/finance/documents');
 		}
 	};
 
@@ -56,7 +60,7 @@
 
 <div class="app-shell">
 	{#if mobileOpen}
-		<button class="scrim" type="button" aria-label="Inchide meniul" onclick={closeMobile}></button>
+		<button class="scrim" type="button" aria-label="Închide meniul" onclick={closeMobile}></button>
 	{/if}
 
 	<aside class:open={mobileOpen} class="sidebar" aria-label="Meniu principal">

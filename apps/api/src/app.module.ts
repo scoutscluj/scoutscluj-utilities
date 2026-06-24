@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { createMikroOrmOptions } from './config/database.config';
 import { AuthModule } from './modules/auth/auth.module';
+import { FinanceModule } from './modules/finance/finance.module';
 import { HealthModule } from './modules/health/health.module';
 
 @Module({
@@ -16,6 +17,7 @@ import { HealthModule } from './modules/health/health.module';
     MikroOrmModule.forRoot(createMikroOrmOptions()),
     HealthModule,
     AuthModule,
+    FinanceModule,
   ],
   controllers: [AppController],
   providers: [AppService],

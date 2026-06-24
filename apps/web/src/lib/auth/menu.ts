@@ -5,8 +5,8 @@ export const menuItems: MenuItem[] = [
 	{
 		label: 'Info',
 		children: [
-			{ label: 'Anunturi', disabled: true },
-			{ label: 'National', disabled: true },
+			{ label: 'Anunțuri', disabled: true },
+			{ label: 'Național', disabled: true },
 			{ label: 'General', disabled: true }
 		]
 	},
@@ -21,8 +21,10 @@ export const menuItems: MenuItem[] = [
 	{
 		label: 'Financiar',
 		children: [
+			{ label: 'Documente', href: '/finance/documents' },
+			{ label: 'Panou financiar', href: '/finance', minRole: 'finance_manager' },
 			{ label: 'Buget', disabled: true },
-			{ label: 'Cotizatii', disabled: true }
+			{ label: 'Cotizații', disabled: true }
 		]
 	},
 	{ label: 'Micro-stagii', disabled: true },
@@ -34,7 +36,7 @@ export const menuItems: MenuItem[] = [
 		children: [
 			{ label: 'Administrare', href: '/admin', minRole: 'moderator' },
 			{ label: 'Utilizatori', disabled: true, minRole: 'admin' },
-			{ label: 'Notificari', disabled: true, minRole: 'super_admin' }
+			{ label: 'Notificări', disabled: true, minRole: 'super_admin' }
 		]
 	}
 ];

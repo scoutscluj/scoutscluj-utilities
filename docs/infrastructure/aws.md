@@ -38,7 +38,12 @@ pnpm infra:deploy
 ```
 
 The stack defaults to `eu-central-1`, `scoutscluj.ro`, and
-`resurse.scoutscluj.ro`. Override values with CDK context when needed:
+`resurse.scoutscluj.ro`. It also defaults the GitHub deployment role to the
+`scoutscluj/scoutscluj-utilities` repository on the `main` branch, so the root
+`pnpm infra:synth`, `pnpm infra:diff`, and `pnpm infra:deploy` scripts produce
+the same stack shape for the main production repository.
+
+Override values with CDK context when needed:
 
 ```bash
 pnpm --filter infra deploy \
@@ -78,8 +83,8 @@ GitHub Actions should:
    EC2 host.
 5. Run database migrations before or during the application restart.
 
-The CDK stack creates the GitHub OIDC deploy role only when
-`githubRepository=owner/repository` is provided as context.
+The CDK stack creates the GitHub OIDC deploy role for the repository configured
+by `githubRepository`.
 
 ## Deployment Workflow
 
@@ -135,13 +140,14 @@ deploy role:
 AWS_DEPLOY_ROLE_ARN=arn:aws:iam::<account-id>:role/<github-deploy-role>
 ```
 
-Deploy the stack with `githubRepository` so the OIDC role is created:
+Deploy the stack from this repository with:
 
 ```bash
-pnpm --filter infra deploy \
-  --context githubRepository=owner/repository \
-  --context githubBranch=main
+pnpm infra:deploy
 ```
+
+For a fork or a different deployment repository, override `githubRepository`
+when running `synth`, `diff`, and `deploy`.
 
 The app secret must contain real Orgo credentials before the first deployment:
 

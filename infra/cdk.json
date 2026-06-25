@@ -9,6 +9,7 @@
     "dbName": "scoutscluj_utilities",
     "ec2InstanceType": "t4g.small",
     "rdsInstanceType": "t4g.micro",
+    "githubRepository": "scoutscluj/scoutscluj-utilities",
     "githubBranch": "main"
   }
 }

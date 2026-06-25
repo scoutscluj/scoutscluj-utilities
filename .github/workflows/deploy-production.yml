@@ -83,6 +83,9 @@ jobs:
             echo "app_secret_name=$(output_value ApplicationSecretName)"
             echo "database_secret_name=$(output_value DatabaseSecretName)"
             echo "database_endpoint=$(output_value DatabaseEndpoint)"
+            echo "api_log_group_name=$(output_value ApiLogGroupName)"
+            echo "web_log_group_name=$(output_value WebLogGroupName)"
+            echo "caddy_log_group_name=$(output_value CaddyLogGroupName)"
           } >>"${GITHUB_OUTPUT}"
 
       - name: Set up QEMU
@@ -133,6 +136,9 @@ jobs:
             --arg databaseSecret "${{ steps.stack.outputs.database_secret_name }}" \
             --arg databaseEndpoint "${{ steps.stack.outputs.database_endpoint }}" \
             --arg dbName "${DB_NAME}" \
+            --arg apiLogGroup "${{ steps.stack.outputs.api_log_group_name }}" \
+            --arg webLogGroup "${{ steps.stack.outputs.web_log_group_name }}" \
+            --arg caddyLogGroup "${{ steps.stack.outputs.caddy_log_group_name }}" \
             '{
               commands: [
                 "cat > /tmp/scoutscluj-deploy.sh <<'\''SCOUTSCLUJ_DEPLOY'\''\n" + $script + "\nSCOUTSCLUJ_DEPLOY",
@@ -144,6 +150,9 @@ jobs:
                   " DATABASE_SECRET_NAME=" + ($databaseSecret | @sh) +
                   " DATABASE_ENDPOINT=" + ($databaseEndpoint | @sh) +
                   " DB_NAME=" + ($dbName | @sh) +
+                  " API_LOG_GROUP=" + ($apiLogGroup | @sh) +
+                  " WEB_LOG_GROUP=" + ($webLogGroup | @sh) +
+                  " CADDY_LOG_GROUP=" + ($caddyLogGroup | @sh) +
                   " /tmp/scoutscluj-deploy.sh"
               ]
             }')"

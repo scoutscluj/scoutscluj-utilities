@@ -99,6 +99,35 @@ The workflow:
 8. Checks `http://127.0.0.1:3000/api/health` and
    `http://127.0.0.1:3001/health` on the host.
 
+## Runtime Logs
+
+Production runtime logs are sent to CloudWatch Logs through Docker's `awslogs`
+logging driver. CDK creates one log group per runtime container:
+
+- `/scoutscluj/production/api`
+- `/scoutscluj/production/web`
+- `/scoutscluj/production/caddy`
+
+The API and web containers are configured by `deploy/ec2-deploy.sh` on every
+deployment. The deploy script also rewrites the Caddyfile and recreates the
+Caddy container so existing EC2 hosts receive the CloudWatch log driver without
+waiting for EC2 user data to rerun.
+
+Tail logs with:
+
+```bash
+aws logs tail /scoutscluj/production/api --region eu-central-1 --follow
+aws logs tail /scoutscluj/production/web --region eu-central-1 --follow
+aws logs tail /scoutscluj/production/caddy --region eu-central-1 --follow
+```
+
+When a container uses the `awslogs` driver, `docker logs` may not be available
+from the EC2 host. Use CloudWatch Logs as the source of truth for production
+runtime logs.
+
+Caddy access logs are enabled for proxied requests. The Caddyfile redacts common
+OAuth query parameters and sensitive request headers before logs are shipped.
+
 Set this GitHub Actions repository variable after the CDK stack creates the
 deploy role:
 

@@ -9,11 +9,18 @@ set -Eeuo pipefail
 : "${DATABASE_ENDPOINT:?DATABASE_ENDPOINT is required}"
 
 DB_NAME="${DB_NAME:-scoutscluj_utilities}"
+LOG_GROUP_PREFIX="${LOG_GROUP_PREFIX:-/scoutscluj/production}"
+API_LOG_GROUP="${API_LOG_GROUP:-${LOG_GROUP_PREFIX}/api}"
+WEB_LOG_GROUP="${WEB_LOG_GROUP:-${LOG_GROUP_PREFIX}/web}"
+CADDY_LOG_GROUP="${CADDY_LOG_GROUP:-${LOG_GROUP_PREFIX}/caddy}"
 RUNTIME_DIR="/opt/scoutscluj/runtime"
 API_ENV_FILE="${RUNTIME_DIR}/api.env"
 WEB_ENV_FILE="${RUNTIME_DIR}/web.env"
+CADDYFILE="/opt/scoutscluj/Caddyfile"
+CADDY_DATA_DIR="/opt/scoutscluj/caddy/data"
+CADDY_CONFIG_DIR="/opt/scoutscluj/caddy/config"
 
-mkdir -p "${RUNTIME_DIR}"
+mkdir -p "${RUNTIME_DIR}" "${CADDY_DATA_DIR}" "${CADDY_CONFIG_DIR}"
 chmod 700 "${RUNTIME_DIR}"
 
 require_command() {
@@ -36,6 +43,100 @@ write_env_value() {
   local value="$3"
 
   printf "%s=%s\n" "${key}" "${value}" >>"${file}"
+}
+
+origin_host() {
+  local origin="$1"
+
+  origin="${origin#http://}"
+  origin="${origin#https://}"
+  origin="${origin%%/*}"
+
+  printf "%s" "${origin}"
+}
+
+write_caddyfile() {
+  local app_host_name="$1"
+
+  cat >"${CADDYFILE}" <<EOF
+{
+	email admin@scoutscluj.ro
+}
+
+${app_host_name} {
+	encode zstd gzip
+
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>uri query {
+					delete access_token
+					delete code
+					delete id_token
+					delete refresh_token
+					delete state
+					delete token
+				}
+				request>headers>Authorization delete
+				request>headers>Cookie delete
+				request>headers>Proxy-Authorization delete
+				request>headers>Set-Cookie delete
+				resp_headers>Set-Cookie delete
+			}
+		}
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	reverse_proxy /api/* 127.0.0.1:3000
+	reverse_proxy 127.0.0.1:3001
+}
+EOF
+}
+
+restart_caddy() {
+  local app_host_name="$1"
+
+  write_caddyfile "${app_host_name}"
+  docker pull caddy:2 || true
+  docker rm -f scoutscluj-caddy >/dev/null 2>&1 || true
+
+  docker run -d \
+    --name scoutscluj-caddy \
+    --restart unless-stopped \
+    --network host \
+    --log-driver awslogs \
+    --log-opt "awslogs-region=${AWS_REGION}" \
+    --log-opt "awslogs-group=${CADDY_LOG_GROUP}" \
+    --log-opt awslogs-stream=scoutscluj-caddy \
+    --log-opt mode=non-blocking \
+    --log-opt max-buffer-size=4m \
+    -v "${CADDYFILE}:/etc/caddy/Caddyfile:ro" \
+    -v "${CADDY_DATA_DIR}:/data" \
+    -v "${CADDY_CONFIG_DIR}:/config" \
+    caddy:2
+}
+
+print_container_logs() {
+  local container_name="$1"
+  local log_group="$2"
+
+  if docker logs --tail 200 "${container_name}" >&2; then
+    return
+  fi
+
+  echo "Docker logs are unavailable for ${container_name}; tailing CloudWatch ${log_group}." >&2
+  aws logs tail "${log_group}" \
+    --region "${AWS_REGION}" \
+    --since 10m \
+    --format short >&2 || true
 }
 
 require_command aws
@@ -88,6 +189,13 @@ for required_value in \
   fi
 done
 
+APP_HOST_NAME="$(origin_host "${WEB_ORIGIN}")"
+
+if [[ -z "${APP_HOST_NAME}" ]]; then
+  echo "WEB_ORIGIN must contain a hostname." >&2
+  exit 1
+fi
+
 : >"${API_ENV_FILE}"
 write_env_value "${API_ENV_FILE}" NODE_ENV production
 write_env_value "${API_ENV_FILE}" PORT 3000
@@ -122,15 +230,29 @@ docker pull "${WEB_IMAGE}"
 echo "Running database migrations with ${API_IMAGE}"
 docker run --rm \
   --name scoutscluj-api-migrate \
+  --log-driver awslogs \
+  --log-opt "awslogs-region=${AWS_REGION}" \
+  --log-opt "awslogs-group=${API_LOG_GROUP}" \
+  --log-opt awslogs-stream=scoutscluj-api-migrate \
+  --log-opt mode=non-blocking \
+  --log-opt max-buffer-size=4m \
   --env-file "${API_ENV_FILE}" \
   "${API_IMAGE}" \
   node apps/api/dist/migrate.js
+
+restart_caddy "${APP_HOST_NAME}"
 
 docker rm -f scoutscluj-api scoutscluj-web >/dev/null 2>&1 || true
 
 docker run -d \
   --name scoutscluj-api \
   --restart unless-stopped \
+  --log-driver awslogs \
+  --log-opt "awslogs-region=${AWS_REGION}" \
+  --log-opt "awslogs-group=${API_LOG_GROUP}" \
+  --log-opt awslogs-stream=scoutscluj-api \
+  --log-opt mode=non-blocking \
+  --log-opt max-buffer-size=4m \
   --env-file "${API_ENV_FILE}" \
   -p 127.0.0.1:3000:3000 \
   "${API_IMAGE}"
@@ -138,6 +260,12 @@ docker run -d \
 docker run -d \
   --name scoutscluj-web \
   --restart unless-stopped \
+  --log-driver awslogs \
+  --log-opt "awslogs-region=${AWS_REGION}" \
+  --log-opt "awslogs-group=${WEB_LOG_GROUP}" \
+  --log-opt awslogs-stream=scoutscluj-web \
+  --log-opt mode=non-blocking \
+  --log-opt max-buffer-size=4m \
   --env-file "${WEB_ENV_FILE}" \
   -p 127.0.0.1:3001:3000 \
   "${WEB_IMAGE}"
@@ -154,6 +282,7 @@ for attempt in {1..30}; do
 done
 
 echo "Deployment health checks failed." >&2
-docker logs --tail 200 scoutscluj-api >&2 || true
-docker logs --tail 200 scoutscluj-web >&2 || true
+print_container_logs scoutscluj-api "${API_LOG_GROUP}"
+print_container_logs scoutscluj-web "${WEB_LOG_GROUP}"
+print_container_logs scoutscluj-caddy "${CADDY_LOG_GROUP}"
 exit 1

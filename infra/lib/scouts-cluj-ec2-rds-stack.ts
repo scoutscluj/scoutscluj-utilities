@@ -8,6 +8,7 @@ import {
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as ecr from "aws-cdk-lib/aws-ecr";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as logs from "aws-cdk-lib/aws-logs";
 import * as rds from "aws-cdk-lib/aws-rds";
 import * as route53 from "aws-cdk-lib/aws-route53";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
@@ -139,6 +140,13 @@ export class ScoutsClujEc2RdsStack extends Stack {
       removalPolicy: RemovalPolicy.RETAIN,
       lifecycleRules: [{ maxImageCount: 20 }],
     });
+    const apiLogGroup = createServiceLogGroup(this, environmentName, "api");
+    const webLogGroup = createServiceLogGroup(this, environmentName, "web");
+    const caddyLogGroup = createServiceLogGroup(
+      this,
+      environmentName,
+      "caddy",
+    );
 
     const hostRole = new iam.Role(this, "HostRole", {
       assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),
@@ -155,6 +163,9 @@ export class ScoutsClujEc2RdsStack extends Stack {
     webRepository.grantPull(hostRole);
     appSecret.grantRead(hostRole);
     databaseSecret.grantRead(hostRole);
+    apiLogGroup.grantWrite(hostRole);
+    webLogGroup.grantWrite(hostRole);
+    caddyLogGroup.grantWrite(hostRole);
 
     const userData = ec2.UserData.forLinux();
     userData.addCommands(
@@ -166,14 +177,10 @@ export class ScoutsClujEc2RdsStack extends Stack {
       "usermod -aG docker ec2-user",
       "mkdir -p /opt/scoutscluj/caddy/data /opt/scoutscluj/caddy/config /opt/scoutscluj/deploy",
       renderCaddyfile(appHostName),
-      [
-        "docker run -d --name scoutscluj-caddy --restart unless-stopped",
-        "--network host",
-        "-v /opt/scoutscluj/Caddyfile:/etc/caddy/Caddyfile:ro",
-        "-v /opt/scoutscluj/caddy/data:/data",
-        "-v /opt/scoutscluj/caddy/config:/config",
-        "caddy:2",
-      ].join(" "),
+      renderCaddyDockerRun({
+        caddyLogGroupName: caddyLogGroup.logGroupName,
+        region: this.region,
+      }),
     );
 
     const host = new ec2.Instance(this, "AppHost", {
@@ -249,6 +256,15 @@ export class ScoutsClujEc2RdsStack extends Stack {
     new CfnOutput(this, "DatabaseEndpoint", {
       value: database.dbInstanceEndpointAddress,
     });
+    new CfnOutput(this, "ApiLogGroupName", {
+      value: apiLogGroup.logGroupName,
+    });
+    new CfnOutput(this, "WebLogGroupName", {
+      value: webLogGroup.logGroupName,
+    });
+    new CfnOutput(this, "CaddyLogGroupName", {
+      value: caddyLogGroup.logGroupName,
+    });
 
     if (githubDeployRole) {
       new CfnOutput(this, "GithubDeployRoleArn", {
@@ -270,6 +286,24 @@ const contextBoolean = (scope: Construct, key: string, fallback: boolean) => {
 
   return value === true || value === "true";
 };
+
+const serviceLogGroupName = (environmentName: string, serviceName: string) =>
+  `/scoutscluj/${environmentName}/${serviceName}`;
+
+const createServiceLogGroup = (
+  scope: Construct,
+  environmentName: string,
+  serviceName: string,
+) =>
+  new logs.LogGroup(
+    scope,
+    `${serviceName[0].toUpperCase()}${serviceName.slice(1)}LogGroup`,
+    {
+      logGroupName: serviceLogGroupName(environmentName, serviceName),
+      retention: logs.RetentionDays.ONE_MONTH,
+      removalPolicy: RemovalPolicy.RETAIN,
+    },
+  );
 
 const hostedZone = (scope: Construct, domainName: string) => {
   const hostedZoneId = scope.node.tryGetContext("hostedZoneId") as
@@ -298,6 +332,28 @@ const renderCaddyfile = (
 ${appHostName} {
 	encode zstd gzip
 
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>uri query {
+					delete access_token
+					delete code
+					delete id_token
+					delete refresh_token
+					delete state
+					delete token
+				}
+				request>headers>Authorization delete
+				request>headers>Cookie delete
+				request>headers>Proxy-Authorization delete
+				request>headers>Set-Cookie delete
+				resp_headers>Set-Cookie delete
+			}
+		}
+	}
+
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
@@ -309,6 +365,30 @@ ${appHostName} {
 	reverse_proxy 127.0.0.1:3001
 }
 EOF`;
+
+type CaddyDockerRunProps = {
+  caddyLogGroupName: string;
+  region: string;
+};
+
+const renderCaddyDockerRun = ({
+  caddyLogGroupName,
+  region,
+}: CaddyDockerRunProps) =>
+  [
+    "docker run -d --name scoutscluj-caddy --restart unless-stopped",
+    "--network host",
+    "--log-driver awslogs",
+    `--log-opt awslogs-region=${region}`,
+    `--log-opt awslogs-group=${caddyLogGroupName}`,
+    "--log-opt awslogs-stream=scoutscluj-caddy",
+    "--log-opt mode=non-blocking",
+    "--log-opt max-buffer-size=4m",
+    "-v /opt/scoutscluj/Caddyfile:/etc/caddy/Caddyfile:ro",
+    "-v /opt/scoutscluj/caddy/data:/data",
+    "-v /opt/scoutscluj/caddy/config:/config",
+    "caddy:2",
+  ].join(" ");
 
 type GithubDeployRoleProps = {
   apiRepository: ecr.Repository;

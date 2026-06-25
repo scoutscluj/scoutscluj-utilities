@@ -1,6 +1,7 @@
 import type { Options } from '@mikro-orm/core';
 import { Migrator } from '@mikro-orm/migrations';
 import { PostgreSqlDriver } from '@mikro-orm/postgresql';
+import { join } from 'node:path';
 
 export const DEFAULT_DATABASE_URL =
   'postgresql://postgres:postgres@localhost:5432/scoutscluj_utilities';
@@ -32,11 +33,11 @@ export const createMikroOrmOptions = (): Partial<
   clientUrl: getDatabaseUrl(),
   driverOptions: getDatabaseDriverOptions(),
   extensions: [Migrator],
-  entities: ['./dist/**/*.entity.js'],
-  entitiesTs: ['./src/**/*.entity.ts'],
+  entities: [join(__dirname, '..', '**', '*.entity.js')],
+  entitiesTs: [join(__dirname, '..', '**', '*.entity.ts')],
   migrations: {
-    path: './dist/migrations',
-    pathTs: './src/migrations',
+    path: join(__dirname, '..', 'migrations'),
+    pathTs: join(__dirname, '..', 'migrations'),
   },
   discovery: {
     warnWhenNoEntities: false,

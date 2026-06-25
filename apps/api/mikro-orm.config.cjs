@@ -1,5 +1,6 @@
 const { PostgreSqlDriver } = require('@mikro-orm/postgresql');
 const { config: loadEnv } = require('dotenv');
+const { join } = require('node:path');
 
 loadEnv({ path: '../../.env.local' });
 loadEnv({ path: '../../.env' });
@@ -32,11 +33,11 @@ module.exports = {
   driver: PostgreSqlDriver,
   clientUrl: getDatabaseUrl(),
   driverOptions: getDatabaseDriverOptions(),
-  entities: ['./dist/**/*.entity.js'],
-  entitiesTs: ['./src/**/*.entity.ts'],
+  entities: [join(__dirname, 'dist', '**', '*.entity.js')],
+  entitiesTs: [join(__dirname, 'src', '**', '*.entity.ts')],
   migrations: {
-    path: './dist/migrations',
-    pathTs: './src/migrations',
+    path: join(__dirname, 'dist', 'migrations'),
+    pathTs: join(__dirname, 'src', 'migrations'),
   },
   discovery: {
     warnWhenNoEntities: false,

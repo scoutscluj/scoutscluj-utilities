@@ -3,10 +3,13 @@ import { InjectRepository } from '@mikro-orm/nestjs';
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { createHash } from 'node:crypto';
+import { Activity } from '../activities/entities/activity.entity';
+import { AuditService } from '../audit/audit.service';
 import { UserRole } from '../users/entities/user-role.enum';
 import { User } from '../users/entities/user.entity';
 import type { CurrentUser } from '../users/users.types';
@@ -48,6 +51,10 @@ type FinancialDocumentFile = {
   fileData: Buffer;
 };
 
+type ListDocumentsInput = {
+  activityId?: string;
+};
+
 const cleanOptionalText = (value?: string) => {
   const cleaned = value?.trim();
   return cleaned || undefined;
@@ -67,10 +74,14 @@ export class FinanceService {
     private readonly auditsRepository: EntityRepository<FinancialDocumentAudit>,
     @InjectRepository(FinanceSettings)
     private readonly settingsRepository: EntityRepository<FinanceSettings>,
+    @InjectRepository(Activity)
+    private readonly activitiesRepository: EntityRepository<Activity>,
     @InjectRepository(User)
     private readonly usersRepository: EntityRepository<User>,
+    @Inject(EntityManager)
     private readonly em: EntityManager,
     private readonly keezService: KeezService,
+    private readonly auditService: AuditService,
   ) {}
 
   async createDocument(
@@ -92,6 +103,7 @@ export class FinanceService {
     }
 
     const checksumSha256 = createHash('sha256').update(fileData).digest('hex');
+    const activity = await this.resolveActivity(input.activityId);
     const document = this.documentsRepository.create({
       uploaderId: user.id,
       status: FinancialDocumentStatus.Uploaded,
@@ -100,7 +112,10 @@ export class FinanceService {
       fileSize: fileData.length,
       checksumSha256,
       fileData,
-      activityName: cleanOptionalText(input.activityName),
+      activityId: activity?.id,
+      activityName: activity
+        ? undefined
+        : cleanOptionalText(input.activityName)?.slice(0, 255),
       notes: cleanOptionalText(input.notes),
     });
 
@@ -113,18 +128,53 @@ export class FinanceService {
       FinancialDocumentStatus.Uploaded,
       document.notes ?? undefined,
     );
+    await this.auditService.record({
+      actorId: user.id,
+      action: 'financial_document.created',
+      entityType: 'financial_document',
+      entityId: document.id,
+      activityId: document.activityId ?? undefined,
+      metadata: {
+        originalFilename: document.originalFilename,
+        contentType: document.contentType,
+        fileSize: document.fileSize,
+        status: document.status,
+      },
+    });
 
     const [serialized] = await this.serializeDocuments([document]);
     return serialized;
   }
 
-  async listDocuments(user: CurrentUser): Promise<FinancialDocumentDto[]> {
-    const filter = this.canManageFinance(user) ? {} : { uploaderId: user.id };
-    const documents = await this.documentsRepository.find(filter, {
-      orderBy: { createdAt: 'desc' },
-    });
+  async listDocuments(
+    user: CurrentUser,
+    input: ListDocumentsInput = {},
+  ): Promise<FinancialDocumentDto[]> {
+    const activityId = this.parseOptionalId(input.activityId, 'Activitatea');
+    const documents = await this.documentsRepository.find(
+      activityId ? { activityId } : {},
+      {
+        orderBy: { createdAt: 'desc' },
+      },
+    );
+    const visibleDocuments = await this.filterVisibleDocuments(user, documents);
 
-    return this.serializeDocuments(documents);
+    return this.serializeDocuments(visibleDocuments);
+  }
+
+  async listDocumentsForActivity(
+    user: CurrentUser,
+    activityId: number,
+  ): Promise<FinancialDocumentDto[]> {
+    const documents = await this.documentsRepository.find(
+      { activityId },
+      {
+        orderBy: { createdAt: 'desc' },
+      },
+    );
+    const visibleDocuments = await this.filterVisibleDocuments(user, documents);
+
+    return this.serializeDocuments(visibleDocuments);
   }
 
   async listAudits(
@@ -198,6 +248,18 @@ export class FinanceService {
       input.status,
       reviewerNotes,
     );
+    await this.auditService.record({
+      actorId: user.id,
+      action: 'financial_document.status_updated',
+      entityType: 'financial_document',
+      entityId: document.id,
+      activityId: document.activityId ?? undefined,
+      metadata: {
+        fromStatus: previousStatus,
+        toStatus: input.status,
+        reviewerNotes,
+      },
+    });
 
     const [serialized] = await this.serializeDocuments([document]);
     return serialized;
@@ -260,6 +322,10 @@ export class FinanceService {
 
     return {
       totalDocuments: documents.length,
+      generalDocuments: documents.filter((document) => !document.activityId)
+        .length,
+      activityDocuments: documents.filter((document) => document.activityId)
+        .length,
       openDocuments,
       needsClarification: documents.filter(
         (document) => String(document.status) === 'needs_clarification',
@@ -288,17 +354,110 @@ export class FinanceService {
     return decoded;
   }
 
+  private parseOptionalId(value: string | undefined, fieldName: string) {
+    const cleaned = cleanOptionalText(value);
+    if (!cleaned) {
+      return undefined;
+    }
+
+    const parsed = Number(cleaned);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw new BadRequestException(`${fieldName} nu este validă.`);
+    }
+
+    return parsed;
+  }
+
+  private async resolveActivity(activityId?: number) {
+    if (activityId === undefined || activityId === null) {
+      return undefined;
+    }
+
+    if (!Number.isInteger(activityId) || activityId <= 0) {
+      throw new BadRequestException('Activitatea nu este validă.');
+    }
+
+    const activity = await this.activitiesRepository.findOne({
+      id: activityId,
+    });
+    if (!activity) {
+      throw new NotFoundException('Activitatea nu există.');
+    }
+
+    return activity;
+  }
+
   private async getVisibleDocument(user: CurrentUser, documentId: number) {
     const document = await this.documentsRepository.findOne({ id: documentId });
     if (!document) {
       throw new NotFoundException('Documentul financiar nu există.');
     }
 
-    if (!this.canManageFinance(user) && document.uploaderId !== user.id) {
+    if (
+      !this.canManageFinance(user) &&
+      document.uploaderId !== user.id &&
+      !(await this.isActivityCoordinator(user.id, document.activityId))
+    ) {
       throw new ForbiddenException('Nu ai acces la acest document financiar.');
     }
 
     return document;
+  }
+
+  private async filterVisibleDocuments(
+    user: CurrentUser,
+    documents: FinancialDocument[],
+  ) {
+    if (this.canManageFinance(user)) {
+      return documents;
+    }
+
+    const activityIds = documents
+      .map((document) => document.activityId)
+      .filter((activityId): activityId is number => Boolean(activityId));
+    const coordinatedActivityIds = await this.getCoordinatedActivityIds(
+      user.id,
+      activityIds,
+    );
+
+    return documents.filter(
+      (document) =>
+        document.uploaderId === user.id ||
+        Boolean(
+          document.activityId &&
+          coordinatedActivityIds.has(document.activityId),
+        ),
+    );
+  }
+
+  private async isActivityCoordinator(
+    userId: number,
+    activityId: number | null | undefined,
+  ) {
+    if (!activityId) {
+      return false;
+    }
+
+    const activity = await this.activitiesRepository.findOne({
+      id: activityId,
+    });
+    return activity?.coordinatorId === userId;
+  }
+
+  private async getCoordinatedActivityIds(
+    userId: number,
+    activityIds: number[],
+  ) {
+    const uniqueIds = Array.from(new Set(activityIds));
+    if (!uniqueIds.length) {
+      return new Set<number>();
+    }
+
+    const activities = await this.activitiesRepository.find({
+      id: { $in: uniqueIds },
+      coordinatorId: userId,
+    });
+    return new Set(activities.map((activity) => activity.id));
   }
 
   private canManageFinance(user: CurrentUser) {
@@ -349,6 +508,11 @@ export class FinanceService {
     const uploaderNames = await this.getUserNames(
       documents.map((document) => document.uploaderId),
     );
+    const activities = await this.getActivities(
+      documents
+        .map((document) => document.activityId)
+        .filter((activityId): activityId is number => Boolean(activityId)),
+    );
 
     return documents.map((document) => ({
       id: document.id,
@@ -361,6 +525,13 @@ export class FinanceService {
       contentType: document.contentType,
       fileSize: document.fileSize,
       checksumSha256: document.checksumSha256,
+      activityId: document.activityId ?? undefined,
+      activityTitle: document.activityId
+        ? activities.get(document.activityId)?.title
+        : undefined,
+      activityType: document.activityId
+        ? activities.get(document.activityId)?.type
+        : undefined,
       activityName: document.activityName ?? undefined,
       notes: document.notes ?? undefined,
       reviewerNotes: document.reviewerNotes ?? undefined,
@@ -369,6 +540,18 @@ export class FinanceService {
       createdAt: document.createdAt.toISOString(),
       updatedAt: document.updatedAt.toISOString(),
     }));
+  }
+
+  private async getActivities(activityIds: number[]) {
+    const uniqueIds = Array.from(new Set(activityIds));
+    if (!uniqueIds.length) {
+      return new Map<number, Activity>();
+    }
+
+    const activities = await this.activitiesRepository.find({
+      id: { $in: uniqueIds },
+    });
+    return new Map(activities.map((activity) => [activity.id, activity]));
   }
 
   private async getUserNames(userIds: number[]) {

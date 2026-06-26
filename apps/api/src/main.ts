@@ -1,7 +1,10 @@
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
+
+const DOCUMENT_UPLOAD_BODY_LIMIT = '25mb';
 
 const getAllowedOrigins = (config: ConfigService) => {
   const configuredOrigins =
@@ -35,10 +38,12 @@ const getPort = (config: ConfigService) => {
 };
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
   const config = app.get(ConfigService);
   const port = getPort(config);
 
+  app.use(json({ limit: DOCUMENT_UPLOAD_BODY_LIMIT }));
+  app.use(urlencoded({ extended: true, limit: DOCUMENT_UPLOAD_BODY_LIMIT }));
   app.setGlobalPrefix('api');
   app.enableCors({
     origin: getAllowedOrigins(config),

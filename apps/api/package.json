@@ -15,6 +15,7 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "migrate:prod": "node dist/migrate",
+    "kitchen:seed": "tsx src/seed-kitchen-catalog.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "typecheck": "tsc --noEmit",
     "verify": "pnpm lint && pnpm typecheck && pnpm format:check && pnpm test",

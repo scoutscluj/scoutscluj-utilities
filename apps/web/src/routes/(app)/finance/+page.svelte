@@ -5,6 +5,8 @@
 
 	const cards = $derived([
 		{ label: 'Documente totale', value: data.summary.totalDocuments },
+		{ label: 'Generale', value: data.summary.generalDocuments },
+		{ label: 'Pe activități', value: data.summary.activityDocuments },
 		{ label: 'Deschise', value: data.summary.openDocuments },
 		{ label: 'Necesită clarificări', value: data.summary.needsClarification },
 		{ label: 'Trimise', value: data.summary.sentDocuments }
@@ -145,7 +147,7 @@
 
 	@media (min-width: 900px) {
 		.stats-grid {
-			grid-template-columns: repeat(4, minmax(0, 1fr));
+			grid-template-columns: repeat(6, minmax(0, 1fr));
 		}
 	}
 

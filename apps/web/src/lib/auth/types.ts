@@ -4,6 +4,8 @@ export type AppHref =
 	| '/profile'
 	| '/admin'
 	| '/admin/users'
+	| '/audit'
+	| '/activities'
 	| '/finance'
 	| '/finance/documents';
 

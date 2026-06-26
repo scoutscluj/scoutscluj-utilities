@@ -16,6 +16,7 @@ export const FinancialDocument = defineEntity({
     fileSize: p.integer().fieldName('file_size'),
     checksumSha256: p.string().fieldName('checksum_sha256'),
     fileData: p.type('bytea').fieldName('file_data'),
+    activityId: p.integer().nullable().fieldName('activity_id'),
     activityName: p.string().nullable().fieldName('activity_name'),
     notes: p.type('text').nullable(),
     reviewerNotes: p.type('text').nullable().fieldName('reviewer_notes'),

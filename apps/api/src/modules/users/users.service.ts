@@ -2,6 +2,7 @@ import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -46,6 +47,7 @@ export class UsersService {
     private readonly usersRepository: EntityRepository<User>,
     @InjectRepository(OrgoConnection)
     private readonly orgoConnectionsRepository: EntityRepository<OrgoConnection>,
+    @Inject(EntityManager)
     private readonly em: EntityManager,
   ) {}
 

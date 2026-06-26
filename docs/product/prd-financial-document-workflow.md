@@ -11,6 +11,7 @@ The legacy finance work imported BT exports and attempted statistics, but it rel
 Build a finance-first module with:
 
 - `Documente financiare`: simple user uploads with optional `Activitate` link and notes.
+- An Orgo-first activity reference: if Orgo exposes event creation/reference APIs, local `Activitate` records should link to Orgo events and keep finance, reporting, and future meal planning as local extensions.
 - A review inbox for `Responsabil financiar`, with statuses: `Încărcat`, `În verificare`, `Gata de trimis`, `Trimis`, `Necesită clarificări`, `Respins`, `Arhivat`.
 - PWA/Web Push notifications for new document uploads, clarification requests, and status changes.
 - A Keez adapter that supports confirmed public API capabilities now and can switch to direct document submission if Keez exposes a suitable endpoint.
@@ -67,6 +68,7 @@ The first version should not depend on Stripe, full member management, deep acti
 
 - Add a finance-specific permission/role for `Responsabil financiar`, separate from generic admin roles.
 - Keep user-facing app content in Romanian with proper Romanian special characters.
+- Use Orgo as the base system whenever it owns the domain object. Orgo documentation confirms event/user/unit APIs, `Api-Token`/JWT authorization for regular API endpoints, tenant-scoped hosts, and OAuth for "Log in with Orgo" identity. The current app flow is SSO success-token verification (`request-token-sso` / `verify-success-token-sso`) and creates only a local session; it does not persist Orgo API access or refresh tokens. For activities, prefer an Orgo event IRI/id plus local finance/meal-planning/reporting extensions once we have an approved Orgo API auth mode. For members, keep Orgo as the source of truth and sync local changes back only when the Orgo API supports the changed fields and the credential is authorized.
 - Store financial documents locally first, with minimal upload requirements: file, optional activity link, optional notes, uploader, upload timestamp.
 - Keep extracted/reviewed metadata separate from uploader-provided notes so finance corrections do not rewrite user context.
 - Store document status transitions with audit entries.
@@ -98,7 +100,7 @@ The first version should not depend on Stripe, full member management, deep acti
 ## Out of Scope
 
 - Full member database and user management.
-- Orgo member writeback or age-branch synchronization.
+- Implementing Orgo member/event writeback flows. The PRD keeps the Orgo-first principle, but the concrete sync mechanics belong in the member/activity PRDs.
 - Deep `Activitate` management beyond linking finance records to an activity.
 - Meal planner.
 - Stripe implementation.
@@ -132,3 +134,39 @@ Questions for the Keez team:
 8. Are `clientEid`, `externalId`, and idempotency rules available for uploaded documents the same way they are for invoices/items?
 9. What retention/privacy rules apply to files uploaded via API?
 10. Can Keez ingest documents by email to a company-specific address if no API upload exists, and can that be automated safely?
+
+Orgo API references used during discovery:
+
+- https://orgo.space/docs/api-reference/concepts/authentication
+- https://orgo.space/docs/platform/oauth
+- https://orgo.space/docs/api-reference/concepts/tenancy
+- https://orgo.space/docs/api-reference/concepts/pagination-and-filters
+- https://orgo.space/docs/api-reference/concepts/webhooks
+- https://orgo.space/docs/api-reference/event/create-an-event
+- https://orgo.space/docs/api-reference/user/list-users
+- https://orgo.space/docs/api-reference/user/update-a-user-as-admin
+- https://orgo.space/docs/api-reference/unit/list-units
+
+Orgo integration notes:
+
+- Server-to-server synchronization should use `Api-Token: <token>` against the correct tenant host, likely `membri.scout.ro` for the national tenant. Confirm the host with Orgo/national organization before implementing sync.
+- Tokens inherit the permissions of the Orgo user that created them. Read-only tokens cannot write; read/write tokens can only do what the owner can do. If Centrul Local Cluj cannot receive its own token, background all-member/all-event sync depends on the national organization issuing an integration credential.
+- Store Orgo API tokens in server-side deployment secrets only. Do not expose them in browser code. Production runtime secrets are held in AWS Secrets Manager under `scoutscluj/production/app`; Florin's CloudWatch logging change also redacts common OAuth query parameters and sensitive headers at Caddy.
+- Current code uses `ORGO_OAUTH_*` environment names, but the implemented flow is the Orgo SSO request/success-token flow, not the documented OAuth authorization-code flow. Treat those names as legacy/misleading until the Orgo auth slice is revisited.
+- The current SSO `successToken` can verify the user profile and log out of Orgo SSO, but it is not an `Authorization: Bearer` token for `/api/v1/*` endpoints.
+- Orgo OAuth documentation confirms `/oauth/authorize`, `/oauth/token`, `/oauth/userinfo`, and scopes `profile`, `email`, `groups`, `roles`. The regular event/user endpoint docs list `Api-Token`/JWT authorization. Do not assume OAuth access tokens can create/list events or users until Orgo confirms it.
+- Do not collect or store a user's `membri.scout.ro` password for API testing. For delegated testing, register an OAuth app and let the user authorize in their browser; for server testing, use a temporary read-only `Api-Token` placed directly in local/deployment secrets and rotate it afterward.
+- Orgo event APIs support creating, listing, retrieving, updating, publishing, duplicating, sub-events, attendees, public event pages, analytics, and attendee export. Local `Activitate` records should store the Orgo event IRI/id and only add local extension data.
+- Orgo user APIs support paginated member reads and admin-level updates, but writeback requires the correct Orgo permissions such as local HR or parent-level access.
+- Orgo unit APIs are available and should be used when mapping local age branches/units.
+- Orgo webhooks include user, payment, event attendance, contract, role, and contact events. Local member/activity caches should prefer webhook-driven updates plus periodic reconciliation.
+- Collection reads are paginated; for large sync jobs use JSON-LD `hydra:view.hydra:next` and `itemsPerPage=100`.
+
+Questions for Orgo/national organization:
+
+1. Can Centrul Local Cluj receive a read-only and/or read-write `Api-Token` scoped to the Cluj local center on `membri.scout.ro`?
+2. Can our app register an OAuth application under `membri.scout.ro`, and what exact redirect URIs should be allowed for local, staging, and production?
+3. Are OAuth access tokens accepted by regular `/api/v1/*` endpoints, or only by `/oauth/userinfo`?
+4. If OAuth tokens are accepted by API endpoints, which scopes/roles are required for listing users, creating/listing/updating events, listing units, and updating member fields?
+5. Which Orgo event object should represent a local `Activitate`, and which fields should remain local extensions?
+6. Which member fields may a local-center administrator update through the API, and which must remain national-only?

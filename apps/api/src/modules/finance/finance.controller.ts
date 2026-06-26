@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   Res,
   UseGuards,
 } from '@nestjs/common';
@@ -40,8 +41,11 @@ export class FinanceController {
 
   @Get('documents')
   @ApiOkResponse({ type: [FinancialDocumentDto] })
-  listDocuments(@CurrentUserDecorator() user: AuthenticatedUser) {
-    return this.financeService.listDocuments(user);
+  listDocuments(
+    @CurrentUserDecorator() user: AuthenticatedUser,
+    @Query('activityId') activityId?: string,
+  ) {
+    return this.financeService.listDocuments(user, { activityId });
   }
 
   @Post('documents')

@@ -26,6 +26,9 @@ export type FinancialDocument = {
 	contentType: string;
 	fileSize: number;
 	checksumSha256: string;
+	activityId?: number;
+	activityTitle?: string;
+	activityType?: ActivityType;
 	activityName?: string;
 	notes?: string;
 	reviewerNotes?: string;
@@ -33,6 +36,20 @@ export type FinancialDocument = {
 	keezSubmittedAt?: string;
 	createdAt: string;
 	updatedAt: string;
+};
+
+export type ActivityType = 'camp' | 'hike' | 'festival' | 'training' | 'meeting' | 'other';
+
+export type Activity = {
+	id: number;
+	title: string;
+	type: ActivityType;
+	status: 'planned' | 'active' | 'completed' | 'cancelled';
+	coordinatorId: number;
+	coordinatorName: string;
+	startDate?: string;
+	endDate?: string;
+	location?: string;
 };
 
 export type FinanceSettings = {
@@ -98,9 +115,15 @@ export const load: PageServerLoad = async ({ cookies, locals }) => {
 	const headers = authHeaders(sessionToken);
 	const isFinanceManager = hasRole(locals.user, 'finance_manager');
 
-	const documentsResponse = await apiFetch('/api/finance/documents', { headers });
+	const [documentsResponse, activitiesResponse] = await Promise.all([
+		apiFetch('/api/finance/documents', { headers }),
+		apiFetch('/api/activities', { headers })
+	]);
 	if (!documentsResponse.ok) {
 		error(documentsResponse.status, await readApiMessage(documentsResponse));
+	}
+	if (!activitiesResponse.ok) {
+		error(activitiesResponse.status, await readApiMessage(activitiesResponse));
 	}
 
 	let settings: FinanceSettings | null = null;
@@ -114,6 +137,7 @@ export const load: PageServerLoad = async ({ cookies, locals }) => {
 
 	return {
 		documents: (await documentsResponse.json()) as FinancialDocument[],
+		activities: (await activitiesResponse.json()) as Activity[],
 		isFinanceManager,
 		settings
 	};
@@ -133,6 +157,15 @@ export const actions: Actions = {
 		}
 
 		const sessionToken = getSessionToken(cookies);
+		const activityIdValue = formData.get('activityId')?.toString();
+		let activityId: number | undefined;
+		if (activityIdValue) {
+			const parsedActivityId = Number(activityIdValue);
+			if (!Number.isInteger(parsedActivityId) || parsedActivityId <= 0) {
+				return fail(400, { message: 'Activitatea selectată nu este validă.' });
+			}
+			activityId = parsedActivityId;
+		}
 		const content = Buffer.from(await file.arrayBuffer()).toString('base64');
 		const response = await apiFetch('/api/finance/documents', {
 			method: 'POST',
@@ -144,7 +177,7 @@ export const actions: Actions = {
 				fileName: file.name,
 				contentType: inferContentType(file),
 				contentBase64: content,
-				activityName: formData.get('activityName')?.toString(),
+				activityId,
 				notes: formData.get('notes')?.toString()
 			})
 		});

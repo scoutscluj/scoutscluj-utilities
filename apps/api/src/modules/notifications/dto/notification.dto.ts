@@ -63,7 +63,7 @@ export class NotificationStatusDto {
   configured!: boolean;
 
   @ApiPropertyOptional()
-  vapidPublicKey?: string;
+  publicKey?: string;
 
   @ApiProperty()
   activeDeviceCount!: number;

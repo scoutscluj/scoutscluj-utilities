@@ -2,7 +2,7 @@ import { env } from '$env/dynamic/public';
 
 export type NotificationStatus = {
 	configured: boolean;
-	vapidPublicKey?: string;
+	publicKey?: string;
 	activeDeviceCount: number;
 	currentDeviceSubscribed: boolean;
 };

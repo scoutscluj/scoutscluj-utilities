@@ -70,7 +70,7 @@
 			return;
 		}
 
-		if (!notificationStatus.configured || !notificationStatus.vapidPublicKey) {
+		if (!notificationStatus.configured || !notificationStatus.publicKey) {
 			toast.error('Notificările nu sunt configurate pe server.');
 			return;
 		}
@@ -93,7 +93,7 @@
 			if (!subscription) {
 				subscription = await registration.pushManager.subscribe({
 					userVisibleOnly: true,
-					applicationServerKey: urlBase64ToUint8Array(notificationStatus.vapidPublicKey)
+					applicationServerKey: urlBase64ToUint8Array(notificationStatus.publicKey)
 				});
 			}
 

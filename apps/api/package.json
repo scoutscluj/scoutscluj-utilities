@@ -16,6 +16,7 @@
     "start:prod": "node dist/main",
     "migrate:prod": "node dist/migrate",
     "kitchen:seed": "tsx src/seed-kitchen-catalog.ts",
+    "vapid:generate": "tsx src/scripts/generate-vapid-keys.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "typecheck": "tsc --noEmit",
     "verify": "pnpm lint && pnpm typecheck && pnpm format:check && pnpm test",
@@ -53,7 +54,8 @@
     "express": "^5.2.1",
     "pg": "^8.21.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -66,6 +68,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.0",
     "@types/supertest": "^7.0.0",
+    "@types/web-push": "^3.6.4",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",

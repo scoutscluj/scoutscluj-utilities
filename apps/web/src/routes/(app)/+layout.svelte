@@ -45,6 +45,8 @@
 				return resolve('/admin');
 			case '/admin/users':
 				return resolve('/admin/users');
+			case '/admin/notifications':
+				return resolve('/admin/notifications');
 			case '/audit':
 				return resolve('/audit');
 			case '/activities':

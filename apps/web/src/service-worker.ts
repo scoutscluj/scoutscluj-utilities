@@ -153,3 +153,105 @@ worker.addEventListener('message', (event) => {
 		worker.skipWaiting();
 	}
 });
+
+const getSafeNotificationUrl = (value: unknown) => {
+	if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//')) {
+		return '/';
+	}
+
+	try {
+		const url = new URL(value, worker.location.origin);
+		if (url.origin !== worker.location.origin) {
+			return '/';
+		}
+
+		return `${url.pathname}${url.search}${url.hash}`;
+	} catch {
+		return '/';
+	}
+};
+
+worker.addEventListener('push', (event) => {
+	let notification = {
+		title: 'ScoutsCluj',
+		body: 'Ai o notificare nouă.',
+		icon: '/icons/icon-192.png',
+		badge: '/icons/icon-192.png',
+		tag: 'scoutscluj',
+		data: { url: '/' },
+		actions: [] as NotificationAction[]
+	};
+
+	if (event.data) {
+		try {
+			const payload = event.data.json() as {
+				notification?: Partial<typeof notification>;
+				title?: string;
+				body?: string;
+				icon?: string;
+				badge?: string;
+				tag?: string;
+				data?: Record<string, unknown>;
+				actions?: NotificationAction[];
+			};
+			const incoming = payload.notification ?? payload;
+			notification = {
+				...notification,
+				...incoming,
+				title: incoming.title ?? notification.title,
+				body: incoming.body ?? notification.body,
+				data: {
+					...notification.data,
+					...(incoming.data ?? {})
+				},
+				actions: incoming.actions ?? notification.actions
+			};
+		} catch (error) {
+			console.error('[PWA] Push payload parsing failed', error);
+		}
+	}
+
+	event.waitUntil(
+		worker.registration.showNotification(notification.title, {
+			body: notification.body,
+			icon: notification.icon,
+			badge: notification.badge,
+			tag: notification.tag,
+			data: notification.data,
+			actions: notification.actions
+		})
+	);
+});
+
+worker.addEventListener('notificationclick', (event) => {
+	event.notification.close();
+
+	if (event.action === 'dismiss') {
+		return;
+	}
+
+	const targetUrl = getSafeNotificationUrl(event.notification.data?.url);
+	event.waitUntil(
+		(async () => {
+			const clients = await worker.clients.matchAll({
+				type: 'window',
+				includeUncontrolled: true
+			});
+
+			for (const client of clients) {
+				if ('focus' in client && client.url.startsWith(worker.location.origin)) {
+					if ('navigate' in client) {
+						await client.navigate(`${worker.location.origin}${targetUrl}`);
+					}
+					return client.focus();
+				}
+			}
+
+			return worker.clients.openWindow(`${worker.location.origin}${targetUrl}`);
+		})()
+	);
+});
+
+worker.addEventListener('notificationclose', () => {
+	// Reserved for future local diagnostics.
+});

@@ -11,6 +11,7 @@ import { FinanceModule } from './modules/finance/finance.module';
 import { HealthModule } from './modules/health/health.module';
 import { UsersAdminModule } from './modules/users/users-admin.module';
 import { KitchenModule } from './modules/kitchen/kitchen.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { KitchenModule } from './modules/kitchen/kitchen.module';
     ActivitiesModule,
     FinanceModule,
     KitchenModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

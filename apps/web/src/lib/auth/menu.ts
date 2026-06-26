@@ -27,6 +27,7 @@ export const menuItems: MenuItem[] = [
 			{ label: 'Cotizații', disabled: true }
 		]
 	},
+	{ label: 'Activități', href: '/activities' },
 	{ label: 'Micro-stagii', disabled: true },
 	{ label: 'Parteneri', disabled: true },
 	{ label: 'Profil', href: '/profile' },
@@ -36,6 +37,7 @@ export const menuItems: MenuItem[] = [
 		children: [
 			{ label: 'Administrare', href: '/admin', minRole: 'moderator' },
 			{ label: 'Utilizatori', href: '/admin/users', minRole: 'super_admin' },
+			{ label: 'Audit', href: '/audit', minRole: 'super_admin' },
 			{ label: 'Notificări', disabled: true, minRole: 'super_admin' }
 		]
 	}

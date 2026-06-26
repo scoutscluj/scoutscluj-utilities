@@ -18,6 +18,9 @@ export class CreateFinancialDocumentDto {
   @ApiPropertyOptional({ example: 'Camp Temerari 2026' })
   activityName?: string;
 
+  @ApiPropertyOptional({ example: 12 })
+  activityId?: number;
+
   @ApiPropertyOptional({ example: 'Plată făcută cu cardul BT.' })
   notes?: string;
 }
@@ -59,6 +62,15 @@ export class FinancialDocumentDto {
 
   @ApiProperty()
   checksumSha256!: string;
+
+  @ApiPropertyOptional()
+  activityId?: number;
+
+  @ApiPropertyOptional()
+  activityTitle?: string;
+
+  @ApiPropertyOptional()
+  activityType?: string;
 
   @ApiPropertyOptional()
   activityName?: string;
@@ -125,6 +137,12 @@ export class FinanceSettingsDto {
 export class FinanceSummaryDto {
   @ApiProperty()
   totalDocuments!: number;
+
+  @ApiProperty()
+  generalDocuments!: number;
+
+  @ApiProperty()
+  activityDocuments!: number;
 
   @ApiProperty()
   openDocuments!: number;

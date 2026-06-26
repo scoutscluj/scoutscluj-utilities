@@ -29,6 +29,7 @@
     "web": "pnpm --filter web"
   },
   "devDependencies": {
+    "@fission-ai/openspec": "^1.4.1",
     "turbo": "^2.6.3"
   }
 }

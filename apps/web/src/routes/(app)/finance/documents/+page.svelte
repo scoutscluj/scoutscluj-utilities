@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import type { FinancialDocumentStatus } from './+page.server';
+	import type { ActivityType, FinancialDocumentStatus } from './+page.server';
 
 	let { data, form } = $props();
 
@@ -18,6 +18,14 @@
 	const handoffLabels = {
 		review_first: 'Verificare internă înainte de Keez',
 		direct_to_keez: 'Trimitere directă către Keez'
+	};
+	const activityTypeLabels: Record<ActivityType, string> = {
+		camp: 'Camp',
+		hike: 'Drumeție',
+		festival: 'Festival',
+		training: 'Formare',
+		meeting: 'Întâlnire',
+		other: 'Alt tip'
 	};
 
 	const formatBytes = (value: number) => {
@@ -64,7 +72,14 @@
 
 			<label>
 				<span>Activitate</span>
-				<input name="activityName" type="text" maxlength="255" placeholder="Opțional" />
+				<select name="activityId">
+					<option value="">Fără activitate</option>
+					{#each data.activities as activity (activity.id)}
+						<option value={activity.id}>
+							{activity.title} · {activityTypeLabels[activity.type]}
+						</option>
+					{/each}
+				</select>
 			</label>
 
 			<label>
@@ -137,7 +152,11 @@
 								<span>{formatDate(document.createdAt)}</span>
 								<span>{formatBytes(document.fileSize)}</span>
 								<span>{document.uploaderName}</span>
-								{#if document.activityName}
+								{#if document.activityId && document.activityTitle}
+									<a href={resolve(`/activities/${document.activityId}`)}
+										>{document.activityTitle}</a
+									>
+								{:else if document.activityName}
 									<span>{document.activityName}</span>
 								{/if}
 							</div>
@@ -419,12 +438,19 @@
 		font-weight: 750;
 	}
 
-	.meta-grid span {
+	.meta-grid span,
+	.meta-grid a {
 		border-right: 1px solid #cbd5e1;
 		padding-right: 8px;
 	}
 
-	.meta-grid span:last-child {
+	.meta-grid a {
+		color: #2563eb;
+		font-weight: 700;
+	}
+
+	.meta-grid span:last-child,
+	.meta-grid a:last-child {
 		border-right: 0;
 		padding-right: 0;
 	}

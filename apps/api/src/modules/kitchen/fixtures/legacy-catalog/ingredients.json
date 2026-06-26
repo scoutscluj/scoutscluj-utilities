@@ -1,0 +1,821 @@
+[
+  {
+    "id": "e4d30f0c-b05d-48eb-a484-5a6ff0fb8d61",
+    "name": "pepene",
+    "unit": "KG",
+    "default_price_per_unit": "3.00",
+    "created_at": "2025-07-14 06:29:30.049721+00",
+    "updated_at": "2025-07-14 06:29:30.049721+00",
+    "category": "Fructe"
+  },
+  {
+    "id": "3c6788b0-809a-4f5c-9119-fe88c0875107",
+    "name": "piper",
+    "unit": "G",
+    "default_price_per_unit": "1.00",
+    "created_at": "2025-07-11 11:57:24.1023+00",
+    "updated_at": "2025-07-11 11:57:24.1023+00",
+    "category": "Condimente"
+  },
+  {
+    "id": "4bcda3b5-2f81-4519-b16b-80cf790f865d",
+    "name": "cacao",
+    "unit": "Unit",
+    "default_price_per_unit": "1.00",
+    "created_at": "2025-07-13 17:11:47.643997+00",
+    "updated_at": "2025-07-13 17:11:47.643997+00",
+    "category": "Condimente"
+  },
+  {
+    "id": "5e5852b7-2836-46e9-8cb1-f31a4b4a9c8f",
+    "name": "faina de malai",
+    "unit": "KG",
+    "default_price_per_unit": "5.00",
+    "created_at": "2025-07-14 06:27:17.855855+00",
+    "updated_at": "2025-07-14 06:27:17.855855+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "daabecfc-d101-4490-a253-23b6d384c29e",
+    "name": "branza",
+    "unit": "KG",
+    "default_price_per_unit": "60.00",
+    "created_at": "2025-07-11 12:57:05.782274+00",
+    "updated_at": "2025-07-11 12:57:05.782274+00",
+    "category": "Lactate"
+  },
+  {
+    "id": "9fbc96eb-7f58-49dc-b50e-5d5c4654d41a",
+    "name": "smantana",
+    "unit": "KG",
+    "default_price_per_unit": "20.00",
+    "created_at": "2025-07-14 06:28:25.180899+00",
+    "updated_at": "2025-07-14 06:28:25.180899+00",
+    "category": "Lactate"
+  },
+  {
+    "id": "cd5bbdc5-3bd1-4415-9448-6265198aa216",
+    "name": "carnaciori",
+    "unit": "KG",
+    "default_price_per_unit": "50.00",
+    "created_at": "2025-07-14 06:28:57.060246+00",
+    "updated_at": "2025-07-14 06:28:57.060246+00",
+    "category": "Carne"
+  },
+  {
+    "id": "baf3d029-c0e0-4323-8d5a-114056c7fe84",
+    "name": "piept de pui",
+    "unit": "KG",
+    "default_price_per_unit": "30.00",
+    "created_at": "2025-07-14 06:29:53.738177+00",
+    "updated_at": "2025-07-14 06:29:53.738177+00",
+    "category": "Carne"
+  },
+  {
+    "id": "8eebd31e-d1ee-42d9-abc8-0064c32bcb52",
+    "name": "cartofi",
+    "unit": "KG",
+    "default_price_per_unit": "6.00",
+    "created_at": "2025-07-14 06:30:16.683342+00",
+    "updated_at": "2025-07-14 06:30:16.683342+00",
+    "category": "Legume"
+  },
+  {
+    "id": "fe326a12-fd4d-4d40-9e03-65058c9e796b",
+    "name": "ceapa",
+    "unit": "KG",
+    "default_price_per_unit": "5.00",
+    "created_at": "2025-07-14 06:30:33.53746+00",
+    "updated_at": "2025-07-14 06:30:33.53746+00",
+    "category": "Legume"
+  },
+  {
+    "id": "4067dffa-17d4-465b-b65f-39e6fcf28ffc",
+    "name": "morcovi",
+    "unit": "KG",
+    "default_price_per_unit": "5.00",
+    "created_at": "2025-07-14 06:30:51.612599+00",
+    "updated_at": "2025-07-14 06:30:51.612599+00",
+    "category": "Legume"
+  },
+  {
+    "id": "deea9a74-ad98-4dbd-af44-d5c7a83cf772",
+    "name": "ulei",
+    "unit": "L",
+    "default_price_per_unit": "10.00",
+    "created_at": "2025-07-14 06:31:12.740814+00",
+    "updated_at": "2025-07-14 06:31:12.740814+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "d591cbcc-358f-461d-8941-ff0305c71a6a",
+    "name": "lapte",
+    "unit": "L",
+    "default_price_per_unit": "3.00",
+    "created_at": "2025-06-21 15:36:53.32999+00",
+    "updated_at": "2025-06-21 15:36:53.32999+00",
+    "category": "Lactate"
+  },
+  {
+    "id": "bda489a6-548f-44e8-899c-5cb901ddb764",
+    "name": "tofu",
+    "unit": "Pack",
+    "default_price_per_unit": "10.00",
+    "created_at": "2025-07-14 06:33:21.138054+00",
+    "updated_at": "2025-07-14 06:33:21.138054+00",
+    "category": "Carne"
+  },
+  {
+    "id": "ebd2bb91-eeb6-4bd7-bec4-4cd4ad594efe",
+    "name": "boia",
+    "unit": "G",
+    "default_price_per_unit": "0.23",
+    "created_at": "2025-07-14 06:32:11.898128+00",
+    "updated_at": "2025-07-14 06:32:11.898128+00",
+    "category": "Condimente"
+  },
+  {
+    "id": "c462f6ec-6f12-4117-9182-8da52815461a",
+    "name": "sare",
+    "unit": "G",
+    "default_price_per_unit": "0.01",
+    "created_at": "2025-07-14 06:32:48.045541+00",
+    "updated_at": "2025-07-14 06:32:48.045541+00",
+    "category": "Condimente"
+  },
+  {
+    "id": "32fe9b46-39c9-4e8f-9616-2a1a8faf4b8b",
+    "name": "sunca",
+    "unit": "KG",
+    "default_price_per_unit": "50.00",
+    "created_at": "2025-07-15 16:17:01.62222+00",
+    "updated_at": "2025-07-15 16:17:01.62222+00",
+    "category": "Carne"
+  },
+  {
+    "id": "88a2c693-77d4-40ba-933f-c5a69f2a5868",
+    "name": "paine",
+    "unit": "KG",
+    "default_price_per_unit": "10.00",
+    "created_at": "2025-07-15 16:17:32.517652+00",
+    "updated_at": "2025-07-15 16:17:32.517652+00",
+    "category": "Cereale"
+  },
+  {
+    "id": "3f3675df-eef1-4ea7-b638-06245034ec87",
+    "name": "cas",
+    "unit": "KG",
+    "default_price_per_unit": "50.00",
+    "created_at": "2025-07-15 16:17:52.529751+00",
+    "updated_at": "2025-07-15 16:17:52.529751+00",
+    "category": "Lactate"
+  },
+  {
+    "id": "cbebd92e-0fd6-4484-a840-e06ae2f00928",
+    "name": "branza topita",
+    "unit": "KG",
+    "default_price_per_unit": "30.00",
+    "created_at": "2025-07-15 16:18:22.547614+00",
+    "updated_at": "2025-07-15 16:18:22.547614+00",
+    "category": "Lactate"
+  },
+  {
+    "id": "e77205d7-d075-450e-a4c6-6f3eec964ad7",
+    "name": "castravete",
+    "unit": "KG",
+    "default_price_per_unit": "5.00",
+    "created_at": "2025-07-15 16:20:00.760451+00",
+    "updated_at": "2025-07-15 16:20:00.760451+00",
+    "category": "Legume"
+  },
+  {
+    "id": "69047e22-adfa-41a7-b0d8-ccab94eba660",
+    "name": "ardei",
+    "unit": "KG",
+    "default_price_per_unit": "10.00",
+    "created_at": "2025-07-15 16:20:28.940088+00",
+    "updated_at": "2025-07-15 16:20:28.940088+00",
+    "category": "Legume"
+  },
+  {
+    "id": "2e7c6095-3175-42de-bd8a-d5d20a6b4735",
+    "name": "pui mare piele si os",
+    "unit": "KG",
+    "default_price_per_unit": "30.00",
+    "created_at": "2025-07-15 16:22:41.018524+00",
+    "updated_at": "2025-07-15 16:22:41.018524+00",
+    "category": "Carne"
+  },
+  {
+    "id": "9a9c0aba-49c3-42cb-ac08-43a33941a7c5",
+    "name": "iaurt",
+    "unit": "Unit",
+    "default_price_per_unit": "3.00",
+    "created_at": "2025-07-15 20:05:48.165717+00",
+    "updated_at": "2025-07-15 20:05:48.165717+00",
+    "category": "Lactate"
+  },
+  {
+    "id": "24705cc0-2c1f-4bce-bdcc-c5258ea5c7fc",
+    "name": "apa",
+    "unit": "L",
+    "default_price_per_unit": "1.50",
+    "created_at": "2025-07-15 20:05:48.263072+00",
+    "updated_at": "2025-07-15 20:05:48.263072+00",
+    "category": "Altele"
+  },
+  {
+    "id": "bfae5384-6804-4940-9840-ce9e1b8815dc",
+    "name": "ardei gras",
+    "unit": "KG",
+    "default_price_per_unit": "10.00",
+    "created_at": "2025-07-15 20:05:48.347516+00",
+    "updated_at": "2025-07-15 20:05:48.347516+00",
+    "category": "Legume"
+  },
+  {
+    "id": "29402bbe-f6f1-4b81-99e3-91a6fcb49cea",
+    "name": "ardei gras colorat",
+    "unit": "KG",
+    "default_price_per_unit": "10.00",
+    "created_at": "2025-07-15 20:05:48.442646+00",
+    "updated_at": "2025-07-15 20:05:48.442646+00",
+    "category": "Legume"
+  },
+  {
+    "id": "3f411e47-dd0a-46d4-9496-b46489ce56fb",
+    "name": "ardei rosu",
+    "unit": "KG",
+    "default_price_per_unit": "10.00",
+    "created_at": "2025-07-15 20:05:48.524597+00",
+    "updated_at": "2025-07-15 20:05:48.524597+00",
+    "category": "Legume"
+  },
+  {
+    "id": "83b36297-fd7a-4bde-99f2-6788491ebf5f",
+    "name": "banane",
+    "unit": "KG",
+    "default_price_per_unit": "7.00",
+    "created_at": "2025-07-15 20:05:48.701431+00",
+    "updated_at": "2025-07-15 20:05:48.701431+00",
+    "category": "Altele"
+  },
+  {
+    "id": "5a65581d-a911-4079-a043-e9a96392112e",
+    "name": "baton branza topita",
+    "unit": "KG",
+    "default_price_per_unit": "20.00",
+    "created_at": "2025-07-15 20:05:48.881399+00",
+    "updated_at": "2025-07-15 20:05:48.881399+00",
+    "category": "Lactate"
+  },
+  {
+    "id": "89046b25-4d98-40cb-832f-644b369b0699",
+    "name": "branza de vaca/ telemea",
+    "unit": "G",
+    "default_price_per_unit": "30.00",
+    "created_at": "2025-07-15 20:05:48.966333+00",
+    "updated_at": "2025-07-15 20:05:48.966333+00",
+    "category": "Lactate"
+  },
+  {
+    "id": "8db697f8-94fa-4b43-9592-acfc79ac9386",
+    "name": "carne de porc - pulpa, spata",
+    "unit": "KG",
+    "default_price_per_unit": "25.00",
+    "created_at": "2025-07-15 20:05:49.050925+00",
+    "updated_at": "2025-07-15 20:05:49.050925+00",
+    "category": "Carne"
+  },
+  {
+    "id": "efabec11-b2f2-42e4-a8a1-4fd3f5438983",
+    "name": "carne tocata",
+    "unit": "KG",
+    "default_price_per_unit": "30.00",
+    "created_at": "2025-07-15 20:05:49.139879+00",
+    "updated_at": "2025-07-15 20:05:49.139879+00",
+    "category": "Carne"
+  },
+  {
+    "id": "e1a167b4-ae47-4886-9417-de07027d4851",
+    "name": "castraveti",
+    "unit": "KG",
+    "default_price_per_unit": "5.00",
+    "created_at": "2025-07-15 20:05:49.222383+00",
+    "updated_at": "2025-07-15 20:05:49.222383+00",
+    "category": "Legume"
+  },
+  {
+    "id": "feae15c1-33c4-40a4-b7ae-8be31c437d59",
+    "name": "castraveti murati",
+    "unit": "KG",
+    "default_price_per_unit": "20.00",
+    "created_at": "2025-07-15 20:05:49.308552+00",
+    "updated_at": "2025-07-15 20:05:49.308552+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "a47b812a-1230-49d1-bb19-6451eb7aa1de",
+    "name": "cereale",
+    "unit": "KG",
+    "default_price_per_unit": "30.00",
+    "created_at": "2025-07-15 20:05:49.393811+00",
+    "updated_at": "2025-07-15 20:05:49.393811+00",
+    "category": "Cereale"
+  },
+  {
+    "id": "f8c4fc14-319b-468f-8292-7d261e33a976",
+    "name": "conserve ananas",
+    "unit": "KG",
+    "default_price_per_unit": "20.00",
+    "created_at": "2025-07-15 20:05:49.474848+00",
+    "updated_at": "2025-07-15 20:05:49.474848+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "c68b70ca-88f1-4796-96d5-4aa85a7f7bfb",
+    "name": "conserve mazare",
+    "unit": "KG",
+    "default_price_per_unit": "20.00",
+    "created_at": "2025-07-15 20:05:49.566644+00",
+    "updated_at": "2025-07-15 20:05:49.566644+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "be77a59a-d01b-4264-a6f6-1240f023da75",
+    "name": "cornuri hot dog",
+    "unit": "Unit",
+    "default_price_per_unit": "2.00",
+    "created_at": "2025-07-15 20:05:49.658961+00",
+    "updated_at": "2025-07-15 20:05:49.658961+00",
+    "category": "Cereale"
+  },
+  {
+    "id": "491a234d-1680-40d3-94c5-8fd4d7166482",
+    "name": "crenvusti",
+    "unit": "Unit",
+    "default_price_per_unit": "2.00",
+    "created_at": "2025-07-15 20:05:49.757372+00",
+    "updated_at": "2025-07-15 20:05:49.757372+00",
+    "category": "Altele"
+  },
+  {
+    "id": "1728cdf7-6819-428d-8e8d-7b00d7a2a579",
+    "name": "faina",
+    "unit": "KG",
+    "default_price_per_unit": "5.00",
+    "created_at": "2025-07-15 20:05:49.853317+00",
+    "updated_at": "2025-07-15 20:05:49.853317+00",
+    "category": "Cereale"
+  },
+  {
+    "id": "66758626-e85a-4feb-90b4-67b0f19696f4",
+    "name": "galbenusuri",
+    "unit": "Unit",
+    "default_price_per_unit": "1.00",
+    "created_at": "2025-07-15 20:05:49.937993+00",
+    "updated_at": "2025-07-15 20:05:49.937993+00",
+    "category": "Altele"
+  },
+  {
+    "id": "3944295d-a680-4b75-ba54-ed654965866e",
+    "name": "gris",
+    "unit": "KG",
+    "default_price_per_unit": "15.00",
+    "created_at": "2025-07-15 20:05:50.021724+00",
+    "updated_at": "2025-07-15 20:05:50.021724+00",
+    "category": "Cereale"
+  },
+  {
+    "id": "0eb100a7-0816-4dab-8d85-127c7884b8b1",
+    "name": "iaurt grecesc",
+    "unit": "KG",
+    "default_price_per_unit": "12.00",
+    "created_at": "2025-07-15 20:05:50.113092+00",
+    "updated_at": "2025-07-15 20:05:50.113092+00",
+    "category": "Lactate"
+  },
+  {
+    "id": "b926d658-93ea-40d7-8b8d-8b8e5882511b",
+    "name": "ketchup",
+    "unit": "Unit",
+    "default_price_per_unit": "8.00",
+    "created_at": "2025-07-15 20:05:50.225672+00",
+    "updated_at": "2025-07-15 20:05:50.225672+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "c65d9e04-c8ec-4012-b9f3-f0b5dde80945",
+    "name": "lamaie",
+    "unit": "KG",
+    "default_price_per_unit": "10.00",
+    "created_at": "2025-07-15 20:05:50.315296+00",
+    "updated_at": "2025-07-15 20:05:50.315296+00",
+    "category": "Fructe"
+  },
+  {
+    "id": "0328dcf0-0231-45dc-b03e-f5cb63e2cb16",
+    "name": "lapte de cocos",
+    "unit": "L",
+    "default_price_per_unit": "35.00",
+    "created_at": "2025-07-15 20:05:50.407765+00",
+    "updated_at": "2025-07-15 20:05:50.407765+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "b0853f22-2a8f-435a-b72d-e552c349f710",
+    "name": "legatura patrunjel",
+    "unit": "Unit",
+    "default_price_per_unit": "5.00",
+    "created_at": "2025-07-15 20:05:50.499179+00",
+    "updated_at": "2025-07-15 20:05:50.499179+00",
+    "category": "Legume"
+  },
+  {
+    "id": "4db7ed78-28da-440c-b71c-78ea53cbb6e9",
+    "name": "lipii shaorma",
+    "unit": "Unit",
+    "default_price_per_unit": "1.00",
+    "created_at": "2025-07-15 20:05:50.586761+00",
+    "updated_at": "2025-07-15 20:05:50.586761+00",
+    "category": "Altele"
+  },
+  {
+    "id": "d4c93ee7-ce2e-4532-aa6c-4df3d0424846",
+    "name": "masline",
+    "unit": "KG",
+    "default_price_per_unit": "25.00",
+    "created_at": "2025-07-15 20:05:50.676958+00",
+    "updated_at": "2025-07-15 20:05:50.676958+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "70827ccf-aee5-4f9f-b2d8-d5a72877d8b1",
+    "name": "mix salata",
+    "unit": "KG",
+    "default_price_per_unit": "30.00",
+    "created_at": "2025-07-15 20:05:50.76101+00",
+    "updated_at": "2025-07-15 20:05:50.76101+00",
+    "category": "Legume"
+  },
+  {
+    "id": "958b6706-e47e-485d-ae4a-b54b89192594",
+    "name": "mustar",
+    "unit": "KG",
+    "default_price_per_unit": "15.00",
+    "created_at": "2025-07-15 20:05:50.852822+00",
+    "updated_at": "2025-07-15 20:05:50.852822+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "821d8a27-4f52-40b7-b0c4-6d2474b73c11",
+    "name": "orez",
+    "unit": "KG",
+    "default_price_per_unit": "20.00",
+    "created_at": "2025-07-15 20:05:50.939174+00",
+    "updated_at": "2025-07-15 20:05:50.939174+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "5665b06c-319a-4471-b75f-7c97d750c6f4",
+    "name": "otet",
+    "unit": "L",
+    "default_price_per_unit": "10.00",
+    "created_at": "2025-07-15 20:05:51.024319+00",
+    "updated_at": "2025-07-15 20:05:51.024319+00",
+    "category": "Altele"
+  },
+  {
+    "id": "75a78306-0bae-4113-9160-337e75b9068c",
+    "name": "oua",
+    "unit": "Unit",
+    "default_price_per_unit": "1.00",
+    "created_at": "2025-07-15 20:05:51.141147+00",
+    "updated_at": "2025-07-15 20:05:51.141147+00",
+    "category": "Altele"
+  },
+  {
+    "id": "65caae37-554b-4d5a-a8fd-306fbc37fd5b",
+    "name": "ovaz",
+    "unit": "KG",
+    "default_price_per_unit": "8.00",
+    "created_at": "2025-07-15 20:05:51.230592+00",
+    "updated_at": "2025-07-15 20:05:51.230592+00",
+    "category": "Cereale"
+  },
+  {
+    "id": "407747ec-74f9-4ea9-863c-856fe6b94007",
+    "name": "pasta kapia dulce",
+    "unit": "KG",
+    "default_price_per_unit": "20.00",
+    "created_at": "2025-07-15 20:05:51.315322+00",
+    "updated_at": "2025-07-15 20:05:51.315322+00",
+    "category": "Altele"
+  },
+  {
+    "id": "1aa3bda9-be08-4c0b-aca1-9ce3020e32a2",
+    "name": "pastarnac radacina",
+    "unit": "KG",
+    "default_price_per_unit": "5.00",
+    "created_at": "2025-07-15 20:05:51.401006+00",
+    "updated_at": "2025-07-15 20:05:51.401006+00",
+    "category": "Altele"
+  },
+  {
+    "id": "3359f077-3429-478b-8ce8-f86c29e687a6",
+    "name": "paste",
+    "unit": "KG",
+    "default_price_per_unit": "10.00",
+    "created_at": "2025-07-15 20:05:51.482884+00",
+    "updated_at": "2025-07-15 20:05:51.482884+00",
+    "category": "Cereale"
+  },
+  {
+    "id": "6d249d83-640a-4ff0-ad47-dcd84da59ffe",
+    "name": "pateu",
+    "unit": "KG",
+    "default_price_per_unit": "30.00",
+    "created_at": "2025-07-15 20:05:51.568154+00",
+    "updated_at": "2025-07-15 20:05:51.568154+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "d8216c35-e8fc-44de-9ada-5b3848c60d89",
+    "name": "patrunjel frunze",
+    "unit": "Unit",
+    "default_price_per_unit": "5.00",
+    "created_at": "2025-07-15 20:05:51.650369+00",
+    "updated_at": "2025-07-15 20:05:51.650369+00",
+    "category": "Legume"
+  },
+  {
+    "id": "6cedcf51-2b49-4544-9be5-493caf5468d9",
+    "name": "patrunjel radacina",
+    "unit": "KG",
+    "default_price_per_unit": "6.00",
+    "created_at": "2025-07-15 20:05:51.733071+00",
+    "updated_at": "2025-07-15 20:05:51.733071+00",
+    "category": "Legume"
+  },
+  {
+    "id": "226ab6d9-7138-4d2d-adc5-63dd2c65f4d3",
+    "name": "pulpe de pui dezosate",
+    "unit": "KG",
+    "default_price_per_unit": "30.00",
+    "created_at": "2025-07-15 20:05:51.820036+00",
+    "updated_at": "2025-07-15 20:05:51.820036+00",
+    "category": "Carne"
+  },
+  {
+    "id": "96907ffe-34e6-4dcb-b2ff-4e81f59f5355",
+    "name": "rosii",
+    "unit": "KG",
+    "default_price_per_unit": "6.00",
+    "created_at": "2025-07-15 20:05:51.907493+00",
+    "updated_at": "2025-07-15 20:05:51.907493+00",
+    "category": "Legume"
+  },
+  {
+    "id": "b5f0ae45-3885-42a2-88c3-c7d147ed919a",
+    "name": "salam",
+    "unit": "KG",
+    "default_price_per_unit": "50.00",
+    "created_at": "2025-07-15 20:05:51.98946+00",
+    "updated_at": "2025-07-15 20:05:51.98946+00",
+    "category": "Carne"
+  },
+  {
+    "id": "0059a912-0133-4bcd-9e3c-2761f660aebc",
+    "name": "salata iceberg",
+    "unit": "KG",
+    "default_price_per_unit": "10.00",
+    "created_at": "2025-07-15 20:05:52.06937+00",
+    "updated_at": "2025-07-15 20:05:52.06937+00",
+    "category": "Legume"
+  },
+  {
+    "id": "02795328-7c22-445b-b6ea-644c122567cc",
+    "name": "sos de rosii",
+    "unit": "KG",
+    "default_price_per_unit": "12.00",
+    "created_at": "2025-07-15 20:05:52.153286+00",
+    "updated_at": "2025-07-15 20:05:52.153286+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "f87043cc-192c-4275-85d3-af9109f0315f",
+    "name": "telina",
+    "unit": "KG",
+    "default_price_per_unit": "5.00",
+    "created_at": "2025-07-15 20:05:52.250749+00",
+    "updated_at": "2025-07-15 20:05:52.250749+00",
+    "category": "Legume"
+  },
+  {
+    "id": "a1f158cb-c2c7-4c93-baeb-4c2a7df8cbc7",
+    "name": "telina radacina",
+    "unit": "KG",
+    "default_price_per_unit": "6.00",
+    "created_at": "2025-07-15 20:05:52.35405+00",
+    "updated_at": "2025-07-15 20:05:52.35405+00",
+    "category": "Legume"
+  },
+  {
+    "id": "6937f235-eba5-4087-a37c-ed7555e6f839",
+    "name": "baton/prajiturica",
+    "unit": "Unit",
+    "default_price_per_unit": "2.00",
+    "created_at": "2025-07-15 16:20:57.621266+00",
+    "updated_at": "2025-07-15 16:20:57.621266+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "ecbd85e8-84eb-4ab4-a8b3-f3a4bc0231e5",
+    "name": "unt de arahide",
+    "unit": "KG",
+    "default_price_per_unit": "40.00",
+    "created_at": "2025-07-15 20:05:52.432137+00",
+    "updated_at": "2025-07-15 20:05:52.432137+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "d84b3d3d-05d2-4429-a5b6-192bbafdacc8",
+    "name": "usturoi - catei",
+    "unit": "Unit",
+    "default_price_per_unit": "1.00",
+    "created_at": "2025-07-15 20:05:52.523739+00",
+    "updated_at": "2025-07-15 20:05:52.523739+00",
+    "category": "Legume"
+  },
+  {
+    "id": "1187fd41-e885-447b-91d6-e22059e463fc",
+    "name": "zahar brun",
+    "unit": "KG",
+    "default_price_per_unit": "10.00",
+    "created_at": "2025-07-15 20:05:52.604354+00",
+    "updated_at": "2025-07-15 20:05:52.604354+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "a8bb6c44-15d2-4610-a8a0-49a6989bb3f9",
+    "name": "piersica",
+    "unit": "Unit",
+    "default_price_per_unit": "3.00",
+    "created_at": "2025-07-16 06:08:31.029873+00",
+    "updated_at": "2025-07-16 06:08:31.029873+00",
+    "category": "Fructe"
+  },
+  {
+    "id": "960a2ba6-95c7-4d84-a1d6-8d4cfbe1a782",
+    "name": "prune",
+    "unit": "KG",
+    "default_price_per_unit": "10.00",
+    "created_at": "2025-07-16 06:14:04.757784+00",
+    "updated_at": "2025-07-16 06:14:04.757784+00",
+    "category": "Fructe"
+  },
+  {
+    "id": "5ae6bc68-0266-446e-9e14-bc49a2b78ab4",
+    "name": "falafel",
+    "unit": "KG",
+    "default_price_per_unit": "40.00",
+    "created_at": "2025-07-16 06:29:27.455377+00",
+    "updated_at": "2025-07-16 06:29:27.455377+00",
+    "category": "Altele"
+  },
+  {
+    "id": "4751813e-0041-4bf3-afbc-01131341dad1",
+    "name": "rondele orez",
+    "unit": "KG",
+    "default_price_per_unit": "5.00",
+    "created_at": "2025-07-16 06:39:33.039937+00",
+    "updated_at": "2025-07-16 06:39:33.039937+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "26b17028-94a4-4749-8cb2-4fc1dfd8f3e9",
+    "name": "nutella",
+    "unit": "KG",
+    "default_price_per_unit": "50.00",
+    "created_at": "2025-07-16 06:40:12.38767+00",
+    "updated_at": "2025-07-16 06:40:12.38767+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "dd55def2-1fad-430c-88f0-8eb368337157",
+    "name": "baton kaufland",
+    "unit": "Unit",
+    "default_price_per_unit": "6.50",
+    "created_at": "2025-07-16 06:41:42.013326+00",
+    "updated_at": "2025-07-16 06:41:42.013326+00",
+    "category": "Altele"
+  },
+  {
+    "id": "d3569754-a36e-4178-88ab-bf409becac75",
+    "name": "pateu bucata",
+    "unit": "Unit",
+    "default_price_per_unit": "5.00",
+    "created_at": "2025-07-16 06:50:04.949532+00",
+    "updated_at": "2025-07-16 06:50:04.949532+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "847b8842-21fa-4495-a0df-3afb8d97bbe1",
+    "name": "conserva chilli con carne",
+    "unit": "Unit",
+    "default_price_per_unit": "13.00",
+    "created_at": "2025-07-16 06:51:13.386004+00",
+    "updated_at": "2025-07-16 06:51:13.386004+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "e2059ccf-8858-4613-841a-66105da7d1a6",
+    "name": "supa la plic",
+    "unit": "Unit",
+    "default_price_per_unit": "5.00",
+    "created_at": "2025-07-16 06:51:35.299226+00",
+    "updated_at": "2025-07-16 06:51:35.299226+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "ef1125cd-645f-4f1c-bda5-7844df730d22",
+    "name": "mere",
+    "unit": "Unit",
+    "default_price_per_unit": "3.00",
+    "created_at": "2025-07-16 16:59:48.476748+00",
+    "updated_at": "2025-07-16 16:59:48.476748+00",
+    "category": "Fructe"
+  },
+  {
+    "id": "2c4d9587-8d53-44c6-81ff-835742d44c42",
+    "name": "carnaciori sticks - lidl",
+    "unit": "Unit",
+    "default_price_per_unit": "10.00",
+    "created_at": "2025-07-16 06:45:56.197158+00",
+    "updated_at": "2025-07-16 06:45:56.197158+00",
+    "category": "Altele"
+  },
+  {
+    "id": "41b722f9-15f0-4d92-826b-c2e201e3f995",
+    "name": "crenvusti vegetarieni",
+    "unit": "Unit",
+    "default_price_per_unit": "3.00",
+    "created_at": "2025-07-16 20:14:47.283366+00",
+    "updated_at": "2025-07-16 20:14:47.283366+00",
+    "category": "Altele"
+  },
+  {
+    "id": "020694c8-6ef7-49db-9592-b0babc240793",
+    "name": "mix alune nuci",
+    "unit": "Pack",
+    "default_price_per_unit": "10.00",
+    "created_at": "2025-07-16 06:47:25.870311+00",
+    "updated_at": "2025-07-16 06:47:25.870311+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "00c56aea-b0c6-40fe-9d03-fbb6cd927cee",
+    "name": "ceai muguri pin/molid",
+    "unit": "Pack",
+    "default_price_per_unit": "10.00",
+    "created_at": "2025-07-30 07:38:32.793672+00",
+    "updated_at": "2025-07-30 07:38:32.793672+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "84ff3205-1a43-41b2-b093-1b221f9f76a6",
+    "name": "flori de soc uscate",
+    "unit": "G",
+    "default_price_per_unit": "0.50",
+    "created_at": "2025-07-30 07:42:12.04127+00",
+    "updated_at": "2025-07-30 07:42:12.04127+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "157a7456-00fe-4eef-8752-c39d829ab370",
+    "name": "salvie uscata",
+    "unit": "G",
+    "default_price_per_unit": "0.10",
+    "created_at": "2025-07-30 07:43:09.669022+00",
+    "updated_at": "2025-07-30 07:43:09.669022+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "e86ff191-a780-4e83-a066-ad3bb453e83d",
+    "name": "menta uscata",
+    "unit": "G",
+    "default_price_per_unit": "0.10",
+    "created_at": "2025-07-30 07:43:43.15635+00",
+    "updated_at": "2025-07-30 07:43:43.15635+00",
+    "category": "Neperisabile"
+  },
+  {
+    "id": "f72fb6db-f2bf-4634-b91f-2a4d67329408",
+    "name": "sirop muguri de brad",
+    "unit": "Unit",
+    "default_price_per_unit": "15.00",
+    "created_at": "2025-07-30 07:44:14.222612+00",
+    "updated_at": "2025-07-30 07:44:14.222612+00",
+    "category": "Neperisabile"
+  }
+]

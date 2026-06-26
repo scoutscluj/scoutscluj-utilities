@@ -4,6 +4,8 @@
 
 The new app is a SvelteKit/NestJS/Postgres rewrite with Orgo SSO already established. The current menu has a disabled finance section. The legacy app stores finance records in Firestore and contains exploratory work for MT940/CSV parsing, category rules, purpose/channel classification, and web push notifications.
 
+Orgo should remain the base system where it owns the concept. Members are sourced from Orgo, with local enrichment only for operational workflows. Orgo exposes event APIs, user list/admin update APIs, unit APIs, tenant-scoped `Api-Token`/JWT authentication for regular API endpoints, OAuth identity endpoints, and webhooks for user and event-attendance changes. The current Scouts Cluj Utilities auth flow is SSO success-token verification and does not provide an Orgo API bearer token, so local `Activitate` records should reference or create Orgo events only after the Orgo API auth mode is confirmed. Finance details, reports, and future meal-planning data remain local extensions.
+
 Export discovery from the legacy app:
 
 - 2,049 Firestore documents total.
@@ -37,7 +39,7 @@ Keez public API discovery:
 ## Non-Goals
 
 - Rebuild all event management.
-- Build a member database or Orgo writeback.
+- Build a member database, event management, or Orgo writeback.
 - Implement Stripe.
 - Build OCR.
 - Build automatic reconciliation.

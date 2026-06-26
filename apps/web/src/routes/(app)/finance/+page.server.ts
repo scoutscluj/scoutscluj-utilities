@@ -6,6 +6,8 @@ import type { PageServerLoad } from './$types';
 
 type FinanceSummary = {
 	totalDocuments: number;
+	generalDocuments: number;
+	activityDocuments: number;
 	openDocuments: number;
 	needsClarification: number;
 	sentDocuments: number;

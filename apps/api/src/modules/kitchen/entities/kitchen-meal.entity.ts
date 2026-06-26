@@ -8,9 +8,7 @@ export const KitchenMeal = defineEntity({
   properties: {
     id: p.integer().primary().autoincrement(),
     kitchenDayId: p.integer().fieldName('kitchen_day_id'),
-    slot: p
-      .enum(() => KitchenMealSlot)
-      .nativeEnumName('kitchen_meal_slot'),
+    slot: p.enum(() => KitchenMealSlot).nativeEnumName('kitchen_meal_slot'),
     context: p.string().nullable(),
     name: p.string().nullable(),
     sortOrder: p.integer().default(0).fieldName('sort_order'),

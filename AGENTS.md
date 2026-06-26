@@ -1,5 +1,14 @@
 # AGENTS.md instructions for scoutscluj-utilities
 
+## Git Safety
+
+At the start of every new work session, run `git fetch --all --prune` before
+making decisions from remote branch state.
+
+Before pushing directly to `main`, always run `git fetch --all --prune` and
+confirm local `main` is up to date with `origin/main`. Do not push to `main`
+from a stale local branch.
+
 <!-- OPENSPEC:START -->
 
 # OpenSpec Instructions

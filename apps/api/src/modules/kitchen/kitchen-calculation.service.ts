@@ -128,7 +128,10 @@ const fromBaseQuantity = (quantity: number, unit: string) => {
   }
 };
 
-const round = (value: number) => Math.round((value + Number.EPSILON) * 10000) / 10000;
+const round = (value: number) =>
+  Math.round((value + Number.EPSILON) * 10000) / 10000;
+const customAttendanceMode: string = KitchenAttendanceMode.Custom;
+const wholeBatchScalingMode: string = KitchenRecipeScalingMode.WholeBatch;
 
 export const convertKitchenQuantity = (
   quantity: number,
@@ -157,7 +160,9 @@ export const convertKitchenQuantity = (
     );
   }
 
-  return round(fromBaseQuantity(toBaseQuantity(quantity, fromUnit), targetUnit));
+  return round(
+    fromBaseQuantity(toBaseQuantity(quantity, fromUnit), targetUnit),
+  );
 };
 
 const dateKey = (date: Date) => date.toISOString().slice(0, 10);
@@ -228,12 +233,13 @@ export class KitchenCalculationService {
         }
 
         const scale =
-          mealRecipe.scalingMode === KitchenRecipeScalingMode.WholeBatch
+          mealRecipe.scalingMode === wholeBatchScalingMode
             ? Math.ceil(attendance / effectiveServings)
             : attendance / effectiveServings;
 
-        for (const recipeIngredient of
-          recipeIngredientsByRecipe.get(recipe.id) ?? []) {
+        for (const recipeIngredient of recipeIngredientsByRecipe.get(
+          recipe.id,
+        ) ?? []) {
           const ingredient = ingredients.get(recipeIngredient.ingredientId);
           if (!ingredient) {
             continue;
@@ -281,7 +287,9 @@ export class KitchenCalculationService {
         }
 
         const neededQuantity = round(total.neededQuantity);
-        const procuredQuantity = round(procuredByIngredient.get(ingredientId) ?? 0);
+        const procuredQuantity = round(
+          procuredByIngredient.get(ingredientId) ?? 0,
+        );
         const remainingQuantity = round(
           Math.max(neededQuantity - procuredQuantity, 0),
         );
@@ -317,7 +325,7 @@ export class KitchenCalculationService {
     meal: KitchenMeal,
     rows: KitchenMealAttendance[],
   ) {
-    if (meal.attendanceMode === KitchenAttendanceMode.Custom) {
+    if (meal.attendanceMode === customAttendanceMode) {
       return rows.reduce((sum, row) => sum + row.attendance, 0);
     }
 

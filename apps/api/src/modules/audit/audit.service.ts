@@ -37,8 +37,10 @@ export class AuditService {
       entityType: input.entityType.slice(0, 100),
       entityId: String(input.entityId).slice(0, 100),
       activityId: input.activityId,
-      metadata: (sanitizeAuditMetadata(input.metadata ?? {}) ??
-        {}) as Record<string, unknown>,
+      metadata: (sanitizeAuditMetadata(input.metadata ?? {}) ?? {}) as Record<
+        string,
+        unknown
+      >,
     });
 
     this.em.persist(entry);
@@ -112,7 +114,7 @@ export class AuditService {
       entityType: entry.entityType,
       entityId: entry.entityId,
       activityId: entry.activityId ?? undefined,
-      metadata: entry.metadata as Record<string, unknown>,
+      metadata: entry.metadata,
       createdAt: entry.createdAt.toISOString(),
     }));
   }

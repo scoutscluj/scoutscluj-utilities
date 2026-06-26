@@ -11,9 +11,7 @@ export const KitchenPlanIngredientEstimate = defineEntity({
     id: p.integer().primary().autoincrement(),
     kitchenPlanId: p.integer().fieldName('kitchen_plan_id'),
     ingredientId: p.integer().fieldName('ingredient_id'),
-    estimatedUnitPrice: p
-      .decimal('number')
-      .fieldName('estimated_unit_price'),
+    estimatedUnitPrice: p.decimal('number').fieldName('estimated_unit_price'),
     createdAt: p
       .datetime()
       .fieldName('created_at')

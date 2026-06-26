@@ -6,13 +6,12 @@ import {
 import { UserRole } from '../users/entities/user-role.enum';
 import type { CurrentUser } from '../users/users.types';
 
-const currentUser = (overrides: Partial<CurrentUser> = {}): CurrentUser =>
-  ({
-    id: 1,
-    displayName: 'Ana',
-    roles: [],
-    ...overrides,
-  }) as CurrentUser;
+const currentUser = (overrides: Partial<CurrentUser> = {}): CurrentUser => ({
+  id: 1,
+  displayName: 'Ana',
+  roles: [],
+  ...overrides,
+});
 
 describe('audit helpers', () => {
   it('redacts sensitive metadata recursively', () => {

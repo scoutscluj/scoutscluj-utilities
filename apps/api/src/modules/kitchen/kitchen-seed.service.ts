@@ -37,8 +37,6 @@ type KitchenSeedResult = {
   recipeIngredients: number;
 };
 
-const normalizeName = (value: string) => value.trim().toLocaleLowerCase('ro');
-
 const parseNumber = (value: string | number | undefined, fallback = 0) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -62,7 +60,10 @@ export class KitchenSeedService {
       exportsDir,
       'ingredients.json',
     );
-    const recipes = this.readJson<LegacyRecipeRow[]>(exportsDir, 'recipes.json');
+    const recipes = this.readJson<LegacyRecipeRow[]>(
+      exportsDir,
+      'recipes.json',
+    );
     const recipeIngredients = this.readJson<LegacyRecipeIngredientRow[]>(
       exportsDir,
       'recipe_ingredients.json',

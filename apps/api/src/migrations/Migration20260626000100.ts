@@ -247,7 +247,9 @@ export class Migration20260626000100 extends Migration {
   }
 
   override down(): void {
-    this.addSql('drop table if exists "kitchen_procurement_documents" cascade;');
+    this.addSql(
+      'drop table if exists "kitchen_procurement_documents" cascade;',
+    );
     this.addSql('drop table if exists "kitchen_procurement_items" cascade;');
     this.addSql('drop table if exists "kitchen_procurement_events" cascade;');
     this.addSql(

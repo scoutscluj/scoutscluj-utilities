@@ -12,9 +12,9 @@ const seed = async () => {
   try {
     const orm = app.get(MikroORM);
     const result = await RequestContext.create(orm.em, () =>
-      app.get(KitchenSeedService).importLegacyCatalog(
-        process.env.KITCHEN_EXPORTS_DIR,
-      ),
+      app
+        .get(KitchenSeedService)
+        .importLegacyCatalog(process.env.KITCHEN_EXPORTS_DIR),
     );
     console.log(
       `Kitchen catalog imported: ${result.ingredients} ingredients, ${result.recipes} recipes, ${result.recipeIngredients} recipe ingredients.`,

@@ -123,7 +123,8 @@ const parseNonNegativeInteger = (
   fieldName: string,
   fallback = 0,
 ) => {
-  const parsed = value === undefined || value === null ? fallback : Number(value);
+  const parsed =
+    value === undefined || value === null ? fallback : Number(value);
   if (!Number.isInteger(parsed) || parsed < 0) {
     throw new BadRequestException(`${fieldName} nu este valid.`);
   }
@@ -146,6 +147,8 @@ const parseOptionalDate = (value?: string) => {
 };
 
 const dateKey = (date: Date) => date.toISOString().slice(0, 10);
+const outsideActivityDatesStatus: string =
+  KitchenDayStatus.OutsideActivityDates;
 
 const enumerateDates = (startDate: Date, endDate: Date) => {
   const dates: Date[] = [];
@@ -157,7 +160,11 @@ const enumerateDates = (startDate: Date, endDate: Date) => {
     ),
   );
   const end = new Date(
-    Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate()),
+    Date.UTC(
+      endDate.getUTCFullYear(),
+      endDate.getUTCMonth(),
+      endDate.getUTCDate(),
+    ),
   );
 
   while (cursor <= end) {
@@ -276,7 +283,9 @@ export class KitchenService {
       orderBy: { category: 'asc', name: 'asc' },
     });
 
-    return ingredients.map((ingredient) => this.serializeIngredient(ingredient));
+    return ingredients.map((ingredient) =>
+      this.serializeIngredient(ingredient),
+    );
   }
 
   async createIngredient(
@@ -748,7 +757,9 @@ export class KitchenService {
     const event = await this.getPlanProcurementEvent(plan.id, eventId);
     const [items, documents] = await Promise.all([
       this.procurementItemsRepository.find({ procurementEventId: event.id }),
-      this.procurementDocumentsRepository.find({ procurementEventId: event.id }),
+      this.procurementDocumentsRepository.find({
+        procurementEventId: event.id,
+      }),
     ]);
     [...items, ...documents, event].forEach((entity) => this.em.remove(entity));
     await this.em.flush();
@@ -982,7 +993,11 @@ export class KitchenService {
     );
   }
 
-  async procurementCsv(user: CurrentUser, activityId: number, eventId?: number) {
+  async procurementCsv(
+    user: CurrentUser,
+    activityId: number,
+    eventId?: number,
+  ) {
     const events = await this.listProcurement(user, activityId);
     const selectedEvents = eventId
       ? events.filter((event) => event.id === eventId)
@@ -1070,13 +1085,13 @@ export class KitchenService {
 
     if (markOutsideDates) {
       for (const day of existingDays) {
-        const status = desiredDates.has(dateKey(day.date))
+        const status: string = desiredDates.has(dateKey(day.date))
           ? KitchenDayStatus.Current
           : KitchenDayStatus.OutsideActivityDates;
         if (day.dateStatus !== status) {
-          day.dateStatus = status;
+          day.dateStatus = status as KitchenDayStatus;
           this.em.persist(day);
-          if (status === KitchenDayStatus.OutsideActivityDates) {
+          if (status === outsideActivityDatesStatus) {
             markedOutside += 1;
           }
         }
@@ -1157,10 +1172,7 @@ export class KitchenService {
     };
   }
 
-  private serializePlan(
-    plan: KitchenPlan,
-    activity: Activity,
-  ): KitchenPlanDto {
+  private serializePlan(plan: KitchenPlan, activity: Activity): KitchenPlanDto {
     return {
       id: plan.id,
       activityId: plan.activityId,
@@ -1261,7 +1273,8 @@ export class KitchenService {
     return {
       id: recipeIngredient.id,
       ingredientId: recipeIngredient.ingredientId,
-      ingredientName: ingredient?.name ?? `Ingredient #${recipeIngredient.ingredientId}`,
+      ingredientName:
+        ingredient?.name ?? `Ingredient #${recipeIngredient.ingredientId}`,
       quantity: recipeIngredient.quantity,
       unit: recipeIngredient.unit,
     };
@@ -1397,7 +1410,9 @@ export class KitchenService {
   }
 
   private async getActivity(activityId: number) {
-    const activity = await this.activitiesRepository.findOne({ id: activityId });
+    const activity = await this.activitiesRepository.findOne({
+      id: activityId,
+    });
     if (!activity) {
       throw new NotFoundException('Activitatea nu există.');
     }
@@ -1470,7 +1485,10 @@ export class KitchenService {
   }
 
   private async nextMealSortOrder(dayId: number, slot: KitchenMealSlot) {
-    const meals = await this.mealsRepository.find({ kitchenDayId: dayId, slot });
+    const meals = await this.mealsRepository.find({
+      kitchenDayId: dayId,
+      slot,
+    });
     return meals.length;
   }
 
@@ -1510,7 +1528,10 @@ export class KitchenService {
     }
   }
 
-  private csv(headers: Array<string | number>, rows: Array<Array<string | number>>) {
+  private csv(
+    headers: Array<string | number>,
+    rows: Array<Array<string | number>>,
+  ) {
     return [headers, ...rows]
       .map((row) =>
         row

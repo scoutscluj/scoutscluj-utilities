@@ -21,14 +21,8 @@ export const KitchenProcurementItem = defineEntity({
       .decimal('number')
       .nullable()
       .fieldName('estimated_total_cost'),
-    realUnitPrice: p
-      .decimal('number')
-      .nullable()
-      .fieldName('real_unit_price'),
-    realTotalCost: p
-      .decimal('number')
-      .nullable()
-      .fieldName('real_total_cost'),
+    realUnitPrice: p.decimal('number').nullable().fieldName('real_unit_price'),
+    realTotalCost: p.decimal('number').nullable().fieldName('real_total_cost'),
     notes: p.type('text').nullable(),
     createdAt: p
       .datetime()
@@ -42,6 +36,4 @@ export const KitchenProcurementItem = defineEntity({
   },
 });
 
-export type KitchenProcurementItem = InferEntity<
-  typeof KitchenProcurementItem
->;
+export type KitchenProcurementItem = InferEntity<typeof KitchenProcurementItem>;

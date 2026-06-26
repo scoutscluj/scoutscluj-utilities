@@ -8,7 +8,10 @@ import { AuditService } from './audit.service';
 import { AuditEntry } from './entities/audit-entry.entity';
 
 @Module({
-  imports: [AuthModule, MikroOrmModule.forFeature([AuditEntry, Activity, User])],
+  imports: [
+    AuthModule,
+    MikroOrmModule.forFeature([AuditEntry, Activity, User]),
+  ],
   controllers: [AuditController],
   providers: [AuditService],
   exports: [AuditService],

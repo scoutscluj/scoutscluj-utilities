@@ -181,11 +181,7 @@ export class KitchenController {
     @Param('activityId', ParseIntPipe) activityId: number,
     @Param('mealRecipeId', ParseIntPipe) mealRecipeId: number,
   ) {
-    return this.kitchenService.deleteMealRecipe(
-      user,
-      activityId,
-      mealRecipeId,
-    );
+    return this.kitchenService.deleteMealRecipe(user, activityId, mealRecipeId);
   }
 
   @Post('meals/:mealId/attendance')

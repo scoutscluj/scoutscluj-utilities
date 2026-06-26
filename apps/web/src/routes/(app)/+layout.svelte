@@ -42,6 +42,8 @@
 				return resolve('/profile');
 			case '/admin':
 				return resolve('/admin');
+			case '/admin/users':
+				return resolve('/admin/users');
 			case '/finance':
 				return resolve('/finance');
 			case '/finance/documents':

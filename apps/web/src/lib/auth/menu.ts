@@ -35,7 +35,7 @@ export const menuItems: MenuItem[] = [
 		minRole: 'moderator',
 		children: [
 			{ label: 'Administrare', href: '/admin', minRole: 'moderator' },
-			{ label: 'Utilizatori', disabled: true, minRole: 'admin' },
+			{ label: 'Utilizatori', href: '/admin/users', minRole: 'super_admin' },
 			{ label: 'Notificări', disabled: true, minRole: 'super_admin' }
 		]
 	}

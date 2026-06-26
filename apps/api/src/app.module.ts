@@ -7,6 +7,7 @@ import { createMikroOrmOptions } from './config/database.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { HealthModule } from './modules/health/health.module';
+import { UsersAdminModule } from './modules/users/users-admin.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { HealthModule } from './modules/health/health.module';
     MikroOrmModule.forRoot(createMikroOrmOptions()),
     HealthModule,
     AuthModule,
+    UsersAdminModule,
     FinanceModule,
   ],
   controllers: [AppController],

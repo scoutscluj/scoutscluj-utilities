@@ -1,9 +1,23 @@
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { AdminUserDto } from './dto/admin-user.dto';
 import { OrgoConnection } from './entities/orgo-connection.entity';
+import { UserRole } from './entities/user-role.enum';
 import { User } from './entities/user.entity';
 import { OrgoProfile, CurrentUser } from './users.types';
+
+const ROLE_ORDER = [
+  UserRole.Moderator,
+  UserRole.Admin,
+  UserRole.FinanceManager,
+  UserRole.SuperAdmin,
+];
 
 const normalizeEmail = (email?: string) => {
   const value = email?.trim().toLowerCase();
@@ -40,6 +54,30 @@ export class UsersService {
       { id },
       { populate: ['orgoConnection'] },
     );
+  }
+
+  async listAdminUsers(): Promise<AdminUserDto[]> {
+    const users = await this.usersRepository.find(
+      {},
+      {
+        populate: ['orgoConnection'],
+        orderBy: { displayName: 'asc', id: 'asc' },
+      },
+    );
+
+    return users.map((user) => this.serializeAdminUser(user));
+  }
+
+  async updateRoles(userId: number, roles: unknown): Promise<AdminUserDto> {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+
+    user.roles = this.normalizeRoles(roles);
+    await this.em.flush();
+
+    return this.serializeAdminUser(user);
   }
 
   async resolveOrCreateFromOrgoProfile(profile: OrgoProfile) {
@@ -134,6 +172,49 @@ export class UsersService {
           }
         : undefined,
     };
+  }
+
+  serializeAdminUser(user: User): AdminUserDto {
+    const connection = user.orgoConnection;
+
+    return {
+      id: user.id,
+      email: user.email ?? undefined,
+      displayName: user.displayName,
+      firstName: user.firstName ?? undefined,
+      lastName: user.lastName ?? undefined,
+      avatarUrl: user.avatarUrl ?? undefined,
+      roles: this.normalizeRoles(user.roles),
+      orgoConnection: connection
+        ? {
+            orgoUserId: connection.orgoUserId ?? undefined,
+            cardId: connection.cardId ?? undefined,
+            email: connection.email ?? undefined,
+            connectedAt: connection.connectedAt?.toISOString(),
+            lastLoginAt: connection.lastLoginAt?.toISOString(),
+          }
+        : undefined,
+      lastLoginAt: user.lastLoginAt?.toISOString(),
+      createdAt: user.createdAt.toISOString(),
+      updatedAt: user.updatedAt.toISOString(),
+    };
+  }
+
+  private normalizeRoles(roles: unknown): UserRole[] {
+    if (!Array.isArray(roles)) {
+      throw new BadRequestException('Roles must be an array.');
+    }
+
+    const requestedRoles = new Set<UserRole>();
+    for (const role of roles) {
+      if (!ROLE_ORDER.includes(role as UserRole)) {
+        throw new BadRequestException(`Unsupported role: ${String(role)}.`);
+      }
+
+      requestedRoles.add(role as UserRole);
+    }
+
+    return ROLE_ORDER.filter((role) => requestedRoles.has(role));
   }
 
   private createUserFromOrgoProfile(profile: OrgoProfile) {

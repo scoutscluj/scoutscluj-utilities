@@ -31,6 +31,8 @@ ORGO_OAUTH_BASE_URL=https://membri.scout.ro
 ORGO_OAUTH_CLIENT_ID=replace-me
 ORGO_OAUTH_CLIENT_SECRET=replace-me
 PUBLIC_API_BASE_URL=http://localhost:3000
+PUBLIC_APP_VERSION=0.0.0-dev
+PUBLIC_COMMIT_HASH=local
 WEB_ORIGIN=http://localhost:5173
 WEB_ORIGINS=http://localhost:5173,http://localhost:5174
 ```
@@ -100,7 +102,27 @@ Set this web service variable:
 
 ```bash
 PUBLIC_API_BASE_URL=https://your-api-service.up.railway.app
+PUBLIC_APP_VERSION=0.0.0-dev
+PUBLIC_COMMIT_HASH=local
 ```
+
+## PWA Support
+
+The web app exposes a `ScoutsCluj` manifest and a production service worker.
+Normal `pnpm --filter web dev` does not register the service worker to avoid
+stale development bundles. Use a production build/preview or set
+`PUBLIC_ENABLE_DEV_PWA=true` only when explicitly testing service worker
+behavior.
+
+The first PWA slice caches the app shell, static assets, and previously visited
+navigations. API responses, uploads, auth routes, and data-changing operations
+remain network-only unless a future feature explicitly opts in.
+
+Install flow:
+
+- Android Chrome: open the HTTPS site, use the browser install prompt or
+  `Menu > Add to Home screen`.
+- iOS Safari: open the HTTPS site, tap `Share`, then `Add to Home Screen`.
 
 After Railway generates the API domain, configure the Orgo app callback URL as:
 

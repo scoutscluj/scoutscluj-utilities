@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { menuItems } from '$lib/auth/menu';
 	import { hasRole } from '$lib/auth/roles';
+	import PWAStatusChip from '$lib/components/pwa/PWAStatusChip.svelte';
 	import type { AppHref, CurrentUser, MenuItem } from '$lib/auth/types';
 
 	let { data, children } = $props();
@@ -135,6 +136,7 @@
 			<a class="title-link" href={resolve('/')}>Resurse Scouts Cluj</a>
 
 			<div class="profile-menu">
+				<PWAStatusChip />
 				<a class="profile-link" href={resolve('/profile')}>
 					<span class="avatar" aria-hidden="true">{data.user.displayName.slice(0, 1)}</span>
 					<span class="profile-name">{data.user.displayName}</span>

@@ -11,6 +11,10 @@ export default defineConfig({
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
 
+			serviceWorker: {
+				register: false
+			},
+
 			adapter: adapter()
 		})
 	]

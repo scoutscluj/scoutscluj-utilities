@@ -154,8 +154,13 @@ The app secret must contain real Orgo credentials before the first deployment:
 ```bash
 aws secretsmanager update-secret \
   --secret-id scoutscluj/production/app \
-  --secret-string '{"AUTH_SESSION_SECRET":"...","ORGO_OAUTH_BASE_URL":"https://membri.scout.ro","ORGO_OAUTH_CLIENT_ID":"...","ORGO_OAUTH_CLIENT_SECRET":"...","PUBLIC_API_BASE_URL":"https://resurse.scoutscluj.ro","WEB_ORIGIN":"https://resurse.scoutscluj.ro","WEB_ORIGINS":"https://resurse.scoutscluj.ro","ORGO_OAUTH_REDIRECT_URI":"https://resurse.scoutscluj.ro/api/orgo/callback"}'
+  --secret-string '{"AUTH_SESSION_SECRET":"...","ORGO_OAUTH_BASE_URL":"https://membri.scout.ro","ORGO_OAUTH_CLIENT_ID":"...","ORGO_OAUTH_CLIENT_SECRET":"...","PUBLIC_API_BASE_URL":"https://resurse.scoutscluj.ro","PUBLIC_APP_VERSION":"0.0.0","PUBLIC_COMMIT_HASH":"unknown","WEB_ORIGIN":"https://resurse.scoutscluj.ro","WEB_ORIGINS":"https://resurse.scoutscluj.ro","ORGO_OAUTH_REDIRECT_URI":"https://resurse.scoutscluj.ro/api/orgo/callback"}'
 ```
+
+The service worker is served by the SvelteKit web container at
+`/service-worker.js`. Caddy should allow it to revalidate normally; do not add
+long-lived custom cache headers for that file. Static icons and the manifest can
+use normal static asset caching.
 
 ## Future Fargate Option
 

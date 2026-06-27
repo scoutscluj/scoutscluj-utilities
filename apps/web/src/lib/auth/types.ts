@@ -8,7 +8,10 @@ export type AppHref =
 	| '/audit'
 	| '/activities'
 	| '/finance'
-	| '/finance/documents';
+	| '/finance/documents'
+	| '/info/statut'
+	| '/programe/regulamente'
+	| '/sediu/regulament';
 
 export type CurrentUser = {
 	id: number;

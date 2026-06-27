@@ -61,6 +61,12 @@
 				return resolve('/finance');
 			case '/finance/documents':
 				return resolve('/finance/documents');
+			case '/info/statut':
+				return resolve('/info/statut');
+			case '/programe/regulamente':
+				return resolve('/programe/regulamente');
+			case '/sediu/regulament':
+				return resolve('/sediu/regulament');
 		}
 	};
 

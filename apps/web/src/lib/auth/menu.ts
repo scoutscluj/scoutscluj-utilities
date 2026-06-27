@@ -7,13 +7,15 @@ export const menuItems: MenuItem[] = [
 		children: [
 			{ label: 'Anunțuri', disabled: true },
 			{ label: 'Național', disabled: true },
+			{ label: 'Statut ONCR', href: '/info/statut' },
+			{ label: 'Regulament ONCR', href: '/programe/regulamente' },
 			{ label: 'General', disabled: true }
 		]
 	},
 	{
 		label: 'Sediu',
 		children: [
-			{ label: 'Regulament', disabled: true },
+			{ label: 'Regulament', href: '/sediu/regulament' },
 			{ label: 'Inventar', disabled: true },
 			{ label: 'Calendar', disabled: true }
 		]

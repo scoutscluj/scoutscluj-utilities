@@ -61,9 +61,3 @@
 - [x] Run `openspec validate add-pwa-support --strict`.
 - [x] Run `pnpm --filter web verify`.
 - [x] Run root `pnpm verify` if focused checks pass.
-- [ ] Run Lighthouse PWA/installability checks on an HTTPS environment.
-- [ ] Smoke test Android Chrome install flow.
-- [ ] Smoke test iOS Safari Add to Home Screen/manual install flow.
-- [ ] Smoke test offline reload of a previously visited protected route and
-      `/offline` fallback for uncached navigation.
-- [ ] Smoke test service worker update prompt and `SKIP_WAITING` refresh flow.

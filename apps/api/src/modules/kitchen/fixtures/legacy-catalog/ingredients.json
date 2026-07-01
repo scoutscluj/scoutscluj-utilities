@@ -28,7 +28,7 @@
   },
   {
     "id": "5e5852b7-2836-46e9-8cb1-f31a4b4a9c8f",
-    "name": "faina de malai",
+    "name": "făină de mălai",
     "unit": "KG",
     "default_price_per_unit": "5.00",
     "created_at": "2025-07-14 06:27:17.855855+00",
@@ -37,7 +37,7 @@
   },
   {
     "id": "daabecfc-d101-4490-a253-23b6d384c29e",
-    "name": "branza",
+    "name": "brânză",
     "unit": "KG",
     "default_price_per_unit": "60.00",
     "created_at": "2025-07-11 12:57:05.782274+00",
@@ -46,7 +46,7 @@
   },
   {
     "id": "9fbc96eb-7f58-49dc-b50e-5d5c4654d41a",
-    "name": "smantana",
+    "name": "smântână",
     "unit": "KG",
     "default_price_per_unit": "20.00",
     "created_at": "2025-07-14 06:28:25.180899+00",
@@ -55,7 +55,7 @@
   },
   {
     "id": "cd5bbdc5-3bd1-4415-9448-6265198aa216",
-    "name": "carnaciori",
+    "name": "cârnăciori",
     "unit": "KG",
     "default_price_per_unit": "50.00",
     "created_at": "2025-07-14 06:28:57.060246+00",
@@ -82,7 +82,7 @@
   },
   {
     "id": "fe326a12-fd4d-4d40-9e03-65058c9e796b",
-    "name": "ceapa",
+    "name": "ceapă",
     "unit": "KG",
     "default_price_per_unit": "5.00",
     "created_at": "2025-07-14 06:30:33.53746+00",
@@ -145,7 +145,7 @@
   },
   {
     "id": "32fe9b46-39c9-4e8f-9616-2a1a8faf4b8b",
-    "name": "sunca",
+    "name": "șuncă",
     "unit": "KG",
     "default_price_per_unit": "50.00",
     "created_at": "2025-07-15 16:17:01.62222+00",
@@ -154,7 +154,7 @@
   },
   {
     "id": "88a2c693-77d4-40ba-933f-c5a69f2a5868",
-    "name": "paine",
+    "name": "pâine",
     "unit": "KG",
     "default_price_per_unit": "10.00",
     "created_at": "2025-07-15 16:17:32.517652+00",
@@ -163,7 +163,7 @@
   },
   {
     "id": "3f3675df-eef1-4ea7-b638-06245034ec87",
-    "name": "cas",
+    "name": "caș",
     "unit": "KG",
     "default_price_per_unit": "50.00",
     "created_at": "2025-07-15 16:17:52.529751+00",
@@ -172,7 +172,7 @@
   },
   {
     "id": "cbebd92e-0fd6-4484-a840-e06ae2f00928",
-    "name": "branza topita",
+    "name": "brânză topită",
     "unit": "KG",
     "default_price_per_unit": "30.00",
     "created_at": "2025-07-15 16:18:22.547614+00",
@@ -199,7 +199,7 @@
   },
   {
     "id": "2e7c6095-3175-42de-bd8a-d5d20a6b4735",
-    "name": "pui mare piele si os",
+    "name": "pui întreg cu piele și os",
     "unit": "KG",
     "default_price_per_unit": "30.00",
     "created_at": "2025-07-15 16:22:41.018524+00",
@@ -217,7 +217,7 @@
   },
   {
     "id": "24705cc0-2c1f-4bce-bdcc-c5258ea5c7fc",
-    "name": "apa",
+    "name": "apă",
     "unit": "L",
     "default_price_per_unit": "1.50",
     "created_at": "2025-07-15 20:05:48.263072+00",
@@ -244,7 +244,7 @@
   },
   {
     "id": "3f411e47-dd0a-46d4-9496-b46489ce56fb",
-    "name": "ardei rosu",
+    "name": "ardei roșu",
     "unit": "KG",
     "default_price_per_unit": "10.00",
     "created_at": "2025-07-15 20:05:48.524597+00",
@@ -262,7 +262,7 @@
   },
   {
     "id": "5a65581d-a911-4079-a043-e9a96392112e",
-    "name": "baton branza topita",
+    "name": "baton brânză topită",
     "unit": "KG",
     "default_price_per_unit": "20.00",
     "created_at": "2025-07-15 20:05:48.881399+00",
@@ -271,7 +271,7 @@
   },
   {
     "id": "89046b25-4d98-40cb-832f-644b369b0699",
-    "name": "branza de vaca/ telemea",
+    "name": "brânză de vacă / telemea",
     "unit": "G",
     "default_price_per_unit": "30.00",
     "created_at": "2025-07-15 20:05:48.966333+00",
@@ -280,7 +280,7 @@
   },
   {
     "id": "8db697f8-94fa-4b43-9592-acfc79ac9386",
-    "name": "carne de porc - pulpa, spata",
+    "name": "carne de porc - pulpă, spată",
     "unit": "KG",
     "default_price_per_unit": "25.00",
     "created_at": "2025-07-15 20:05:49.050925+00",
@@ -289,7 +289,7 @@
   },
   {
     "id": "efabec11-b2f2-42e4-a8a1-4fd3f5438983",
-    "name": "carne tocata",
+    "name": "carne tocată",
     "unit": "KG",
     "default_price_per_unit": "30.00",
     "created_at": "2025-07-15 20:05:49.139879+00",
@@ -298,7 +298,7 @@
   },
   {
     "id": "e1a167b4-ae47-4886-9417-de07027d4851",
-    "name": "castraveti",
+    "name": "castraveți",
     "unit": "KG",
     "default_price_per_unit": "5.00",
     "created_at": "2025-07-15 20:05:49.222383+00",
@@ -307,7 +307,7 @@
   },
   {
     "id": "feae15c1-33c4-40a4-b7ae-8be31c437d59",
-    "name": "castraveti murati",
+    "name": "castraveți murați",
     "unit": "KG",
     "default_price_per_unit": "20.00",
     "created_at": "2025-07-15 20:05:49.308552+00",
@@ -325,7 +325,7 @@
   },
   {
     "id": "f8c4fc14-319b-468f-8292-7d261e33a976",
-    "name": "conserve ananas",
+    "name": "conserve de ananas",
     "unit": "KG",
     "default_price_per_unit": "20.00",
     "created_at": "2025-07-15 20:05:49.474848+00",
@@ -334,7 +334,7 @@
   },
   {
     "id": "c68b70ca-88f1-4796-96d5-4aa85a7f7bfb",
-    "name": "conserve mazare",
+    "name": "conserve de mazăre",
     "unit": "KG",
     "default_price_per_unit": "20.00",
     "created_at": "2025-07-15 20:05:49.566644+00",
@@ -352,7 +352,7 @@
   },
   {
     "id": "491a234d-1680-40d3-94c5-8fd4d7166482",
-    "name": "crenvusti",
+    "name": "crenvurști",
     "unit": "Unit",
     "default_price_per_unit": "2.00",
     "created_at": "2025-07-15 20:05:49.757372+00",
@@ -361,7 +361,7 @@
   },
   {
     "id": "1728cdf7-6819-428d-8e8d-7b00d7a2a579",
-    "name": "faina",
+    "name": "făină",
     "unit": "KG",
     "default_price_per_unit": "5.00",
     "created_at": "2025-07-15 20:05:49.853317+00",
@@ -370,7 +370,7 @@
   },
   {
     "id": "66758626-e85a-4feb-90b4-67b0f19696f4",
-    "name": "galbenusuri",
+    "name": "gălbenușuri",
     "unit": "Unit",
     "default_price_per_unit": "1.00",
     "created_at": "2025-07-15 20:05:49.937993+00",
@@ -379,7 +379,7 @@
   },
   {
     "id": "3944295d-a680-4b75-ba54-ed654965866e",
-    "name": "gris",
+    "name": "griș",
     "unit": "KG",
     "default_price_per_unit": "15.00",
     "created_at": "2025-07-15 20:05:50.021724+00",
@@ -406,7 +406,7 @@
   },
   {
     "id": "c65d9e04-c8ec-4012-b9f3-f0b5dde80945",
-    "name": "lamaie",
+    "name": "lămâie",
     "unit": "KG",
     "default_price_per_unit": "10.00",
     "created_at": "2025-07-15 20:05:50.315296+00",
@@ -424,7 +424,7 @@
   },
   {
     "id": "b0853f22-2a8f-435a-b72d-e552c349f710",
-    "name": "legatura patrunjel",
+    "name": "legătură pătrunjel",
     "unit": "Unit",
     "default_price_per_unit": "5.00",
     "created_at": "2025-07-15 20:05:50.499179+00",
@@ -442,7 +442,7 @@
   },
   {
     "id": "d4c93ee7-ce2e-4532-aa6c-4df3d0424846",
-    "name": "masline",
+    "name": "măsline",
     "unit": "KG",
     "default_price_per_unit": "25.00",
     "created_at": "2025-07-15 20:05:50.676958+00",
@@ -451,7 +451,7 @@
   },
   {
     "id": "70827ccf-aee5-4f9f-b2d8-d5a72877d8b1",
-    "name": "mix salata",
+    "name": "mix salată",
     "unit": "KG",
     "default_price_per_unit": "30.00",
     "created_at": "2025-07-15 20:05:50.76101+00",
@@ -460,7 +460,7 @@
   },
   {
     "id": "958b6706-e47e-485d-ae4a-b54b89192594",
-    "name": "mustar",
+    "name": "muștar",
     "unit": "KG",
     "default_price_per_unit": "15.00",
     "created_at": "2025-07-15 20:05:50.852822+00",
@@ -478,7 +478,7 @@
   },
   {
     "id": "5665b06c-319a-4471-b75f-7c97d750c6f4",
-    "name": "otet",
+    "name": "oțet",
     "unit": "L",
     "default_price_per_unit": "10.00",
     "created_at": "2025-07-15 20:05:51.024319+00",
@@ -487,7 +487,7 @@
   },
   {
     "id": "75a78306-0bae-4113-9160-337e75b9068c",
-    "name": "oua",
+    "name": "ouă",
     "unit": "Unit",
     "default_price_per_unit": "1.00",
     "created_at": "2025-07-15 20:05:51.141147+00",
@@ -496,7 +496,7 @@
   },
   {
     "id": "65caae37-554b-4d5a-a8fd-306fbc37fd5b",
-    "name": "ovaz",
+    "name": "ovăz",
     "unit": "KG",
     "default_price_per_unit": "8.00",
     "created_at": "2025-07-15 20:05:51.230592+00",
@@ -505,7 +505,7 @@
   },
   {
     "id": "407747ec-74f9-4ea9-863c-856fe6b94007",
-    "name": "pasta kapia dulce",
+    "name": "pastă kapia dulce",
     "unit": "KG",
     "default_price_per_unit": "20.00",
     "created_at": "2025-07-15 20:05:51.315322+00",
@@ -514,7 +514,7 @@
   },
   {
     "id": "1aa3bda9-be08-4c0b-aca1-9ce3020e32a2",
-    "name": "pastarnac radacina",
+    "name": "păstârnac rădăcină",
     "unit": "KG",
     "default_price_per_unit": "5.00",
     "created_at": "2025-07-15 20:05:51.401006+00",
@@ -541,7 +541,7 @@
   },
   {
     "id": "d8216c35-e8fc-44de-9ada-5b3848c60d89",
-    "name": "patrunjel frunze",
+    "name": "pătrunjel frunze",
     "unit": "Unit",
     "default_price_per_unit": "5.00",
     "created_at": "2025-07-15 20:05:51.650369+00",
@@ -550,7 +550,7 @@
   },
   {
     "id": "6cedcf51-2b49-4544-9be5-493caf5468d9",
-    "name": "patrunjel radacina",
+    "name": "pătrunjel rădăcină",
     "unit": "KG",
     "default_price_per_unit": "6.00",
     "created_at": "2025-07-15 20:05:51.733071+00",
@@ -568,7 +568,7 @@
   },
   {
     "id": "96907ffe-34e6-4dcb-b2ff-4e81f59f5355",
-    "name": "rosii",
+    "name": "roșii",
     "unit": "KG",
     "default_price_per_unit": "6.00",
     "created_at": "2025-07-15 20:05:51.907493+00",
@@ -586,7 +586,7 @@
   },
   {
     "id": "0059a912-0133-4bcd-9e3c-2761f660aebc",
-    "name": "salata iceberg",
+    "name": "salată iceberg",
     "unit": "KG",
     "default_price_per_unit": "10.00",
     "created_at": "2025-07-15 20:05:52.06937+00",
@@ -595,7 +595,7 @@
   },
   {
     "id": "02795328-7c22-445b-b6ea-644c122567cc",
-    "name": "sos de rosii",
+    "name": "sos de roșii",
     "unit": "KG",
     "default_price_per_unit": "12.00",
     "created_at": "2025-07-15 20:05:52.153286+00",
@@ -604,7 +604,7 @@
   },
   {
     "id": "f87043cc-192c-4275-85d3-af9109f0315f",
-    "name": "telina",
+    "name": "țelină",
     "unit": "KG",
     "default_price_per_unit": "5.00",
     "created_at": "2025-07-15 20:05:52.250749+00",
@@ -613,7 +613,7 @@
   },
   {
     "id": "a1f158cb-c2c7-4c93-baeb-4c2a7df8cbc7",
-    "name": "telina radacina",
+    "name": "țelină rădăcină",
     "unit": "KG",
     "default_price_per_unit": "6.00",
     "created_at": "2025-07-15 20:05:52.35405+00",
@@ -622,7 +622,7 @@
   },
   {
     "id": "6937f235-eba5-4087-a37c-ed7555e6f839",
-    "name": "baton/prajiturica",
+    "name": "baton / prăjiturică",
     "unit": "Unit",
     "default_price_per_unit": "2.00",
     "created_at": "2025-07-15 16:20:57.621266+00",
@@ -640,7 +640,7 @@
   },
   {
     "id": "d84b3d3d-05d2-4429-a5b6-192bbafdacc8",
-    "name": "usturoi - catei",
+    "name": "usturoi - căței",
     "unit": "Unit",
     "default_price_per_unit": "1.00",
     "created_at": "2025-07-15 20:05:52.523739+00",
@@ -649,7 +649,7 @@
   },
   {
     "id": "1187fd41-e885-447b-91d6-e22059e463fc",
-    "name": "zahar brun",
+    "name": "zahăr brun",
     "unit": "KG",
     "default_price_per_unit": "10.00",
     "created_at": "2025-07-15 20:05:52.604354+00",
@@ -658,7 +658,7 @@
   },
   {
     "id": "a8bb6c44-15d2-4610-a8a0-49a6989bb3f9",
-    "name": "piersica",
+    "name": "piersică",
     "unit": "Unit",
     "default_price_per_unit": "3.00",
     "created_at": "2025-07-16 06:08:31.029873+00",
@@ -685,7 +685,7 @@
   },
   {
     "id": "4751813e-0041-4bf3-afbc-01131341dad1",
-    "name": "rondele orez",
+    "name": "rondele de orez",
     "unit": "KG",
     "default_price_per_unit": "5.00",
     "created_at": "2025-07-16 06:39:33.039937+00",
@@ -703,7 +703,7 @@
   },
   {
     "id": "dd55def2-1fad-430c-88f0-8eb368337157",
-    "name": "baton kaufland",
+    "name": "baton Kaufland",
     "unit": "Unit",
     "default_price_per_unit": "6.50",
     "created_at": "2025-07-16 06:41:42.013326+00",
@@ -712,7 +712,7 @@
   },
   {
     "id": "d3569754-a36e-4178-88ab-bf409becac75",
-    "name": "pateu bucata",
+    "name": "pateu bucată",
     "unit": "Unit",
     "default_price_per_unit": "5.00",
     "created_at": "2025-07-16 06:50:04.949532+00",
@@ -721,7 +721,7 @@
   },
   {
     "id": "847b8842-21fa-4495-a0df-3afb8d97bbe1",
-    "name": "conserva chilli con carne",
+    "name": "conservă chili con carne",
     "unit": "Unit",
     "default_price_per_unit": "13.00",
     "created_at": "2025-07-16 06:51:13.386004+00",
@@ -730,7 +730,7 @@
   },
   {
     "id": "e2059ccf-8858-4613-841a-66105da7d1a6",
-    "name": "supa la plic",
+    "name": "supă la plic",
     "unit": "Unit",
     "default_price_per_unit": "5.00",
     "created_at": "2025-07-16 06:51:35.299226+00",
@@ -748,7 +748,7 @@
   },
   {
     "id": "2c4d9587-8d53-44c6-81ff-835742d44c42",
-    "name": "carnaciori sticks - lidl",
+    "name": "cârnăciori sticks - Lidl",
     "unit": "Unit",
     "default_price_per_unit": "10.00",
     "created_at": "2025-07-16 06:45:56.197158+00",
@@ -757,7 +757,7 @@
   },
   {
     "id": "41b722f9-15f0-4d92-826b-c2e201e3f995",
-    "name": "crenvusti vegetarieni",
+    "name": "crenvurști vegetarieni",
     "unit": "Unit",
     "default_price_per_unit": "3.00",
     "created_at": "2025-07-16 20:14:47.283366+00",
@@ -766,7 +766,7 @@
   },
   {
     "id": "020694c8-6ef7-49db-9592-b0babc240793",
-    "name": "mix alune nuci",
+    "name": "mix de alune și nuci",
     "unit": "Pack",
     "default_price_per_unit": "10.00",
     "created_at": "2025-07-16 06:47:25.870311+00",
@@ -775,7 +775,7 @@
   },
   {
     "id": "00c56aea-b0c6-40fe-9d03-fbb6cd927cee",
-    "name": "ceai muguri pin/molid",
+    "name": "ceai muguri pin / molid",
     "unit": "Pack",
     "default_price_per_unit": "10.00",
     "created_at": "2025-07-30 07:38:32.793672+00",
@@ -793,7 +793,7 @@
   },
   {
     "id": "157a7456-00fe-4eef-8752-c39d829ab370",
-    "name": "salvie uscata",
+    "name": "salvie uscată",
     "unit": "G",
     "default_price_per_unit": "0.10",
     "created_at": "2025-07-30 07:43:09.669022+00",
@@ -802,7 +802,7 @@
   },
   {
     "id": "e86ff191-a780-4e83-a066-ad3bb453e83d",
-    "name": "menta uscata",
+    "name": "mentă uscată",
     "unit": "G",
     "default_price_per_unit": "0.10",
     "created_at": "2025-07-30 07:43:43.15635+00",

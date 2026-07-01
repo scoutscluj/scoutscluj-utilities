@@ -71,6 +71,11 @@ Expected import totals from the current legacy exports:
 - 42 recipes
 - 201 recipe ingredient links
 
+Catalog text should stay display-ready: ingredient labels are lowercase,
+recipe titles are sentence-cased, and Romanian names/descriptions use Romanian
+diacritics. Recipe ingredient display names should match the canonical
+ingredient labels.
+
 The seed command is safe to run repeatedly after migrations. Production deploys
 run it automatically after migrations so new databases or restored databases
 keep the shared ingredients and recipes visible.

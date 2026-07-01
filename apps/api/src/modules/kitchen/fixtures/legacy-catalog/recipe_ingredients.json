@@ -5,7 +5,7 @@
     "ingredient_id": "6937f235-eba5-4087-a37c-ed7555e6f839",
     "quantity": "1.00",
     "unit": "Unit",
-    "ingredient_name": "baton/prajiturica",
+    "ingredient_name": "baton / prăjiturică",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "2.00"
@@ -16,7 +16,7 @@
     "ingredient_id": "2e7c6095-3175-42de-bd8a-d5d20a6b4735",
     "quantity": "0.08",
     "unit": "KG",
-    "ingredient_name": "pui mare piele si os",
+    "ingredient_name": "pui întreg cu piele și os",
     "ingredient_category": "Carne",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "30.00"
@@ -27,7 +27,7 @@
     "ingredient_id": "9fbc96eb-7f58-49dc-b50e-5d5c4654d41a",
     "quantity": "0.07",
     "unit": "KG",
-    "ingredient_name": "smantana",
+    "ingredient_name": "smântână",
     "ingredient_category": "Lactate",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "20.00"
@@ -38,7 +38,7 @@
     "ingredient_id": "66758626-e85a-4feb-90b4-67b0f19696f4",
     "quantity": "0.50",
     "unit": "Unit",
-    "ingredient_name": "galbenusuri",
+    "ingredient_name": "gălbenușuri",
     "ingredient_category": "Altele",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "1.00"
@@ -49,7 +49,7 @@
     "ingredient_id": "1aa3bda9-be08-4c0b-aca1-9ce3020e32a2",
     "quantity": "0.02",
     "unit": "KG",
-    "ingredient_name": "pastarnac radacina",
+    "ingredient_name": "păstârnac rădăcină",
     "ingredient_category": "Altele",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -71,7 +71,7 @@
     "ingredient_id": "fe326a12-fd4d-4d40-9e03-65058c9e796b",
     "quantity": "0.03",
     "unit": "KG",
-    "ingredient_name": "ceapa",
+    "ingredient_name": "ceapă",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -104,7 +104,7 @@
     "ingredient_id": "d8216c35-e8fc-44de-9ada-5b3848c60d89",
     "quantity": "0.20",
     "unit": "Unit",
-    "ingredient_name": "patrunjel frunze",
+    "ingredient_name": "pătrunjel frunze",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "5.00"
@@ -115,7 +115,7 @@
     "ingredient_id": "f87043cc-192c-4275-85d3-af9109f0315f",
     "quantity": "0.01",
     "unit": "KG",
-    "ingredient_name": "telina",
+    "ingredient_name": "țelină",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -126,7 +126,7 @@
     "ingredient_id": "d84b3d3d-05d2-4429-a5b6-192bbafdacc8",
     "quantity": "0.01",
     "unit": "Unit",
-    "ingredient_name": "usturoi - catei",
+    "ingredient_name": "usturoi - căței",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "1.00"
@@ -137,7 +137,7 @@
     "ingredient_id": "88a2c693-77d4-40ba-933f-c5a69f2a5868",
     "quantity": "0.08",
     "unit": "KG",
-    "ingredient_name": "paine",
+    "ingredient_name": "pâine",
     "ingredient_category": "Cereale",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "10.00"
@@ -148,7 +148,7 @@
     "ingredient_id": "24705cc0-2c1f-4bce-bdcc-c5258ea5c7fc",
     "quantity": "0.30",
     "unit": "L",
-    "ingredient_name": "apa",
+    "ingredient_name": "apă",
     "ingredient_category": "Altele",
     "ingredient_default_unit": "L",
     "ingredient_default_price_per_unit": "1.50"
@@ -159,7 +159,7 @@
     "ingredient_id": "5e5852b7-2836-46e9-8cb1-f31a4b4a9c8f",
     "quantity": "0.08",
     "unit": "KG",
-    "ingredient_name": "faina de malai",
+    "ingredient_name": "făină de mălai",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -170,7 +170,7 @@
     "ingredient_id": "daabecfc-d101-4490-a253-23b6d384c29e",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "branza",
+    "ingredient_name": "brânză",
     "ingredient_category": "Lactate",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "60.00"
@@ -181,7 +181,7 @@
     "ingredient_id": "9fbc96eb-7f58-49dc-b50e-5d5c4654d41a",
     "quantity": "0.04",
     "unit": "KG",
-    "ingredient_name": "smantana",
+    "ingredient_name": "smântână",
     "ingredient_category": "Lactate",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "20.00"
@@ -192,7 +192,7 @@
     "ingredient_id": "cd5bbdc5-3bd1-4415-9448-6265198aa216",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "carnaciori",
+    "ingredient_name": "cârnăciori",
     "ingredient_category": "Carne",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "50.00"
@@ -236,7 +236,7 @@
     "ingredient_id": "c65d9e04-c8ec-4012-b9f3-f0b5dde80945",
     "quantity": "0.01",
     "unit": "KG",
-    "ingredient_name": "lamaie",
+    "ingredient_name": "lămâie",
     "ingredient_category": "Fructe",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "10.00"
@@ -247,7 +247,7 @@
     "ingredient_id": "fe326a12-fd4d-4d40-9e03-65058c9e796b",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "ceapa",
+    "ingredient_name": "ceapă",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -258,7 +258,7 @@
     "ingredient_id": "b0853f22-2a8f-435a-b72d-e552c349f710",
     "quantity": "0.01",
     "unit": "Unit",
-    "ingredient_name": "legatura patrunjel",
+    "ingredient_name": "legătură pătrunjel",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "5.00"
@@ -291,7 +291,7 @@
     "ingredient_id": "d84b3d3d-05d2-4429-a5b6-192bbafdacc8",
     "quantity": "0.04",
     "unit": "Unit",
-    "ingredient_name": "usturoi - catei",
+    "ingredient_name": "usturoi - căței",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "1.00"
@@ -313,7 +313,7 @@
     "ingredient_id": "02795328-7c22-445b-b6ea-644c122567cc",
     "quantity": "0.10",
     "unit": "KG",
-    "ingredient_name": "sos de rosii",
+    "ingredient_name": "sos de roșii",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "12.00"
@@ -324,7 +324,7 @@
     "ingredient_id": "fe326a12-fd4d-4d40-9e03-65058c9e796b",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "ceapa",
+    "ingredient_name": "ceapă",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -335,7 +335,7 @@
     "ingredient_id": "efabec11-b2f2-42e4-a8a1-4fd3f5438983",
     "quantity": "0.12",
     "unit": "KG",
-    "ingredient_name": "carne tocata",
+    "ingredient_name": "carne tocată",
     "ingredient_category": "Carne",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "30.00"
@@ -368,7 +368,7 @@
     "ingredient_id": "d84b3d3d-05d2-4429-a5b6-192bbafdacc8",
     "quantity": "0.04",
     "unit": "Unit",
-    "ingredient_name": "usturoi - catei",
+    "ingredient_name": "usturoi - căței",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "1.00"
@@ -390,7 +390,7 @@
     "ingredient_id": "02795328-7c22-445b-b6ea-644c122567cc",
     "quantity": "0.10",
     "unit": "KG",
-    "ingredient_name": "sos de rosii",
+    "ingredient_name": "sos de roșii",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "12.00"
@@ -401,7 +401,7 @@
     "ingredient_id": "fe326a12-fd4d-4d40-9e03-65058c9e796b",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "ceapa",
+    "ingredient_name": "ceapă",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -456,7 +456,7 @@
     "ingredient_id": "fe326a12-fd4d-4d40-9e03-65058c9e796b",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "ceapa",
+    "ingredient_name": "ceapă",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -489,7 +489,7 @@
     "ingredient_id": "a8bb6c44-15d2-4610-a8a0-49a6989bb3f9",
     "quantity": "1.00",
     "unit": "Unit",
-    "ingredient_name": "piersica",
+    "ingredient_name": "piersică",
     "ingredient_category": "Fructe",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "3.00"
@@ -500,7 +500,7 @@
     "ingredient_id": "65caae37-554b-4d5a-a8fd-306fbc37fd5b",
     "quantity": "0.06",
     "unit": "KG",
-    "ingredient_name": "ovaz",
+    "ingredient_name": "ovăz",
     "ingredient_category": "Cereale",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "8.00"
@@ -522,7 +522,7 @@
     "ingredient_id": "f8c4fc14-319b-468f-8292-7d261e33a976",
     "quantity": "0.04",
     "unit": "KG",
-    "ingredient_name": "conserve ananas",
+    "ingredient_name": "conserve de ananas",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "20.00"
@@ -566,7 +566,7 @@
     "ingredient_id": "89046b25-4d98-40cb-832f-644b369b0699",
     "quantity": "0.08",
     "unit": "G",
-    "ingredient_name": "branza de vaca/ telemea",
+    "ingredient_name": "brânză de vacă / telemea",
     "ingredient_category": "Lactate",
     "ingredient_default_unit": "G",
     "ingredient_default_price_per_unit": "30.00"
@@ -577,7 +577,7 @@
     "ingredient_id": "9fbc96eb-7f58-49dc-b50e-5d5c4654d41a",
     "quantity": "0.00",
     "unit": "KG",
-    "ingredient_name": "smantana",
+    "ingredient_name": "smântână",
     "ingredient_category": "Lactate",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "20.00"
@@ -588,7 +588,7 @@
     "ingredient_id": "a1f158cb-c2c7-4c93-baeb-4c2a7df8cbc7",
     "quantity": "0.03",
     "unit": "KG",
-    "ingredient_name": "telina radacina",
+    "ingredient_name": "țelină rădăcină",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "6.00"
@@ -599,7 +599,7 @@
     "ingredient_id": "6cedcf51-2b49-4544-9be5-493caf5468d9",
     "quantity": "0.03",
     "unit": "KG",
-    "ingredient_name": "patrunjel radacina",
+    "ingredient_name": "pătrunjel rădăcină",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "6.00"
@@ -621,7 +621,7 @@
     "ingredient_id": "8db697f8-94fa-4b43-9592-acfc79ac9386",
     "quantity": "0.15",
     "unit": "KG",
-    "ingredient_name": "carne de porc - pulpa, spata",
+    "ingredient_name": "carne de porc - pulpă, spată",
     "ingredient_category": "Carne",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "25.00"
@@ -632,7 +632,7 @@
     "ingredient_id": "fe326a12-fd4d-4d40-9e03-65058c9e796b",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "ceapa",
+    "ingredient_name": "ceapă",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -643,7 +643,7 @@
     "ingredient_id": "407747ec-74f9-4ea9-863c-856fe6b94007",
     "quantity": "0.01",
     "unit": "KG",
-    "ingredient_name": "pasta kapia dulce",
+    "ingredient_name": "pastă kapia dulce",
     "ingredient_category": "Altele",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "20.00"
@@ -665,7 +665,7 @@
     "ingredient_id": "3f411e47-dd0a-46d4-9496-b46489ce56fb",
     "quantity": "0.03",
     "unit": "KG",
-    "ingredient_name": "ardei rosu",
+    "ingredient_name": "ardei roșu",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "10.00"
@@ -676,7 +676,7 @@
     "ingredient_id": "02795328-7c22-445b-b6ea-644c122567cc",
     "quantity": "0.04",
     "unit": "KG",
-    "ingredient_name": "sos de rosii",
+    "ingredient_name": "sos de roșii",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "12.00"
@@ -687,7 +687,7 @@
     "ingredient_id": "a1f158cb-c2c7-4c93-baeb-4c2a7df8cbc7",
     "quantity": "0.03",
     "unit": "KG",
-    "ingredient_name": "telina radacina",
+    "ingredient_name": "țelină rădăcină",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "6.00"
@@ -698,7 +698,7 @@
     "ingredient_id": "6cedcf51-2b49-4544-9be5-493caf5468d9",
     "quantity": "0.03",
     "unit": "KG",
-    "ingredient_name": "patrunjel radacina",
+    "ingredient_name": "pătrunjel rădăcină",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "6.00"
@@ -731,7 +731,7 @@
     "ingredient_id": "fe326a12-fd4d-4d40-9e03-65058c9e796b",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "ceapa",
+    "ingredient_name": "ceapă",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -742,7 +742,7 @@
     "ingredient_id": "407747ec-74f9-4ea9-863c-856fe6b94007",
     "quantity": "0.01",
     "unit": "KG",
-    "ingredient_name": "pasta kapia dulce",
+    "ingredient_name": "pastă kapia dulce",
     "ingredient_category": "Altele",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "20.00"
@@ -764,7 +764,7 @@
     "ingredient_id": "3f411e47-dd0a-46d4-9496-b46489ce56fb",
     "quantity": "0.03",
     "unit": "KG",
-    "ingredient_name": "ardei rosu",
+    "ingredient_name": "ardei roșu",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "10.00"
@@ -775,7 +775,7 @@
     "ingredient_id": "02795328-7c22-445b-b6ea-644c122567cc",
     "quantity": "0.03",
     "unit": "KG",
-    "ingredient_name": "sos de rosii",
+    "ingredient_name": "sos de roșii",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "12.00"
@@ -786,7 +786,7 @@
     "ingredient_id": "88a2c693-77d4-40ba-933f-c5a69f2a5868",
     "quantity": "0.10",
     "unit": "KG",
-    "ingredient_name": "paine",
+    "ingredient_name": "pâine",
     "ingredient_category": "Cereale",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "10.00"
@@ -808,7 +808,7 @@
     "ingredient_id": "96907ffe-34e6-4dcb-b2ff-4e81f59f5355",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "rosii",
+    "ingredient_name": "roșii",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "6.00"
@@ -830,7 +830,7 @@
     "ingredient_id": "88a2c693-77d4-40ba-933f-c5a69f2a5868",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "paine",
+    "ingredient_name": "pâine",
     "ingredient_category": "Cereale",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "10.00"
@@ -841,7 +841,7 @@
     "ingredient_id": "75a78306-0bae-4113-9160-337e75b9068c",
     "quantity": "1.50",
     "unit": "Unit",
-    "ingredient_name": "oua",
+    "ingredient_name": "ouă",
     "ingredient_category": "Altele",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "1.00"
@@ -852,7 +852,7 @@
     "ingredient_id": "5a65581d-a911-4079-a043-e9a96392112e",
     "quantity": "0.02",
     "unit": "KG",
-    "ingredient_name": "baton branza topita",
+    "ingredient_name": "baton brânză topită",
     "ingredient_category": "Lactate",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "20.00"
@@ -874,7 +874,7 @@
     "ingredient_id": "96907ffe-34e6-4dcb-b2ff-4e81f59f5355",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "rosii",
+    "ingredient_name": "roșii",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "6.00"
@@ -885,7 +885,7 @@
     "ingredient_id": "feae15c1-33c4-40a4-b7ae-8be31c437d59",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "castraveti murati",
+    "ingredient_name": "castraveți murați",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "20.00"
@@ -896,7 +896,7 @@
     "ingredient_id": "0059a912-0133-4bcd-9e3c-2761f660aebc",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "salata iceberg",
+    "ingredient_name": "salată iceberg",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "10.00"
@@ -940,7 +940,7 @@
     "ingredient_id": "3944295d-a680-4b75-ba54-ed654965866e",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "gris",
+    "ingredient_name": "griș",
     "ingredient_category": "Cereale",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "15.00"
@@ -951,7 +951,7 @@
     "ingredient_id": "1187fd41-e885-447b-91d6-e22059e463fc",
     "quantity": "0.01",
     "unit": "KG",
-    "ingredient_name": "zahar brun",
+    "ingredient_name": "zahăr brun",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "10.00"
@@ -962,7 +962,7 @@
     "ingredient_id": "fe326a12-fd4d-4d40-9e03-65058c9e796b",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "ceapa",
+    "ingredient_name": "ceapă",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -973,7 +973,7 @@
     "ingredient_id": "3f411e47-dd0a-46d4-9496-b46489ce56fb",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "ardei rosu",
+    "ingredient_name": "ardei roșu",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "10.00"
@@ -995,7 +995,7 @@
     "ingredient_id": "d84b3d3d-05d2-4429-a5b6-192bbafdacc8",
     "quantity": "0.05",
     "unit": "Unit",
-    "ingredient_name": "usturoi - catei",
+    "ingredient_name": "usturoi - căței",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "1.00"
@@ -1006,7 +1006,7 @@
     "ingredient_id": "9fbc96eb-7f58-49dc-b50e-5d5c4654d41a",
     "quantity": "0.02",
     "unit": "KG",
-    "ingredient_name": "smantana",
+    "ingredient_name": "smântână",
     "ingredient_category": "Lactate",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "20.00"
@@ -1017,7 +1017,7 @@
     "ingredient_id": "1728cdf7-6819-428d-8e8d-7b00d7a2a579",
     "quantity": "0.01",
     "unit": "KG",
-    "ingredient_name": "faina",
+    "ingredient_name": "făină",
     "ingredient_category": "Cereale",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -1028,7 +1028,7 @@
     "ingredient_id": "02795328-7c22-445b-b6ea-644c122567cc",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "sos de rosii",
+    "ingredient_name": "sos de roșii",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "12.00"
@@ -1050,7 +1050,7 @@
     "ingredient_id": "5e5852b7-2836-46e9-8cb1-f31a4b4a9c8f",
     "quantity": "0.08",
     "unit": "KG",
-    "ingredient_name": "faina de malai",
+    "ingredient_name": "făină de mălai",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -1061,7 +1061,7 @@
     "ingredient_id": "d8216c35-e8fc-44de-9ada-5b3848c60d89",
     "quantity": "0.02",
     "unit": "Unit",
-    "ingredient_name": "patrunjel frunze",
+    "ingredient_name": "pătrunjel frunze",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "5.00"
@@ -1072,7 +1072,7 @@
     "ingredient_id": "5e5852b7-2836-46e9-8cb1-f31a4b4a9c8f",
     "quantity": "0.08",
     "unit": "KG",
-    "ingredient_name": "faina de malai",
+    "ingredient_name": "făină de mălai",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -1083,7 +1083,7 @@
     "ingredient_id": "fe326a12-fd4d-4d40-9e03-65058c9e796b",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "ceapa",
+    "ingredient_name": "ceapă",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -1094,7 +1094,7 @@
     "ingredient_id": "3f411e47-dd0a-46d4-9496-b46489ce56fb",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "ardei rosu",
+    "ingredient_name": "ardei roșu",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "10.00"
@@ -1105,7 +1105,7 @@
     "ingredient_id": "d84b3d3d-05d2-4429-a5b6-192bbafdacc8",
     "quantity": "0.01",
     "unit": "Unit",
-    "ingredient_name": "usturoi - catei",
+    "ingredient_name": "usturoi - căței",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "1.00"
@@ -1138,7 +1138,7 @@
     "ingredient_id": "02795328-7c22-445b-b6ea-644c122567cc",
     "quantity": "0.01",
     "unit": "KG",
-    "ingredient_name": "sos de rosii",
+    "ingredient_name": "sos de roșii",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "12.00"
@@ -1149,7 +1149,7 @@
     "ingredient_id": "2c4d9587-8d53-44c6-81ff-835742d44c42",
     "quantity": "0.50",
     "unit": "Unit",
-    "ingredient_name": "carnaciori sticks - lidl",
+    "ingredient_name": "cârnăciori sticks - Lidl",
     "ingredient_category": "Altele",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "10.00"
@@ -1160,7 +1160,7 @@
     "ingredient_id": "88a2c693-77d4-40ba-933f-c5a69f2a5868",
     "quantity": "0.10",
     "unit": "KG",
-    "ingredient_name": "paine",
+    "ingredient_name": "pâine",
     "ingredient_category": "Cereale",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "10.00"
@@ -1171,7 +1171,7 @@
     "ingredient_id": "d3569754-a36e-4178-88ab-bf409becac75",
     "quantity": "0.50",
     "unit": "Unit",
-    "ingredient_name": "pateu bucata",
+    "ingredient_name": "pateu bucată",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "5.00"
@@ -1182,7 +1182,7 @@
     "ingredient_id": "847b8842-21fa-4495-a0df-3afb8d97bbe1",
     "quantity": "0.50",
     "unit": "Unit",
-    "ingredient_name": "conserva chilli con carne",
+    "ingredient_name": "conservă chili con carne",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "13.00"
@@ -1193,7 +1193,7 @@
     "ingredient_id": "e2059ccf-8858-4613-841a-66105da7d1a6",
     "quantity": "0.50",
     "unit": "Unit",
-    "ingredient_name": "supa la plic",
+    "ingredient_name": "supă la plic",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "5.00"
@@ -1226,7 +1226,7 @@
     "ingredient_id": "fe326a12-fd4d-4d40-9e03-65058c9e796b",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "ceapa",
+    "ingredient_name": "ceapă",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -1259,7 +1259,7 @@
     "ingredient_id": "02795328-7c22-445b-b6ea-644c122567cc",
     "quantity": "0.50",
     "unit": "KG",
-    "ingredient_name": "sos de rosii",
+    "ingredient_name": "sos de roșii",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "12.00"
@@ -1270,7 +1270,7 @@
     "ingredient_id": "1aa3bda9-be08-4c0b-aca1-9ce3020e32a2",
     "quantity": "0.50",
     "unit": "KG",
-    "ingredient_name": "pastarnac radacina",
+    "ingredient_name": "păstârnac rădăcină",
     "ingredient_category": "Altele",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -1292,7 +1292,7 @@
     "ingredient_id": "3f411e47-dd0a-46d4-9496-b46489ce56fb",
     "quantity": "0.30",
     "unit": "KG",
-    "ingredient_name": "ardei rosu",
+    "ingredient_name": "ardei roșu",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "10.00"
@@ -1325,7 +1325,7 @@
     "ingredient_id": "a1f158cb-c2c7-4c93-baeb-4c2a7df8cbc7",
     "quantity": "0.30",
     "unit": "KG",
-    "ingredient_name": "telina radacina",
+    "ingredient_name": "țelină rădăcină",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "6.00"
@@ -1336,7 +1336,7 @@
     "ingredient_id": "b0853f22-2a8f-435a-b72d-e552c349f710",
     "quantity": "1.00",
     "unit": "Unit",
-    "ingredient_name": "legatura patrunjel",
+    "ingredient_name": "legătură pătrunjel",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "5.00"
@@ -1347,7 +1347,7 @@
     "ingredient_id": "fe326a12-fd4d-4d40-9e03-65058c9e796b",
     "quantity": "0.50",
     "unit": "KG",
-    "ingredient_name": "ceapa",
+    "ingredient_name": "ceapă",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -1424,7 +1424,7 @@
     "ingredient_id": "d84b3d3d-05d2-4429-a5b6-192bbafdacc8",
     "quantity": "0.02",
     "unit": "Unit",
-    "ingredient_name": "usturoi - catei",
+    "ingredient_name": "usturoi - căței",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "1.00"
@@ -1435,7 +1435,7 @@
     "ingredient_id": "fe326a12-fd4d-4d40-9e03-65058c9e796b",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "ceapa",
+    "ingredient_name": "ceapă",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -1446,7 +1446,7 @@
     "ingredient_id": "dd55def2-1fad-430c-88f0-8eb368337157",
     "quantity": "1.00",
     "unit": "Unit",
-    "ingredient_name": "baton kaufland",
+    "ingredient_name": "baton Kaufland",
     "ingredient_category": "Altele",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "6.50"
@@ -1457,7 +1457,7 @@
     "ingredient_id": "c68b70ca-88f1-4796-96d5-4aa85a7f7bfb",
     "quantity": "0.10",
     "unit": "KG",
-    "ingredient_name": "conserve mazare",
+    "ingredient_name": "conserve de mazăre",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "20.00"
@@ -1479,7 +1479,7 @@
     "ingredient_id": "02795328-7c22-445b-b6ea-644c122567cc",
     "quantity": "0.08",
     "unit": "KG",
-    "ingredient_name": "sos de rosii",
+    "ingredient_name": "sos de roșii",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "12.00"
@@ -1490,7 +1490,7 @@
     "ingredient_id": "fe326a12-fd4d-4d40-9e03-65058c9e796b",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "ceapa",
+    "ingredient_name": "ceapă",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -1501,7 +1501,7 @@
     "ingredient_id": "d84b3d3d-05d2-4429-a5b6-192bbafdacc8",
     "quantity": "0.02",
     "unit": "Unit",
-    "ingredient_name": "usturoi - catei",
+    "ingredient_name": "usturoi - căței",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "1.00"
@@ -1512,7 +1512,7 @@
     "ingredient_id": "1728cdf7-6819-428d-8e8d-7b00d7a2a579",
     "quantity": "0.02",
     "unit": "KG",
-    "ingredient_name": "faina",
+    "ingredient_name": "făină",
     "ingredient_category": "Cereale",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -1523,7 +1523,7 @@
     "ingredient_id": "32fe9b46-39c9-4e8f-9616-2a1a8faf4b8b",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "sunca",
+    "ingredient_name": "șuncă",
     "ingredient_category": "Carne",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "50.00"
@@ -1534,7 +1534,7 @@
     "ingredient_id": "3f3675df-eef1-4ea7-b638-06245034ec87",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "cas",
+    "ingredient_name": "caș",
     "ingredient_category": "Lactate",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "50.00"
@@ -1556,7 +1556,7 @@
     "ingredient_id": "88a2c693-77d4-40ba-933f-c5a69f2a5868",
     "quantity": "0.12",
     "unit": "KG",
-    "ingredient_name": "paine",
+    "ingredient_name": "pâine",
     "ingredient_category": "Cereale",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "10.00"
@@ -1567,7 +1567,7 @@
     "ingredient_id": "cbebd92e-0fd6-4484-a840-e06ae2f00928",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "branza topita",
+    "ingredient_name": "brânză topită",
     "ingredient_category": "Lactate",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "30.00"
@@ -1611,7 +1611,7 @@
     "ingredient_id": "fe326a12-fd4d-4d40-9e03-65058c9e796b",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "ceapa",
+    "ingredient_name": "ceapă",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -1633,7 +1633,7 @@
     "ingredient_id": "41b722f9-15f0-4d92-826b-c2e201e3f995",
     "quantity": "1.80",
     "unit": "Unit",
-    "ingredient_name": "crenvusti vegetarieni",
+    "ingredient_name": "crenvurști vegetarieni",
     "ingredient_category": "Altele",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "3.00"
@@ -1655,7 +1655,7 @@
     "ingredient_id": "96907ffe-34e6-4dcb-b2ff-4e81f59f5355",
     "quantity": "0.03",
     "unit": "KG",
-    "ingredient_name": "rosii",
+    "ingredient_name": "roșii",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "6.00"
@@ -1666,7 +1666,7 @@
     "ingredient_id": "e1a167b4-ae47-4886-9417-de07027d4851",
     "quantity": "0.03",
     "unit": "KG",
-    "ingredient_name": "castraveti",
+    "ingredient_name": "castraveți",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -1677,7 +1677,7 @@
     "ingredient_id": "70827ccf-aee5-4f9f-b2d8-d5a72877d8b1",
     "quantity": "0.02",
     "unit": "KG",
-    "ingredient_name": "mix salata",
+    "ingredient_name": "mix salată",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "30.00"
@@ -1699,7 +1699,7 @@
     "ingredient_id": "491a234d-1680-40d3-94c5-8fd4d7166482",
     "quantity": "1.80",
     "unit": "Unit",
-    "ingredient_name": "crenvusti",
+    "ingredient_name": "crenvurști",
     "ingredient_category": "Altele",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "2.00"
@@ -1721,7 +1721,7 @@
     "ingredient_id": "70827ccf-aee5-4f9f-b2d8-d5a72877d8b1",
     "quantity": "0.02",
     "unit": "KG",
-    "ingredient_name": "mix salata",
+    "ingredient_name": "mix salată",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "30.00"
@@ -1732,7 +1732,7 @@
     "ingredient_id": "96907ffe-34e6-4dcb-b2ff-4e81f59f5355",
     "quantity": "0.03",
     "unit": "KG",
-    "ingredient_name": "rosii",
+    "ingredient_name": "roșii",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "6.00"
@@ -1754,7 +1754,7 @@
     "ingredient_id": "e1a167b4-ae47-4886-9417-de07027d4851",
     "quantity": "0.03",
     "unit": "KG",
-    "ingredient_name": "castraveti",
+    "ingredient_name": "castraveți",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -1765,7 +1765,7 @@
     "ingredient_id": "3f3675df-eef1-4ea7-b638-06245034ec87",
     "quantity": "0.06",
     "unit": "KG",
-    "ingredient_name": "cas",
+    "ingredient_name": "caș",
     "ingredient_category": "Lactate",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "50.00"
@@ -1776,7 +1776,7 @@
     "ingredient_id": "5a65581d-a911-4079-a043-e9a96392112e",
     "quantity": "0.03",
     "unit": "KG",
-    "ingredient_name": "baton branza topita",
+    "ingredient_name": "baton brânză topită",
     "ingredient_category": "Lactate",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "20.00"
@@ -1787,7 +1787,7 @@
     "ingredient_id": "88a2c693-77d4-40ba-933f-c5a69f2a5868",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "paine",
+    "ingredient_name": "pâine",
     "ingredient_category": "Cereale",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "10.00"
@@ -1798,7 +1798,7 @@
     "ingredient_id": "96907ffe-34e6-4dcb-b2ff-4e81f59f5355",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "rosii",
+    "ingredient_name": "roșii",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "6.00"
@@ -1820,7 +1820,7 @@
     "ingredient_id": "e1a167b4-ae47-4886-9417-de07027d4851",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "castraveti",
+    "ingredient_name": "castraveți",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -1831,7 +1831,7 @@
     "ingredient_id": "2c4d9587-8d53-44c6-81ff-835742d44c42",
     "quantity": "0.70",
     "unit": "Unit",
-    "ingredient_name": "carnaciori sticks - lidl",
+    "ingredient_name": "cârnăciori sticks - Lidl",
     "ingredient_category": "Altele",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "10.00"
@@ -1842,7 +1842,7 @@
     "ingredient_id": "88a2c693-77d4-40ba-933f-c5a69f2a5868",
     "quantity": "0.10",
     "unit": "KG",
-    "ingredient_name": "paine",
+    "ingredient_name": "pâine",
     "ingredient_category": "Cereale",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "10.00"
@@ -1853,7 +1853,7 @@
     "ingredient_id": "020694c8-6ef7-49db-9592-b0babc240793",
     "quantity": "1.00",
     "unit": "Pack",
-    "ingredient_name": "mix alune nuci",
+    "ingredient_name": "mix de alune și nuci",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "Pack",
     "ingredient_default_price_per_unit": "10.00"
@@ -1875,7 +1875,7 @@
     "ingredient_id": "4751813e-0041-4bf3-afbc-01131341dad1",
     "quantity": "0.12",
     "unit": "KG",
-    "ingredient_name": "rondele orez",
+    "ingredient_name": "rondele de orez",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -1897,7 +1897,7 @@
     "ingredient_id": "02795328-7c22-445b-b6ea-644c122567cc",
     "quantity": "0.08",
     "unit": "KG",
-    "ingredient_name": "sos de rosii",
+    "ingredient_name": "sos de roșii",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "12.00"
@@ -1908,7 +1908,7 @@
     "ingredient_id": "1728cdf7-6819-428d-8e8d-7b00d7a2a579",
     "quantity": "0.02",
     "unit": "KG",
-    "ingredient_name": "faina",
+    "ingredient_name": "făină",
     "ingredient_category": "Cereale",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -1930,7 +1930,7 @@
     "ingredient_id": "c68b70ca-88f1-4796-96d5-4aa85a7f7bfb",
     "quantity": "0.10",
     "unit": "KG",
-    "ingredient_name": "conserve mazare",
+    "ingredient_name": "conserve de mazăre",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "20.00"
@@ -1941,7 +1941,7 @@
     "ingredient_id": "d84b3d3d-05d2-4429-a5b6-192bbafdacc8",
     "quantity": "0.02",
     "unit": "Unit",
-    "ingredient_name": "usturoi - catei",
+    "ingredient_name": "usturoi - căței",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "1.00"
@@ -1952,7 +1952,7 @@
     "ingredient_id": "fe326a12-fd4d-4d40-9e03-65058c9e796b",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "ceapa",
+    "ingredient_name": "ceapă",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -1985,7 +1985,7 @@
     "ingredient_id": "d4c93ee7-ce2e-4532-aa6c-4df3d0424846",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "masline",
+    "ingredient_name": "măsline",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "25.00"
@@ -1996,7 +1996,7 @@
     "ingredient_id": "fe326a12-fd4d-4d40-9e03-65058c9e796b",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "ceapa",
+    "ingredient_name": "ceapă",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -2007,7 +2007,7 @@
     "ingredient_id": "75a78306-0bae-4113-9160-337e75b9068c",
     "quantity": "1.00",
     "unit": "Unit",
-    "ingredient_name": "oua",
+    "ingredient_name": "ouă",
     "ingredient_category": "Altele",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "1.00"
@@ -2018,7 +2018,7 @@
     "ingredient_id": "feae15c1-33c4-40a4-b7ae-8be31c437d59",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "castraveti murati",
+    "ingredient_name": "castraveți murați",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "20.00"
@@ -2029,7 +2029,7 @@
     "ingredient_id": "b0853f22-2a8f-435a-b72d-e552c349f710",
     "quantity": "0.01",
     "unit": "Unit",
-    "ingredient_name": "legatura patrunjel",
+    "ingredient_name": "legătură pătrunjel",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "5.00"
@@ -2062,7 +2062,7 @@
     "ingredient_id": "96907ffe-34e6-4dcb-b2ff-4e81f59f5355",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "rosii",
+    "ingredient_name": "roșii",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "6.00"
@@ -2073,7 +2073,7 @@
     "ingredient_id": "feae15c1-33c4-40a4-b7ae-8be31c437d59",
     "quantity": "0.05",
     "unit": "KG",
-    "ingredient_name": "castraveti murati",
+    "ingredient_name": "castraveți murați",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "20.00"
@@ -2084,7 +2084,7 @@
     "ingredient_id": "0059a912-0133-4bcd-9e3c-2761f660aebc",
     "quantity": "0.02",
     "unit": "KG",
-    "ingredient_name": "salata iceberg",
+    "ingredient_name": "salată iceberg",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "10.00"
@@ -2106,7 +2106,7 @@
     "ingredient_id": "d84b3d3d-05d2-4429-a5b6-192bbafdacc8",
     "quantity": "0.01",
     "unit": "Unit",
-    "ingredient_name": "usturoi - catei",
+    "ingredient_name": "usturoi - căței",
     "ingredient_category": "Legume",
     "ingredient_default_unit": "Unit",
     "ingredient_default_price_per_unit": "1.00"
@@ -2117,7 +2117,7 @@
     "ingredient_id": "24705cc0-2c1f-4bce-bdcc-c5258ea5c7fc",
     "quantity": "20.00",
     "unit": "L",
-    "ingredient_name": "apa",
+    "ingredient_name": "apă",
     "ingredient_category": "Altele",
     "ingredient_default_unit": "L",
     "ingredient_default_price_per_unit": "1.50"
@@ -2128,7 +2128,7 @@
     "ingredient_id": "00c56aea-b0c6-40fe-9d03-fbb6cd927cee",
     "quantity": "4.00",
     "unit": "Pack",
-    "ingredient_name": "ceai muguri pin/molid",
+    "ingredient_name": "ceai muguri pin / molid",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "Pack",
     "ingredient_default_price_per_unit": "10.00"
@@ -2150,7 +2150,7 @@
     "ingredient_id": "157a7456-00fe-4eef-8752-c39d829ab370",
     "quantity": "80.00",
     "unit": "G",
-    "ingredient_name": "salvie uscata",
+    "ingredient_name": "salvie uscată",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "G",
     "ingredient_default_price_per_unit": "0.10"
@@ -2161,7 +2161,7 @@
     "ingredient_id": "e86ff191-a780-4e83-a066-ad3bb453e83d",
     "quantity": "80.00",
     "unit": "G",
-    "ingredient_name": "menta uscata",
+    "ingredient_name": "mentă uscată",
     "ingredient_category": "Neperisabile",
     "ingredient_default_unit": "G",
     "ingredient_default_price_per_unit": "0.10"
@@ -2183,7 +2183,7 @@
     "ingredient_id": "c65d9e04-c8ec-4012-b9f3-f0b5dde80945",
     "quantity": "1.20",
     "unit": "KG",
-    "ingredient_name": "lamaie",
+    "ingredient_name": "lămâie",
     "ingredient_category": "Fructe",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "10.00"
@@ -2194,7 +2194,7 @@
     "ingredient_id": "1728cdf7-6819-428d-8e8d-7b00d7a2a579",
     "quantity": "0.03",
     "unit": "KG",
-    "ingredient_name": "faina",
+    "ingredient_name": "făină",
     "ingredient_category": "Cereale",
     "ingredient_default_unit": "KG",
     "ingredient_default_price_per_unit": "5.00"
@@ -2205,7 +2205,7 @@
     "ingredient_id": "24705cc0-2c1f-4bce-bdcc-c5258ea5c7fc",
     "quantity": "0.02",
     "unit": "L",
-    "ingredient_name": "apa",
+    "ingredient_name": "apă",
     "ingredient_category": "Altele",
     "ingredient_default_unit": "L",
     "ingredient_default_price_per_unit": "1.50"

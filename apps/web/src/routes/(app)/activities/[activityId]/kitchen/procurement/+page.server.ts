@@ -10,6 +10,7 @@ import {
 	postJsonAction,
 	type FinancialDocument,
 	type KitchenIngredient,
+	type KitchenOverview,
 	type KitchenProcurementEvent
 } from '../kitchen-api';
 
@@ -23,6 +24,7 @@ const optionalNumber = (value: FormDataEntryValue | null) => {
 const eventPayload = (formData: FormData) => ({
 	name: formData.get('name')?.toString(),
 	supplier: formData.get('supplier')?.toString(),
+	ownerName: formData.get('ownerName')?.toString(),
 	date: formData.get('date')?.toString(),
 	method: formData.get('method')?.toString(),
 	status: formData.get('status')?.toString(),
@@ -42,14 +44,19 @@ const itemPayload = (formData: FormData) => ({
 
 export const load: PageServerLoad = async ({ cookies, params }) => {
 	const activityId = parseActivityId(params.activityId);
-	const [events, ingredients, documents] = await Promise.all([
-		apiJson<KitchenProcurementEvent[]>(cookies, `/api/activities/${activityId}/kitchen/procurement`),
+	const [overview, events, ingredients, documents] = await Promise.all([
+		apiJson<KitchenOverview>(cookies, `/api/activities/${activityId}/kitchen`),
+		apiJson<KitchenProcurementEvent[]>(
+			cookies,
+			`/api/activities/${activityId}/kitchen/procurement`
+		),
 		apiJson<KitchenIngredient[]>(cookies, `/api/activities/${activityId}/kitchen/ingredients`),
 		apiJson<FinancialDocument[]>(cookies, '/api/finance/documents')
 	]);
 
 	return {
 		activityId,
+		overview,
 		events,
 		ingredients,
 		documents: documents.filter((document) => document.activityId === activityId)
@@ -77,7 +84,10 @@ export const actions: Actions = {
 	deleteEvent: async ({ request, cookies, params }) => {
 		const activityId = parseActivityId(params.activityId);
 		const formData = await request.formData();
-		return deleteAction(cookies, `/api/activities/${activityId}/kitchen/procurement/${formData.get('eventId')}`);
+		return deleteAction(
+			cookies,
+			`/api/activities/${activityId}/kitchen/procurement/${formData.get('eventId')}`
+		);
 	},
 	addItem: async ({ request, cookies, params }) => {
 		const activityId = parseActivityId(params.activityId);

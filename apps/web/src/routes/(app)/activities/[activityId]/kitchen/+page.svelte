@@ -3,232 +3,300 @@
 
 	let { data, form } = $props();
 
-	const formatDate = (value: string) =>
-		new Intl.DateTimeFormat('ro-RO', { dateStyle: 'medium' }).format(new Date(value));
+	const formatDate = (value?: string) =>
+		value
+			? new Intl.DateTimeFormat('ro-RO', { dateStyle: 'medium' }).format(new Date(value))
+			: 'Fără dată';
 
+	const formatMoney = (value: number) =>
+		`${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(value)} lei`;
+
+	const plannedMeals = $derived(data.overview.meals.length);
+	const emptyDays = $derived(
+		data.overview.days.filter(
+			(day) => !data.overview.meals.some((meal) => meal.kitchenDayId === day.id)
+		).length
+	);
+	const staleRecipes = $derived(
+		data.overview.meals.flatMap((meal) => meal.recipes).filter((recipe) => recipe.isStale).length
+	);
+	const coverageGaps = $derived(
+		data.overview.mealCoverage.flatMap((meal) =>
+			meal.items.filter((item) => item.state !== 'covered').map((item) => ({ meal, item }))
+		)
+	);
 	const totalEstimatedCost = $derived(
 		data.overview.ingredientNeeds.reduce((sum, item) => sum + item.estimatedCost, 0)
 	);
 </script>
 
-<section class="kitchen-page">
+<section class="kitchen-overview">
 	{#if form?.message}
 		<p class="form-message">{form.message}</p>
 	{/if}
 
+	<section class="summary-band">
+		<div>
+			<p class="eyebrow">Plan bucătărie</p>
+			<h1>{data.activity.title}</h1>
+			<p>
+				{formatDate(data.activity.startDate)} - {formatDate(data.activity.endDate)} ·
+				{data.overview.plan.defaultParticipantCount} participanți impliciți
+			</p>
+		</div>
+		<form class="setup-form" method="POST" action="?/setup">
+			<label>
+				<span>Participanți</span>
+				<input
+					name="defaultParticipantCount"
+					type="number"
+					min="0"
+					value={data.overview.plan.defaultParticipantCount}
+				/>
+			</label>
+			<button type="submit">Salvează</button>
+		</form>
+	</section>
+
 	{#if !data.overview.plan.hasCompleteActivityDates}
-		<section class="panel warning">
-			<h2>Date necesare</h2>
-			<p>Planificarea meselor are nevoie de data de început și data de final a activității.</p>
+		<section class="notice warning">
+			<strong>Date necesare</strong>
+			<span>Planificarea meselor are nevoie de data de început și data de final a activității.</span
+			>
 		</section>
 	{/if}
 
-	<form class="panel setup-form" method="POST" action="?/setup">
-		<div>
-			<p class="panel-title">Setări plan bucătărie</p>
-			<p class="muted">Numărul implicit este folosit pentru mesele fără prezență personalizată.</p>
-		</div>
-		<label>
-			<span>Participanți impliciți</span>
-			<input
-				name="defaultParticipantCount"
-				type="number"
-				min="0"
-				value={data.overview.plan.defaultParticipantCount}
-			/>
-		</label>
-		<button type="submit">Salvează</button>
-	</form>
+	<section class="overview-grid">
+		<a href={resolve(`/activities/${data.activity.id}/kitchen/ingredients`)}>
+			<span>{data.overview.ingredientNeeds.length}</span>
+			<p>ingrediente calculate</p>
+		</a>
+		<a href={resolve(`/activities/${data.activity.id}/kitchen/meals`)}>
+			<span>{plannedMeals}</span>
+			<p>mese planificate</p>
+		</a>
+		<a href={resolve(`/activities/${data.activity.id}/kitchen/procurement`)}>
+			<span>{coverageGaps.length}</span>
+			<p>poziții neacoperite</p>
+		</a>
+		<a href={resolve(`/activities/${data.activity.id}/kitchen/reports`)}>
+			<span>{formatMoney(totalEstimatedCost)}</span>
+			<p>estimare plan</p>
+		</a>
+	</section>
+
+	<section class="work-grid">
+		<article>
+			<h2>Atenție</h2>
+			<ul>
+				<li class:ok={emptyDays === 0}>{emptyDays} zile fără mese planificate</li>
+				<li class:ok={staleRecipes === 0}>{staleRecipes} rețete atribuite diferă de catalog</li>
+				<li class:ok={coverageGaps.length === 0}>
+					{coverageGaps.length} nevoi neacoperite complet
+				</li>
+			</ul>
+		</article>
+
+		<article>
+			<h2>Următoarele lipsuri</h2>
+			{#if coverageGaps.length}
+				<div class="gap-list">
+					{#each coverageGaps.slice(0, 8) as gap (`${gap.meal.mealId}-${gap.item.ingredientId}`)}
+						<div>
+							<strong>{gap.item.ingredientName}</strong>
+							<span>{gap.meal.date} · {gap.meal.mealLabel}</span>
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<p class="muted">Tot ce este planificat apare acoperit.</p>
+			{/if}
+		</article>
+
+		<article>
+			<h2>Condimente</h2>
+			{#if data.overview.condimentReminders.length}
+				<div class="chips">
+					{#each data.overview.condimentReminders as condiment (condiment)}
+						<span>{condiment}</span>
+					{/each}
+				</div>
+			{:else}
+				<p class="muted">Nu sunt condimente în rețetele atribuite.</p>
+			{/if}
+		</article>
+	</section>
 
 	<form method="POST" action="?/syncDays">
 		<button class="secondary" type="submit">Sincronizează zilele</button>
 	</form>
-
-	<div class="metric-grid">
-		<div class="metric">
-			<span>{data.overview.days.length}</span>
-			<p>Zile</p>
-		</div>
-		<div class="metric">
-			<span>{data.overview.meals.length}</span>
-			<p>Mese</p>
-		</div>
-		<div class="metric">
-			<span>{data.overview.ingredientNeeds.length}</span>
-			<p>Ingrediente necesare</p>
-		</div>
-		<div class="metric">
-			<span>{totalEstimatedCost.toFixed(0)} lei</span>
-			<p>Cost estimat</p>
-		</div>
-	</div>
-
-	<section class="panel">
-		<div class="section-heading">
-			<div>
-				<p class="eyebrow">Calendar</p>
-				<h2>Zile de bucătărie</h2>
-			</div>
-			<a href={resolve(`/activities/${data.activity.id}/kitchen/meals`)}>Deschide mesele</a>
-		</div>
-		{#if data.overview.days.length}
-			<div class="day-list">
-				{#each data.overview.days as day (day.id)}
-					<span class:outside={day.dateStatus === 'outside_activity_dates'}>{formatDate(day.date)}</span>
-				{/each}
-			</div>
-		{:else}
-			<p class="muted">Nu există zile generate încă.</p>
-		{/if}
-	</section>
 </section>
 
 <style>
-	.kitchen-page,
-	.setup-form,
-	.panel {
+	.kitchen-overview,
+	.work-grid article,
+	.gap-list {
 		display: grid;
-		gap: 16px;
+		gap: 14px;
 	}
 
-	.section-heading a,
-	button {
-		min-height: 40px;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
+	.summary-band {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 16px;
+		align-items: end;
+		justify-content: space-between;
+		border-bottom: 1px solid #dbe3ef;
+		padding-bottom: 14px;
+	}
+
+	.setup-form {
+		display: flex;
+		gap: 8px;
+		align-items: end;
+	}
+
+	.overview-grid,
+	.work-grid {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 10px;
+	}
+
+	.work-grid {
+		grid-template-columns: 0.9fr 1.4fr 1fr;
+	}
+
+	.overview-grid a,
+	.work-grid article,
+	.notice,
+	.form-message {
+		border: 1px solid #dbe3ef;
 		border-radius: 8px;
-		font-weight: 800;
+		background: #ffffff;
+		padding: 14px;
 		text-decoration: none;
 	}
 
-	.section-heading a,
-	.secondary {
-		border: 1px solid #cbd5e1;
-		background: #ffffff;
-		padding: 0 12px;
-		color: #334155;
-	}
-
-	button {
-		border: 0;
-		background: #0f766e;
-		color: #ffffff;
-		padding: 0 14px;
-		cursor: pointer;
-	}
-
-	.panel,
-	.metric {
-		border: 1px solid #dbe3ef;
-		background: #ffffff;
-		border-radius: 8px;
-		padding: 18px;
-		box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
-	}
-
-	.warning {
-		border-color: #fbbf24;
-		background: #fffbeb;
-	}
-
-	.metric-grid {
-		display: grid;
-		grid-template-columns: repeat(4, minmax(0, 1fr));
-		gap: 12px;
-	}
-
-	.metric span {
+	.overview-grid span {
 		color: #0f766e;
-		font-size: 1.6rem;
+		font-size: 1.25rem;
 		font-weight: 900;
 	}
 
+	.notice {
+		display: flex;
+		gap: 10px;
+		background: #fffbeb;
+		border-color: #fbbf24;
+	}
+
+	.gap-list div,
+	li {
+		border-bottom: 1px solid #e2e8f0;
+		padding-bottom: 8px;
+	}
+
+	li.ok {
+		color: #047857;
+	}
+
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+
+	.chips span {
+		border: 1px solid #dbe3ef;
+		border-radius: 999px;
+		padding: 5px 9px;
+		background: #f8fafc;
+		font-weight: 800;
+	}
+
+	h1,
 	h2,
-	p {
+	p,
+	ul {
 		margin: 0;
 	}
 
-	.panel-title,
-	h2 {
+	h1 {
 		color: #0f172a;
-		font-weight: 900;
+		font-size: 1.5rem;
 	}
 
+	h2 {
+		color: #0f172a;
+		font-size: 1rem;
+	}
+
+	ul {
+		display: grid;
+		gap: 8px;
+		padding-left: 18px;
+	}
+
+	p,
 	.muted,
-	.metric p {
+	.gap-list span {
 		color: #64748b;
 	}
 
 	.eyebrow {
-		margin: 0 0 8px;
 		color: #2563eb;
-		font-size: 0.78rem;
-		font-weight: 800;
-		letter-spacing: 0;
+		font-size: 0.72rem;
+		font-weight: 900;
 		text-transform: uppercase;
 	}
 
 	label {
 		display: grid;
-		gap: 7px;
+		gap: 5px;
 		color: #334155;
-		font-size: 0.88rem;
-		font-weight: 700;
-	}
-
-	input {
-		width: 100%;
-		max-width: 220px;
-		border: 1px solid #cbd5e1;
-		border-radius: 8px;
-		padding: 10px 11px;
-		font: inherit;
-	}
-
-	.section-heading {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 12px;
-		align-items: center;
-		justify-content: space-between;
-	}
-
-	.day-list {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
-	}
-
-	.day-list span {
-		border-radius: 8px;
-		background: #f8fafc;
-		padding: 8px 10px;
+		font-size: 0.82rem;
 		font-weight: 800;
 	}
 
-	.day-list span.outside {
-		background: #fef3c7;
-		color: #92400e;
-	}
-
-	.form-message {
-		border: 1px solid #bfdbfe;
-		background: #eff6ff;
+	input {
+		width: 120px;
+		border: 1px solid #cbd5e1;
 		border-radius: 8px;
-		padding: 12px 14px;
-		color: #1e3a8a;
+		padding: 9px 10px;
+		font: inherit;
 	}
 
-	@media (max-width: 900px) {
-		.metric-grid {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
+	button {
+		min-height: 38px;
+		border: 0;
+		border-radius: 8px;
+		background: #0f766e;
+		color: #ffffff;
+		padding: 0 12px;
+		font-weight: 800;
+		cursor: pointer;
+	}
+
+	.secondary {
+		border: 1px solid #cbd5e1;
+		background: #ffffff;
+		color: #334155;
+	}
+
+	@media (max-width: 980px) {
+		.overview-grid,
+		.work-grid {
+			grid-template-columns: 1fr 1fr;
 		}
 	}
 
-	@media (max-width: 560px) {
-		.metric-grid {
+	@media (max-width: 640px) {
+		.overview-grid,
+		.work-grid,
+		.setup-form {
 			grid-template-columns: 1fr;
+			display: grid;
 		}
 	}
 </style>

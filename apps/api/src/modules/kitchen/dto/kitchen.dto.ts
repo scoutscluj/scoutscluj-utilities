@@ -76,6 +76,9 @@ export class KitchenRecipeDto {
   @ApiPropertyOptional()
   description?: string;
 
+  @ApiProperty({ type: [String] })
+  condiments!: string[];
+
   @ApiProperty()
   servings!: number;
 
@@ -100,6 +103,9 @@ export class UpsertKitchenRecipeDto {
 
   @ApiPropertyOptional()
   description?: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  condiments?: string[];
 
   @ApiProperty()
   servings!: number;
@@ -154,11 +160,72 @@ export class KitchenMealRecipeDto {
   @ApiProperty()
   servings!: number;
 
+  @ApiProperty({ type: [String] })
+  condiments!: string[];
+
+  @ApiProperty()
+  isSnapshot!: boolean;
+
+  @ApiProperty()
+  isStale!: boolean;
+
+  @ApiPropertyOptional()
+  snapshotCreatedAt?: string;
+
   @ApiPropertyOptional()
   servingOverride?: number;
 
   @ApiProperty({ enum: KitchenRecipeScalingMode })
   scalingMode!: KitchenRecipeScalingMode;
+}
+
+export class KitchenMealCoverageItemDto {
+  @ApiProperty()
+  ingredientId!: number;
+
+  @ApiProperty()
+  ingredientName!: string;
+
+  @ApiProperty()
+  neededQuantity!: number;
+
+  @ApiProperty()
+  coveredQuantity!: number;
+
+  @ApiProperty()
+  remainingQuantity!: number;
+
+  @ApiProperty()
+  overCoveredQuantity!: number;
+
+  @ApiProperty()
+  unit!: string;
+
+  @ApiProperty({ enum: ['uncovered', 'partial', 'covered'] })
+  state!: 'uncovered' | 'partial' | 'covered';
+}
+
+export class KitchenMealCoverageDto {
+  @ApiProperty()
+  mealId!: number;
+
+  @ApiProperty()
+  kitchenDayId!: number;
+
+  @ApiProperty()
+  date!: string;
+
+  @ApiProperty({ enum: KitchenMealSlot })
+  slot!: KitchenMealSlot;
+
+  @ApiProperty()
+  mealLabel!: string;
+
+  @ApiProperty({ type: [KitchenMealCoverageItemDto] })
+  items!: KitchenMealCoverageItemDto[];
+
+  @ApiProperty({ type: [String] })
+  condiments!: string[];
 }
 
 export class KitchenMealAttendanceDto {
@@ -338,6 +405,12 @@ export class KitchenOverviewDto {
 
   @ApiProperty({ type: [KitchenIngredientNeedDto] })
   ingredientNeeds!: KitchenIngredientNeedDto[];
+
+  @ApiProperty({ type: [KitchenMealCoverageDto] })
+  mealCoverage!: KitchenMealCoverageDto[];
+
+  @ApiProperty({ type: [String] })
+  condimentReminders!: string[];
 }
 
 export class KitchenProcurementItemDto {
@@ -400,6 +473,9 @@ export class KitchenProcurementEventDto {
   supplier?: string;
 
   @ApiPropertyOptional()
+  ownerName?: string;
+
+  @ApiPropertyOptional()
   date?: string;
 
   @ApiProperty({ enum: KitchenProcurementMethod })
@@ -424,6 +500,9 @@ export class UpsertKitchenProcurementEventDto {
 
   @ApiPropertyOptional()
   supplier?: string;
+
+  @ApiPropertyOptional()
+  ownerName?: string;
 
   @ApiPropertyOptional()
   date?: string;

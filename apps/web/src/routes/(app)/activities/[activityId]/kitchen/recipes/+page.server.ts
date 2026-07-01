@@ -25,11 +25,27 @@ const recipeIngredients = (formData: FormData) => {
 	});
 };
 
+const condiments = (formData: FormData) =>
+	formData
+		.get('condiments')
+		?.toString()
+		.split(/[\n,]/)
+		.map((item) => item.trim())
+		.filter(Boolean) ?? [];
+
 const recipePayload = (formData: FormData) => ({
 	name: formData.get('name')?.toString(),
 	description: formData.get('description')?.toString(),
+	condiments: condiments(formData),
 	servings: Number(formData.get('servings')),
 	ingredients: recipeIngredients(formData)
+});
+
+const ingredientPayload = (formData: FormData) => ({
+	name: formData.get('ingredientName')?.toString(),
+	category: formData.get('ingredientCategory')?.toString(),
+	defaultUnit: formData.get('ingredientDefaultUnit')?.toString(),
+	defaultPricePerUnit: Number(formData.get('ingredientDefaultPricePerUnit'))
 });
 
 export const load: PageServerLoad = async ({ cookies, params }) => {
@@ -59,6 +75,14 @@ export const actions: Actions = {
 			cookies,
 			`/api/activities/${activityId}/kitchen/recipes/${recipeId}`,
 			recipePayload(formData)
+		);
+	},
+	createIngredient: async ({ request, cookies, params }) => {
+		const activityId = parseActivityId(params.activityId);
+		return postJsonAction(
+			cookies,
+			`/api/activities/${activityId}/kitchen/ingredients`,
+			ingredientPayload(await request.formData())
 		);
 	}
 };

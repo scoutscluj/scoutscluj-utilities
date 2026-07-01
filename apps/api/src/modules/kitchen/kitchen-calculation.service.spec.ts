@@ -60,6 +60,7 @@ const recipe = (overrides: Partial<KitchenRecipe> = {}): KitchenRecipe => ({
   legacySourceId: null,
   name: 'Orez cu legume',
   description: null,
+  condiments: [],
   servings: 10,
   createdAt,
   updatedAt: createdAt,
@@ -85,6 +86,13 @@ const mealRecipe = (
   id: 1,
   mealId: 1,
   recipeId: 1,
+  recipeNameSnapshot: null,
+  recipeServingsSnapshot: null,
+  ingredientsSnapshot: [],
+  condimentsSnapshot: [],
+  recipeSnapshotHash: null,
+  sourceRecipeUpdatedAt: null,
+  snapshotCreatedAt: null,
   servingOverride: null,
   scalingMode: KitchenRecipeScalingMode.Proportional,
   createdAt,
@@ -249,5 +257,58 @@ describe(KitchenCalculationService.name, () => {
         recipeIngredients: [recipeIngredient({ quantity: 2, unit: 'PACK' })],
       }),
     ).toThrow(BadRequestException);
+  });
+
+  it('uses assigned recipe ingredient snapshots instead of later catalog recipe rows', () => {
+    const [need] = calculate({
+      recipeIngredients: [recipeIngredient({ quantity: 9, unit: 'KG' })],
+      mealRecipes: [
+        mealRecipe({
+          recipeNameSnapshot: 'Orez planificat',
+          recipeServingsSnapshot: 10,
+          ingredientsSnapshot: [
+            {
+              ingredientId: 1,
+              ingredientName: 'Orez',
+              category: 'Baza',
+              quantity: 1,
+              unit: 'KG',
+              defaultUnit: 'KG',
+              unitFamily: KitchenUnitFamily.Mass,
+              estimatedUnitPrice: 8,
+            },
+          ],
+          condimentsSnapshot: ['sare'],
+          recipeSnapshotHash: 'old',
+          snapshotCreatedAt: createdAt,
+        }),
+      ],
+    });
+
+    expect(need.neededQuantity).toBe(2.5);
+    expect(need.estimatedCost).toBe(20);
+  });
+
+  it('shows condiment reminders in meal coverage without changing totals', () => {
+    const [need] = calculate({
+      recipes: [recipe({ condiments: ['sare', 'piper'] })],
+    });
+    const [coverage] = service.calculateMealCoverage({
+      plan: plan(),
+      days: [day()],
+      meals: [meal()],
+      mealRecipes: [mealRecipe()],
+      mealAttendance: [],
+      adjustments: [],
+      ingredients: [ingredient()],
+      recipes: [recipe({ condiments: ['sare', 'piper'] })],
+      recipeIngredients: [recipeIngredient()],
+      estimates: [],
+      procurementItems: [],
+    });
+
+    expect(need.neededQuantity).toBe(2.5);
+    expect(coverage.condiments).toEqual(['piper', 'sare']);
+    expect(coverage.items).toHaveLength(1);
   });
 });

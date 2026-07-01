@@ -8,6 +8,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Activity } from '../activities/entities/activity.entity';
+import { ActivityStatus } from '../activities/entities/activity-status.enum';
 import { AuditService } from '../audit/audit.service';
 import { CreateFinancialDocumentDto } from '../finance/dto/finance.dto';
 import { FinancialDocument } from '../finance/entities/financial-document.entity';
@@ -66,6 +67,12 @@ import { KitchenProcurementItem } from './entities/kitchen-procurement-item.enti
 import { KitchenQuantityAdjustment } from './entities/kitchen-quantity-adjustment.entity';
 import { KitchenRecipeIngredient } from './entities/kitchen-recipe-ingredient.entity';
 import { KitchenRecipe } from './entities/kitchen-recipe.entity';
+import {
+  buildKitchenRecipeSnapshot,
+  estimatesMap,
+  ingredientsMap,
+  kitchenRecipeSnapshotHash,
+} from './kitchen-recipe-snapshot';
 
 type PlanState = {
   plan: KitchenPlan;
@@ -97,6 +104,9 @@ const cleanRequiredText = (value: string | undefined, fieldName: string) => {
 
   return cleaned.slice(0, 255);
 };
+
+const cleanStringList = (values?: string[]) =>
+  (values ?? []).map((value) => value.trim()).filter(Boolean);
 
 const parsePositiveNumber = (
   value: number | undefined,
@@ -147,6 +157,8 @@ const parseOptionalDate = (value?: string) => {
 };
 
 const dateKey = (date: Date) => date.toISOString().slice(0, 10);
+const cancelledActivityStatus: string = ActivityStatus.Cancelled;
+const completedActivityStatus: string = ActivityStatus.Completed;
 const outsideActivityDatesStatus: string =
   KitchenDayStatus.OutsideActivityDates;
 
@@ -375,6 +387,7 @@ export class KitchenService {
     const recipe = this.recipesRepository.create({
       name: cleanRequiredText(input.name, 'Rețeta'),
       description: cleanOptionalText(input.description),
+      condiments: cleanStringList(input.condiments),
       servings: parsePositiveNumber(input.servings, 'Numărul de porții'),
     });
     this.em.persist(recipe);
@@ -405,6 +418,7 @@ export class KitchenService {
     const recipe = await this.getRecipe(recipeId);
     recipe.name = cleanRequiredText(input.name, 'Rețeta');
     recipe.description = cleanOptionalText(input.description);
+    recipe.condiments = cleanStringList(input.condiments);
     recipe.servings = parsePositiveNumber(input.servings, 'Numărul de porții');
     this.em.persist(recipe);
     await this.em.flush();
@@ -530,10 +544,17 @@ export class KitchenService {
     const { activity, plan } = await this.getOrCreatePlan(user, activityId);
     this.ensureCanManageKitchen(user, activity);
     await this.getPlanMeal(plan.id, mealId);
-    await this.getRecipe(input.recipeId);
+    const snapshot = await this.createRecipeSnapshot(plan.id, input.recipeId);
     const mealRecipe = this.mealRecipesRepository.create({
       mealId,
       recipeId: input.recipeId,
+      recipeNameSnapshot: snapshot.recipeNameSnapshot,
+      recipeServingsSnapshot: snapshot.recipeServingsSnapshot,
+      ingredientsSnapshot: snapshot.ingredientsSnapshot,
+      condimentsSnapshot: snapshot.condimentsSnapshot,
+      recipeSnapshotHash: snapshot.recipeSnapshotHash,
+      sourceRecipeUpdatedAt: snapshot.sourceRecipeUpdatedAt,
+      snapshotCreatedAt: new Date(),
       servingOverride: input.servingOverride
         ? parsePositiveNumber(input.servingOverride, 'Porțiile')
         : undefined,
@@ -548,6 +569,45 @@ export class KitchenService {
       entityId: mealRecipe.id,
       activityId,
       metadata: { mealId, recipeId: input.recipeId },
+    });
+
+    return this.getOverview(user, activityId);
+  }
+
+  async refreshMealRecipe(
+    user: CurrentUser,
+    activityId: number,
+    mealRecipeId: number,
+  ) {
+    const { activity, plan } = await this.getOrCreatePlan(user, activityId);
+    this.ensureCanManageKitchen(user, activity);
+    const mealRecipe = await this.mealRecipesRepository.findOne({
+      id: mealRecipeId,
+    });
+    if (!mealRecipe) {
+      throw new NotFoundException('Rețeta nu este atașată mesei.');
+    }
+    await this.getPlanMeal(plan.id, mealRecipe.mealId);
+    const snapshot = await this.createRecipeSnapshot(
+      plan.id,
+      mealRecipe.recipeId,
+    );
+    mealRecipe.recipeNameSnapshot = snapshot.recipeNameSnapshot;
+    mealRecipe.recipeServingsSnapshot = snapshot.recipeServingsSnapshot;
+    mealRecipe.ingredientsSnapshot = snapshot.ingredientsSnapshot;
+    mealRecipe.condimentsSnapshot = snapshot.condimentsSnapshot;
+    mealRecipe.recipeSnapshotHash = snapshot.recipeSnapshotHash;
+    mealRecipe.sourceRecipeUpdatedAt = snapshot.sourceRecipeUpdatedAt;
+    mealRecipe.snapshotCreatedAt = new Date();
+    this.em.persist(mealRecipe);
+    await this.em.flush();
+    await this.auditService.record({
+      actorId: user.id,
+      action: 'kitchen_meal_recipe.refreshed',
+      entityType: 'kitchen_meal_recipe',
+      entityId: mealRecipe.id,
+      activityId,
+      metadata: { mealId: mealRecipe.mealId, recipeId: mealRecipe.recipeId },
     });
 
     return this.getOverview(user, activityId);
@@ -699,6 +759,7 @@ export class KitchenService {
       kitchenPlanId: plan.id,
       name: cleanRequiredText(input.name, 'Numele aprovizionării'),
       supplier: cleanOptionalText(input.supplier),
+      ownerName: cleanOptionalText(input.ownerName),
       date: parseOptionalDate(input.date),
       method: input.method ?? KitchenProcurementMethod.SelfPurchase,
       status: input.status ?? KitchenProcurementStatus.Planned,
@@ -712,7 +773,11 @@ export class KitchenService {
       entityType: 'kitchen_procurement_event',
       entityId: event.id,
       activityId,
-      metadata: { name: event.name, supplier: event.supplier },
+      metadata: {
+        name: event.name,
+        supplier: event.supplier,
+        ownerName: event.ownerName,
+      },
     });
 
     return this.listProcurement(user, activityId);
@@ -729,6 +794,7 @@ export class KitchenService {
     const event = await this.getPlanProcurementEvent(plan.id, eventId);
     event.name = cleanRequiredText(input.name, 'Numele aprovizionării');
     event.supplier = cleanOptionalText(input.supplier);
+    event.ownerName = cleanOptionalText(input.ownerName);
     event.date = parseOptionalDate(input.date);
     event.method = input.method ?? event.method;
     event.status = input.status ?? event.status;
@@ -741,7 +807,11 @@ export class KitchenService {
       entityType: 'kitchen_procurement_event',
       entityId: event.id,
       activityId,
-      metadata: { name: event.name, supplier: event.supplier },
+      metadata: {
+        name: event.name,
+        supplier: event.supplier,
+        ownerName: event.ownerName,
+      },
     });
 
     return this.listProcurement(user, activityId);
@@ -998,14 +1068,31 @@ export class KitchenService {
     activityId: number,
     eventId?: number,
   ) {
-    const events = await this.listProcurement(user, activityId);
+    const [events, overview] = await Promise.all([
+      this.listProcurement(user, activityId),
+      this.getOverview(user, activityId),
+    ]);
     const selectedEvents = eventId
       ? events.filter((event) => event.id === eventId)
       : events;
+    const condimentRows = overview.condimentReminders.map((condiment) => [
+      'Condimente',
+      '',
+      '',
+      '',
+      '',
+      condiment,
+      '',
+      '',
+      '',
+      '',
+      'Necantitativ',
+    ]);
     return this.csv(
       [
         'Aprovizionare',
         'Furnizor',
+        'Responsabil',
         'Data',
         'Status',
         'Ingredient',
@@ -1013,20 +1100,26 @@ export class KitchenService {
         'Unitate',
         'Preț estimat',
         'Preț real',
+        'Notițe',
       ],
-      selectedEvents.flatMap((event) =>
-        event.items.map((item) => [
-          event.name,
-          event.supplier ?? '',
-          event.date ?? '',
-          event.status,
-          item.ingredientName,
-          item.quantity,
-          item.unit,
-          item.estimatedTotalCost ?? '',
-          item.realTotalCost ?? '',
-        ]),
-      ),
+      [
+        ...selectedEvents.flatMap((event) =>
+          event.items.map((item) => [
+            event.name,
+            event.supplier ?? '',
+            event.ownerName ?? '',
+            event.date ?? '',
+            event.status,
+            item.ingredientName,
+            item.quantity,
+            item.unit,
+            item.estimatedTotalCost ?? '',
+            item.realTotalCost ?? '',
+            item.notes ?? '',
+          ]),
+        ),
+        ...condimentRows,
+      ],
     );
   }
 
@@ -1164,11 +1257,16 @@ export class KitchenService {
   }
 
   private serializeOverview(state: PlanState): KitchenOverviewDto {
+    const mealCoverage = this.calculationService.calculateMealCoverage(state);
     return {
       plan: this.serializePlan(state.plan, state.activity),
       days: state.days.map((day) => this.serializeDay(day)),
       meals: this.serializeMeals(state),
       ingredientNeeds: this.calculationService.calculateIngredientNeeds(state),
+      mealCoverage,
+      condimentReminders: Array.from(
+        new Set(mealCoverage.flatMap((meal) => meal.condiments)),
+      ).sort((left, right) => left.localeCompare(right, 'ro')),
     };
   }
 
@@ -1191,8 +1289,18 @@ export class KitchenService {
 
   private serializeMeals(state: PlanState): KitchenMealDto[] {
     const recipes = new Map(state.recipes.map((recipe) => [recipe.id, recipe]));
+    const recipeIngredientsByRecipe = this.groupBy(
+      state.recipeIngredients,
+      (item) => item.recipeId,
+    );
     const ingredients = new Map(
       state.ingredients.map((ingredient) => [ingredient.id, ingredient]),
+    );
+    const estimates = new Map(
+      state.estimates.map((estimate) => [
+        estimate.ingredientId,
+        estimate.estimatedUnitPrice,
+      ]),
     );
     const mealRecipes = this.groupBy(state.mealRecipes, (item) => item.mealId);
     const mealAttendance = this.groupBy(
@@ -1215,7 +1323,14 @@ export class KitchenService {
         mealAttendance.get(meal.id) ?? [],
       ),
       recipes: (mealRecipes.get(meal.id) ?? []).map((mealRecipe) =>
-        this.serializeMealRecipe(mealRecipe, recipes),
+        this.serializeMealRecipe(
+          mealRecipe,
+          recipes,
+          recipeIngredientsByRecipe,
+          ingredients,
+          estimates,
+          state.activity,
+        ),
       ),
       attendance: (mealAttendance.get(meal.id) ?? []).map((attendance) =>
         this.serializeAttendance(attendance),
@@ -1258,6 +1373,7 @@ export class KitchenService {
       legacySourceId: recipe.legacySourceId ?? undefined,
       name: recipe.name,
       description: recipe.description ?? undefined,
+      condiments: recipe.condiments ?? [],
       servings: recipe.servings,
       ingredients: (byRecipe.get(recipe.id) ?? []).map((recipeIngredient) =>
         this.serializeRecipeIngredient(recipeIngredient, ingredientsById),
@@ -1283,14 +1399,47 @@ export class KitchenService {
   private serializeMealRecipe(
     mealRecipe: KitchenMealRecipe,
     recipes: Map<number, KitchenRecipe>,
+    recipeIngredientsByRecipe: Map<number, KitchenRecipeIngredient[]>,
+    ingredients: Map<number, KitchenIngredient>,
+    estimates: Map<number, number>,
+    activity: Activity,
   ): KitchenMealRecipeDto {
     const recipe = recipes.get(mealRecipe.recipeId);
+    const currentHash = recipe
+      ? kitchenRecipeSnapshotHash({
+          recipe,
+          recipeIngredients: recipeIngredientsByRecipe.get(recipe.id) ?? [],
+          ingredientsById: ingredients,
+          estimatesByIngredient: estimates,
+        })
+      : undefined;
+    const shouldShowStale =
+      activity.status !== completedActivityStatus &&
+      activity.status !== cancelledActivityStatus;
+    const isSnapshot =
+      Boolean(mealRecipe.snapshotCreatedAt) ||
+      (mealRecipe.ingredientsSnapshot ?? []).length > 0;
     return {
       id: mealRecipe.id,
       mealId: mealRecipe.mealId,
       recipeId: mealRecipe.recipeId,
-      recipeName: recipe?.name ?? `Rețetă #${mealRecipe.recipeId}`,
-      servings: recipe?.servings ?? 0,
+      recipeName:
+        mealRecipe.recipeNameSnapshot ??
+        recipe?.name ??
+        `Rețetă #${mealRecipe.recipeId}`,
+      servings: mealRecipe.recipeServingsSnapshot ?? recipe?.servings ?? 0,
+      condiments:
+        (mealRecipe.condimentsSnapshot?.length
+          ? mealRecipe.condimentsSnapshot
+          : recipe?.condiments) ?? [],
+      isSnapshot,
+      isStale: Boolean(
+        shouldShowStale &&
+        mealRecipe.recipeSnapshotHash &&
+        currentHash &&
+        mealRecipe.recipeSnapshotHash !== currentHash,
+      ),
+      snapshotCreatedAt: mealRecipe.snapshotCreatedAt?.toISOString(),
       servingOverride: mealRecipe.servingOverride ?? undefined,
       scalingMode: mealRecipe.scalingMode,
     };
@@ -1343,6 +1492,7 @@ export class KitchenService {
       kitchenPlanId: event.kitchenPlanId,
       name: event.name,
       supplier: event.supplier ?? undefined,
+      ownerName: event.ownerName ?? undefined,
       date: event.date?.toISOString(),
       method: event.method,
       status: event.status,
@@ -1385,6 +1535,22 @@ export class KitchenService {
       procurementEventId: document.procurementEventId,
       financialDocumentId: document.financialDocumentId,
     };
+  }
+
+  private async createRecipeSnapshot(planId: number, recipeId: number) {
+    const recipe = await this.getRecipe(recipeId);
+    const [recipeIngredients, ingredients, estimates] = await Promise.all([
+      this.recipeIngredientsRepository.find({ recipeId }),
+      this.ingredientsRepository.findAll(),
+      this.estimatesRepository.find({ kitchenPlanId: planId }),
+    ]);
+
+    return buildKitchenRecipeSnapshot({
+      recipe,
+      recipeIngredients,
+      ingredientsById: ingredientsMap(ingredients),
+      estimatesByIngredient: estimatesMap(estimates),
+    });
   }
 
   private async replaceRecipeIngredients(

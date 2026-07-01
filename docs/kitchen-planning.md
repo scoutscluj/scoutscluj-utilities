@@ -21,6 +21,15 @@ Implemented in this slice:
 - printable reports and CSV exports for ingredients and procurement
 - central audit events for kitchen and finance writes
 - idempotent legacy catalog seed/import from last year's exports
+- grouped kitchen menu with `Catalog` and `Plan`
+- compact ingredient and recipe catalog lists with modal create/edit flows
+- `Condimente` stored separately from recipe descriptions
+- `Rețetă atribuită` snapshots when recipes are assigned to meals
+- stale assigned-recipe indicators and explicit refresh actions
+- day tabs for meal planning
+- chronological meal coverage in aprovizionare
+- flexible aprovizionare sources for local stock, shopping runs, deliveries,
+  supplier orders, and people bringing items
 
 Known WIP areas:
 
@@ -96,13 +105,13 @@ ingredient reports.
 
 ## Redesign Direction
 
-The next design slice is captured in
-`docs/product/prd-kitchen-planner-redesign.md`. The core direction is to keep
-the shared catalog inside the activity kitchen workspace for now, but visually
-separate it from activity-specific planning:
+The redesign slice is captured in
+`docs/product/prd-kitchen-planner-redesign.md`. The shared catalog stays inside
+the activity kitchen workspace for now, but is visually separated from
+activity-specific planning:
 
 - `Catalog`: `Ingrediente`, `Rețete`
-- `Plan`: `Mese`, `Aprovizionare`, `Rapoarte`
+- `Plan`: `Sumar`, `Mese`, `Aprovizionare`, `Rapoarte`
 
 Catalog edits are global and should be labeled as shared. Activity meal planning
 should use `Rețetă atribuită` copies so later catalog edits do not silently
@@ -110,14 +119,28 @@ change what an activity planned. `Condimente` are unquantified recipe guidance:
 they should be visible in recipes, meals, aprovizionare reminders, and exports,
 but they should not affect calculated quantities or cost by default.
 
+When a shared recipe is assigned to a meal, the app copies the recipe name,
+normal serving count, ingredient rows, condimente, and estimated unit prices
+into the meal assignment. Current and planned activities show a subtle warning
+when the shared catalog recipe has changed since that assignment; coordinators
+can keep the planned copy or explicitly refresh it from the catalog. Completed
+and cancelled activities do not show noisy stale warnings by default.
+
+Aprovizionare is a source-planning surface, not just a shopping list. Sources
+may represent the local center, a shopping run, a supplier order, a delivery, or
+a person bringing items. The primary view includes chronological meal coverage
+so coordinators can see which upcoming ingredients are uncovered, partially
+covered, or covered.
+
 ## Navigation
 
 Kitchen planning is not a top-level module. Users reach it from an activity:
 
 - `/activities/:activityId/kitchen` for setup and overview
 - `/activities/:activityId/kitchen/meals` for the day/slot meal plan
-- `/activities/:activityId/kitchen/ingredients` for calculated ingredient needs
-- `/activities/:activityId/kitchen/recipes` for shared recipes
+- `/activities/:activityId/kitchen/ingredients` for shared ingredients and
+  calculated ingredient needs
+- `/activities/:activityId/kitchen/recipes` for shared recipes and condimente
 - `/activities/:activityId/kitchen/procurement` for shopping events and items
 - `/activities/:activityId/kitchen/reports` for printable views and CSV exports
 

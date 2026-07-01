@@ -6,18 +6,33 @@
 
 	const kitchenPath = $derived(resolve(`/activities/${data.activity.id}/kitchen`));
 	const isKitchenRoute = $derived(page.url.pathname.startsWith(kitchenPath));
-	const kitchenTabs = $derived([
-		{ label: 'Mese', href: resolve(`/activities/${data.activity.id}/kitchen/meals`) },
-		{ label: 'Ingrediente', href: resolve(`/activities/${data.activity.id}/kitchen/ingredients`) },
-		{ label: 'Rețete', href: resolve(`/activities/${data.activity.id}/kitchen/recipes`) },
+	const kitchenGroups = $derived([
 		{
-			label: 'Aprovizionare',
-			href: resolve(`/activities/${data.activity.id}/kitchen/procurement`)
+			label: 'Catalog',
+			tabs: [
+				{
+					label: 'Ingrediente',
+					href: resolve(`/activities/${data.activity.id}/kitchen/ingredients`)
+				},
+				{ label: 'Rețete', href: resolve(`/activities/${data.activity.id}/kitchen/recipes`) }
+			]
 		},
-		{ label: 'Rapoarte', href: resolve(`/activities/${data.activity.id}/kitchen/reports`) }
+		{
+			label: 'Plan',
+			tabs: [
+				{ label: 'Sumar', href: resolve(`/activities/${data.activity.id}/kitchen`) },
+				{ label: 'Mese', href: resolve(`/activities/${data.activity.id}/kitchen/meals`) },
+				{
+					label: 'Aprovizionare',
+					href: resolve(`/activities/${data.activity.id}/kitchen/procurement`)
+				},
+				{ label: 'Rapoarte', href: resolve(`/activities/${data.activity.id}/kitchen/reports`) }
+			]
+		}
 	]);
 
-	const isActive = (href: string) => page.url.pathname.startsWith(href);
+	const isActive = (href: string) =>
+		href === kitchenPath ? page.url.pathname === href : page.url.pathname.startsWith(href);
 </script>
 
 <svelte:head>
@@ -27,8 +42,15 @@
 <section class="activity-shell">
 	{#if isKitchenRoute}
 		<nav class="kitchen-tabs" aria-label="Meniu bucătărie">
-			{#each kitchenTabs as tab (tab.href)}
-				<a href={tab.href} class:active={isActive(tab.href)}>{tab.label}</a>
+			{#each kitchenGroups as group (group.label)}
+				<div class="kitchen-tab-group">
+					<span>{group.label}</span>
+					<div>
+						{#each group.tabs as tab (tab.href)}
+							<a href={tab.href} class:active={isActive(tab.href)}>{tab.label}</a>
+						{/each}
+					</div>
+				</div>
 			{/each}
 		</nav>
 	{/if}
@@ -45,10 +67,32 @@
 	.kitchen-tabs {
 		display: flex;
 		overflow-x: auto;
-		gap: 6px;
+		gap: 10px;
 		align-items: center;
 		border-bottom: 1px solid #dbe3ef;
 		padding-bottom: 8px;
+	}
+
+	.kitchen-tab-group {
+		display: grid;
+		gap: 3px;
+		border: 1px solid #e2e8f0;
+		border-radius: 8px;
+		padding: 4px;
+		background: #ffffff;
+	}
+
+	.kitchen-tab-group span {
+		padding: 0 7px;
+		color: #94a3b8;
+		font-size: 0.68rem;
+		font-weight: 900;
+		text-transform: uppercase;
+	}
+
+	.kitchen-tab-group div {
+		display: flex;
+		gap: 4px;
 	}
 
 	.kitchen-tabs a {

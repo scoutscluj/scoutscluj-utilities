@@ -18,6 +18,13 @@ The system SHALL expose kitchen planning inside an `Activitate` workspace rather
 - **THEN** the main sidebar still points users to `Activități`
 - **AND** kitchen routes are reached from an activity.
 
+#### Scenario: Kitchen subsections render as contextual menu
+
+- **GIVEN** a user opens an activity kitchen route
+- **WHEN** the kitchen workspace renders
+- **THEN** kitchen subsections such as `Mese`, `Ingrediente`, `Rețete`, `Aprovizionare`, and `Rapoarte` appear in one horizontal contextual menu
+- **AND** they do not appear as nested items in the main sidebar.
+
 ### Requirement: Kitchen Plan Setup From Activity Dates
 
 The system SHALL create one primary kitchen plan per activity and generate kitchen days from the activity date range.

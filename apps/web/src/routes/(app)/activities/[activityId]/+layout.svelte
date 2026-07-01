@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { hasRole } from '$lib/auth/roles';
 	import type { ActivityStatus, ActivityType } from './+layout.server';
 
 	let { data, children } = $props();
@@ -29,30 +28,33 @@
 				}).format(new Date(value))
 			: 'Fără dată';
 
-	const canViewAudit = $derived(
-		data.activity.coordinatorId === data.user.id ||
-			hasRole(data.user, 'finance_manager') ||
-			hasRole(data.user, 'super_admin')
-	);
-
-	const activityTabs = $derived([
-		{ label: 'Prezentare', href: resolve(`/activities/${data.activity.id}`), exact: true },
-		{ label: 'Financiar', href: resolve(`/activities/${data.activity.id}/finance`), exact: false },
-		{ label: 'Bucătărie', href: resolve(`/activities/${data.activity.id}/kitchen`), exact: true }
-	]);
-
+	const activityPath = $derived(resolve(`/activities/${data.activity.id}`));
+	const financePath = $derived(resolve(`/activities/${data.activity.id}/finance`));
 	const kitchenPath = $derived(resolve(`/activities/${data.activity.id}/kitchen`));
+	const auditPath = $derived(resolve(`/activities/${data.activity.id}/audit`));
+	const isOverviewRoute = $derived(page.url.pathname === activityPath);
 	const isKitchenRoute = $derived(page.url.pathname.startsWith(kitchenPath));
+	const departmentLabel = $derived(
+		isKitchenRoute
+			? 'Departament · Bucătărie'
+			: page.url.pathname.startsWith(financePath)
+				? 'Departament · Financiar'
+				: page.url.pathname.startsWith(auditPath)
+					? 'Utilitar · Audit'
+					: 'Activitate'
+	);
 	const kitchenTabs = $derived([
 		{ label: 'Mese', href: resolve(`/activities/${data.activity.id}/kitchen/meals`) },
 		{ label: 'Ingrediente', href: resolve(`/activities/${data.activity.id}/kitchen/ingredients`) },
 		{ label: 'Rețete', href: resolve(`/activities/${data.activity.id}/kitchen/recipes`) },
-		{ label: 'Aprovizionare', href: resolve(`/activities/${data.activity.id}/kitchen/procurement`) },
+		{
+			label: 'Aprovizionare',
+			href: resolve(`/activities/${data.activity.id}/kitchen/procurement`)
+		},
 		{ label: 'Rapoarte', href: resolve(`/activities/${data.activity.id}/kitchen/reports`) }
 	]);
 
-	const isActive = (href: string, exact = false) =>
-		exact ? page.url.pathname === href : page.url.pathname.startsWith(href);
+	const isActive = (href: string) => page.url.pathname.startsWith(href);
 </script>
 
 <svelte:head>
@@ -62,36 +64,38 @@
 <section class="activity-shell">
 	<a class="back-link" href={resolve('/activities')}>Înapoi la activități</a>
 
-	<header class="activity-header">
-		<p class="eyebrow">{activityTypeLabels[data.activity.type]}</p>
-		<h1>{data.activity.title}</h1>
-		<div class="meta-grid">
-			<span>{activityStatusLabels[data.activity.status]}</span>
-			<span>{formatDate(data.activity.startDate)}</span>
-			<span>{data.activity.location ?? 'Fără loc'}</span>
-			<span>{data.activity.coordinatorName}</span>
-		</div>
-	</header>
+	{#if isOverviewRoute}
+		<header class="activity-header">
+			<p class="eyebrow">{activityTypeLabels[data.activity.type]}</p>
+			<h1>{data.activity.title}</h1>
+			<div class="meta-grid">
+				<span>{activityStatusLabels[data.activity.status]}</span>
+				<span>{formatDate(data.activity.startDate)}</span>
+				<span>{data.activity.location ?? 'Fără loc'}</span>
+				<span>{data.activity.coordinatorName}</span>
+			</div>
+		</header>
+	{:else}
+		<header class="activity-context">
+			<div>
+				<p class="eyebrow">{departmentLabel}</p>
+				<h1>{data.activity.title}</h1>
+			</div>
+			<div class="meta-grid compact">
+				<span>{activityStatusLabels[data.activity.status]}</span>
+				<span>{formatDate(data.activity.startDate)}</span>
+				<span>{data.activity.location ?? 'Fără loc'}</span>
+			</div>
+		</header>
+	{/if}
 
-	<nav class="tabs" aria-label="Secțiuni activitate">
-		{#each activityTabs as tab (tab.href)}
-			<a href={tab.href} class:active={isActive(tab.href, tab.exact)}>{tab.label}</a>
-		{/each}
-		{#if isKitchenRoute}
-			<span class="tab-separator" aria-hidden="true"></span>
+	{#if isKitchenRoute}
+		<nav class="kitchen-tabs" aria-label="Meniu bucătărie">
 			{#each kitchenTabs as tab (tab.href)}
-				<a class="kitchen-tab" href={tab.href} class:active={isActive(tab.href)}>{tab.label}</a>
+				<a href={tab.href} class:active={isActive(tab.href)}>{tab.label}</a>
 			{/each}
-		{/if}
-		{#if canViewAudit}
-			<a
-				href={resolve(`/activities/${data.activity.id}/audit`)}
-				class:active={isActive(resolve(`/activities/${data.activity.id}/audit`))}
-			>
-				Audit
-			</a>
-		{/if}
-	</nav>
+		</nav>
+	{/if}
 
 	{@render children()}
 </section>
@@ -99,11 +103,11 @@
 <style>
 	.activity-shell {
 		display: grid;
-		gap: 14px;
+		gap: 12px;
 	}
 
 	.back-link,
-	.tabs a {
+	.kitchen-tabs a {
 		color: #334155;
 		font-weight: 800;
 		text-decoration: none;
@@ -113,9 +117,16 @@
 		justify-self: start;
 	}
 
-	.activity-header {
+	.activity-header,
+	.activity-context {
 		display: grid;
 		gap: 8px;
+	}
+
+	.activity-context {
+		grid-template-columns: minmax(0, 1fr);
+		border-bottom: 1px solid #dbe3ef;
+		padding-bottom: 10px;
 	}
 
 	.eyebrow {
@@ -134,8 +145,15 @@
 
 	h1 {
 		color: #0f172a;
-		font-size: clamp(1.7rem, 3vw, 2.4rem);
 		line-height: 1.08;
+	}
+
+	.activity-header h1 {
+		font-size: 2rem;
+	}
+
+	.activity-context h1 {
+		font-size: 1.35rem;
 	}
 
 	.meta-grid {
@@ -155,47 +173,43 @@
 		padding-right: 0;
 	}
 
-	.tabs {
+	.meta-grid.compact {
+		font-size: 0.9rem;
+	}
+
+	.kitchen-tabs {
 		display: flex;
-		flex-wrap: wrap;
+		overflow-x: auto;
 		gap: 6px;
 		align-items: center;
 		border-bottom: 1px solid #dbe3ef;
 		padding-bottom: 8px;
 	}
 
-	.tabs a {
-		min-height: 36px;
+	.kitchen-tabs a {
+		min-height: 34px;
 		display: inline-flex;
 		align-items: center;
 		border: 1px solid transparent;
 		border-radius: 8px;
-		padding: 0 12px;
-	}
-
-	.tabs a.kitchen-tab {
-		min-height: 32px;
 		background: #f8fafc;
+		padding: 0 12px;
 		color: #475569;
 		font-size: 0.9rem;
+		white-space: nowrap;
 	}
 
-	.tabs a.active,
-	.tabs a:hover {
+	.kitchen-tabs a.active,
+	.kitchen-tabs a:hover {
 		border-color: #dbe3ef;
 		background: #ffffff;
 		color: #991b1b;
 	}
 
-	.tab-separator {
-		width: 1px;
-		height: 24px;
-		background: #cbd5e1;
-	}
-
-	@media (max-width: 640px) {
-		.tab-separator {
-			display: none;
+	@media (min-width: 720px) {
+		.activity-context {
+			grid-template-columns: minmax(0, 1fr) auto;
+			align-items: end;
 		}
 	}
 </style>

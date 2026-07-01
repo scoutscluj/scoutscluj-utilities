@@ -59,6 +59,16 @@ describe('legacy kitchen catalog fixtures', () => {
     }
   });
 
+  it('does not use descriptions for legacy ingredient notes', () => {
+    const descriptions = recipes
+      .map((recipe) => recipe.description?.trim())
+      .filter(Boolean);
+
+    expect(descriptions).toEqual(
+      descriptions.filter((description) => description?.startsWith('https://')),
+    );
+  });
+
   it('keeps recipe ingredient labels in sync with ingredient labels', () => {
     const ingredientNames = new Map(
       ingredients.map((ingredient) => [ingredient.id, ingredient.name]),

@@ -74,7 +74,9 @@ Expected import totals from the current legacy exports:
 Catalog text should stay display-ready: ingredient labels are lowercase,
 recipe titles are sentence-cased, and Romanian names/descriptions use Romanian
 diacritics. Recipe ingredient display names should match the canonical
-ingredient labels.
+ingredient labels. Old comma-separated ingredient notes from recipe descriptions
+are not imported as descriptions because the catalog cannot infer quantities for
+them.
 
 The seed command is safe to run repeatedly after migrations. Production deploys
 run it automatically after migrations so new databases or restored databases

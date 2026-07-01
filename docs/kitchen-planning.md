@@ -84,12 +84,14 @@ Catalog text should stay display-ready: ingredient labels are lowercase,
 recipe titles are sentence-cased, and Romanian names/descriptions use Romanian
 diacritics. Recipe ingredient display names should match the canonical
 ingredient labels. Old comma-separated ingredient notes from recipe descriptions
-are not imported as descriptions because the catalog cannot infer quantities for
-them.
+are stored in explicit `condiments` arrays, not imported as descriptions,
+because the catalog cannot infer quantities for them.
 
 The seed command is safe to run repeatedly after migrations. Production deploys
 run it automatically after migrations so new databases or restored databases
-keep the shared ingredients and recipes visible.
+keep the shared ingredients and recipes visible. If a recipe fixture has no
+explicit condimente and no old description notes, the seed preserves existing
+recipe condimente instead of clearing them.
 
 These JSON files are temporary bootstrap fixtures. After the production seed has
 been run and verified, remove them in a follow-up PR so the repository does not

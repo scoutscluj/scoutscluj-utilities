@@ -20,6 +20,7 @@ type LegacyRecipeRow = {
   id: string;
   name: string;
   description?: string;
+  condiments?: string[];
   servings: string;
 };
 
@@ -42,11 +43,28 @@ const parseNumber = (value: string | number | undefined, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const isRecipeLink = (value: string) => /^https?:\/\//i.test(value.trim());
+
+const cleanStringList = (values?: string[]) =>
+  (values ?? []).map((value) => value.trim()).filter(Boolean);
+
+const cleanLegacyDescription = (value?: string) => {
+  const cleaned = value?.trim();
+  return cleaned && isRecipeLink(cleaned) ? cleaned : null;
+};
+
 const parseLegacyCondiments = (value?: string) =>
   (value ?? '')
-    .split(',')
+    .split(/[,\r\n]+/)
     .map((item) => item.trim())
-    .filter(Boolean);
+    .filter((item) => item && !isRecipeLink(item));
+
+const condimentsFromRow = (row: LegacyRecipeRow) => {
+  const explicitCondiments = cleanStringList(row.condiments);
+  return explicitCondiments.length
+    ? explicitCondiments
+    : parseLegacyCondiments(row.description);
+};
 
 @Injectable()
 export class KitchenSeedService {
@@ -98,10 +116,13 @@ export class KitchenSeedService {
 
     for (const row of recipes) {
       const recipe = await this.findRecipe(row);
+      const condiments = condimentsFromRow(row);
       recipe.legacySourceId = row.id;
       recipe.name = row.name.trim();
-      recipe.description = null;
-      recipe.condiments = parseLegacyCondiments(row.description);
+      recipe.description = cleanLegacyDescription(row.description);
+      recipe.condiments = condiments.length
+        ? condiments
+        : (recipe.condiments ?? []);
       recipe.servings = Math.max(parseNumber(row.servings, 1), 1);
 
       this.em.persist(recipe);
@@ -162,8 +183,8 @@ export class KitchenSeedService {
       })) ??
       this.recipesRepository.create({
         name: row.name.trim(),
-        description: null,
-        condiments: parseLegacyCondiments(row.description),
+        description: cleanLegacyDescription(row.description),
+        condiments: condimentsFromRow(row),
         servings: Math.max(parseNumber(row.servings, 1), 1),
       })
     );

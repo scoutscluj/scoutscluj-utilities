@@ -9,6 +9,7 @@ type LegacyIngredientRow = {
 type LegacyRecipeRow = {
   name: string;
   description?: string;
+  condiments?: string[];
 };
 
 type LegacyRecipeIngredientRow = {
@@ -67,6 +68,23 @@ describe('legacy kitchen catalog fixtures', () => {
     expect(descriptions).toEqual(
       descriptions.filter((description) => description?.startsWith('https://')),
     );
+  });
+
+  it('stores legacy condiment notes explicitly', () => {
+    const recipesWithCondiments = recipes.filter(
+      (recipe) => recipe.condiments?.length,
+    );
+    const cinnamonRolls = recipes.find(
+      (recipe) => recipe.name === 'Aluat pentru cinnamon rolls',
+    );
+
+    expect(recipesWithCondiments).toHaveLength(22);
+    expect(cinnamonRolls?.condiments).toEqual([
+      'drojdie',
+      'sare',
+      'zahăr',
+      'scorțișoară',
+    ]);
   });
 
   it('keeps recipe ingredient labels in sync with ingredient labels', () => {

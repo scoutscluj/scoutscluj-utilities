@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { CurrentUser } from '$lib/auth/types';
-	import type { SidebarActivity } from './+layout.server';
+	import type { SidebarActivity } from '$lib/activities/sidebar-activity';
 	import {
 		activitiesGroupKey,
 		activityHref,

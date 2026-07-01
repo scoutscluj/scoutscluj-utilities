@@ -1,7 +1,7 @@
 import { resolve } from '$app/paths';
 import { hasRole } from '$lib/auth/roles';
 import type { AppHref, CurrentUser, MenuItem } from '$lib/auth/types';
-import type { SidebarActivity, SidebarActivityDepartment } from './+layout.server';
+import type { SidebarActivity, SidebarActivityDepartment } from '$lib/activities/sidebar-activity';
 
 export const activitiesGroupKey = 'activities';
 

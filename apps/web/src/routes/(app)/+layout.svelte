@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import AppSidebar from './AppSidebar.svelte';
 	import AppTopbar from './AppTopbar.svelte';
-	import type { SidebarActivity } from './+layout.server';
+	import type { SidebarActivity } from '$lib/activities/sidebar-activity';
 
 	let { data, children } = $props();
 	let mobileOpen = $state(false);

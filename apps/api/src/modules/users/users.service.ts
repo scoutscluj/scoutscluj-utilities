@@ -7,6 +7,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { PushSubscription } from '../notifications/entities/push-subscription.entity';
 import { AdminUserDto } from './dto/admin-user.dto';
 import { OrgoConnection } from './entities/orgo-connection.entity';
 import { UserRole } from './entities/user-role.enum';
@@ -47,6 +48,8 @@ export class UsersService {
     private readonly usersRepository: EntityRepository<User>,
     @InjectRepository(OrgoConnection)
     private readonly orgoConnectionsRepository: EntityRepository<OrgoConnection>,
+    @InjectRepository(PushSubscription)
+    private readonly subscriptionsRepository: EntityRepository<PushSubscription>,
     @Inject(EntityManager)
     private readonly em: EntityManager,
   ) {}
@@ -59,15 +62,26 @@ export class UsersService {
   }
 
   async listAdminUsers(): Promise<AdminUserDto[]> {
-    const users = await this.usersRepository.find(
-      {},
-      {
-        populate: ['orgoConnection'],
-        orderBy: { displayName: 'asc', id: 'asc' },
-      },
+    const [users, activeSubscriptions] = await Promise.all([
+      this.usersRepository.find(
+        {},
+        {
+          populate: ['orgoConnection'],
+          orderBy: { displayName: 'asc', id: 'asc' },
+        },
+      ),
+      this.subscriptionsRepository.find(
+        { isActive: true },
+        { fields: ['userId'] },
+      ),
+    ]);
+    const enabledUserIds = new Set(
+      activeSubscriptions.map((subscription) => subscription.userId),
     );
 
-    return users.map((user) => this.serializeAdminUser(user));
+    return users.map((user) =>
+      this.serializeAdminUser(user, enabledUserIds.has(user.id)),
+    );
   }
 
   async updateRoles(userId: number, roles: unknown): Promise<AdminUserDto> {
@@ -79,7 +93,12 @@ export class UsersService {
     user.roles = this.normalizeRoles(roles);
     await this.em.flush();
 
-    return this.serializeAdminUser(user);
+    const activeSubscription = await this.subscriptionsRepository.findOne({
+      userId,
+      isActive: true,
+    });
+
+    return this.serializeAdminUser(user, Boolean(activeSubscription));
   }
 
   async resolveOrCreateFromOrgoProfile(profile: OrgoProfile) {
@@ -176,7 +195,7 @@ export class UsersService {
     };
   }
 
-  serializeAdminUser(user: User): AdminUserDto {
+  serializeAdminUser(user: User, notificationsEnabled = false): AdminUserDto {
     const connection = user.orgoConnection;
 
     return {
@@ -187,6 +206,7 @@ export class UsersService {
       lastName: user.lastName ?? undefined,
       avatarUrl: user.avatarUrl ?? undefined,
       roles: this.normalizeRoles(user.roles),
+      notificationsEnabled,
       orgoConnection: connection
         ? {
             orgoUserId: connection.orgoUserId ?? undefined,

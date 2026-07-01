@@ -107,6 +107,7 @@
 				<span role="columnheader">Utilizator</span>
 				<span role="columnheader">Orgo</span>
 				<span role="columnheader">Roluri</span>
+				<span role="columnheader">Notificări</span>
 				<span role="columnheader">Ultima autentificare</span>
 				<span role="columnheader" class="actions-heading">Acțiuni</span>
 			</div>
@@ -136,6 +137,17 @@
 							{:else}
 								<span class="role-chip">Membru</span>
 							{/if}
+						</div>
+
+						<div class="notification-cell" role="cell">
+							<span
+								class:enabled={user.notificationsEnabled}
+								class="notification-chip"
+								aria-label={`Notificări ${user.notificationsEnabled ? 'activate' : 'dezactivate'}`}
+							>
+								<span class="status-dot" aria-hidden="true"></span>
+								{user.notificationsEnabled ? 'Active' : 'Inactive'}
+							</span>
 						</div>
 
 						<div class="muted-cell" role="cell">{formatDate(user.lastLoginAt)}</div>
@@ -307,8 +319,8 @@
 	.user-row {
 		display: grid;
 		grid-template-columns:
-			minmax(260px, 1.6fr) minmax(120px, 0.7fr) minmax(140px, 0.8fr) minmax(190px, 0.9fr)
-			48px;
+			minmax(240px, 1.5fr) minmax(110px, 0.65fr) minmax(130px, 0.75fr) minmax(110px, 0.6fr)
+			minmax(175px, 0.85fr) 48px;
 		align-items: center;
 		gap: 12px;
 	}
@@ -426,6 +438,36 @@
 	.extra-role {
 		background: #eef2ff;
 		color: #3730a3;
+	}
+
+	.notification-chip {
+		min-height: 24px;
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		border-radius: 999px;
+		background: #f1f5f9;
+		padding: 0 9px;
+		color: #52616f;
+		font-size: 0.8rem;
+		font-weight: 850;
+		white-space: nowrap;
+	}
+
+	.notification-chip.enabled {
+		background: #ecfdf5;
+		color: #166534;
+	}
+
+	.status-dot {
+		width: 7px;
+		height: 7px;
+		border-radius: 999px;
+		background: #94a3b8;
+	}
+
+	.notification-chip.enabled .status-dot {
+		background: #16a34a;
 	}
 
 	.actions-cell {
@@ -646,6 +688,7 @@
 		}
 
 		.muted-cell,
+		.notification-cell,
 		.role-cell {
 			grid-column: 1;
 			margin-left: 46px;

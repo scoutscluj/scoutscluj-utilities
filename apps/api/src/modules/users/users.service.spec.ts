@@ -21,6 +21,7 @@ jest.mock('@mikro-orm/core', () => {
   }
 
   const p = {
+    boolean: jest.fn(() => chain),
     datetime: jest.fn(() => chain),
     enum: jest.fn(() => chain),
     integer: jest.fn(() => chain),
@@ -79,7 +80,10 @@ const createUser = (overrides: Partial<TestUser> = {}): TestUser => ({
   ...overrides,
 });
 
-const createService = (user: TestUser | null = createUser()) => {
+const createService = (
+  user: TestUser | null = createUser(),
+  activeNotificationUserIds: number[] = [],
+) => {
   const usersRepository = {
     find: jest.fn(() => Promise.resolve(user ? [user] : [])),
     findOne: jest.fn(() => Promise.resolve(user)),
@@ -88,6 +92,16 @@ const createService = (user: TestUser | null = createUser()) => {
   const orgoConnectionsRepository = {
     findOne: jest.fn(),
     create: jest.fn((value: unknown) => value),
+  };
+  const subscriptionsRepository = {
+    find: jest.fn(() =>
+      Promise.resolve(activeNotificationUserIds.map((userId) => ({ userId }))),
+    ),
+    findOne: jest.fn(({ userId }: { userId: number }) =>
+      Promise.resolve(
+        activeNotificationUserIds.includes(userId) ? { userId } : null,
+      ),
+    ),
   };
   const em = {
     persist: jest.fn(),
@@ -98,16 +112,18 @@ const createService = (user: TestUser | null = createUser()) => {
     service: new UsersService(
       usersRepository as never,
       orgoConnectionsRepository as never,
+      subscriptionsRepository as never,
       em as never,
     ),
     usersRepository,
+    subscriptionsRepository,
     em,
   };
 };
 
 describe('UsersService role administration', () => {
   it('lists admin-safe user payloads with Orgo hints', async () => {
-    const { service } = createService(
+    const { service, subscriptionsRepository } = createService(
       createUser({
         roles: [UserRole.Admin],
         orgoConnection: {
@@ -118,6 +134,7 @@ describe('UsersService role administration', () => {
           lastLoginAt: new Date('2026-06-20T10:00:00.000Z'),
         },
       }),
+      [1],
     );
 
     const [adminUser] = await service.listAdminUsers();
@@ -126,14 +143,27 @@ describe('UsersService role administration', () => {
       id: 1,
       displayName: 'Ana Cercetas',
       roles: [UserRole.Admin],
+      notificationsEnabled: true,
     });
     expect(adminUser.orgoConnection?.orgoUserId).toBe(42);
     expect(adminUser.orgoConnection?.cardId).toBe('CJ-123');
+    expect(subscriptionsRepository.find).toHaveBeenCalledWith(
+      { isActive: true },
+      { fields: ['userId'] },
+    );
+  });
+
+  it('reports notifications as disabled without active subscriptions', async () => {
+    const { service } = createService();
+
+    const [adminUser] = await service.listAdminUsers();
+
+    expect(adminUser.notificationsEnabled).toBe(false);
   });
 
   it('updates roles with deterministic ordering and without duplicates', async () => {
     const user = createUser();
-    const { service, em } = createService(user);
+    const { service, em } = createService(user, [user.id]);
 
     const result = await service.updateRoles(1, [
       UserRole.SuperAdmin,
@@ -148,6 +178,7 @@ describe('UsersService role administration', () => {
       UserRole.SuperAdmin,
     ]);
     expect(result.roles).toEqual(user.roles);
+    expect(result.notificationsEnabled).toBe(true);
     expect(em.flush).toHaveBeenCalledTimes(1);
   });
 

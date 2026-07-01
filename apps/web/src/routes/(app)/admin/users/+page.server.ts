@@ -16,6 +16,7 @@ export type AdminUser = {
 	lastName?: string;
 	avatarUrl?: string;
 	roles: UserRole[];
+	notificationsEnabled: boolean;
 	orgoConnection?: {
 		orgoUserId?: number;
 		cardId?: string;

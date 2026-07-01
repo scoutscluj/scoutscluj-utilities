@@ -40,6 +40,9 @@ export class AdminUserDto {
   @ApiProperty({ enum: UserRole, isArray: true })
   roles!: UserRole[];
 
+  @ApiProperty()
+  notificationsEnabled!: boolean;
+
   @ApiPropertyOptional({ type: AdminUserOrgoConnectionDto })
   orgoConnection?: AdminUserOrgoConnectionDto;
 

@@ -48,9 +48,17 @@ _Avoid_: Plan-owned ingredient as the default, grocery item when referring to th
 The reusable ingredients, recipes, and recipe ingredients imported from prior kitchen-planning exports to bootstrap the shared kitchen catalog.
 _Avoid_: Treating prior exports as a complete activity meal plan
 
+**Catalog de bucătărie**:
+The shared reusable collection of ingredients, recipes, and recipe condiment notes used across activities. Editing the catalog changes what future and current kitchen plans can reuse; activity-specific quantities, assignments, procurement, and snapshots belong to the plan de bucătărie.
+_Avoid_: Activity-specific meal plan, procurement list
+
 **Rețetă**:
 A reusable preparation definition made from one or more ingredients and a normal serving count. Recipes are shared across activities; assigning a recipe to a meal creates plan-specific serving assumptions and ingredient calculations.
 _Avoid_: Meal, procurement item
+
+**Condimente**:
+Unquantified recipe guidance such as spices, seasoning, and preparation notes that should be visible when cooking but should not affect ingredient totals, shopping lists, or cost estimates by default. When a condiment or note must be bought and counted for planning, it should be promoted to a normal ingredient with a quantity.
+_Avoid_: Quantified recipe ingredient, procurement item, recipe description
 
 **Scalare rețetă**:
 The way a recipe assignment is adjusted from its normal serving count to the expected prezență la masă. Scaling is proportional by default and may be rounded to whole batches when the assigned recipe requires it.
@@ -68,6 +76,10 @@ _Avoid_: Permanent unit or Orgo group unless the subgroup is linked to that sour
 A planned eating moment inside a plan de bucătărie, assigned to one of the standard meal slots and optionally distinguished by context or name when different groups eat separately.
 _Avoid_: Rețetă, procurement event
 
+**Rețetă atribuită**:
+A recipe as copied into a specific masă inside a plan de bucătărie, including the recipe name, normal servings, quantified ingredients, condimente, and estimated price context used at assignment time. Later shared catalog edits should not silently change a rețetă atribuită; coordinators may explicitly refresh it from the catalog when appropriate.
+_Avoid_: Live shared recipe, automatic post-event snapshot
+
 **Zi de bucătărie**:
 A date covered by a plan de bucătărie. Kitchen days are created from the activity's date range and are reviewed rather than silently deleted when activity dates change.
 _Avoid_: Silently replacing planned meals when activity dates change
@@ -81,7 +93,7 @@ The quantity of ingredients needed for a meal, day, or entire plan de bucătări
 _Avoid_: Procurement quantity, purchased quantity
 
 **Preț estimat ingredient**:
-The expected unit price used for kitchen planning before purchases are finalized. The shared ingredient catalog can provide a default estimate, while a plan de bucătărie may use plan-specific estimates for that activity.
+The expected unit price used for kitchen planning before purchases are finalized. The shared ingredient catalog can provide a default estimate; a rețetă atribuită stores the estimate used at assignment time, and aprovizionare can override estimates for a specific activity source.
 _Avoid_: Actual purchase price
 
 **Ajustare manuală de cantitate**:
@@ -93,11 +105,19 @@ A measurement group used for kitchen quantities, such as mass, volume, or count.
 _Avoid_: Guessing package, mass, and volume conversions
 
 **Aprovizionare**:
-The operational planning and tracking of ingredient purchasing for a plan de bucătărie, including suppliers, shopping quantities, status, and kitchen-facing notes. A procurement record may have related financial documents such as invoices or receipts, but the financial document remains the accounting-relevant record and follows the finance workflow.
-_Avoid_: Document financiar as the procurement record itself
+The operational planning and tracking of how needed ingredients and supplies reach a plan de bucătărie, including items brought from the local center, bought during shopping runs, ordered for delivery, or sourced from suppliers. A procurement record may have related financial documents such as invoices or receipts, but the financial document remains the accounting-relevant record and follows the finance workflow.
+_Avoid_: Shopping-only list, document financiar as the procurement record itself
+
+**Sursă de aprovizionare**:
+The origin or fulfillment route for needed kitchen items, such as local center stock, a shopping run, a supplier order, a delivery, or a named person bringing items. A source can group multiple ingredients so coordinators know what comes from where.
+_Avoid_: Ingredient category, financial document
+
+**Tranșă de aprovizionare**:
+A practical portion of needed ingredients assigned to a source for a shopping run, delivery, local stock pickup, or camp period. Longer activities may split perishable or storage-limited ingredients into multiple tranșe de aprovizionare, organized around upcoming meals rather than strict date ranges.
+_Avoid_: Treating every ingredient need as one purchase at the beginning of camp
 
 **Preț real de achiziție**:
-The actual unit or total price recorded from a completed aprovizionare or related financial document.
+The actual unit or total price recorded from a completed aprovizionare source, shopping run, delivery, or related financial document.
 _Avoid_: Preț estimat ingredient
 
 **Jurnal de audit**:

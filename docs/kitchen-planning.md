@@ -94,6 +94,22 @@ Ingredient totals are derived from assigned recipes, attendance, scaling mode,
 and manual adjustments. Procurement rows reduce the remaining quantity shown in
 ingredient reports.
 
+## Redesign Direction
+
+The next design slice is captured in
+`docs/product/prd-kitchen-planner-redesign.md`. The core direction is to keep
+the shared catalog inside the activity kitchen workspace for now, but visually
+separate it from activity-specific planning:
+
+- `Catalog`: `Ingrediente`, `Rețete`
+- `Plan`: `Mese`, `Aprovizionare`, `Rapoarte`
+
+Catalog edits are global and should be labeled as shared. Activity meal planning
+should use `Rețetă atribuită` copies so later catalog edits do not silently
+change what an activity planned. `Condimente` are unquantified recipe guidance:
+they should be visible in recipes, meals, aprovizionare reminders, and exports,
+but they should not affect calculated quantities or cost by default.
+
 ## Navigation
 
 Kitchen planning is not a top-level module. Users reach it from an activity:

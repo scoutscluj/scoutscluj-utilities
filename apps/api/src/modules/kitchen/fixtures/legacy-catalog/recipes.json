@@ -18,7 +18,7 @@
   {
     "id": "fea7c5a1-6c07-4af8-86f2-a41967b0adc2",
     "name": "Piept de pui cu piure de cartofi",
-    "description": "sare, boia",
+    "description": "",
     "servings": "1",
     "created_at": "2025-07-14 06:43:17.761562+00",
     "updated_at": "2025-07-14 06:43:17.761562+00"
@@ -34,7 +34,7 @@
   {
     "id": "6f997ab8-680f-4cec-b1e3-a6f9a8fb8cfb",
     "name": "Ciorbă rădăuțeană",
-    "description": "sare, piper, oțet",
+    "description": "",
     "servings": "1",
     "created_at": "2025-07-16 05:46:52.722412+00",
     "updated_at": "2025-07-16 05:46:52.722412+00"
@@ -42,7 +42,7 @@
   {
     "id": "0f25260d-6320-47b4-9f2e-79f89f48d3f2",
     "name": "Fajitas cu orez",
-    "description": "sare, piper, ulei, condiment fajitas",
+    "description": "",
     "servings": "1",
     "created_at": "2025-07-16 05:52:45.06347+00",
     "updated_at": "2025-07-16 05:52:45.06347+00"
@@ -58,7 +58,7 @@
   {
     "id": "ddb47809-c595-4904-8ffb-1ab030c57caa",
     "name": "Paste cu ragù",
-    "description": "sare, piper, Maggi Idea Zilei paste bolognese, ulei",
+    "description": "",
     "servings": "1",
     "created_at": "2025-07-16 06:00:11.174789+00",
     "updated_at": "2025-07-16 06:00:11.174789+00"
@@ -66,7 +66,7 @@
   {
     "id": "c17a57e7-7981-4672-8681-81a11c363926",
     "name": "Paste cu tofu",
-    "description": "sare, piper, Maggi Idea Zilei paste bolognese",
+    "description": "",
     "servings": "1",
     "created_at": "2025-07-16 06:02:03.521174+00",
     "updated_at": "2025-07-16 06:02:03.521174+00"
@@ -90,7 +90,7 @@
   {
     "id": "49588ae7-2732-43e6-bc84-ebfca1653617",
     "name": "Macaroane cu brânză",
-    "description": "sare, piper",
+    "description": "",
     "servings": "1",
     "created_at": "2025-07-16 06:13:40.587991+00",
     "updated_at": "2025-07-16 06:13:40.587991+00"
@@ -98,7 +98,7 @@
   {
     "id": "2e37e22d-adcc-4088-8f73-b4dba3408730",
     "name": "Tocană de cartofi la ceaun",
-    "description": "sare, piper, boia, foi de dafin",
+    "description": "",
     "servings": "1",
     "created_at": "2025-07-16 06:16:30.33172+00",
     "updated_at": "2025-07-16 06:16:30.33172+00"
@@ -106,7 +106,7 @@
   {
     "id": "7e1ddfd4-c292-4dff-8669-651e7a6277c4",
     "name": "Tocană la ceaun cu tofu",
-    "description": "sare, piper, foi de dafin",
+    "description": "",
     "servings": "1",
     "created_at": "2025-07-16 06:20:31.390276+00",
     "updated_at": "2025-07-16 06:20:31.390276+00"
@@ -130,7 +130,7 @@
   {
     "id": "1ca5da5d-117e-4635-83ba-c117b157119a",
     "name": "Shaorma falafel",
-    "description": "sare, piper, ketchup",
+    "description": "",
     "servings": "1",
     "created_at": "2025-07-16 06:29:36.71461+00",
     "updated_at": "2025-07-16 06:29:36.71461+00"
@@ -138,7 +138,7 @@
   {
     "id": "8b056de9-e2c0-4a7b-8847-884cef32aa33",
     "name": "Griș cu lapte",
-    "description": "esență de vanilie",
+    "description": "",
     "servings": "1",
     "created_at": "2025-07-16 06:31:06.43116+00",
     "updated_at": "2025-07-16 06:31:06.43116+00"
@@ -146,7 +146,7 @@
   {
     "id": "57f8d5ae-fa93-4b63-9368-e6d42d95abf5",
     "name": "Papricaș de pui cu mămăligă",
-    "description": "boia, sare, piper, foi de dafin",
+    "description": "",
     "servings": "1",
     "created_at": "2025-07-16 06:34:09.859229+00",
     "updated_at": "2025-07-16 06:34:09.859229+00"
@@ -154,7 +154,7 @@
   {
     "id": "0da2fa71-053f-4365-86aa-447314cdee0f",
     "name": "Tocăniță de legume cu mămăligă",
-    "description": "sare, piper, boia, foi de dafin, ulei\n\nhttps://www.kaufland.ro/retete/cauta-o-reteta/reteta.tocanita-legume.r_id=RO_1235.html",
+    "description": "https://www.kaufland.ro/retete/cauta-o-reteta/reteta.tocanita-legume.r_id=RO_1235.html",
     "servings": "1",
     "created_at": "2025-07-16 06:38:21.641327+00",
     "updated_at": "2025-07-16 06:38:21.641327+00"
@@ -178,7 +178,7 @@
   {
     "id": "0b7222fb-3a5f-46f8-a564-f00d4ef95045",
     "name": "Tofu cu piure de cartofi",
-    "description": "ulei, sare, boia, piper",
+    "description": "",
     "servings": "1",
     "created_at": "2025-07-16 15:31:03.043635+00",
     "updated_at": "2025-07-16 15:31:03.043635+00"
@@ -186,7 +186,7 @@
   {
     "id": "b64228ec-24d3-4e5c-ba78-47f6190eae29",
     "name": "Ciorbă de legume",
-    "description": "sare, ulei, borș",
+    "description": "",
     "servings": "8",
     "created_at": "2025-07-16 05:50:44.444035+00",
     "updated_at": "2025-07-16 05:50:44.444035+00"
@@ -202,7 +202,7 @@
   {
     "id": "4fcfcb1f-44e6-4cf7-8403-f39e210904b6",
     "name": "Orez cu pui curry",
-    "description": "Vegeta, zahăr brun, amidon de porumb",
+    "description": "",
     "servings": "1",
     "created_at": "2025-07-16 06:10:59.870067+00",
     "updated_at": "2025-07-16 06:10:59.870067+00"
@@ -218,7 +218,7 @@
   {
     "id": "2c1a9967-84e6-4d7e-a319-bbab1d4baeac",
     "name": "Mazăre cu tofu",
-    "description": "ulei, foi de dafin, boia, piper, sare",
+    "description": "",
     "servings": "1",
     "created_at": "2025-07-16 19:54:14.695406+00",
     "updated_at": "2025-07-16 19:54:14.695406+00"
@@ -242,7 +242,7 @@
   {
     "id": "81385eb0-07dc-4a38-8829-2efbef63f13c",
     "name": "Hot dog vegetarian cu salată",
-    "description": "ketchup, muștar",
+    "description": "",
     "servings": "1",
     "created_at": "2025-07-16 20:16:29.762417+00",
     "updated_at": "2025-07-16 20:16:29.762417+00"
@@ -250,7 +250,7 @@
   {
     "id": "bba53138-9a9b-4cd8-90da-f6e47430a33a",
     "name": "Hot dog cu salată",
-    "description": "muștar, ketchup",
+    "description": "",
     "servings": "1",
     "created_at": "2025-07-16 05:55:33.07283+00",
     "updated_at": "2025-07-16 05:55:33.07283+00"
@@ -290,7 +290,7 @@
   {
     "id": "6a6ac6d1-da01-436a-ac51-2bd4e0c409ae",
     "name": "Mazăre cu pui",
-    "description": "ulei, sare, piper, boia, foi de dafin",
+    "description": "",
     "servings": "1",
     "created_at": "2025-07-16 06:07:50.975866+00",
     "updated_at": "2025-07-16 06:07:50.975866+00"
@@ -306,7 +306,7 @@
   {
     "id": "4121323a-5fb2-4960-bbb4-0f834a664135",
     "name": "Salată orientală",
-    "description": "ulei, sare, piper",
+    "description": "",
     "servings": "1",
     "created_at": "2025-07-16 06:24:53.872576+00",
     "updated_at": "2025-07-16 06:24:53.872576+00"
@@ -314,7 +314,7 @@
   {
     "id": "22951497-f340-48c9-8fad-9fe974a32642",
     "name": "Shaorma cu pui",
-    "description": "ketchup, sare, piper",
+    "description": "",
     "servings": "1",
     "created_at": "2025-07-16 06:26:33.415063+00",
     "updated_at": "2025-07-16 06:26:33.415063+00"
@@ -330,7 +330,7 @@
   {
     "id": "2be9e5f7-68da-4d26-9f56-0622be45234f",
     "name": "Aluat pentru cinnamon rolls",
-    "description": "drojdie, sare, zahăr, scorțișoară",
+    "description": "",
     "servings": "1",
     "created_at": "2025-07-30 10:33:15.087431+00",
     "updated_at": "2025-07-30 10:33:15.087431+00"

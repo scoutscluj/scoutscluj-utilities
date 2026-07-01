@@ -58,6 +58,17 @@ The system SHALL restrict document visibility by relationship and role.
 - **WHEN** a financial document is linked to that activity
 - **THEN** the coordinator can see that activity-linked document
 
+### Requirement: Document Preview
+
+The system SHALL show inline previews for financial documents in both the general register and activity finance view.
+
+#### Scenario: Preview a PDF or image document
+
+- **GIVEN** a visible financial document is a PDF or browser-previewable image
+- **WHEN** a user opens the general financial register or an activity finance page
+- **THEN** the document row shows a small preview
+- **AND** clicking the preview opens a larger protected preview without downloading the file
+
 ### Requirement: Document Review Lifecycle
 
 The system SHALL support the approved financial document statuses and audited transitions.

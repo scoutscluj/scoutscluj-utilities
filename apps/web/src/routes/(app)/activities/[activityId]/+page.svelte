@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
+	import ActivityDepartmentCards from './ActivityDepartmentCards.svelte';
+	import ActivityDepartmentForm from './ActivityDepartmentForm.svelte';
 
-	let { data } = $props();
+	let { data, form } = $props();
 </script>
 
 <section class="overview">
@@ -14,37 +15,30 @@
 		{/if}
 	</div>
 
-	<div class="action-grid">
-		<a href={resolve(`/activities/${data.activity.id}/finance`)}>
-			<span>Financiar</span>
-			<p>Documente, chitanțe, facturi și registrul activității.</p>
-		</a>
-		<a href={resolve(`/activities/${data.activity.id}/kitchen`)}>
-			<span>Bucătărie</span>
-			<p>Mese, rețete, ingrediente, aprovizionare și rapoarte.</p>
-		</a>
-	</div>
+	<ActivityDepartmentForm
+		activity={data.activity}
+		user={data.user}
+		message={form?.departmentMessage}
+	/>
+	<ActivityDepartmentCards activity={data.activity} />
 </section>
 
 <style>
 	.overview,
-	.panel,
-	.action-grid {
+	.panel {
 		display: grid;
 		gap: 16px;
 	}
 
-	.panel,
-	.action-grid a {
+	.panel {
 		border: 1px solid #dbe3ef;
-		background: #ffffff;
 		border-radius: 8px;
+		background: #ffffff;
 		padding: 18px;
 		box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
 	}
 
-	.panel-title,
-	.action-grid span {
+	.panel-title {
 		color: #0f172a;
 		font-weight: 900;
 	}
@@ -52,24 +46,5 @@
 	p {
 		margin: 0;
 		color: #64748b;
-	}
-
-	.action-grid {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
-
-	.action-grid a {
-		color: #334155;
-		text-decoration: none;
-	}
-
-	.action-grid a:hover {
-		border-color: #991b1b;
-	}
-
-	@media (max-width: 720px) {
-		.action-grid {
-			grid-template-columns: 1fr;
-		}
 	}
 </style>

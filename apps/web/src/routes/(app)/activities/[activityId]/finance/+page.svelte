@@ -1,27 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import type { FinancialDocumentStatus } from './+page.server';
+	import ActivityFinanceDocumentRow from './ActivityFinanceDocumentRow.svelte';
 
 	let { data, form } = $props();
-
-	const statusLabels: Record<FinancialDocumentStatus, string> = {
-		uploaded: 'Încărcat',
-		in_review: 'În verificare',
-		ready_to_send: 'Gata de trimis',
-		sent: 'Trimis',
-		needs_clarification: 'Necesită clarificări',
-		rejected: 'Respins',
-		archived: 'Arhivat'
-	};
-
-	const formatBytes = (value: number) =>
-		value < 1024 * 1024 ? `${Math.ceil(value / 1024)} KB` : `${(value / 1024 / 1024).toFixed(1)} MB`;
-
-	const formatDateTime = (value: string) =>
-		new Intl.DateTimeFormat('ro-RO', {
-			dateStyle: 'medium',
-			timeStyle: 'short'
-		}).format(new Date(value));
 </script>
 
 <section class="finance-tab">
@@ -80,28 +61,7 @@
 			{#if data.documents.length}
 				<div class="document-list">
 					{#each data.documents as document (document.id)}
-						<article class="document-row">
-							<div>
-								<div class="document-title-line">
-									<h3>{document.originalFilename}</h3>
-									<span class={`status ${document.status}`}>{statusLabels[document.status]}</span>
-								</div>
-								<div class="document-meta">
-									<span>{formatDateTime(document.createdAt)}</span>
-									<span>{formatBytes(document.fileSize)}</span>
-									<span>{document.uploaderName}</span>
-								</div>
-								{#if document.notes}
-									<p class="notes">{document.notes}</p>
-								{/if}
-								{#if document.reviewerNotes}
-									<p class="reviewer-notes">{document.reviewerNotes}</p>
-								{/if}
-							</div>
-							<a class="download-link" href={resolve(`/finance/documents/${document.id}/file`)}>
-								Descarcă
-							</a>
-						</article>
+						<ActivityFinanceDocumentRow {document} />
 					{/each}
 				</div>
 			{:else}
@@ -139,12 +99,11 @@
 
 	.panel,
 	.documents-panel,
-	.document-row,
 	.empty-state,
 	.summary-grid div {
 		border: 1px solid #dbe3ef;
-		background: #ffffff;
 		border-radius: 8px;
+		background: #ffffff;
 		box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
 	}
 
@@ -171,8 +130,8 @@
 		color: #2563eb;
 		font-size: 0.78rem;
 		font-weight: 800;
-		text-transform: uppercase;
 		letter-spacing: 0;
+		text-transform: uppercase;
 	}
 
 	h2,
@@ -192,9 +151,7 @@
 	}
 
 	.panel-subtitle,
-	.notes,
 	.empty-state p,
-	.document-meta,
 	.summary-grid p {
 		color: #64748b;
 	}
@@ -223,8 +180,7 @@
 	}
 
 	button,
-	.section-heading a,
-	.download-link {
+	.section-heading a {
 		min-height: 40px;
 		display: inline-flex;
 		align-items: center;
@@ -241,9 +197,7 @@
 		cursor: pointer;
 	}
 
-	.section-heading,
-	.document-title-line,
-	.document-meta {
+	.section-heading {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 12px;
@@ -251,55 +205,11 @@
 		justify-content: space-between;
 	}
 
-	.section-heading a,
-	.download-link {
+	.section-heading a {
 		border: 1px solid #cbd5e1;
 		background: #ffffff;
 		padding: 0 12px;
 		color: #334155;
-	}
-
-	.document-row {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) auto;
-		gap: 14px;
-		padding: 16px;
-	}
-
-	.status {
-		border-radius: 999px;
-		padding: 5px 9px;
-		background: #eef2ff;
-		color: #3730a3;
-		font-size: 0.78rem;
-		font-weight: 800;
-	}
-
-	.status.sent {
-		background: #dcfce7;
-		color: #166534;
-	}
-
-	.status.needs_clarification {
-		background: #fef3c7;
-		color: #92400e;
-	}
-
-	.status.rejected {
-		background: #fee2e2;
-		color: #991b1b;
-	}
-
-	.status.archived {
-		background: #f1f5f9;
-		color: #475569;
-	}
-
-	.reviewer-notes {
-		margin-top: 10px;
-		border-left: 3px solid #f59e0b;
-		padding-left: 10px;
-		color: #92400e;
 	}
 
 	.empty-state {
@@ -310,8 +220,8 @@
 
 	.form-message {
 		border: 1px solid #bfdbfe;
-		background: #eff6ff;
 		border-radius: 8px;
+		background: #eff6ff;
 		padding: 12px 14px;
 		color: #1e3a8a;
 	}
@@ -331,13 +241,8 @@
 			grid-template-columns: 1fr;
 		}
 
-		.document-row {
-			grid-template-columns: 1fr;
-		}
-
 		button,
-		.section-heading a,
-		.download-link {
+		.section-heading a {
 			width: 100%;
 		}
 	}

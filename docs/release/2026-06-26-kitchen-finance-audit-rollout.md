@@ -12,12 +12,20 @@ needs real-camp feedback before we call the meal planner complete.
 ## Included
 
 - Activity workspace tabs for overview, finance, kitchen, and activity audit.
+- Activity navigation now lives in the left menu: selecting an activity opens
+  `Prezentare`, enabled departments appear under the current activity, and page
+  titles are shown in the top bar.
+- Activity departments are stored per activity and can be managed after
+  creation by the coordinator or `super_admin`.
 - Camp kitchen planner under `/activities/:activityId/kitchen`.
 - Shared kitchen ingredients and recipes.
 - Legacy kitchen catalog import from API fixture files.
 - Meal slots, recipe assignments, attendance assumptions, ingredient totals,
   procurement coverage, procurement events, and procurement items.
 - Procurement invoice/receipt upload and linking through financial documents.
+- Small protected previews for financial documents in both the global finance
+  register and activity finance views, with click-to-open previews for PDFs and
+  browser-previewable images.
 - Printable kitchen reports and CSV exports.
 - Central app audit table, API, and web views.
 - Central audit events for kitchen writes and finance document writes.

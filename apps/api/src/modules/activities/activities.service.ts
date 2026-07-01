@@ -15,44 +15,23 @@ import {
   ActivityDto,
   ActivityFinanceSummaryDto,
   CreateActivityDto,
+  UpdateActivityDepartmentsDto,
 } from './dto/activity.dto';
 import { ActivityStatus } from './entities/activity-status.enum';
 import { ActivityType } from './entities/activity-type.enum';
 import { Activity } from './entities/activity.entity';
+import {
+  cleanOptionalText,
+  cleanRequiredText,
+  normalizeDepartments,
+  parseOptionalDate,
+} from './activity-input';
 
 const TERMINAL_STATUSES = new Set<string>([
   FinancialDocumentStatus.Sent,
   FinancialDocumentStatus.Rejected,
   FinancialDocumentStatus.Archived,
 ]);
-
-const cleanOptionalText = (value?: string) => {
-  const cleaned = value?.trim();
-  return cleaned || undefined;
-};
-
-const cleanRequiredText = (value: string | undefined, fieldName: string) => {
-  const cleaned = cleanOptionalText(value);
-  if (!cleaned) {
-    throw new BadRequestException(`${fieldName} este obligatoriu.`);
-  }
-
-  return cleaned.slice(0, 255);
-};
-
-const parseOptionalDate = (value?: string) => {
-  const cleaned = cleanOptionalText(value);
-  if (!cleaned) {
-    return undefined;
-  }
-
-  const date = new Date(cleaned);
-  if (Number.isNaN(date.getTime())) {
-    throw new BadRequestException('Data activității nu este validă.');
-  }
-
-  return date;
-};
 
 @Injectable()
 export class ActivitiesService {
@@ -88,6 +67,7 @@ export class ActivitiesService {
       title: cleanRequiredText(input.title, 'Titlul activității'),
       type: input.type,
       status: ActivityStatus.Planned,
+      departments: normalizeDepartments(input.departments),
       startDate,
       endDate,
       location: cleanOptionalText(input.location)?.slice(0, 255),
@@ -98,6 +78,37 @@ export class ActivitiesService {
     await this.em.flush();
 
     const [serialized] = await this.serializeActivities([activity]);
+    return serialized;
+  }
+
+  async updateDepartments(
+    user: CurrentUser,
+    activityId: number,
+    input: UpdateActivityDepartmentsDto,
+  ): Promise<ActivityDto> {
+    const activity = await this.activitiesRepository.findOne({
+      id: activityId,
+    });
+    if (!activity) {
+      throw new NotFoundException('Activitatea nu există.');
+    }
+
+    if (!this.canManageActivity(user, activity)) {
+      throw new BadRequestException(
+        'Nu poți modifica departamentele acestei activități.',
+      );
+    }
+
+    if (!Array.isArray(input.departments)) {
+      throw new BadRequestException(
+        'Departamentele activității nu sunt valide.',
+      );
+    }
+
+    activity.departments = normalizeDepartments(input.departments);
+    await this.em.flush();
+
+    const [serialized] = await this.serializeActivities([activity], user);
     return serialized;
   }
 
@@ -145,6 +156,7 @@ export class ActivitiesService {
       coordinatorName:
         coordinatorNames.get(activity.coordinatorId) ??
         `Utilizator #${activity.coordinatorId}`,
+      departments: activity.departments,
       startDate: activity.startDate?.toISOString(),
       endDate: activity.endDate?.toISOString(),
       location: activity.location ?? undefined,
@@ -226,6 +238,13 @@ export class ActivitiesService {
   private canManageFinance(user: CurrentUser) {
     return (
       user.roles.includes(UserRole.FinanceManager) ||
+      user.roles.includes(UserRole.SuperAdmin)
+    );
+  }
+
+  private canManageActivity(user: CurrentUser, activity: Activity) {
+    return (
+      activity.coordinatorId === user.id ||
       user.roles.includes(UserRole.SuperAdmin)
     );
   }

@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { FinancialDocumentStatus } from '../../finance/entities/financial-document-status.enum';
+import { ActivityDepartment } from '../entities/activity-department.enum';
 import { ActivityStatus } from '../entities/activity-status.enum';
 import { ActivityType } from '../entities/activity-type.enum';
 
@@ -23,6 +24,18 @@ export class CreateActivityDto {
     example: 'Activitate locală cu buget urmărit în aplicație.',
   })
   description?: string;
+
+  @ApiPropertyOptional({
+    enum: ActivityDepartment,
+    isArray: true,
+    default: [ActivityDepartment.Finance, ActivityDepartment.Kitchen],
+  })
+  departments?: ActivityDepartment[];
+}
+
+export class UpdateActivityDepartmentsDto {
+  @ApiProperty({ enum: ActivityDepartment, isArray: true })
+  departments!: ActivityDepartment[];
 }
 
 export class ActivityFinanceSummaryDto {
@@ -57,6 +70,9 @@ export class ActivityDto {
 
   @ApiProperty()
   coordinatorName!: string;
+
+  @ApiProperty({ enum: ActivityDepartment, isArray: true })
+  departments!: ActivityDepartment[];
 
   @ApiPropertyOptional()
   startDate?: string;

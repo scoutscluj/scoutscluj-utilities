@@ -98,6 +98,10 @@ second activity tab row and not as nested items inside the main sidebar. Finance
 summary cards should remain only on the activity finance tab, not on kitchen
 tabs.
 
+The kitchen workspace is available only when `Bucătărie` is enabled as a
+department for the activity. Coordinators can adjust enabled departments from
+the activity `Prezentare` page.
+
 ## Permissions
 
 Kitchen writes are activity-scoped:

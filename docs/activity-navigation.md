@@ -13,14 +13,18 @@ The sidebar activity list should stay curated rather than exhaustive:
 The full activity archive remains available through `Toate activitățile`.
 Pinning should not be part of the first implementation slice.
 
+Clicking an activity entry in the sidebar opens that activity's `Prezentare`
+page. Department links remain visible only for the current activity so the left
+menu stays compact.
+
 Departments are real activity-scoped responsibility areas. Each activity chooses
 its departments from a standard set, such as finance, kitchen, program, or
 logistics.
 
-The first implementation should derive visible departments from existing
-activity capabilities instead of creating persisted department records. Persist
-departments later when the app needs owners, statuses, checklists, or
-department-specific permissions.
+The app stores which departments are enabled for each activity so coordinators
+can adjust the activity workspace after creation. `Prezentare` is always
+available; optional departments currently include `Financiar`, `Bucătărie`,
+`Program`, and `Logistică`.
 
 When an activity is expanded, its enabled departments appear under it. Kitchen
 subsections remain in a separate contextual kitchen menu, not mixed directly
@@ -36,6 +40,10 @@ Department pages should use a compact activity context header instead of
 repeating the full activity overview header. The full activity details belong
 on `Prezentare`; department pages should keep only the activity title and a
 short metadata line needed for orientation.
+
+The top bar owns page titles. It shows the current activity title and context
+on activity routes, and it replaces text links such as `Înapoi la activități`
+with an icon-only back button that has an accessible label and tooltip.
 
 Global finance navigation and activity finance navigation should both remain.
 Global `Financiar` is the cross-activity finance manager workspace. Activity

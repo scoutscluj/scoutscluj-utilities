@@ -56,8 +56,15 @@ The web app SHALL provide an authenticated shell adapted from the legacy side me
 - **GIVEN** an authenticated user opens the app on a desktop viewport
 - **WHEN** a protected route renders
 - **THEN** the layout shows a persistent side menu
-- **AND** a top bar with the product name and profile/avatar menu
+- **AND** a top bar with the current page title and profile/avatar menu
 - **AND** the active route is visually indicated.
+
+#### Scenario: Activity route top bar
+
+- **GIVEN** an authenticated user opens an activity route
+- **WHEN** the route renders
+- **THEN** the top bar shows the activity title and current department context
+- **AND** provides an icon back button to the activity list with an accessible label and tooltip.
 
 #### Scenario: Mobile shell
 
@@ -120,7 +127,20 @@ The side menu SHALL expose current activity workspaces as expandable activity en
 - **GIVEN** an authenticated user has active, upcoming, or coordinated activities
 - **WHEN** the side menu renders
 - **THEN** `Activități` expands to show those activities
-- **AND** each activity shows implemented departments such as `Prezentare`, `Financiar`, and `Bucătărie`.
+- **AND** each activity shows its enabled departments such as `Prezentare`, `Financiar`, and `Bucătărie`.
+
+#### Scenario: Activity menu item opens overview
+
+- **GIVEN** an activity appears in the side menu
+- **WHEN** the user selects the activity row
+- **THEN** the app opens that activity's `Prezentare` page.
+
+#### Scenario: Coordinator manages activity departments
+
+- **GIVEN** a coordinator opens an activity they manage
+- **WHEN** they update enabled departments from `Prezentare`
+- **THEN** the app saves which departments are available for that activity
+- **AND** the side menu reflects the saved department list.
 
 #### Scenario: Deep activity URL orients the user
 

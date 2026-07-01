@@ -34,21 +34,23 @@ needs real-camp feedback before we call the meal planner complete.
 ## Production Steps
 
 1. Deploy the API and web artifacts from the PR branch.
-2. Run database migrations:
+2. The production deploy runs database migrations:
 
    ```bash
-   pnpm --filter api migration:up
+   node apps/api/dist/migrate.js
    ```
 
-3. Seed the kitchen catalog:
+3. The production deploy imports the idempotent kitchen catalog seed:
 
    ```bash
-   pnpm --filter api kitchen:seed
+   node apps/api/dist/seed-kitchen-catalog.js
    ```
 
-   The seed reads the temporary fixture files from
-   `apps/api/src/modules/kitchen/fixtures/legacy-catalog/` unless
-   `KITCHEN_EXPORTS_DIR` is set.
+   For local development, use `pnpm --filter api kitchen:seed`. The seed reads
+   the temporary fixture files from
+   `apps/api/src/modules/kitchen/fixtures/legacy-catalog/` in source builds or
+   `apps/api/dist/modules/kitchen/fixtures/legacy-catalog/` in production builds
+   unless `KITCHEN_EXPORTS_DIR` is set.
 
 4. After the production seed is verified, open a follow-up PR that removes the
    temporary legacy JSON fixture files.

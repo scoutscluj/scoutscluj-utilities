@@ -254,6 +254,19 @@ docker run --rm \
   "${API_IMAGE}" \
   node apps/api/dist/migrate.js
 
+echo "Importing kitchen legacy catalog with ${API_IMAGE}"
+docker run --rm \
+  --name scoutscluj-api-kitchen-seed \
+  --log-driver awslogs \
+  --log-opt "awslogs-region=${AWS_REGION}" \
+  --log-opt "awslogs-group=${API_LOG_GROUP}" \
+  --log-opt awslogs-stream=scoutscluj-api-kitchen-seed \
+  --log-opt mode=non-blocking \
+  --log-opt max-buffer-size=4m \
+  --env-file "${API_ENV_FILE}" \
+  "${API_IMAGE}" \
+  node apps/api/dist/seed-kitchen-catalog.js
+
 restart_caddy "${APP_HOST_NAME}"
 
 docker rm -f scoutscluj-api scoutscluj-web >/dev/null 2>&1 || true

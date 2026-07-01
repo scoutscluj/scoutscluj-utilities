@@ -16,6 +16,7 @@
     "start:prod": "node dist/main",
     "migrate:prod": "node dist/migrate",
     "kitchen:seed": "tsx src/seed-kitchen-catalog.ts",
+    "kitchen:seed:prod": "node dist/seed-kitchen-catalog.js",
     "vapid:generate": "tsx src/scripts/generate-vapid-keys.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "typecheck": "tsc --noEmit",

@@ -37,7 +37,7 @@ Known WIP areas:
 
 Legacy exports from the old kitchen planner are stored in
 `apps/api/src/modules/kitchen/fixtures/legacy-catalog/` and are imported into
-the shared kitchen catalog with:
+the shared kitchen catalog with this local development command:
 
 ```bash
 pnpm --filter api kitchen:seed
@@ -58,14 +58,22 @@ pnpm --filter api migration:up
 pnpm --filter api kitchen:seed
 ```
 
+In the production Docker image, the source tree is not copied. Use the compiled
+entry point instead:
+
+```bash
+node apps/api/dist/seed-kitchen-catalog.js
+```
+
 Expected import totals from the current legacy exports:
 
 - 91 ingredients
 - 42 recipes
 - 201 recipe ingredient links
 
-The seed command is safe to run repeatedly after migrations. For production,
-run it deliberately as a release step after reviewing the bundled export files.
+The seed command is safe to run repeatedly after migrations. Production deploys
+run it automatically after migrations so new databases or restored databases
+keep the shared ingredients and recipes visible.
 
 These JSON files are temporary bootstrap fixtures. After the production seed has
 been run and verified, remove them in a follow-up PR so the repository does not
@@ -145,8 +153,8 @@ follow-up.
 Release order:
 
 1. Deploy the API and web changes.
-2. Run database migrations.
-3. Run `pnpm --filter api kitchen:seed` once against the target database.
+2. The deploy script runs database migrations.
+3. The deploy script imports the idempotent kitchen catalog seed.
 4. Ask a coordinator to smoke-test one activity kitchen plan.
 5. Keep the PR/release notes clear that the meal-planning feature is WIP.
 

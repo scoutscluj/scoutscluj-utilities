@@ -32,6 +32,10 @@ _Avoid_: Document financiar
 A planned scouting activity such as a camp, hike, festival, training, or other organized program effort. An activitate should be created from, linked to, or synchronized with an Orgo event whenever possible, then extended locally with participants, fees, expenses, documents, meal planning, and budget reports.
 _Avoid_: Event, eveniment, camp as the generic umbrella unless referring to the Orgo event object
 
+**Departament de activitate**:
+A named operational area inside an activitate that owns a coherent slice of planning or delivery, such as finance, kitchen, program, or logistics. Departamentele de activitate are activity-scoped responsibility areas chosen for each activitate from a standard set, not standalone global modules.
+_Avoid_: Tab, UI section, global module
+
 **Plan de bucătărie**:
 A local operational plan attached to an activitate for organizing meals, recipes, ingredients, attendance assumptions, procurement, and kitchen-facing exports. A plan de bucătărie can support any activitate with meal logistics, while camp activities are the primary initial use case. Each activitate has one primary plan de bucătărie.
 _Avoid_: Camp Kitchen Planner as the domain term, standalone camp kitchen detached from an activitate, separate scenario plans as the default

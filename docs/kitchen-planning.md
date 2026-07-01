@@ -92,8 +92,11 @@ Kitchen planning is not a top-level module. Users reach it from an activity:
 - `/activities/:activityId/kitchen/procurement` for shopping events and items
 - `/activities/:activityId/kitchen/reports` for printable views and CSV exports
 
-The activity shell owns the tab row. Finance summary cards should remain only on
-the activity finance tab, not on kitchen tabs.
+The activity side menu owns department navigation. Kitchen subsections are shown
+as a horizontal contextual menu at the top of the kitchen workspace, not as a
+second activity tab row and not as nested items inside the main sidebar. Finance
+summary cards should remain only on the activity finance tab, not on kitchen
+tabs.
 
 ## Permissions
 

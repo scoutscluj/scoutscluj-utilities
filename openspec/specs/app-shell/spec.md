@@ -1,8 +1,11 @@
 # app-shell Specification
 
 ## Purpose
+
 TBD - created by archiving change add-orgo-authentication-system. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Protected SvelteKit Routes
 
 The web app SHALL protect authenticated routes and preserve safe intended destinations during login redirects.
@@ -108,6 +111,38 @@ The side menu SHALL render entries according to the current user's roles and the
 - **THEN** the target is hidden or clearly disabled
 - **AND** it does not navigate to a broken route.
 
+### Requirement: Activity-Aware Side Menu
+
+The side menu SHALL expose current activity workspaces as expandable activity entries with activity-scoped departments.
+
+#### Scenario: Activity departments are shown under current activities
+
+- **GIVEN** an authenticated user has active, upcoming, or coordinated activities
+- **WHEN** the side menu renders
+- **THEN** `Activități` expands to show those activities
+- **AND** each activity shows implemented departments such as `Prezentare`, `Financiar`, and `Bucătărie`.
+
+#### Scenario: Deep activity URL orients the user
+
+- **GIVEN** a user opens a deep activity URL directly
+- **WHEN** the protected layout renders
+- **THEN** the side menu expands `Activități`
+- **AND** expands the current activity
+- **AND** highlights the current activity department.
+
+#### Scenario: Full activity archive remains available
+
+- **GIVEN** the side menu shows a curated activity list
+- **WHEN** the user needs an older or hidden activity
+- **THEN** the side menu provides a `Toate activitățile` link to the full activity list.
+
+#### Scenario: Department tabs are not stacked above department pages
+
+- **GIVEN** a user opens an activity department page
+- **WHEN** the page renders
+- **THEN** activity departments are navigated from the side menu
+- **AND** the page does not render a second activity department tab row above the content.
+
 ### Requirement: User Profile Surface
 
 The web app SHALL provide a profile page or profile section for current-user identity, roles, and Orgo connection state.
@@ -129,4 +164,3 @@ The web app SHALL provide a profile page or profile section for current-user ide
 - **GIVEN** an authenticated user has no complete Orgo profile fields
 - **WHEN** the profile page renders
 - **THEN** the page still renders without broken labels or empty required UI.
-

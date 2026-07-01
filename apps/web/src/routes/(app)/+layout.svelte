@@ -6,10 +6,14 @@
 	import { hasRole } from '$lib/auth/roles';
 	import { pwa } from '$lib/pwa/pwa.svelte';
 	import type { AppHref, CurrentUser, MenuItem } from '$lib/auth/types';
+	import type { SidebarActivity } from './+layout.server';
 
 	let { data, children } = $props();
 	let mobileOpen = $state(false);
-	let openGroups = $state<Record<string, boolean>>({});
+	let openGroups = $state<Record<string, boolean | undefined>>({});
+	let openActivities = $state<Record<number, boolean | undefined>>({});
+
+	const activitiesGroupKey = 'activities';
 
 	const canSee = (item: MenuItem, user: CurrentUser) =>
 		!item.minRole || hasRole(user, item.minRole);
@@ -36,6 +40,20 @@
 
 		return href === '/' ? page.url.pathname === '/' : page.url.pathname.startsWith(href);
 	};
+	const groupHasActiveChild = (item: MenuItem) =>
+		visibleChildren(item, data.user).some((child) => isActive(child.href));
+	const isActiveExact = (href: string) => page.url.pathname === href;
+	const parseCurrentActivityId = (pathname: string) => {
+		const [, section, activityId] = pathname.split('/');
+		if (section !== 'activities') {
+			return undefined;
+		}
+
+		const numericId = Number(activityId);
+		return Number.isInteger(numericId) && numericId > 0 ? numericId : undefined;
+	};
+	const currentActivityId = $derived(parseCurrentActivityId(page.url.pathname));
+	const activitiesAreActive = $derived(page.url.pathname.startsWith(resolve('/activities')));
 	const userInitial = $derived(data.user.displayName.slice(0, 1).toUpperCase());
 	const statusLabel = $derived(pwa.isOffline ? 'Offline' : 'Online');
 	const statusTitle = $derived(
@@ -70,13 +88,29 @@
 		}
 	};
 
-	const toggleGroup = (label: string) => {
-		openGroups[label] = !openGroups[label];
+	const isGroupOpen = (label: string, defaultOpen = false) => openGroups[label] ?? defaultOpen;
+	const toggleGroup = (label: string, defaultOpen = false) => {
+		openGroups[label] = !(openGroups[label] ?? defaultOpen);
+	};
+
+	const isActivityOpen = (activityId: number) =>
+		openActivities[activityId] ?? activityId === currentActivityId;
+	const toggleActivity = (activityId: number) => {
+		openActivities[activityId] = !(openActivities[activityId] ?? activityId === currentActivityId);
 	};
 
 	const closeMobile = () => {
 		mobileOpen = false;
 	};
+
+	const activityHref = (activityId: number) => resolve(`/activities/${activityId}`);
+	const financeHref = (activityId: number) => resolve(`/activities/${activityId}/finance`);
+	const kitchenHref = (activityId: number) => resolve(`/activities/${activityId}/kitchen`);
+	const auditHref = (activityId: number) => resolve(`/activities/${activityId}/audit`);
+	const canViewActivityAudit = (activity: SidebarActivity) =>
+		activity.coordinatorId === data.user.id ||
+		hasRole(data.user, 'finance_manager') ||
+		hasRole(data.user, 'super_admin');
 </script>
 
 <div class="app-shell">
@@ -95,13 +129,104 @@
 
 		<nav>
 			{#each visibleItems as item (item.label)}
-				{#if item.children}
-					<section class="menu-group">
-						<button type="button" class="group-button" onclick={() => toggleGroup(item.label)}>
+				{#if item.href === '/activities'}
+					<section class="menu-group activity-menu">
+						<button
+							type="button"
+							class="group-button"
+							class:active={activitiesAreActive}
+							onclick={() => toggleGroup(activitiesGroupKey, activitiesAreActive)}
+							aria-expanded={isGroupOpen(activitiesGroupKey, activitiesAreActive)}
+						>
 							<span>{item.label}</span>
-							<span aria-hidden="true">{openGroups[item.label] ? '-' : '+'}</span>
+							<span aria-hidden="true"
+								>{isGroupOpen(activitiesGroupKey, activitiesAreActive) ? '-' : '+'}</span
+							>
 						</button>
-						{#if openGroups[item.label]}
+						{#if isGroupOpen(activitiesGroupKey, activitiesAreActive)}
+							<div class="group-items activity-items">
+								<a
+									href={menuHref(item.href)}
+									class:active={isActiveExact(item.href)}
+									onclick={closeMobile}
+									aria-current={isActiveExact(item.href) ? 'page' : undefined}
+								>
+									Toate activitățile
+								</a>
+
+								{#each data.sidebarActivities as activity (activity.id)}
+									<section class="activity-branch">
+										<button
+											type="button"
+											class="activity-button"
+											class:active={activity.id === currentActivityId}
+											onclick={() => toggleActivity(activity.id)}
+											aria-expanded={isActivityOpen(activity.id)}
+										>
+											<span class="activity-title">{activity.title}</span>
+											<span aria-hidden="true">{isActivityOpen(activity.id) ? '-' : '+'}</span>
+										</button>
+
+										{#if isActivityOpen(activity.id)}
+											<div class="department-items">
+												<a
+													href={activityHref(activity.id)}
+													class:active={isActiveExact(activityHref(activity.id))}
+													onclick={closeMobile}
+													aria-current={isActiveExact(activityHref(activity.id))
+														? 'page'
+														: undefined}
+												>
+													Prezentare
+												</a>
+												<a
+													href={financeHref(activity.id)}
+													class:active={isActive(financeHref(activity.id))}
+													onclick={closeMobile}
+													aria-current={isActive(financeHref(activity.id)) ? 'page' : undefined}
+												>
+													Financiar
+												</a>
+												<a
+													href={kitchenHref(activity.id)}
+													class:active={isActive(kitchenHref(activity.id))}
+													onclick={closeMobile}
+													aria-current={isActive(kitchenHref(activity.id)) ? 'page' : undefined}
+												>
+													Bucătărie
+												</a>
+												{#if canViewActivityAudit(activity)}
+													<a
+														class="utility-link"
+														href={auditHref(activity.id)}
+														class:active={isActive(auditHref(activity.id))}
+														onclick={closeMobile}
+														aria-current={isActive(auditHref(activity.id)) ? 'page' : undefined}
+													>
+														Audit
+													</a>
+												{/if}
+											</div>
+										{/if}
+									</section>
+								{/each}
+							</div>
+						{/if}
+					</section>
+				{:else if item.children}
+					<section class="menu-group">
+						<button
+							type="button"
+							class="group-button"
+							onclick={() => toggleGroup(item.label, groupHasActiveChild(item))}
+							aria-expanded={isGroupOpen(item.label, groupHasActiveChild(item))}
+						>
+							<span>{item.label}</span>
+							<span aria-hidden="true"
+								>{isGroupOpen(item.label, groupHasActiveChild(item)) ? '-' : '+'}</span
+							>
+						</button>
+						{#if isGroupOpen(item.label, groupHasActiveChild(item))}
 							<div class="group-items">
 								{#each visibleChildren(item, data.user) as child (child.label)}
 									{#if child.href && !child.disabled}
@@ -224,6 +349,7 @@
 		border-right: 1px solid #d8dee6;
 		background: #ffffff;
 		padding: 18px 14px;
+		overflow-y: auto;
 		transform: translateX(-100%);
 		transition: transform 160ms ease;
 	}
@@ -279,14 +405,18 @@
 
 	nav,
 	.menu-group,
-	.group-items {
+	.group-items,
+	.activity-branch,
+	.department-items {
 		display: grid;
 		gap: 4px;
 	}
 
 	.nav-link,
 	.group-button,
+	.activity-button,
 	.group-items a,
+	.department-items a,
 	.disabled {
 		min-height: 38px;
 		display: flex;
@@ -299,17 +429,35 @@
 		font-weight: 750;
 	}
 
-	.group-button {
+	.group-button,
+	.activity-button {
 		width: 100%;
 		justify-content: space-between;
 		border: 0;
 		background: transparent;
 		cursor: pointer;
+		text-align: left;
+	}
+
+	.activity-button {
+		min-height: 34px;
+		gap: 8px;
+		padding: 0 10px;
+		font-size: 0.88rem;
+	}
+
+	.activity-title {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.nav-link:hover,
 	.group-button:hover,
+	.activity-button:hover,
 	.group-items a:hover,
+	.department-items a:hover,
 	.active {
 		background: #fef2f2;
 		color: #991b1b;
@@ -319,6 +467,28 @@
 		margin-left: 10px;
 		padding-left: 8px;
 		border-left: 1px solid #e2e8f0;
+	}
+
+	.activity-items {
+		gap: 6px;
+	}
+
+	.department-items {
+		margin-left: 10px;
+		padding-left: 8px;
+		border-left: 1px solid #edf1f5;
+	}
+
+	.department-items a {
+		min-height: 30px;
+		padding: 0 10px;
+		color: #475569;
+		font-size: 0.84rem;
+		font-weight: 720;
+	}
+
+	.department-items a.utility-link {
+		color: #64748b;
 	}
 
 	.disabled {

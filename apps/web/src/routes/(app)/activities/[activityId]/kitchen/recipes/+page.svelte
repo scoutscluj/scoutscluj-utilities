@@ -1,11 +1,13 @@
 <script lang="ts">
 	let { data, form } = $props();
 
-	const emptyRows = Array.from({ length: 6 });
-	const rowsFor = (recipe: (typeof data.recipes)[number]) => [
-		...recipe.ingredients,
-		...Array.from({ length: 4 }, () => null)
-	];
+	let newRecipeRows = $state(1);
+	let extraRowsByRecipe = $state<Record<number, number>>({});
+
+	const blankRows = (count: number) => Array.from({ length: count }, (_, index) => index);
+	const addRecipeRow = (recipeId: number) => {
+		extraRowsByRecipe[recipeId] = (extraRowsByRecipe[recipeId] ?? 0) + 1;
+	};
 </script>
 
 <section class="recipes-page">
@@ -31,7 +33,7 @@
 				</label>
 			</div>
 			<div class="ingredient-editor">
-				{#each emptyRows as _, index}
+				{#each blankRows(newRecipeRows) as index (index)}
 					<div class="ingredient-line">
 						<select name="ingredientId" aria-label={`Ingredient ${index + 1}`}>
 							<option value="">Ingredient</option>
@@ -44,7 +46,12 @@
 					</div>
 				{/each}
 			</div>
-			<button type="submit">Adaugă rețeta</button>
+			<div class="form-actions">
+				<button type="button" class="secondary-button" onclick={() => (newRecipeRows += 1)}>
+					Adaugă ingredient
+				</button>
+				<button type="submit">Adaugă rețeta</button>
+			</div>
 		</form>
 	</section>
 
@@ -66,7 +73,14 @@
 					</label>
 					<label>
 						<span>Porții</span>
-						<input name="servings" type="number" min="1" step="0.1" value={recipe.servings} required />
+						<input
+							name="servings"
+							type="number"
+							min="1"
+							step="0.1"
+							value={recipe.servings}
+							required
+						/>
 					</label>
 					<label class="wide">
 						<span>Descriere</span>
@@ -74,7 +88,7 @@
 					</label>
 				</div>
 				<div class="ingredient-editor">
-					{#each rowsFor(recipe) as row, index}
+					{#each recipe.ingredients as row, index (row.id)}
 						<div class="ingredient-line">
 							<select name="ingredientId" aria-label={`Ingredient ${index + 1}`}>
 								<option value="">Ingredient</option>
@@ -95,8 +109,25 @@
 							<input name="unit" value={row?.unit ?? ''} placeholder="unitate" />
 						</div>
 					{/each}
+					{#each blankRows(extraRowsByRecipe[recipe.id] ?? 0) as index (index)}
+						<div class="ingredient-line">
+							<select name="ingredientId" aria-label={`Ingredient nou ${index + 1}`}>
+								<option value="">Ingredient</option>
+								{#each data.ingredients as ingredient (ingredient.id)}
+									<option value={ingredient.id}>{ingredient.name}</option>
+								{/each}
+							</select>
+							<input name="quantity" type="number" min="0.01" step="0.01" placeholder="cantitate" />
+							<input name="unit" placeholder="unitate" />
+						</div>
+					{/each}
 				</div>
-				<button type="submit">Salvează</button>
+				<div class="form-actions">
+					<button type="button" class="secondary-button" onclick={() => addRecipeRow(recipe.id)}>
+						Adaugă ingredient
+					</button>
+					<button type="submit">Salvează</button>
+				</div>
 			</form>
 		{/each}
 	</section>
@@ -133,6 +164,12 @@
 	.ingredient-line {
 		display: grid;
 		grid-template-columns: minmax(180px, 1fr) minmax(100px, 140px) minmax(100px, 140px);
+		gap: 8px;
+	}
+
+	.form-actions {
+		display: flex;
+		flex-wrap: wrap;
 		gap: 8px;
 	}
 
@@ -177,6 +214,12 @@
 		padding: 0 14px;
 		font-weight: 800;
 		cursor: pointer;
+	}
+
+	button.secondary-button {
+		border: 1px solid #cbd5e1;
+		background: #ffffff;
+		color: #0f172a;
 	}
 
 	h2,

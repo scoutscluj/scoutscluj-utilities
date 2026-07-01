@@ -2,7 +2,7 @@
 	import { menuItems } from '$lib/auth/menu';
 	import type { CurrentUser } from '$lib/auth/types';
 	import ActivityMenuGroup from './ActivityMenuGroup.svelte';
-	import type { SidebarActivity } from './+layout.server';
+	import type { SidebarActivity } from '$lib/activities/sidebar-activity';
 	import {
 		activitiesGroupKey,
 		canSee,

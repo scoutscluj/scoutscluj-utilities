@@ -2,7 +2,7 @@
 	import { resolve } from '$app/paths';
 	import type { CurrentUser } from '$lib/auth/types';
 	import ProfileMenu from './ProfileMenu.svelte';
-	import type { SidebarActivity } from './+layout.server';
+	import type { SidebarActivity } from '$lib/activities/sidebar-activity';
 	import { activitySubtitle, routeTitle } from './app-shell';
 
 	type Props = {

@@ -3,32 +3,9 @@ import type { LayoutServerLoad } from './$types';
 import { apiFetch } from '$lib/server/api';
 import { SESSION_COOKIE_NAME } from '$lib/server/cookies';
 import { getSafeRedirectTarget } from '$lib/server/redirects';
+import { activityBelongsInSidebar, type SidebarActivity } from '$lib/activities/sidebar-activity';
 
-export type SidebarActivityStatus = 'planned' | 'active' | 'completed' | 'cancelled';
-export type SidebarActivityType = 'camp' | 'hike' | 'festival' | 'training' | 'meeting' | 'other';
-export type SidebarActivityDepartment = 'finance' | 'kitchen' | 'program' | 'logistics';
-
-export type SidebarActivity = {
-	id: number;
-	title: string;
-	type: SidebarActivityType;
-	status: SidebarActivityStatus;
-	departments: SidebarActivityDepartment[];
-	coordinatorId: number;
-	startDate?: string;
-	endDate?: string;
-	location?: string;
-};
-
-const activityBelongsInSidebar = (activity: SidebarActivity, userId: number, todayIso: string) => {
-	const isCurrentOrUpcoming =
-		activity.status === 'active' ||
-		(activity.status === 'planned' && (!activity.endDate || activity.endDate >= todayIso));
-
-	return isCurrentOrUpcoming || activity.coordinatorId === userId;
-};
-
-const loadSidebarActivities = async (sessionToken: string, userId: number) => {
+const loadSidebarActivities = async (sessionToken: string) => {
 	const response = await apiFetch('/api/activities', {
 		headers: {
 			cookie: `${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionToken)}`
@@ -42,7 +19,7 @@ const loadSidebarActivities = async (sessionToken: string, userId: number) => {
 	const todayIso = new Date().toISOString().slice(0, 10);
 	const activities = (await response.json()) as SidebarActivity[];
 
-	return activities.filter((activity) => activityBelongsInSidebar(activity, userId, todayIso));
+	return activities.filter((activity) => activityBelongsInSidebar(activity, todayIso));
 };
 
 export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
@@ -55,6 +32,6 @@ export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
 
 	return {
 		user: locals.user,
-		sidebarActivities: sessionToken ? await loadSidebarActivities(sessionToken, locals.user.id) : []
+		sidebarActivities: sessionToken ? await loadSidebarActivities(sessionToken) : []
 	};
 };

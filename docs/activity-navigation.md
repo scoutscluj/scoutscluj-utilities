@@ -8,7 +8,7 @@ move directly into the activity they are currently working on.
 The sidebar activity list should stay curated rather than exhaustive:
 
 - active and upcoming activities
-- activities coordinated by the current user
+- coordinated activities only while they are active or upcoming
 
 The full activity archive remains available through `Toate activitățile`.
 Pinning should not be part of the first implementation slice.

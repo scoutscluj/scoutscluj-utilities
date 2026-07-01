@@ -11,6 +11,7 @@ The legacy finance work imported BT exports and attempted statistics, but it rel
 Build a finance-first module with:
 
 - `Documente financiare`: simple user uploads with optional `Activitate` link and notes.
+- Protected document previews in the general finance register and activity finance view, with PDF and image files opening inline before download.
 - An Orgo-first activity reference: if Orgo exposes event creation/reference APIs, local `Activitate` records should link to Orgo events and keep finance, reporting, and future meal planning as local extensions.
 - A review inbox for `Responsabil financiar`, with statuses: `Încărcat`, `În verificare`, `Gata de trimis`, `Trimis`, `Necesită clarificări`, `Respins`, `Arhivat`.
 - PWA/Web Push notifications for new document uploads, clarification requests, and status changes.
@@ -63,6 +64,7 @@ The first version should not depend on Stripe, full member management, deep acti
 38. As a `Responsabil financiar`, I want activity-linked document and transaction views, so that a basic budget report can be produced for an activity.
 39. As a `Responsabil financiar`, I want exports for manual accountant handoff, so that the Keez workflow is still useful before direct upload support is confirmed.
 40. As a `super_admin`, I want to assign `Responsabil financiar` access separately from generic admin access, so that finance data is restricted appropriately.
+41. As an authenticated user with access to a financial document, I want to preview PDF and image uploads before downloading them, so that I can quickly identify the right receipt or invoice.
 
 ## Implementation Decisions
 
@@ -70,6 +72,7 @@ The first version should not depend on Stripe, full member management, deep acti
 - Keep user-facing app content in Romanian with proper Romanian special characters.
 - Use Orgo as the base system whenever it owns the domain object. Orgo documentation confirms event/user/unit APIs, `Api-Token`/JWT authorization for regular API endpoints, tenant-scoped hosts, and OAuth for "Log in with Orgo" identity. The current app flow is SSO success-token verification (`request-token-sso` / `verify-success-token-sso`) and creates only a local session; it does not persist Orgo API access or refresh tokens. For activities, prefer an Orgo event IRI/id plus local finance/meal-planning/reporting extensions once we have an approved Orgo API auth mode. For members, keep Orgo as the source of truth and sync local changes back only when the Orgo API supports the changed fields and the credential is authorized.
 - Store financial documents locally first, with minimal upload requirements: file, optional activity link, optional notes, uploader, upload timestamp.
+- Serve previews through the authenticated web file proxy. Downloads keep attachment disposition; previews request inline disposition and never expose raw API storage paths.
 - Keep extracted/reviewed metadata separate from uploader-provided notes so finance corrections do not rewrite user context.
 - Store document status transitions with audit entries.
 - Expose document visibility by role: uploader sees own uploads, `Coordonator` sees documents linked to their activity, `Responsabil financiar` sees all finance records.
@@ -95,6 +98,7 @@ The first version should not depend on Stripe, full member management, deep acti
 - BT parser/import tests should reuse legacy observations: MT940 tag boundaries, CSV parsing, repeated same-day same-amount payments, zero-value notices, and duplicate import detection.
 - Transaction/document linking tests should assert one transaction can link multiple documents, one document can support multiple transactions when needed, and `Document lipsă` is cleared when coverage is sufficient.
 - Frontend checks should cover Romanian labels, protected routes, document upload, reviewer inbox states, and finance dashboard filters.
+- Frontend checks should cover PDF/image preview thumbnails, click-to-preview modal behavior, and the fallback download path for unsupported file types.
 - Avoid testing implementation details; test externally visible behavior at API/service and route-level seams.
 
 ## Out of Scope

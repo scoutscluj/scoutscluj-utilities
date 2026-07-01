@@ -56,6 +56,28 @@
           "collation": null,
           "enumItems": []
         },
+        "departments": {
+          "name": "departments",
+          "type": "activity_department[]",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": "'{finance,kitchen}'",
+          "comment": null,
+          "collation": null,
+          "enumItems": [
+            "finance",
+            "kitchen",
+            "program",
+            "logistics"
+          ],
+          "nativeEnumName": "activity_department"
+        },
         "end_date": {
           "name": "end_date",
           "type": "timestamptz(6)",
@@ -5030,6 +5052,16 @@
   ],
   "views": [],
   "nativeEnums": {
+    "activity_department": {
+      "name": "activity_department",
+      "schema": "public",
+      "items": [
+        "finance",
+        "kitchen",
+        "program",
+        "logistics"
+      ]
+    },
     "activity_status": {
       "name": "activity_status",
       "schema": "public",

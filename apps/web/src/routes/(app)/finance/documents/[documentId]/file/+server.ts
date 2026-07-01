@@ -16,7 +16,10 @@ const readApiMessage = async (response: Response) => {
 	}
 };
 
-export const GET: RequestHandler = async ({ cookies, params }) => {
+const inlineDisposition = (disposition: string | null) =>
+	disposition ? disposition.replace(/^attachment/i, 'inline') : 'inline';
+
+export const GET: RequestHandler = async ({ cookies, params, url }) => {
 	const sessionToken = cookies.get(SESSION_COOKIE_NAME);
 	if (!sessionToken) {
 		error(401, 'Autentificarea este necesară.');
@@ -33,12 +36,18 @@ export const GET: RequestHandler = async ({ cookies, params }) => {
 	}
 
 	const headers = new Headers();
-	for (const header of ['content-type', 'content-length', 'content-disposition', 'cache-control']) {
+	for (const header of ['content-type', 'content-length', 'cache-control']) {
 		const value = response.headers.get(header);
 		if (value) {
 			headers.set(header, value);
 		}
 	}
+	headers.set(
+		'content-disposition',
+		url.searchParams.get('preview') === '1'
+			? inlineDisposition(response.headers.get('content-disposition'))
+			: (response.headers.get('content-disposition') ?? 'attachment')
+	);
 
 	return new Response(response.body, { headers });
 };

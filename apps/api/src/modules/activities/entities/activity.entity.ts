@@ -1,4 +1,5 @@
 import { defineEntity, p, type InferEntity } from '@mikro-orm/core';
+import { ActivityDepartment } from './activity-department.enum';
 import { ActivityStatus } from './activity-status.enum';
 import { ActivityType } from './activity-type.enum';
 
@@ -23,6 +24,11 @@ export const Activity = defineEntity({
       .enum(() => ActivityStatus)
       .default(ActivityStatus.Planned)
       .nativeEnumName('activity_status'),
+    departments: p
+      .enum(() => ActivityDepartment)
+      .array()
+      .default([ActivityDepartment.Finance, ActivityDepartment.Kitchen])
+      .nativeEnumName('activity_department'),
     startDate: p.datetime().nullable().fieldName('start_date'),
     endDate: p.datetime().nullable().fieldName('end_date'),
     location: p.string().nullable(),

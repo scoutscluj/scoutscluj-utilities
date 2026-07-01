@@ -21,6 +21,12 @@
 		data.overview.meals
 			.filter((meal) => meal.kitchenDayId === dayId)
 			.sort((left, right) => left.sortOrder - right.sortOrder);
+
+	const coverageLabel = {
+		uncovered: 'neacoperit',
+		partial: 'parțial acoperit',
+		covered: 'acoperit'
+	};
 </script>
 
 <section class="reports-page">
@@ -46,9 +52,14 @@
 					{#each mealsForDay(day.id) as meal (meal.id)}
 						<div>
 							<strong>{slotLabels[meal.slot]}</strong>
-							<span>{meal.name ?? meal.context ?? 'masă'} · {meal.attendanceTotal} participanți</span>
+							<span
+								>{meal.name ?? meal.context ?? 'masă'} · {meal.attendanceTotal} participanți</span
+							>
 							{#if meal.recipes.length}
 								<p>{meal.recipes.map((recipe) => recipe.recipeName).join(', ')}</p>
+							{/if}
+							{#if meal.recipes.flatMap((recipe) => recipe.condiments).length}
+								<p>Condimente: {meal.recipes.flatMap((recipe) => recipe.condiments).join(', ')}</p>
 							{/if}
 						</div>
 					{:else}
@@ -92,13 +103,50 @@
 
 	<section class="report-sheet">
 		<div class="report-heading">
+			<p class="eyebrow">Acoperire</p>
+			<h2>Nevoi pentru următoarele mese</h2>
+		</div>
+		{#each data.overview.mealCoverage as meal (meal.mealId)}
+			<article class="day-report">
+				<h3>{meal.date} · {meal.mealLabel}</h3>
+				<table>
+					<thead>
+						<tr>
+							<th>Ingredient</th>
+							<th>Necesar</th>
+							<th>Acoperit</th>
+							<th>Status</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each meal.items as item (`${meal.mealId}-${item.ingredientId}`)}
+							<tr>
+								<td>{item.ingredientName}</td>
+								<td>{formatQuantity(item.neededQuantity)} {item.unit}</td>
+								<td>{formatQuantity(item.coveredQuantity)} {item.unit}</td>
+								<td>{coverageLabel[item.state]}</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+				{#if meal.condiments.length}
+					<p>Condimente: {meal.condiments.join(', ')}</p>
+				{/if}
+			</article>
+		{/each}
+	</section>
+
+	<section class="report-sheet">
+		<div class="report-heading">
 			<p class="eyebrow">Listă aprovizionare</p>
 			<h2>Evenimente și poziții</h2>
 		</div>
 		{#each data.procurement as event (event.id)}
 			<article class="procurement-report">
 				<h3>{event.name}</h3>
-				<p>{event.supplier ?? 'Fără furnizor'} · {event.status}</p>
+				<p>
+					{event.supplier ?? 'Fără furnizor'} · {event.ownerName ?? 'fără responsabil'} · {event.status}
+				</p>
 				<table>
 					<thead>
 						<tr>
@@ -113,7 +161,11 @@
 							<tr>
 								<td>{item.ingredientName}</td>
 								<td>{formatQuantity(item.quantity)} {item.unit}</td>
-								<td>{item.estimatedTotalCost ? `${formatQuantity(item.estimatedTotalCost)} lei` : '-'}</td>
+								<td
+									>{item.estimatedTotalCost
+										? `${formatQuantity(item.estimatedTotalCost)} lei`
+										: '-'}</td
+								>
 								<td>{item.realTotalCost ? `${formatQuantity(item.realTotalCost)} lei` : '-'}</td>
 							</tr>
 						{/each}
@@ -121,6 +173,18 @@
 				</table>
 			</article>
 		{/each}
+	</section>
+
+	<section class="report-sheet">
+		<div class="report-heading">
+			<p class="eyebrow">Condimente</p>
+			<h2>Reminder necantitativ</h2>
+		</div>
+		{#if data.overview.condimentReminders.length}
+			<p>{data.overview.condimentReminders.join(', ')}</p>
+		{:else}
+			<p class="muted">Nu sunt condimente în plan.</p>
+		{/if}
 	</section>
 </section>
 

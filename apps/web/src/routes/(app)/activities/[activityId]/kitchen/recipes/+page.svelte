@@ -1,12 +1,40 @@
 <script lang="ts">
 	let { data, form } = $props();
 
-	let newRecipeRows = $state(1);
-	let extraRowsByRecipe = $state<Record<number, number>>({});
+	type Recipe = (typeof data.recipes)[number];
+	type IngredientRow = { ingredientId: string; quantity: string; unit: string };
 
-	const blankRows = (count: number) => Array.from({ length: count }, (_, index) => index);
-	const addRecipeRow = (recipeId: number) => {
-		extraRowsByRecipe[recipeId] = (extraRowsByRecipe[recipeId] ?? 0) + 1;
+	let editingRecipe = $state<Recipe | null>(null);
+	let creatingRecipe = $state(false);
+	let rows = $state<IngredientRow[]>([]);
+	let creatingIngredient = $state(false);
+
+	const recipeIngredients = (recipe: Recipe) =>
+		recipe.ingredients.map((row) => row.ingredientName).join(', ');
+
+	const openRecipe = (recipe?: Recipe) => {
+		editingRecipe = recipe ?? null;
+		creatingRecipe = !recipe;
+		rows = recipe?.ingredients.map((row) => ({
+			ingredientId: String(row.ingredientId),
+			quantity: String(row.quantity),
+			unit: row.unit
+		})) ?? [{ ingredientId: '', quantity: '', unit: 'KG' }];
+	};
+
+	const closeModal = () => {
+		editingRecipe = null;
+		creatingRecipe = false;
+		creatingIngredient = false;
+		rows = [];
+	};
+
+	const addRow = () => {
+		rows = [...rows, { ingredientId: '', quantity: '', unit: 'KG' }];
+	};
+
+	const removeRow = (index: number) => {
+		rows = rows.filter((_, rowIndex) => rowIndex !== index);
 	};
 </script>
 
@@ -15,175 +43,236 @@
 		<p class="form-message">{form.message}</p>
 	{/if}
 
-	<section class="panel">
-		<h2>Rețetă nouă</h2>
-		<form class="recipe-form" method="POST" action="?/create">
-			<div class="recipe-fields">
-				<label>
-					<span>Nume</span>
-					<input name="name" required />
-				</label>
-				<label>
-					<span>Porții</span>
-					<input name="servings" type="number" min="1" step="0.1" required />
-				</label>
-				<label class="wide">
-					<span>Descriere</span>
-					<input name="description" />
-				</label>
-			</div>
-			<div class="ingredient-editor">
-				{#each blankRows(newRecipeRows) as index (index)}
-					<div class="ingredient-line">
-						<select name="ingredientId" aria-label={`Ingredient ${index + 1}`}>
-							<option value="">Ingredient</option>
-							{#each data.ingredients as ingredient (ingredient.id)}
-								<option value={ingredient.id}>{ingredient.name}</option>
-							{/each}
-						</select>
-						<input name="quantity" type="number" min="0.01" step="0.01" placeholder="cantitate" />
-						<input name="unit" placeholder="unitate" />
-					</div>
-				{/each}
-			</div>
-			<div class="form-actions">
-				<button type="button" class="secondary-button" onclick={() => (newRecipeRows += 1)}>
-					Adaugă ingredient
-				</button>
-				<button type="submit">Adaugă rețeta</button>
-			</div>
-		</form>
-	</section>
+	<header class="page-heading">
+		<div>
+			<p class="eyebrow">Catalog partajat</p>
+			<h1>Rețete</h1>
+		</div>
+		<button type="button" onclick={() => openRecipe()}>Rețetă nouă</button>
+	</header>
 
 	<section class="recipe-list">
 		{#each data.recipes as recipe (recipe.id)}
-			<form class="panel recipe-form" method="POST" action="?/update">
-				<input type="hidden" name="recipeId" value={recipe.id} />
-				<div class="recipe-title">
+			<button class="recipe-row" type="button" onclick={() => openRecipe(recipe)}>
+				<span>
+					<strong>{recipe.name}</strong>
+					<small>{recipe.servings} porții · {recipe.ingredients.length} ingrediente</small>
+				</span>
+				<span class="muted">{recipeIngredients(recipe) || 'Fără ingrediente'}</span>
+				{#if recipe.condiments.length}
+					<span class="chips">
+						{#each recipe.condiments as condiment (condiment)}
+							<small>{condiment}</small>
+						{/each}
+					</span>
+				{/if}
+			</button>
+		{/each}
+	</section>
+
+	{#if creatingRecipe || editingRecipe}
+		<div class="modal-backdrop" role="presentation">
+			<button class="backdrop-button" type="button" aria-label="Închide" onclick={closeModal}
+			></button>
+			<section class="modal" role="dialog" aria-modal="true" tabindex="-1">
+				<div class="modal-heading">
 					<div>
-						<p class="eyebrow">Rețetă</p>
-						<h2>{recipe.name}</h2>
+						<p class="eyebrow">Catalog partajat</p>
+						<h2>{editingRecipe ? 'Editează rețetă' : 'Rețetă nouă'}</h2>
 					</div>
-					<span>{recipe.ingredients.length} ingrediente</span>
+					<button class="ghost" type="button" onclick={closeModal} aria-label="Închide">×</button>
 				</div>
-				<div class="recipe-fields">
-					<label>
-						<span>Nume</span>
-						<input name="name" value={recipe.name} required />
-					</label>
-					<label>
-						<span>Porții</span>
-						<input
-							name="servings"
-							type="number"
-							min="1"
-							step="0.1"
-							value={recipe.servings}
-							required
-						/>
-					</label>
-					<label class="wide">
-						<span>Descriere</span>
-						<input name="description" value={recipe.description ?? ''} />
-					</label>
-				</div>
-				<div class="ingredient-editor">
-					{#each recipe.ingredients as row, index (row.id)}
-						<div class="ingredient-line">
-							<select name="ingredientId" aria-label={`Ingredient ${index + 1}`}>
-								<option value="">Ingredient</option>
-								{#each data.ingredients as ingredient (ingredient.id)}
-									<option value={ingredient.id} selected={row?.ingredientId === ingredient.id}>
-										{ingredient.name}
-									</option>
-								{/each}
-							</select>
+
+				<form class="recipe-form" method="POST" action={editingRecipe ? '?/update' : '?/create'}>
+					{#if editingRecipe}
+						<input type="hidden" name="recipeId" value={editingRecipe.id} />
+					{/if}
+					<div class="fields">
+						<label>
+							<span>Nume</span>
+							<input name="name" value={editingRecipe?.name ?? ''} required />
+						</label>
+						<label>
+							<span>Porții</span>
 							<input
-								name="quantity"
+								name="servings"
+								type="number"
+								min="1"
+								step="0.1"
+								value={editingRecipe?.servings ?? ''}
+								required
+							/>
+						</label>
+					</div>
+					<label>
+						<span>Descriere</span>
+						<input name="description" value={editingRecipe?.description ?? ''} />
+					</label>
+					<label>
+						<span>Condimente</span>
+						<textarea name="condiments" rows="2"
+							>{editingRecipe?.condiments.join(', ') ?? ''}</textarea
+						>
+					</label>
+
+					<div class="editor-heading">
+						<h3>Ingrediente</h3>
+						<div>
+							<button class="secondary" type="button" onclick={addRow}>Adaugă rând</button>
+							<button class="secondary" type="button" onclick={() => (creatingIngredient = true)}>
+								Ingredient nou
+							</button>
+						</div>
+					</div>
+
+					<div class="ingredient-editor">
+						{#each rows as row, index (index)}
+							<div class="ingredient-line">
+								<select name="ingredientId" bind:value={row.ingredientId} aria-label="Ingredient">
+									<option value="">Ingredient</option>
+									{#each data.ingredients as ingredient (ingredient.id)}
+										<option value={String(ingredient.id)}>{ingredient.name}</option>
+									{/each}
+								</select>
+								<input
+									name="quantity"
+									type="number"
+									min="0.01"
+									step="0.01"
+									bind:value={row.quantity}
+									placeholder="cantitate"
+								/>
+								<input name="unit" bind:value={row.unit} placeholder="unitate" />
+								<button class="ghost" type="button" onclick={() => removeRow(index)}>×</button>
+							</div>
+						{/each}
+					</div>
+					<button type="submit">Salvează rețeta</button>
+				</form>
+
+				{#if creatingIngredient}
+					<form class="nested-form" method="POST" action="?/createIngredient">
+						<p class="eyebrow">Ingredient partajat nou</p>
+						<div class="fields">
+							<input name="ingredientName" placeholder="nume" required />
+							<input name="ingredientCategory" placeholder="categorie" required />
+							<input name="ingredientDefaultUnit" placeholder="KG" required />
+							<input
+								name="ingredientDefaultPricePerUnit"
 								type="number"
 								min="0.01"
 								step="0.01"
-								value={row?.quantity ?? ''}
-								placeholder="cantitate"
+								placeholder="preț/unitate"
+								required
 							/>
-							<input name="unit" value={row?.unit ?? ''} placeholder="unitate" />
 						</div>
-					{/each}
-					{#each blankRows(extraRowsByRecipe[recipe.id] ?? 0) as index (index)}
-						<div class="ingredient-line">
-							<select name="ingredientId" aria-label={`Ingredient nou ${index + 1}`}>
-								<option value="">Ingredient</option>
-								{#each data.ingredients as ingredient (ingredient.id)}
-									<option value={ingredient.id}>{ingredient.name}</option>
-								{/each}
-							</select>
-							<input name="quantity" type="number" min="0.01" step="0.01" placeholder="cantitate" />
-							<input name="unit" placeholder="unitate" />
-						</div>
-					{/each}
-				</div>
-				<div class="form-actions">
-					<button type="button" class="secondary-button" onclick={() => addRecipeRow(recipe.id)}>
-						Adaugă ingredient
-					</button>
-					<button type="submit">Salvează</button>
-				</div>
-			</form>
-		{/each}
-	</section>
+						<button class="secondary" type="submit">Creează ingredient</button>
+					</form>
+				{/if}
+			</section>
+		</div>
+	{/if}
 </section>
 
 <style>
 	.recipes-page,
 	.recipe-list,
-	.panel,
-	.recipe-form {
+	.recipe-form,
+	.ingredient-editor,
+	.nested-form {
 		display: grid;
-		gap: 16px;
+		gap: 14px;
 	}
 
-	.panel {
+	.page-heading,
+	.modal-heading,
+	.editor-heading {
+		display: flex;
+		gap: 12px;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.editor-heading div,
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+
+	.recipe-row {
+		display: grid;
+		grid-template-columns: minmax(180px, 0.8fr) minmax(220px, 1fr) minmax(160px, 0.8fr);
+		gap: 12px;
+		align-items: center;
 		border: 1px solid #dbe3ef;
-		background: #ffffff;
 		border-radius: 8px;
-		padding: 18px;
-		box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
+		background: #ffffff;
+		padding: 12px;
+		color: inherit;
+		text-align: left;
+		cursor: pointer;
 	}
 
-	.recipe-fields {
+	.recipe-row:hover {
+		background: #f8fafc;
+	}
+
+	.recipe-row span:first-child {
 		display: grid;
-		grid-template-columns: minmax(180px, 1fr) minmax(100px, 140px) minmax(220px, 2fr);
+		gap: 3px;
+	}
+
+	.chips small {
+		border: 1px solid #dbe3ef;
+		border-radius: 999px;
+		padding: 4px 8px;
+		background: #f8fafc;
+		font-weight: 800;
+	}
+
+	.modal-backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: 20;
+		display: grid;
+		place-items: center;
+		overflow-y: auto;
+		background: rgba(15, 23, 42, 0.28);
+		padding: 16px;
+	}
+
+	.modal {
+		position: relative;
+		z-index: 1;
+		width: min(900px, 100%);
+		max-height: calc(100vh - 32px);
+		overflow-y: auto;
+		border-radius: 8px;
+		background: #ffffff;
+		padding: 18px;
+		box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
+	}
+
+	.fields,
+	.ingredient-line {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 10px;
 	}
 
-	.ingredient-editor {
-		display: grid;
-		gap: 8px;
+	.nested-form .fields {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
 	}
 
 	.ingredient-line {
-		display: grid;
-		grid-template-columns: minmax(180px, 1fr) minmax(100px, 140px) minmax(100px, 140px);
-		gap: 8px;
+		grid-template-columns: minmax(180px, 1fr) 110px 110px 38px;
 	}
 
-	.form-actions {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
-	}
-
-	.recipe-title {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: 12px;
-	}
-
-	.recipe-title span {
-		color: #64748b;
-		font-weight: 800;
+	.nested-form {
+		margin-top: 14px;
+		border-top: 1px solid #e2e8f0;
+		padding-top: 14px;
 	}
 
 	label {
@@ -195,7 +284,8 @@
 	}
 
 	input,
-	select {
+	select,
+	textarea {
 		width: 100%;
 		min-width: 0;
 		border: 1px solid #cbd5e1;
@@ -205,51 +295,73 @@
 	}
 
 	button {
-		justify-self: start;
-		min-height: 40px;
+		min-height: 38px;
 		border: 0;
 		border-radius: 8px;
 		background: #0f766e;
 		color: #ffffff;
-		padding: 0 14px;
+		padding: 0 12px;
 		font-weight: 800;
 		cursor: pointer;
 	}
 
-	button.secondary-button {
+	.backdrop-button {
+		position: absolute;
+		inset: 0;
+		border: 0;
+		background: transparent;
+	}
+
+	.secondary,
+	.ghost {
 		border: 1px solid #cbd5e1;
 		background: #ffffff;
-		color: #0f172a;
+		color: #334155;
 	}
 
-	h2,
-	p {
-		margin: 0;
-	}
-
-	h2 {
-		color: #0f172a;
-	}
-
-	.eyebrow {
-		margin: 0 0 8px;
-		color: #2563eb;
-		font-size: 0.78rem;
-		font-weight: 800;
-		text-transform: uppercase;
-		letter-spacing: 0;
+	.ghost {
+		padding: 0;
+		font-size: 1.1rem;
 	}
 
 	.form-message {
 		border: 1px solid #bfdbfe;
-		background: #eff6ff;
 		border-radius: 8px;
+		background: #eff6ff;
 		padding: 12px 14px;
 		color: #1e3a8a;
 	}
 
+	h1,
+	h2,
+	h3,
+	p {
+		margin: 0;
+	}
+
+	h1,
+	h2,
+	h3,
+	strong {
+		color: #0f172a;
+	}
+
+	.muted,
+	small {
+		color: #64748b;
+	}
+
+	.eyebrow {
+		color: #64748b;
+		font-size: 0.7rem;
+		font-weight: 900;
+		text-transform: uppercase;
+	}
+
 	@media (max-width: 760px) {
-		.recipe-fields,
+		.recipe-row,
+		.fields,
+		.nested-form .fields,
 		.ingredient-line {
 			grid-template-columns: 1fr;
 		}

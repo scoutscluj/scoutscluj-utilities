@@ -184,6 +184,20 @@ export class KitchenController {
     return this.kitchenService.deleteMealRecipe(user, activityId, mealRecipeId);
   }
 
+  @Post('meal-recipes/:mealRecipeId/refresh')
+  @ApiOkResponse({ type: KitchenOverviewDto })
+  refreshMealRecipe(
+    @CurrentUserDecorator() user: AuthenticatedUser,
+    @Param('activityId', ParseIntPipe) activityId: number,
+    @Param('mealRecipeId', ParseIntPipe) mealRecipeId: number,
+  ) {
+    return this.kitchenService.refreshMealRecipe(
+      user,
+      activityId,
+      mealRecipeId,
+    );
+  }
+
   @Post('meals/:mealId/attendance')
   @ApiOkResponse({ type: KitchenOverviewDto })
   replaceAttendance(

@@ -18,6 +18,7 @@ export const KitchenProcurementEvent = defineEntity({
     kitchenPlanId: p.integer().fieldName('kitchen_plan_id'),
     name: p.string(),
     supplier: p.string().nullable(),
+    ownerName: p.string().nullable().fieldName('owner_name'),
     date: p.datetime().nullable(),
     method: p
       .enum(() => KitchenProcurementMethod)

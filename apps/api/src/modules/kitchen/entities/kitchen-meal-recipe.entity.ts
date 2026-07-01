@@ -1,5 +1,16 @@
 import { defineEntity, p, type InferEntity } from '@mikro-orm/core';
-import { KitchenRecipeScalingMode } from './kitchen.enums';
+import { KitchenRecipeScalingMode, KitchenUnitFamily } from './kitchen.enums';
+
+export type KitchenAssignedRecipeIngredientSnapshot = {
+  ingredientId: number;
+  ingredientName: string;
+  category: string;
+  quantity: number;
+  unit: string;
+  defaultUnit: string;
+  unitFamily: KitchenUnitFamily;
+  estimatedUnitPrice: number;
+};
 
 export const KitchenMealRecipe = defineEntity({
   name: 'KitchenMealRecipe',
@@ -9,6 +20,25 @@ export const KitchenMealRecipe = defineEntity({
     id: p.integer().primary().autoincrement(),
     mealId: p.integer().fieldName('meal_id'),
     recipeId: p.integer().fieldName('recipe_id'),
+    recipeNameSnapshot: p.string().nullable().fieldName('recipe_name_snapshot'),
+    recipeServingsSnapshot: p
+      .decimal('number')
+      .nullable()
+      .fieldName('recipe_servings_snapshot'),
+    ingredientsSnapshot: p
+      .json<KitchenAssignedRecipeIngredientSnapshot[]>()
+      .default([])
+      .fieldName('ingredients_snapshot'),
+    condimentsSnapshot: p
+      .json<string[]>()
+      .default([])
+      .fieldName('condiments_snapshot'),
+    recipeSnapshotHash: p.string().nullable().fieldName('recipe_snapshot_hash'),
+    sourceRecipeUpdatedAt: p
+      .datetime()
+      .nullable()
+      .fieldName('source_recipe_updated_at'),
+    snapshotCreatedAt: p.datetime().nullable().fieldName('snapshot_created_at'),
     servingOverride: p
       .decimal('number')
       .nullable()

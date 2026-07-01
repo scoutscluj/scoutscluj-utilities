@@ -29,7 +29,11 @@ export enum KitchenRecipeScalingMode {
 
 export enum KitchenProcurementMethod {
   Delivery = 'delivery',
+  LocalCenter = 'local_center',
+  Person = 'person',
   SelfPurchase = 'self_purchase',
+  ShoppingRun = 'shopping_run',
+  SupplierOrder = 'supplier_order',
 }
 
 export enum KitchenProcurementStatus {

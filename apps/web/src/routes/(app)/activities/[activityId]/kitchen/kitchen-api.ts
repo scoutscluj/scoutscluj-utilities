@@ -6,7 +6,13 @@ import { apiFetch } from '$lib/server/api';
 export type KitchenMealSlot = 'breakfast' | 'snack_1' | 'lunch' | 'snack_2' | 'dinner';
 export type KitchenAttendanceMode = 'plan_default' | 'custom';
 export type KitchenScalingMode = 'proportional' | 'whole_batch';
-export type ProcurementMethod = 'delivery' | 'self_purchase';
+export type ProcurementMethod =
+	| 'delivery'
+	| 'local_center'
+	| 'person'
+	| 'self_purchase'
+	| 'shopping_run'
+	| 'supplier_order';
 export type ProcurementStatus = 'planned' | 'in_progress' | 'completed';
 
 export type KitchenOverview = {
@@ -32,6 +38,10 @@ export type KitchenOverview = {
 			recipeId: number;
 			recipeName: string;
 			servings: number;
+			condiments: string[];
+			isSnapshot: boolean;
+			isStale: boolean;
+			snapshotCreatedAt?: string;
 			servingOverride?: number;
 			scalingMode: KitchenScalingMode;
 		}>;
@@ -58,6 +68,25 @@ export type KitchenOverview = {
 		estimatedCost: number;
 		breakdown: Array<{ date: string; mealId: number; mealLabel: string; quantity: number }>;
 	}>;
+	mealCoverage: Array<{
+		mealId: number;
+		kitchenDayId: number;
+		date: string;
+		slot: KitchenMealSlot;
+		mealLabel: string;
+		items: Array<{
+			ingredientId: number;
+			ingredientName: string;
+			neededQuantity: number;
+			coveredQuantity: number;
+			remainingQuantity: number;
+			overCoveredQuantity: number;
+			unit: string;
+			state: 'uncovered' | 'partial' | 'covered';
+		}>;
+		condiments: string[];
+	}>;
+	condimentReminders: string[];
 };
 
 export type KitchenIngredient = {
@@ -73,6 +102,7 @@ export type KitchenRecipe = {
 	id: number;
 	name: string;
 	description?: string;
+	condiments: string[];
 	servings: number;
 	ingredients: Array<{
 		id: number;
@@ -88,6 +118,7 @@ export type KitchenProcurementEvent = {
 	kitchenPlanId: number;
 	name: string;
 	supplier?: string;
+	ownerName?: string;
 	date?: string;
 	method: ProcurementMethod;
 	status: ProcurementStatus;

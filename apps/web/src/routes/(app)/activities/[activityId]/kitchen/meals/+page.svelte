@@ -10,11 +10,28 @@
 	};
 	const slotEntries = Object.entries(slotLabels) as Array<[keyof typeof slotLabels, string]>;
 
-	const formatDate = (value: string) =>
-		new Intl.DateTimeFormat('ro-RO', { dateStyle: 'medium' }).format(new Date(value));
+	let selectedDayId = $state(0);
+	let creatingMeal = $state(false);
+	let assigningMeal = $state<(typeof data.overview.meals)[number] | null>(null);
 
-	const mealsFor = (dayId: number, slot: keyof typeof slotLabels) =>
-		data.overview.meals.filter((meal) => meal.kitchenDayId === dayId && meal.slot === slot);
+	const formatDate = (value: string) =>
+		new Intl.DateTimeFormat('ro-RO', { weekday: 'short', day: '2-digit', month: 'short' }).format(
+			new Date(value)
+		);
+
+	const selectedDay = $derived(
+		data.overview.days.find((day) => day.id === selectedDayId) ?? data.overview.days[0]
+	);
+
+	const mealsFor = (slot: keyof typeof slotLabels) =>
+		data.overview.meals.filter(
+			(meal) => meal.kitchenDayId === selectedDay?.id && meal.slot === slot
+		);
+
+	const closeModals = () => {
+		creatingMeal = false;
+		assigningMeal = null;
+	};
 </script>
 
 <section class="meals-page">
@@ -22,96 +39,89 @@
 		<p class="form-message">{form.message}</p>
 	{/if}
 
-	<section class="panel">
-		<h2>Adaugă masă</h2>
-		<form class="inline-form" method="POST" action="?/createMeal">
-			<label>
-				<span>Zi</span>
-				<select name="kitchenDayId" required>
-					{#each data.overview.days as day (day.id)}
-						<option value={day.id}>{formatDate(day.date)}</option>
-					{/each}
-				</select>
-			</label>
-			<label>
-				<span>Slot</span>
-				<select name="slot" required>
-					{#each slotEntries as [value, label]}
-						<option value={value}>{label}</option>
-					{/each}
-				</select>
-			</label>
-			<label>
-				<span>Context</span>
-				<input name="context" placeholder="tabără, drumeție" />
-			</label>
-			<label>
-				<span>Nume</span>
-				<input name="name" placeholder="grup principal" />
-			</label>
-			<button type="submit">Adaugă</button>
-		</form>
-	</section>
+	<header class="page-heading">
+		<div>
+			<p class="eyebrow">Plan</p>
+			<h1>Mese</h1>
+		</div>
+		<button type="button" onclick={() => (creatingMeal = true)}>Masă nouă</button>
+	</header>
 
-	{#each data.overview.days as day (day.id)}
-		<section class="day-panel">
-			<h2>{formatDate(day.date)}</h2>
-			<div class="slot-grid">
-				{#each slotEntries as [slot, label]}
-					<div class="slot">
-						<h3>{label}</h3>
-						{#if mealsFor(day.id, slot).length}
-							{#each mealsFor(day.id, slot) as meal (meal.id)}
-								<article class="meal-card">
-									<div class="meal-title">
-										<div>
-											<h4>{meal.name ?? meal.context ?? label}</h4>
-											<p>{meal.context ?? 'fără context'} · {meal.attendanceTotal} participanți</p>
-										</div>
-										<form method="POST" action="?/deleteMeal">
-											<input type="hidden" name="mealId" value={meal.id} />
-											<button class="danger" type="submit">Șterge</button>
-										</form>
+	<nav class="day-tabs" aria-label="Zile de bucătărie">
+		{#each data.overview.days as day (day.id)}
+			<button
+				type="button"
+				class:active={selectedDay?.id === day.id}
+				class:outside={day.dateStatus === 'outside_activity_dates'}
+				onclick={() => (selectedDayId = day.id)}
+			>
+				{formatDate(day.date)}
+			</button>
+		{/each}
+	</nav>
+
+	{#if selectedDay}
+		<section class="slot-grid">
+			{#each slotEntries as [slot, label] (slot)}
+				<article class="slot">
+					<h2>{label}</h2>
+					{#if mealsFor(slot).length}
+						{#each mealsFor(slot) as meal (meal.id)}
+							<div class="meal-card">
+								<div class="meal-heading">
+									<div>
+										<h3>{meal.name ?? meal.context ?? label}</h3>
+										<p>{meal.context ?? 'fără context'} · {meal.attendanceTotal} participanți</p>
 									</div>
+									<form method="POST" action="?/deleteMeal">
+										<input type="hidden" name="mealId" value={meal.id} />
+										<button class="danger" type="submit">Șterge</button>
+									</form>
+								</div>
 
-									<div class="recipe-list">
-										{#each meal.recipes as recipe (recipe.id)}
-											<div class="recipe-row">
-												<span>{recipe.recipeName}</span>
+								<div class="recipe-list">
+									{#each meal.recipes as recipe (recipe.id)}
+										<div class="recipe-row" class:stale={recipe.isStale}>
+											<div>
+												<strong>{recipe.recipeName}</strong>
+												<small>
+													{recipe.servingOverride ?? recipe.servings} porții · {recipe.scalingMode}
+												</small>
+												{#if recipe.condiments.length}
+													<small>Condimente: {recipe.condiments.join(', ')}</small>
+												{/if}
+												{#if recipe.isStale}
+													<small class="warning">Catalogul are o versiune mai nouă.</small>
+												{/if}
+											</div>
+											<div class="row-actions">
+												{#if recipe.isStale}
+													<form method="POST" action="?/refreshMealRecipe">
+														<input type="hidden" name="mealRecipeId" value={recipe.id} />
+														<button class="secondary" type="submit">Actualizează</button>
+													</form>
+												{/if}
 												<form method="POST" action="?/deleteMealRecipe">
 													<input type="hidden" name="mealRecipeId" value={recipe.id} />
-													<button class="link-button" type="submit">Elimină</button>
+													<button class="secondary danger-text" type="submit">Elimină</button>
 												</form>
 											</div>
-										{/each}
-									</div>
+										</div>
+									{/each}
+								</div>
 
-									<form class="compact-form" method="POST" action="?/assignRecipe">
-										<input type="hidden" name="mealId" value={meal.id} />
-										<select name="recipeId" required>
-											<option value="">Rețetă</option>
-											{#each data.recipes as recipe (recipe.id)}
-												<option value={recipe.id}>{recipe.name}</option>
-											{/each}
-										</select>
-										<input name="servingOverride" type="number" min="1" step="0.1" placeholder="porții" />
-										<select name="scalingMode">
-											<option value="proportional">Proporțional</option>
-											<option value="whole_batch">Batch întreg</option>
-										</select>
-										<button type="submit">Atașează</button>
-									</form>
+								<button class="secondary" type="button" onclick={() => (assigningMeal = meal)}>
+									Adaugă rețetă
+								</button>
 
+								<details>
+									<summary>Prezență și ajustări</summary>
 									<form class="compact-form" method="POST" action="?/attendance">
 										<input type="hidden" name="mealId" value={meal.id} />
-										<textarea
-											name="rows"
-											rows="2"
-											placeholder="Lupișori: 24&#10;Adulți: 6"
+										<textarea name="rows" rows="2" placeholder="Lupișori: 24&#10;Adulți: 6"
 										></textarea>
-										<button type="submit">Prezență</button>
+										<button type="submit">Salvează prezența</button>
 									</form>
-
 									<form class="compact-form" method="POST" action="?/adjustment">
 										<input type="hidden" name="mealId" value={meal.id} />
 										<select name="ingredientId" required>
@@ -120,119 +130,204 @@
 												<option value={ingredient.id}>{ingredient.name}</option>
 											{/each}
 										</select>
-										<input name="quantityDelta" type="number" step="0.01" placeholder="+/- cantitate" />
+										<input
+											name="quantityDelta"
+											type="number"
+											step="0.01"
+											placeholder="+/- cantitate"
+										/>
 										<input name="unit" placeholder="KG" />
 										<input name="notes" placeholder="notițe" />
 										<button type="submit">Ajustează</button>
 									</form>
-									{#if meal.adjustments.length}
-										<div class="adjustment-list">
-											{#each meal.adjustments as adjustment (adjustment.id)}
-												<form class="adjustment-row" method="POST" action="?/deleteAdjustment">
-													<input type="hidden" name="adjustmentId" value={adjustment.id} />
-													<span>
-														{adjustment.ingredientName}: {adjustment.quantityDelta} {adjustment.unit}
-													</span>
-													<button class="link-button" type="submit">EliminÄƒ</button>
-												</form>
-											{/each}
-										</div>
-									{/if}
-								</article>
-							{/each}
-						{:else}
-							<p class="muted">Nicio masă.</p>
-						{/if}
-					</div>
-				{/each}
-			</div>
+								</details>
+							</div>
+						{/each}
+					{:else}
+						<p class="muted">Nicio masă.</p>
+					{/if}
+				</article>
+			{/each}
 		</section>
-	{/each}
+	{:else}
+		<p class="muted">Nu există zile generate încă.</p>
+	{/if}
+
+	{#if creatingMeal}
+		<div class="modal-backdrop" role="presentation">
+			<button class="backdrop-button" type="button" aria-label="Închide" onclick={closeModals}
+			></button>
+			<section class="modal" role="dialog" aria-modal="true" tabindex="-1">
+				<div class="modal-heading">
+					<h2>Masă nouă</h2>
+					<button class="ghost" type="button" onclick={closeModals} aria-label="Închide">×</button>
+				</div>
+				<form class="modal-form" method="POST" action="?/createMeal">
+					<label>
+						<span>Zi</span>
+						<select name="kitchenDayId" required>
+							{#each data.overview.days as day (day.id)}
+								<option value={day.id} selected={selectedDay?.id === day.id}
+									>{formatDate(day.date)}</option
+								>
+							{/each}
+						</select>
+					</label>
+					<label>
+						<span>Slot</span>
+						<select name="slot" required>
+							{#each slotEntries as [value, label] (value)}
+								<option {value}>{label}</option>
+							{/each}
+						</select>
+					</label>
+					<label>
+						<span>Context</span>
+						<input name="context" placeholder="tabără, drumeție" />
+					</label>
+					<label>
+						<span>Nume</span>
+						<input name="name" placeholder="grup principal" />
+					</label>
+					<button type="submit">Adaugă masa</button>
+				</form>
+			</section>
+		</div>
+	{/if}
+
+	{#if assigningMeal}
+		<div class="modal-backdrop" role="presentation">
+			<button class="backdrop-button" type="button" aria-label="Închide" onclick={closeModals}
+			></button>
+			<section class="modal" role="dialog" aria-modal="true" tabindex="-1">
+				<div class="modal-heading">
+					<h2>Adaugă rețetă</h2>
+					<button class="ghost" type="button" onclick={closeModals} aria-label="Închide">×</button>
+				</div>
+				<form class="modal-form" method="POST" action="?/assignRecipe">
+					<input type="hidden" name="mealId" value={assigningMeal.id} />
+					<label>
+						<span>Rețetă</span>
+						<select name="recipeId" required>
+							<option value="">Alege rețeta</option>
+							{#each data.recipes as recipe (recipe.id)}
+								<option value={recipe.id}>{recipe.name}</option>
+							{/each}
+						</select>
+					</label>
+					<label>
+						<span>Porții</span>
+						<input name="servingOverride" type="number" min="1" step="0.1" placeholder="implicit" />
+					</label>
+					<label>
+						<span>Scalare</span>
+						<select name="scalingMode">
+							<option value="proportional">Proporțional</option>
+							<option value="whole_batch">Batch întreg</option>
+						</select>
+					</label>
+					<button type="submit">Atașează</button>
+				</form>
+			</section>
+		</div>
+	{/if}
 </section>
 
 <style>
 	.meals-page,
-	.panel,
-	.day-panel,
+	.slot,
 	.meal-card,
 	.recipe-list,
-	.adjustment-list {
-		display: grid;
-		gap: 14px;
-	}
-
-	.panel,
-	.day-panel,
-	.meal-card {
-		border: 1px solid #dbe3ef;
-		background: #ffffff;
-		border-radius: 8px;
-		padding: 16px;
-		box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
-	}
-
-	.slot-grid {
-		display: grid;
-		grid-template-columns: repeat(5, minmax(180px, 1fr));
-		gap: 10px;
-		overflow-x: auto;
-	}
-
-	.slot {
-		display: grid;
-		align-content: start;
-		gap: 10px;
-		min-width: 180px;
-	}
-
-	.inline-form,
+	.modal-form,
 	.compact-form {
 		display: grid;
-		grid-template-columns: repeat(5, minmax(120px, 1fr));
-		gap: 10px;
-		align-items: end;
+		gap: 12px;
 	}
 
-	.compact-form {
-		grid-template-columns: minmax(140px, 1fr) minmax(80px, 110px) minmax(120px, 150px) auto;
-	}
-
-	.compact-form:has(textarea) {
-		grid-template-columns: 1fr auto;
-	}
-
-	.meal-title,
+	.page-heading,
+	.meal-heading,
 	.recipe-row,
-	.adjustment-row {
+	.modal-heading,
+	.row-actions {
 		display: flex;
 		gap: 10px;
 		align-items: center;
 		justify-content: space-between;
 	}
 
-	h2,
-	h3,
-	h4,
-	p {
-		margin: 0;
+	.day-tabs {
+		display: flex;
+		gap: 6px;
+		overflow-x: auto;
 	}
 
-	h2,
-	h3,
-	h4 {
-		color: #0f172a;
+	.slot-grid {
+		display: grid;
+		grid-template-columns: repeat(5, minmax(190px, 1fr));
+		gap: 10px;
+		overflow-x: auto;
 	}
 
-	.muted,
-	.meal-title p {
-		color: #64748b;
+	.slot,
+	.meal-card,
+	.form-message {
+		border: 1px solid #dbe3ef;
+		border-radius: 8px;
+		background: #ffffff;
+		padding: 12px;
+	}
+
+	.recipe-row {
+		align-items: flex-start;
+		border: 1px solid #e2e8f0;
+		border-radius: 8px;
+		padding: 10px;
+	}
+
+	.recipe-row.stale {
+		border-color: #f59e0b;
+		background: #fffbeb;
+	}
+
+	.recipe-row div:first-child {
+		display: grid;
+		gap: 3px;
+	}
+
+	.compact-form {
+		margin-top: 10px;
+		grid-template-columns: 1fr auto;
+	}
+
+	.compact-form:not(:has(textarea)) {
+		grid-template-columns: minmax(140px, 1fr) 110px 90px minmax(120px, 1fr) auto;
+	}
+
+	.modal-backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: 20;
+		display: grid;
+		place-items: center;
+		background: rgba(15, 23, 42, 0.28);
+		padding: 16px;
+	}
+
+	.modal {
+		position: relative;
+		z-index: 1;
+		width: min(560px, 100%);
+		border-radius: 8px;
+		background: #ffffff;
+		padding: 18px;
+		box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
 	}
 
 	label {
 		display: grid;
 		gap: 6px;
 		color: #334155;
-		font-size: 0.85rem;
+		font-size: 0.84rem;
 		font-weight: 800;
 	}
 
@@ -248,35 +343,82 @@
 	}
 
 	button {
-		min-height: 38px;
+		min-height: 36px;
 		border: 0;
 		border-radius: 8px;
 		background: #0f766e;
 		color: #ffffff;
-		padding: 0 12px;
+		padding: 0 11px;
 		font-weight: 800;
 		cursor: pointer;
 	}
 
-	.danger,
-	.link-button {
+	.backdrop-button {
+		position: absolute;
+		inset: 0;
+		border: 0;
+		background: transparent;
+	}
+
+	.day-tabs button,
+	.secondary,
+	.ghost {
 		border: 1px solid #cbd5e1;
+		background: #ffffff;
+		color: #334155;
+	}
+
+	.day-tabs button.active {
+		border-color: #0f766e;
+		color: #0f766e;
+	}
+
+	.day-tabs button.outside {
+		border-color: #fbbf24;
+		background: #fffbeb;
+	}
+
+	.danger {
+		border: 1px solid #fecaca;
 		background: #ffffff;
 		color: #991b1b;
 	}
 
-	.form-message {
-		border: 1px solid #bfdbfe;
-		background: #eff6ff;
-		border-radius: 8px;
-		padding: 12px 14px;
-		color: #1e3a8a;
+	.danger-text,
+	.warning {
+		color: #92400e;
+	}
+
+	h1,
+	h2,
+	h3,
+	p {
+		margin: 0;
+	}
+
+	h1,
+	h2,
+	h3,
+	strong {
+		color: #0f172a;
+	}
+
+	.muted,
+	small,
+	.meal-heading p {
+		color: #64748b;
+	}
+
+	.eyebrow {
+		color: #64748b;
+		font-size: 0.7rem;
+		font-weight: 900;
+		text-transform: uppercase;
 	}
 
 	@media (max-width: 900px) {
-		.inline-form,
 		.compact-form,
-		.compact-form:has(textarea) {
+		.compact-form:not(:has(textarea)) {
 			grid-template-columns: 1fr;
 		}
 	}

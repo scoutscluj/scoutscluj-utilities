@@ -42,6 +42,12 @@ const parseNumber = (value: string | number | undefined, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const parseLegacyCondiments = (value?: string) =>
+  (value ?? '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
 @Injectable()
 export class KitchenSeedService {
   constructor(
@@ -94,7 +100,8 @@ export class KitchenSeedService {
       const recipe = await this.findRecipe(row);
       recipe.legacySourceId = row.id;
       recipe.name = row.name.trim();
-      recipe.description = row.description?.trim() || null;
+      recipe.description = null;
+      recipe.condiments = parseLegacyCondiments(row.description);
       recipe.servings = Math.max(parseNumber(row.servings, 1), 1);
 
       this.em.persist(recipe);
@@ -155,7 +162,8 @@ export class KitchenSeedService {
       })) ??
       this.recipesRepository.create({
         name: row.name.trim(),
-        description: row.description?.trim() || null,
+        description: null,
+        condiments: parseLegacyCondiments(row.description),
         servings: Math.max(parseNumber(row.servings, 1), 1),
       })
     );

@@ -35,13 +35,17 @@ export const actions: Actions = {
 		const activityId = parseActivityId(params.activityId);
 		const formData = await request.formData();
 		const mealId = Number(formData.get('mealId'));
-		return postJsonAction(cookies, `/api/activities/${activityId}/kitchen/meals/${mealId}/recipes`, {
-			recipeId: Number(formData.get('recipeId')),
-			servingOverride: formData.get('servingOverride')
-				? Number(formData.get('servingOverride'))
-				: undefined,
-			scalingMode: formData.get('scalingMode')?.toString()
-		});
+		return postJsonAction(
+			cookies,
+			`/api/activities/${activityId}/kitchen/meals/${mealId}/recipes`,
+			{
+				recipeId: Number(formData.get('recipeId')),
+				servingOverride: formData.get('servingOverride')
+					? Number(formData.get('servingOverride'))
+					: undefined,
+				scalingMode: formData.get('scalingMode')?.toString()
+			}
+		);
 	},
 	attendance: async ({ request, cookies, params }) => {
 		const activityId = parseActivityId(params.activityId);
@@ -57,9 +61,13 @@ export const actions: Actions = {
 				const [subgroupName, attendance] = line.split(':');
 				return { subgroupName: subgroupName?.trim(), attendance: Number(attendance) };
 			});
-		return postJsonAction(cookies, `/api/activities/${activityId}/kitchen/meals/${mealId}/attendance`, {
-			rows
-		});
+		return postJsonAction(
+			cookies,
+			`/api/activities/${activityId}/kitchen/meals/${mealId}/attendance`,
+			{
+				rows
+			}
+		);
 	},
 	adjustment: async ({ request, cookies, params }) => {
 		const activityId = parseActivityId(params.activityId);
@@ -79,7 +87,10 @@ export const actions: Actions = {
 	deleteMeal: async ({ request, cookies, params }) => {
 		const activityId = parseActivityId(params.activityId);
 		const formData = await request.formData();
-		return deleteAction(cookies, `/api/activities/${activityId}/kitchen/meals/${formData.get('mealId')}`);
+		return deleteAction(
+			cookies,
+			`/api/activities/${activityId}/kitchen/meals/${formData.get('mealId')}`
+		);
 	},
 	deleteMealRecipe: async ({ request, cookies, params }) => {
 		const activityId = parseActivityId(params.activityId);
@@ -87,6 +98,15 @@ export const actions: Actions = {
 		return deleteAction(
 			cookies,
 			`/api/activities/${activityId}/kitchen/meal-recipes/${formData.get('mealRecipeId')}`
+		);
+	},
+	refreshMealRecipe: async ({ request, cookies, params }) => {
+		const activityId = parseActivityId(params.activityId);
+		const formData = await request.formData();
+		return postJsonAction(
+			cookies,
+			`/api/activities/${activityId}/kitchen/meal-recipes/${formData.get('mealRecipeId')}/refresh`,
+			{}
 		);
 	},
 	deleteAdjustment: async ({ request, cookies, params }) => {

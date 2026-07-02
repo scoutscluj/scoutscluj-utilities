@@ -1,8 +1,9 @@
 import type { CurrentUser } from '$lib/auth/types';
+import type { AuditEntry } from '$lib/audit/audit-entry';
 import type { Cookies } from '@sveltejs/kit';
 import type { Activity } from './+layout.server';
 import type { PageServerLoad } from './$types';
-import { apiJson, type AuditEntry, type KitchenOverview } from './kitchen/kitchen-api';
+import { apiJson, type KitchenOverview } from './kitchen/kitchen-api';
 
 const canViewKitchenOverview = (activity: Activity, user: CurrentUser) =>
 	activity.coordinatorId === user.id ||

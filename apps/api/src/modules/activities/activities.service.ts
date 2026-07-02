@@ -6,6 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { AuditService } from '../audit/audit.service';
 import { FinancialDocumentStatus } from '../finance/entities/financial-document-status.enum';
 import { FinancialDocument } from '../finance/entities/financial-document.entity';
 import { UserRole } from '../users/entities/user-role.enum';
@@ -15,6 +16,7 @@ import {
   ActivityDto,
   ActivityFinanceSummaryDto,
   CreateActivityDto,
+  UpdateActivityDto,
   UpdateActivityDepartmentsDto,
 } from './dto/activity.dto';
 import { ActivityStatus } from './entities/activity-status.enum';
@@ -44,6 +46,7 @@ export class ActivitiesService {
     private readonly usersRepository: EntityRepository<User>,
     @Inject(EntityManager)
     private readonly em: EntityManager,
+    private readonly auditService: AuditService,
   ) {}
 
   async createActivity(
@@ -81,23 +84,69 @@ export class ActivitiesService {
     return serialized;
   }
 
+  async updateActivity(
+    user: CurrentUser,
+    activityId: number,
+    input: UpdateActivityDto,
+  ): Promise<ActivityDto> {
+    const activity = await this.getManagedActivity(user, activityId);
+    const before = this.activityAuditSnapshot(activity);
+
+    if (input.title !== undefined) {
+      activity.title = cleanRequiredText(input.title, 'Titlul activității');
+    }
+    if (input.type !== undefined) {
+      if (!Object.values(ActivityType).includes(input.type)) {
+        throw new BadRequestException('Tipul activității nu este valid.');
+      }
+      activity.type = input.type;
+    }
+    if (input.status !== undefined) {
+      if (!Object.values(ActivityStatus).includes(input.status)) {
+        throw new BadRequestException('Starea activității nu este validă.');
+      }
+      activity.status = input.status;
+    }
+    if (input.startDate !== undefined) {
+      activity.startDate = parseOptionalDate(input.startDate) ?? null;
+    }
+    if (input.endDate !== undefined) {
+      activity.endDate = parseOptionalDate(input.endDate) ?? null;
+    }
+    if (
+      activity.startDate &&
+      activity.endDate &&
+      activity.endDate < activity.startDate
+    ) {
+      throw new BadRequestException(
+        'Data de final nu poate fi înaintea datei de început.',
+      );
+    }
+    if (input.location !== undefined) {
+      activity.location =
+        cleanOptionalText(input.location)?.slice(0, 255) ?? null;
+    }
+    if (input.description !== undefined) {
+      activity.description = cleanOptionalText(input.description) ?? null;
+    }
+    if (input.departments !== undefined) {
+      activity.departments = normalizeDepartments(input.departments);
+    }
+
+    await this.em.flush();
+    await this.recordActivityUpdate(user, activity, before);
+
+    const [serialized] = await this.serializeActivities([activity], user);
+    return serialized;
+  }
+
   async updateDepartments(
     user: CurrentUser,
     activityId: number,
     input: UpdateActivityDepartmentsDto,
   ): Promise<ActivityDto> {
-    const activity = await this.activitiesRepository.findOne({
-      id: activityId,
-    });
-    if (!activity) {
-      throw new NotFoundException('Activitatea nu există.');
-    }
-
-    if (!this.canManageActivity(user, activity)) {
-      throw new BadRequestException(
-        'Nu poți modifica departamentele acestei activități.',
-      );
-    }
+    const activity = await this.getManagedActivity(user, activityId);
+    const before = this.activityAuditSnapshot(activity);
 
     if (!Array.isArray(input.departments)) {
       throw new BadRequestException(
@@ -107,6 +156,7 @@ export class ActivitiesService {
 
     activity.departments = normalizeDepartments(input.departments);
     await this.em.flush();
+    await this.recordActivityUpdate(user, activity, before);
 
     const [serialized] = await this.serializeActivities([activity], user);
     return serialized;
@@ -247,6 +297,62 @@ export class ActivitiesService {
       activity.coordinatorId === user.id ||
       user.roles.includes(UserRole.SuperAdmin)
     );
+  }
+
+  private async getManagedActivity(user: CurrentUser, activityId: number) {
+    const activity = await this.activitiesRepository.findOne({
+      id: activityId,
+    });
+    if (!activity) {
+      throw new NotFoundException('Activitatea nu există.');
+    }
+
+    if (!this.canManageActivity(user, activity)) {
+      throw new BadRequestException(
+        'Nu poți modifica setările acestei activități.',
+      );
+    }
+
+    return activity;
+  }
+
+  private activityAuditSnapshot(activity: Activity) {
+    return {
+      title: activity.title,
+      type: activity.type,
+      status: activity.status,
+      departments: [...activity.departments].sort(),
+      startDate: activity.startDate?.toISOString(),
+      endDate: activity.endDate?.toISOString(),
+      location: activity.location ?? undefined,
+      description: activity.description ?? undefined,
+    };
+  }
+
+  private async recordActivityUpdate(
+    user: CurrentUser,
+    activity: Activity,
+    before: ReturnType<ActivitiesService['activityAuditSnapshot']>,
+  ) {
+    const after = this.activityAuditSnapshot(activity);
+    const changedFields = Object.keys(after).filter(
+      (key) =>
+        JSON.stringify(before[key as keyof typeof before]) !==
+        JSON.stringify(after[key as keyof typeof after]),
+    );
+
+    if (!changedFields.length) {
+      return;
+    }
+
+    await this.auditService.record({
+      actorId: user.id,
+      action: 'activity.settings_updated',
+      entityType: 'activity',
+      entityId: activity.id,
+      activityId: activity.id,
+      metadata: { changedFields, before, after },
+    });
   }
 
   private async getUserNames(userIds: number[]) {

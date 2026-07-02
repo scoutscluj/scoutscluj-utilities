@@ -32,6 +32,14 @@ _Avoid_: Document financiar
 A planned scouting activity such as a camp, hike, festival, training, or other organized program effort. An activitate should be created from, linked to, or synchronized with an Orgo event whenever possible, then extended locally with participants, fees, expenses, documents, meal planning, and budget reports.
 _Avoid_: Event, eveniment, camp as the generic umbrella unless referring to the Orgo event object
 
+**Prezentare activitate**:
+The always-available landing page for one activitate, used for orientation and high-level operational status. Opening an activitate from navigation lands here; it is not a departament de activitate.
+_Avoid_: Department, tab, submenu item, settings page
+
+**Setări activitate**:
+The administrative area for changing the local details and enabled departments of one activitate. It controls the activity container itself and is not a departament de activitate.
+_Avoid_: Department, delivery workspace, global settings
+
 **Departament de activitate**:
 A named operational area inside an activitate that owns a coherent slice of planning or delivery, such as finance, kitchen, program, or logistics. Departamentele de activitate are activity-scoped responsibility areas chosen for each activitate from a standard set, not standalone global modules.
 _Avoid_: Tab, UI section, global module

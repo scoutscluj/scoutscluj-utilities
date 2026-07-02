@@ -67,6 +67,7 @@ export const activityHref = (activityId: number) => resolve(`/activities/${activ
 export const financeHref = (activityId: number) => resolve(`/activities/${activityId}/finance`);
 export const kitchenHref = (activityId: number) => resolve(`/activities/${activityId}/kitchen`);
 export const auditHref = (activityId: number) => resolve(`/activities/${activityId}/audit`);
+export const settingsHref = (activityId: number) => resolve(`/activities/${activityId}/settings`);
 
 export const isPathActive = (href: string, pathname: string) =>
 	href === '/' ? pathname === '/' : pathname.startsWith(href);
@@ -94,6 +95,9 @@ export const canViewActivityAudit = (activity: SidebarActivity, user: CurrentUse
 	hasRole(user, 'finance_manager') ||
 	hasRole(user, 'super_admin');
 
+export const canManageActivity = (activity: SidebarActivity, user: CurrentUser) =>
+	activity.coordinatorId === user.id || hasRole(user, 'super_admin');
+
 const formatDate = (value?: string) =>
 	value
 		? new Intl.DateTimeFormat('ro-RO', { dateStyle: 'medium' }).format(new Date(value))
@@ -115,7 +119,9 @@ export const activitySubtitle = (activity: SidebarActivity, pathname: string) =>
 			? kitchenSectionLabel(pathname)
 			: pathname.includes('/audit')
 				? 'Audit'
-				: 'Prezentare';
+				: pathname.includes('/settings')
+					? 'Setări'
+					: 'Prezentare';
 	const details = [
 		section,
 		activityTypeLabels[activity.type],

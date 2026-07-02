@@ -1,12 +1,7 @@
 <script lang="ts">
 	import type { CurrentUser } from '$lib/auth/types';
 	import type { Activity, ActivityDepartment } from './+layout.server';
-
-	type DepartmentOption = {
-		id: ActivityDepartment;
-		label: string;
-		description: string;
-	};
+	import { departmentOptions } from './activity-meta';
 
 	type Props = {
 		activity: Activity;
@@ -15,29 +10,6 @@
 	};
 
 	let { activity, user, message }: Props = $props();
-
-	const departments: DepartmentOption[] = [
-		{
-			id: 'finance',
-			label: 'Financiar',
-			description: 'Documente, chitanțe, facturi și registrul activității.'
-		},
-		{
-			id: 'kitchen',
-			label: 'Bucătărie',
-			description: 'Mese, rețete, ingrediente, aprovizionare și rapoarte.'
-		},
-		{
-			id: 'program',
-			label: 'Program',
-			description: 'Planificarea programului activității.'
-		},
-		{
-			id: 'logistics',
-			label: 'Logistică',
-			description: 'Transport, materiale, cazare și alte nevoi logistice.'
-		}
-	];
 
 	const canManageDepartments = $derived(
 		activity.coordinatorId === user.id || user.roles.includes('super_admin')
@@ -50,11 +22,11 @@
 	<form class="panel department-form" method="POST" action="?/departments">
 		<div>
 			<p class="panel-title">Departamente</p>
-			<p>Prezentarea este activă mereu. Alege ce departamente apar pentru această activitate.</p>
+			<p>Alege ce departamente apar pentru această activitate.</p>
 		</div>
 
 		<div class="department-options">
-			{#each departments as department (department.id)}
+			{#each departmentOptions as department (department.id)}
 				<label>
 					<input
 						type="checkbox"
@@ -69,6 +41,10 @@
 				</label>
 			{/each}
 		</div>
+
+		<p class="warning">
+			Dezactivarea unui departament îl ascunde din navigație, dar datele existente rămân păstrate.
+		</p>
 
 		<div class="department-actions">
 			<button type="submit">Salvează departamentele</button>
@@ -87,7 +63,7 @@
 		border-radius: 8px;
 		background: #ffffff;
 		padding: 18px;
-		box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
+		box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
 	}
 
 	.panel-title {
@@ -157,6 +133,14 @@
 	.form-message {
 		color: #1e3a8a;
 		font-weight: 750;
+	}
+
+	.warning {
+		border: 1px solid #facc15;
+		border-radius: 8px;
+		background: #fefce8;
+		padding: 10px 12px;
+		color: #713f12;
 	}
 
 	@media (max-width: 720px) {

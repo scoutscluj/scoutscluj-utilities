@@ -5,6 +5,7 @@
 		activitiesGroupKey,
 		activityHref,
 		auditHref,
+		canManageActivity,
 		canViewActivityAudit,
 		departmentLabels,
 		financeHref,
@@ -12,7 +13,8 @@
 		isPathActive,
 		kitchenHref,
 		menuHref,
-		parseCurrentActivityId
+		parseCurrentActivityId,
+		settingsHref
 	} from './app-shell';
 
 	type Props = {
@@ -70,14 +72,6 @@
 
 					{#if activity.id === currentActivityId}
 						<div class="department-items">
-							<a
-								href={activityHref(activity.id)}
-								class:active={isActiveExact(activityHref(activity.id))}
-								onclick={closeMobile}
-								aria-current={isActiveExact(activityHref(activity.id)) ? 'page' : undefined}
-							>
-								Prezentare
-							</a>
 							{#if hasDepartment(activity, 'finance')}
 								<a
 									href={financeHref(activity.id)}
@@ -112,16 +106,36 @@
 									{departmentLabels.logistics}
 								</span>
 							{/if}
-							{#if canViewActivityAudit(activity, user)}
-								<a
-									class="utility-link"
-									href={auditHref(activity.id)}
-									class:active={isPathActive(auditHref(activity.id), pathname)}
-									onclick={closeMobile}
-									aria-current={isPathActive(auditHref(activity.id), pathname) ? 'page' : undefined}
-								>
-									Audit
-								</a>
+							{#if canManageActivity(activity, user) || canViewActivityAudit(activity, user)}
+								<div class="utility-items">
+									<span class="utility-label">Util</span>
+									{#if canManageActivity(activity, user)}
+										<a
+											class="utility-link"
+											href={settingsHref(activity.id)}
+											class:active={isPathActive(settingsHref(activity.id), pathname)}
+											onclick={closeMobile}
+											aria-current={isPathActive(settingsHref(activity.id), pathname)
+												? 'page'
+												: undefined}
+										>
+											Setări
+										</a>
+									{/if}
+									{#if canViewActivityAudit(activity, user)}
+										<a
+											class="utility-link"
+											href={auditHref(activity.id)}
+											class:active={isPathActive(auditHref(activity.id), pathname)}
+											onclick={closeMobile}
+											aria-current={isPathActive(auditHref(activity.id), pathname)
+												? 'page'
+												: undefined}
+										>
+											Audit
+										</a>
+									{/if}
+								</div>
 							{/if}
 						</div>
 					{/if}
@@ -207,6 +221,22 @@
 		margin-left: 10px;
 		padding-left: 8px;
 		border-left: 1px solid #edf1f5;
+	}
+
+	.utility-items {
+		display: grid;
+		gap: 3px;
+		margin-top: 4px;
+		border-top: 1px solid #edf1f5;
+		padding-top: 5px;
+	}
+
+	.utility-label {
+		padding: 0 10px;
+		color: #94a3b8;
+		font-size: 0.66rem;
+		font-weight: 900;
+		text-transform: uppercase;
 	}
 
 	.department-items a {

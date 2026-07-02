@@ -1,11 +1,7 @@
 <script lang="ts">
-	let { data } = $props();
+	import AuditEntryTable from '$lib/audit/AuditEntryTable.svelte';
 
-	const formatDateTime = (value: string) =>
-		new Intl.DateTimeFormat('ro-RO', {
-			dateStyle: 'medium',
-			timeStyle: 'short'
-		}).format(new Date(value));
+	let { data } = $props();
 </script>
 
 <section class="audit-page">
@@ -20,32 +16,7 @@
 			<span>{data.entries.length} evenimente</span>
 		</div>
 
-		<div class="table-wrap">
-			<table>
-				<thead>
-					<tr>
-						<th>Când</th>
-						<th>Cine</th>
-						<th>Acțiune</th>
-						<th>Activitate</th>
-						<th>Entitate</th>
-						<th>Detalii</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each data.entries as entry (entry.id)}
-						<tr>
-							<td>{formatDateTime(entry.createdAt)}</td>
-							<td>{entry.actorName ?? 'Sistem'}</td>
-							<td>{entry.action}</td>
-							<td>{entry.activityId ?? '-'}</td>
-							<td>{entry.entityType} #{entry.entityId}</td>
-							<td><code>{JSON.stringify(entry.metadata)}</code></td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
+		<AuditEntryTable entries={data.entries} showActivity />
 	</section>
 </section>
 
@@ -87,34 +58,6 @@
 	.section-heading span {
 		color: #64748b;
 		font-weight: 800;
-	}
-
-	.table-wrap {
-		overflow-x: auto;
-	}
-
-	table {
-		width: 100%;
-		border-collapse: collapse;
-	}
-
-	th,
-	td {
-		border-bottom: 1px solid #e2e8f0;
-		padding: 10px;
-		text-align: left;
-		vertical-align: top;
-	}
-
-	th {
-		color: #475569;
-		font-size: 0.78rem;
-		text-transform: uppercase;
-	}
-
-	code {
-		white-space: pre-wrap;
-		word-break: break-word;
 	}
 
 	.eyebrow {

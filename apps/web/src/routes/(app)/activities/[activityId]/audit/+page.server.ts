@@ -1,5 +1,6 @@
 import type { PageServerLoad } from './$types';
-import { apiJson, parseActivityId, type AuditEntry } from '../kitchen/kitchen-api';
+import type { AuditEntry } from '$lib/audit/audit-entry';
+import { apiJson, parseActivityId } from '../kitchen/kitchen-api';
 
 export const load: PageServerLoad = async ({ cookies, params }) => {
 	const activityId = parseActivityId(params.activityId);

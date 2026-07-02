@@ -77,6 +77,11 @@ Available views:
 - activity-scoped audit journal for the activity coordinator, `finance_manager`,
   and `super_admin`
 
+Audit views should show human-readable event titles and summaries first. Raw
+action names, entity type/id pairs, and JSON metadata remain available from an
+entry details modal, but should not be shown directly in the main table or
+recent-activity feed.
+
 Finance still keeps its document-status history for detailed workflow review.
 Important finance state changes also write central audit entries so cross-app
 history remains visible in one place.

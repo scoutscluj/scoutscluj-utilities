@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { formatAuditDateTime, type AuditEntry } from '$lib/audit/audit-entry';
+	import { formatAuditEntry } from '$lib/audit/audit-labels';
 	import type { Activity } from './+layout.server';
-	import type { AuditEntry } from './kitchen/kitchen-api';
 
 	type Props = {
 		activity: Activity;
@@ -9,12 +10,6 @@
 	};
 
 	let { activity, entries }: Props = $props();
-
-	const formatDateTime = (value: string) =>
-		new Intl.DateTimeFormat('ro-RO', {
-			dateStyle: 'medium',
-			timeStyle: 'short'
-		}).format(new Date(value));
 </script>
 
 {#if entries.length}
@@ -26,9 +21,11 @@
 
 		<div class="entry-list">
 			{#each entries.slice(0, 5) as entry (entry.id)}
+				{@const display = formatAuditEntry(entry)}
 				<div>
-					<strong>{entry.action}</strong>
-					<span>{entry.actorName ?? 'Sistem'} · {formatDateTime(entry.createdAt)}</span>
+					<strong>{display.title}</strong>
+					<span>{display.summary}</span>
+					<small>{entry.actorName ?? 'Sistem'} · {formatAuditDateTime(entry.createdAt)}</small>
 				</div>
 			{/each}
 		</div>
@@ -93,5 +90,10 @@
 	span {
 		color: #64748b;
 		font-size: 0.82rem;
+	}
+
+	small {
+		color: #94a3b8;
+		font-size: 0.78rem;
 	}
 </style>

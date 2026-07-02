@@ -16,6 +16,7 @@ import { ActivitiesService } from './activities.service';
 import {
   ActivityDto,
   CreateActivityDto,
+  UpdateActivityDto,
   UpdateActivityDepartmentsDto,
 } from './dto/activity.dto';
 
@@ -47,6 +48,16 @@ export class ActivitiesController {
     @Param('id', ParseIntPipe) activityId: number,
   ) {
     return this.activitiesService.getActivity(user, activityId);
+  }
+
+  @Patch(':id')
+  @ApiOkResponse({ type: ActivityDto })
+  updateActivity(
+    @CurrentUserDecorator() user: AuthenticatedUser,
+    @Param('id', ParseIntPipe) activityId: number,
+    @Body() body: UpdateActivityDto,
+  ) {
+    return this.activitiesService.updateActivity(user, activityId, body);
   }
 
   @Patch(':id/departments')

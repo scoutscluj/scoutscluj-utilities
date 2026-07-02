@@ -4,6 +4,7 @@ packages:
   - "packages/*"
 
 allowBuilds:
+  "@fission-ai/openspec": true
   "@nestjs/core": false
   "@scarf/scarf": false
   "esbuild": true

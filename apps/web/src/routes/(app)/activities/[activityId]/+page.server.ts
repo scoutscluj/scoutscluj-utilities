@@ -1,62 +1,43 @@
-import { fail } from '@sveltejs/kit';
-import { SESSION_COOKIE_NAME } from '$lib/server/cookies';
-import { apiFetch } from '$lib/server/api';
-import type { Actions } from './$types';
+import type { CurrentUser } from '$lib/auth/types';
+import type { Cookies } from '@sveltejs/kit';
+import type { Activity } from './+layout.server';
+import type { PageServerLoad } from './$types';
+import { apiJson, type AuditEntry, type KitchenOverview } from './kitchen/kitchen-api';
 
-type ActivityDepartment = 'finance' | 'kitchen' | 'program' | 'logistics';
+const canViewKitchenOverview = (activity: Activity, user: CurrentUser) =>
+	activity.coordinatorId === user.id ||
+	user.roles.includes('finance_manager') ||
+	user.roles.includes('super_admin');
 
-const validDepartments = new Set<ActivityDepartment>([
-	'finance',
-	'kitchen',
-	'program',
-	'logistics'
-]);
+const canViewActivityAudit = (activity: Activity, user: CurrentUser) =>
+	activity.coordinatorId === user.id ||
+	user.roles.includes('finance_manager') ||
+	user.roles.includes('super_admin');
 
-const authHeaders = (sessionToken: string) => ({
-	cookie: `${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionToken)}`
-});
-
-const readApiMessage = async (response: Response) => {
+const optionalApiJson = async <T>(cookies: Cookies, path: string) => {
 	try {
-		const body = (await response.json()) as { message?: string | string[] };
-		if (Array.isArray(body.message)) {
-			return body.message.join(' ');
-		}
-
-		return body.message ?? 'Operațiunea nu a reușit.';
+		return await apiJson<T>(cookies, path);
 	} catch {
-		return 'Operațiunea nu a reușit.';
+		return undefined;
 	}
 };
 
-export const actions: Actions = {
-	departments: async ({ request, cookies, params }) => {
-		const sessionToken = cookies.get(SESSION_COOKIE_NAME);
-		if (!sessionToken) {
-			return fail(401, { departmentMessage: 'Autentificarea este necesară.' });
-		}
+export const load: PageServerLoad = async ({ cookies, parent }) => {
+	const { activity, user } = await parent();
+	const shouldLoadKitchen =
+		activity.departments.includes('kitchen') && canViewKitchenOverview(activity, user);
+	const shouldLoadAudit = canViewActivityAudit(activity, user);
+	const [kitchenOverview, auditEntries] = await Promise.all([
+		shouldLoadKitchen
+			? optionalApiJson<KitchenOverview>(cookies, `/api/activities/${activity.id}/kitchen`)
+			: undefined,
+		shouldLoadAudit
+			? optionalApiJson<AuditEntry[]>(cookies, `/api/audit/activities/${activity.id}`)
+			: []
+	]);
 
-		const formData = await request.formData();
-		const departments = formData
-			.getAll('departments')
-			.map((value) => value.toString())
-			.filter((department): department is ActivityDepartment =>
-				validDepartments.has(department as ActivityDepartment)
-			);
-
-		const response = await apiFetch(`/api/activities/${params.activityId}/departments`, {
-			method: 'PATCH',
-			headers: {
-				...authHeaders(sessionToken),
-				'content-type': 'application/json'
-			},
-			body: JSON.stringify({ departments })
-		});
-
-		if (!response.ok) {
-			return fail(response.status, { departmentMessage: await readApiMessage(response) });
-		}
-
-		return { departmentMessage: 'Departamentele au fost salvate.' };
-	}
+	return {
+		kitchenOverview,
+		auditEntries: auditEntries?.slice(0, 5) ?? []
+	};
 };

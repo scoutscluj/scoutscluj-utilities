@@ -33,6 +33,34 @@ export class CreateActivityDto {
   departments?: ActivityDepartment[];
 }
 
+export class UpdateActivityDto {
+  @ApiPropertyOptional({ example: 'Camp Lupișori 2026' })
+  title?: string;
+
+  @ApiPropertyOptional({ enum: ActivityType })
+  type?: ActivityType;
+
+  @ApiPropertyOptional({ enum: ActivityStatus })
+  status?: ActivityStatus;
+
+  @ApiPropertyOptional({ example: '2026-07-12' })
+  startDate?: string;
+
+  @ApiPropertyOptional({ example: '2026-07-18' })
+  endDate?: string;
+
+  @ApiPropertyOptional({ example: 'Beliș' })
+  location?: string;
+
+  @ApiPropertyOptional({
+    example: 'Activitate locală cu buget urmărit în aplicație.',
+  })
+  description?: string;
+
+  @ApiPropertyOptional({ enum: ActivityDepartment, isArray: true })
+  departments?: ActivityDepartment[];
+}
+
 export class UpdateActivityDepartmentsDto {
   @ApiProperty({ enum: ActivityDepartment, isArray: true })
   departments!: ActivityDepartment[];

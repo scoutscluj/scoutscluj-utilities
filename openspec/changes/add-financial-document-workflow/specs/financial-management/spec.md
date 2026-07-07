@@ -86,6 +86,14 @@ The system SHALL support the approved financial document statuses and audited tr
 - **THEN** the uploader can see the request and comment
 - **AND** the document remains visible in finance follow-up queues
 
+#### Scenario: Keez email handoff fails
+
+- **GIVEN** a financial document is being sent to accounting
+- **WHEN** Gmail rejects the send request or the handoff adapter cannot complete
+- **THEN** the document status becomes `send_failed`
+- **AND** the failed attempt records the sender, recipient, timestamp, and safe error summary
+- **AND** finance users can retry the handoff without re-uploading the file
+
 ### Requirement: Finance Notifications
 
 The system SHALL send PWA/Web Push notifications for finance workflow events when users have enabled notifications.
@@ -120,7 +128,7 @@ The system SHALL support a global document handoff mode and per-activity overrid
 
 ### Requirement: Keez Integration Adapter
 
-The system SHALL integrate with Keez through a server-side adapter that records attempts and supports manual fallback when direct document upload is unavailable.
+The system SHALL integrate with Keez through a server-side adapter that records attempts and supports Gmail email handoff when direct document upload is unavailable.
 
 #### Scenario: Keez supports operation
 
@@ -129,12 +137,36 @@ The system SHALL integrate with Keez through a server-side adapter that records 
 - **THEN** the adapter authenticates server-side
 - **AND** records request outcome, external identifier, response summary, and timestamp
 
-#### Scenario: Keez document upload unsupported
+#### Scenario: Keez document upload unsupported but email handoff configured
 
 - **GIVEN** Keez has no configured generic document upload endpoint
 - **WHEN** a document is ready for Keez
-- **THEN** the system marks the handoff mode as manual/export
-- **AND** keeps local document status and audit trail available to finance users
+- **THEN** the system sends one email to `cui@keez.ro` from `cluj.napoca@scout.ro`
+- **AND** attaches the file using a generated name such as `document-financiar-000123.pdf`
+- **AND** records Gmail message id, sender, recipient, and timestamp when Gmail accepts the message
+
+#### Scenario: Direct mode duplicate upload
+
+- **GIVEN** direct-to-accounting mode is enabled
+- **AND** a new upload has the same SHA-256 checksum as a document already sent to accounting
+- **WHEN** the user uploads the duplicate file
+- **THEN** the system stores or rejects the upload according to the upload policy
+- **AND** does not automatically send the duplicate to accounting
+- **AND** exposes the duplicate state to finance users for manual decision
+
+#### Scenario: Regular upload copy hides Keez details
+
+- **GIVEN** a regular user opens a document upload form
+- **WHEN** review-first mode is enabled
+- **THEN** the form states that the document will be checked before being sent to contabilitate
+- **AND** does not show Keez recipient or Gmail sender addresses
+
+#### Scenario: Direct upload copy hides Keez details
+
+- **GIVEN** a regular user opens a document upload form
+- **WHEN** direct mode is enabled
+- **THEN** the form states that the document will be sent automatically to contabilitate after upload
+- **AND** does not show Keez recipient or Gmail sender addresses
 
 ### Requirement: BT Statement Import
 

@@ -3,9 +3,10 @@
 
 	type Props = {
 		activities: Activity[];
+		handoffMode: 'review_first' | 'direct_to_keez';
 	};
 
-	let { activities }: Props = $props();
+	let { activities, handoffMode }: Props = $props();
 
 	const activityTypeLabels: Record<ActivityType, string> = {
 		camp: 'Camp',
@@ -22,6 +23,12 @@
 		<p class="panel-title">Încărcare document</p>
 		<p class="panel-subtitle">PDF, imagine sau poză din telefon, maxim 15 MB.</p>
 	</div>
+
+	<p class="handoff-note">
+		{handoffMode === 'direct_to_keez'
+			? 'Documentul va fi trimis automat către contabilitate după încărcare.'
+			: 'Documentul va fi verificat de responsabilul financiar înainte de trimiterea către contabilitate.'}
+	</p>
 
 	<label>
 		<span>Document</span>
@@ -67,10 +74,18 @@
 		font-weight: 900;
 	}
 
-	.panel-subtitle {
+	.panel-subtitle,
+	.handoff-note {
 		margin-top: 4px;
 		color: #52616f;
 		font-size: 0.92rem;
+	}
+
+	.handoff-note {
+		border-left: 3px solid #0f766e;
+		background: #f0fdfa;
+		padding: 10px 12px;
+		font-weight: 800;
 	}
 
 	label {

@@ -23,7 +23,10 @@
 	{/if}
 
 	<div class="top-grid">
-		<FinancialDocumentUploadForm activities={data.activities} />
+		<FinancialDocumentUploadForm
+			activities={data.activities}
+			handoffMode={data.handoffGuidance.keezHandoffMode}
+		/>
 
 		{#if data.isFinanceManager && data.settings}
 			<FinanceSettingsForm settings={data.settings} />

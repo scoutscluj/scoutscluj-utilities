@@ -20,6 +20,11 @@
 			{settings.keezConfigured ? 'Configurat' : 'Neconfigurat'} ·
 			{settings.keezEnvironment}
 		</p>
+		{#if settings.keezEmailHandoffAvailable}
+			<p class="panel-subtitle">
+				Email: {settings.keezEmailSender} -> {settings.keezEmailRecipient}
+			</p>
+		{/if}
 	</div>
 
 	<label>
@@ -39,7 +44,9 @@
 	</label>
 
 	{#if !settings.keezDocumentUploadAvailable}
-		<p class="notice">API-ul Keez pentru încărcare documente nu este confirmat încă.</p>
+		<p class="notice">
+			Trimiterea directă cere Gmail configurat pentru cluj.napoca@scout.ro către cui@keez.ro.
+		</p>
 	{/if}
 
 	<button type="submit">Salvează setarea</button>

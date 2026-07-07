@@ -115,7 +115,18 @@ Adapter behavior:
 - Use server-side Keez credentials only.
 - Store external IDs and raw safe response metadata.
 - Map Keez errors into retryable, unauthorized, validation, unsupported, and unknown categories.
-- If generic document upload is unsupported, generate manual/export handoff artifacts and track status locally.
+- If generic document upload is unsupported, use Gmail email handoff where configured and track status locally.
+- Send from `cluj.napoca@scout.ro` to `cui@keez.ro`.
+- Send one email per `Document financiar`.
+- Use regular-user copy that says `contabilitate`; expose Keez/Gmail technical details only to finance users and audit records.
+- Use the official organization name in the email body: `ASOCIAŢIA ORGANIZAŢIA NAŢIONALĂ CERCETAŞII ROMÂNIEI FILIALA CLUJ`.
+- Use short subjects: `Document financiar Resurse Scouts Cluj - #000123`.
+- Rename attachments to `document-financiar-000123.ext` while preserving the original filename locally.
+- Treat `Trimis` as Gmail accepting the message, not Keez processing the document.
+- Add a distinct `send_failed` state for failed outbound handoff.
+- Allow explicit audited retry/resend.
+- Detect exact duplicate files by checksum and avoid automatic duplicate sending in direct mode.
+- Keep inbound Keez/Gmail reply or bounce processing out of v1.
 
 ## Keez Questions
 
@@ -129,7 +140,7 @@ Ask Keez:
 6. Whether document upload works in staging with current credentials.
 7. Whether purchase invoices/expense documents have separate APIs from customer invoice APIs.
 8. Whether uploaded documents support caller-supplied external IDs/idempotency keys.
-9. Whether an email-ingestion fallback exists and can be automated.
+9. Whether an email-ingestion fallback exists and can be automated. Keez confirmed documents sent to `cui@keez.ro` from the Keez account email are loaded automatically under Contabilitate -> Documente.
 
 ## Notifications
 

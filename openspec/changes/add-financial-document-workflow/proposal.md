@@ -13,7 +13,7 @@ Keez is the external accounting partner, but the public Keez API currently docum
 - Add a finance role/capability for `Responsabil financiar`.
 - Add local `Documente financiare` upload, review, audit, visibility, and status management.
 - Add global and per-activity document handoff settings for review-first versus direct-to-Keez behavior.
-- Add a Keez integration adapter with secure server-side credentials, confirmed public invoice API support, direct-document capability detection/configuration, and manual/export fallback.
+- Add a Keez integration adapter with secure server-side credentials, confirmed public invoice API support, direct-document capability detection/configuration, and Gmail email handoff fallback.
 - Add PWA/Web Push notification infrastructure needed for finance upload and clarification workflows.
 - Add BT transaction import, import previews, deterministic duplicate protection, classification metadata, review status, and statistics.
 - Add manual links between `Document financiar` and `Tranzacție BT`, including `Document lipsă` tracking.
@@ -28,12 +28,12 @@ Keez is the external accounting partner, but the public Keez API currently docum
 - Stripe implementation.
 - Automatic OCR or document metadata extraction.
 - Automatic document-to-transaction matching.
-- Direct Keez generic document upload unless Keez confirms an API.
+- Direct Keez generic document upload unless Keez confirms an API. Confirmed email ingestion through `cui@keez.ro` is in scope.
 - Full legacy data migration.
 
 ## Impact
 
 - Affected specs: `financial-management` (new)
 - Affected app areas: API finance module, web finance routes, auth role model, notification infrastructure, environment configuration, storage, BT import parser/classifier, Keez integration adapter.
-- Affected data: finance documents, document files, document status audit, Keez submission attempts, finance settings, BT transactions, transaction imports, document-transaction links, minimal activities.
+- Affected data: finance documents, document files, document status audit, Keez/Gmail handoff attempts, finance settings, BT transactions, transaction imports, document-transaction links, minimal activities.
 - Security impact: finance records and documents are sensitive; access must be restricted, uploads scanned/validated, and external credentials kept server-side only.

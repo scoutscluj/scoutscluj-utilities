@@ -6,6 +6,7 @@ import { AuthModule } from '../auth/auth.module';
 import { User } from '../users/entities/user.entity';
 import { FinanceSettings } from './entities/finance-settings.entity';
 import { FinancialDocumentAudit } from './entities/financial-document-audit.entity';
+import { FinancialDocumentHandoffAttempt } from './entities/financial-document-handoff-attempt.entity';
 import { FinancialDocument } from './entities/financial-document.entity';
 import { FinanceController } from './finance.controller';
 import { FinanceService } from './finance.service';
@@ -18,6 +19,7 @@ import { KeezService } from './keez.service';
     MikroOrmModule.forFeature([
       FinancialDocument,
       FinancialDocumentAudit,
+      FinancialDocumentHandoffAttempt,
       FinanceSettings,
       Activity,
       User,

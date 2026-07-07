@@ -12,6 +12,7 @@ export type FinancialDocumentStatus =
 	| 'in_review'
 	| 'ready_to_send'
 	| 'sent'
+	| 'send_failed'
 	| 'needs_clarification'
 	| 'rejected'
 	| 'archived';
@@ -31,8 +32,13 @@ export type FinancialDocument = {
 	reviewerNotes?: string;
 	keezExternalId?: string;
 	keezSubmittedAt?: string;
+	lastHandoffError?: string;
 	createdAt: string;
 	updatedAt: string;
+};
+
+export type FinanceHandoffGuidance = {
+	keezHandoffMode: 'review_first' | 'direct_to_keez';
 };
 
 const getSessionToken = (cookies: Cookies) => {
@@ -98,16 +104,22 @@ const inferContentType = (file: File) => {
 export const load: PageServerLoad = async ({ cookies, params }) => {
 	const sessionToken = getSessionToken(cookies);
 	const activityId = parseActivityId(params.activityId);
-	const response = await apiFetch(`/api/finance/documents?activityId=${activityId}`, {
-		headers: authHeaders(sessionToken)
-	});
+	const headers = authHeaders(sessionToken);
+	const [response, handoffGuidanceResponse] = await Promise.all([
+		apiFetch(`/api/finance/documents?activityId=${activityId}`, { headers }),
+		apiFetch('/api/finance/documents/handoff-guidance', { headers })
+	]);
 
 	if (!response.ok) {
 		error(response.status, await readApiMessage(response));
 	}
+	if (!handoffGuidanceResponse.ok) {
+		error(handoffGuidanceResponse.status, await readApiMessage(handoffGuidanceResponse));
+	}
 
 	return {
-		documents: (await response.json()) as FinancialDocument[]
+		documents: (await response.json()) as FinancialDocument[],
+		handoffGuidance: (await handoffGuidanceResponse.json()) as FinanceHandoffGuidance
 	};
 };
 

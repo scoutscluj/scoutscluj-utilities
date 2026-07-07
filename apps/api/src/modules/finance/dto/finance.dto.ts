@@ -87,6 +87,9 @@ export class FinancialDocumentDto {
   @ApiPropertyOptional()
   keezSubmittedAt?: string;
 
+  @ApiPropertyOptional()
+  lastHandoffError?: string;
+
   @ApiProperty()
   createdAt!: string;
 
@@ -132,6 +135,20 @@ export class FinanceSettingsDto {
 
   @ApiProperty()
   keezDocumentUploadAvailable!: boolean;
+
+  @ApiProperty()
+  keezEmailHandoffAvailable!: boolean;
+
+  @ApiPropertyOptional()
+  keezEmailSender?: string;
+
+  @ApiPropertyOptional()
+  keezEmailRecipient?: string;
+}
+
+export class FinanceHandoffGuidanceDto {
+  @ApiProperty({ enum: KeezHandoffMode })
+  keezHandoffMode!: KeezHandoffMode;
 }
 
 export class FinanceSummaryDto {

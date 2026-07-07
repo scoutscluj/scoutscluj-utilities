@@ -34,6 +34,9 @@
 		{#if document.reviewerNotes}
 			<p class="reviewer-notes">{document.reviewerNotes}</p>
 		{/if}
+		{#if document.lastHandoffError}
+			<p class="handoff-error">{document.lastHandoffError}</p>
+		{/if}
 	</div>
 
 	<a class="download-link" href={resolve(`/finance/documents/${document.id}/file`)}>Descarcă</a>
@@ -98,6 +101,11 @@
 		color: #991b1b;
 	}
 
+	.status.send_failed {
+		background: #fef2f2;
+		color: #b91c1c;
+	}
+
 	.status.archived {
 		background: #f1f5f9;
 		color: #475569;
@@ -108,6 +116,15 @@
 		border-left: 3px solid #f59e0b;
 		padding-left: 10px;
 		color: #92400e;
+	}
+
+	.handoff-error {
+		margin-top: 10px;
+		border-left: 3px solid #dc2626;
+		background: #fef2f2;
+		padding: 10px;
+		color: #991b1b;
+		font-weight: 800;
 	}
 
 	.download-link {

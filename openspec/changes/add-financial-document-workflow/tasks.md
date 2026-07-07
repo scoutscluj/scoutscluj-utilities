@@ -31,7 +31,9 @@
 - [ ] Implement token retrieval with client credentials.
 - [ ] Implement confirmed invoice API operations needed for future extensibility.
 - [x] Add generic document handoff abstraction with unsupported/manual fallback mode.
-- [ ] Track Keez handoff attempts and errors.
+- [x] Implement Gmail email handoff to `cui@keez.ro` from `cluj.napoca@scout.ro`.
+- [x] Track Keez/Gmail handoff attempts, provider message ids, and errors.
+- [x] Add `send_failed`, retry, explicit resend, and duplicate-check behavior.
 - [x] Add global handoff mode setting.
 - [ ] Add per-activity handoff mode settings.
 - [ ] Add tests with mocked Keez responses.
@@ -62,6 +64,7 @@
 ## 8. Documentation And Validation
 
 - [ ] Document Keez capabilities and open questions.
+- [x] Document confirmed Keez email ingestion and Gmail configuration.
 - [x] Document required environment variables.
-- [ ] Validate OpenSpec change if the CLI becomes available in the repo.
+- [x] Validate OpenSpec change if the CLI becomes available in the repo.
 - [x] Run focused API/web checks after implementation slices.

@@ -36,6 +36,12 @@
 				<p class="panel-subtitle">Documentul va fi legat de această activitate.</p>
 			</div>
 
+			<p class="handoff-note">
+				{data.handoffGuidance.keezHandoffMode === 'direct_to_keez'
+					? 'Documentul va fi trimis automat către contabilitate după încărcare.'
+					: 'Documentul va fi verificat de responsabilul financiar înainte de trimiterea către contabilitate.'}
+			</p>
+
 			<label>
 				<span>Document</span>
 				<input name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif" required />
@@ -151,9 +157,17 @@
 	}
 
 	.panel-subtitle,
+	.handoff-note,
 	.empty-state p,
 	.summary-grid p {
 		color: #64748b;
+	}
+
+	.handoff-note {
+		border-left: 3px solid #0f766e;
+		background: #f0fdfa;
+		padding: 10px 12px;
+		font-weight: 800;
 	}
 
 	label {

@@ -21,6 +21,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { UserRole } from '../users/entities/user-role.enum';
 import {
   CreateFinancialDocumentDto,
+  FinanceHandoffGuidanceDto,
   FinanceSettingsDto,
   FinanceSummaryDto,
   FinancialDocumentAuditDto,
@@ -55,6 +56,12 @@ export class FinanceController {
     @Body() body: CreateFinancialDocumentDto,
   ) {
     return this.financeService.createDocument(user, body);
+  }
+
+  @Get('documents/handoff-guidance')
+  @ApiOkResponse({ type: FinanceHandoffGuidanceDto })
+  getHandoffGuidance() {
+    return this.financeService.getHandoffGuidance();
   }
 
   @Get('documents/:id/audits')
@@ -94,6 +101,39 @@ export class FinanceController {
     @Body() body: UpdateFinancialDocumentStatusDto,
   ) {
     return this.financeService.updateDocumentStatus(user, documentId, body);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.FinanceManager)
+  @Post('documents/:id/send')
+  @ApiOkResponse({ type: FinancialDocumentDto })
+  sendDocumentToAccounting(
+    @CurrentUserDecorator() user: AuthenticatedUser,
+    @Param('id', ParseIntPipe) documentId: number,
+  ) {
+    return this.financeService.sendDocumentToAccounting(user, documentId);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.FinanceManager)
+  @Post('documents/:id/retry-send')
+  @ApiOkResponse({ type: FinancialDocumentDto })
+  retryDocumentHandoff(
+    @CurrentUserDecorator() user: AuthenticatedUser,
+    @Param('id', ParseIntPipe) documentId: number,
+  ) {
+    return this.financeService.retryDocumentHandoff(user, documentId);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.FinanceManager)
+  @Post('documents/:id/resend')
+  @ApiOkResponse({ type: FinancialDocumentDto })
+  resendDocumentToAccounting(
+    @CurrentUserDecorator() user: AuthenticatedUser,
+    @Param('id', ParseIntPipe) documentId: number,
+  ) {
+    return this.financeService.resendDocumentToAccounting(user, documentId);
   }
 
   @UseGuards(RolesGuard)

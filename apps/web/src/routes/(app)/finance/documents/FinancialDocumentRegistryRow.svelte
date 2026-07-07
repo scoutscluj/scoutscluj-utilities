@@ -45,6 +45,9 @@
 		{#if document.reviewerNotes}
 			<p class="reviewer-notes">{document.reviewerNotes}</p>
 		{/if}
+		{#if document.lastHandoffError}
+			<p class="handoff-error">{document.lastHandoffError}</p>
+		{/if}
 		<a class="download-link" href={resolve(`/finance/documents/${document.id}/file`)}>
 			Descarcă documentul
 		</a>
@@ -67,6 +70,26 @@
 			</label>
 			<button type="submit">Actualizează</button>
 		</form>
+
+		{#if document.status === 'send_failed'}
+			<form class="handoff-form" method="POST" action="?/sendDocument">
+				<input type="hidden" name="documentId" value={document.id} />
+				<input type="hidden" name="handoffAction" value="retry" />
+				<button type="submit">Reîncearcă trimiterea</button>
+			</form>
+		{:else if document.status === 'sent'}
+			<form class="handoff-form" method="POST" action="?/sendDocument">
+				<input type="hidden" name="documentId" value={document.id} />
+				<input type="hidden" name="handoffAction" value="resend" />
+				<button type="submit">Retrimite la contabilitate</button>
+			</form>
+		{:else if document.status === 'ready_to_send'}
+			<form class="handoff-form" method="POST" action="?/sendDocument">
+				<input type="hidden" name="documentId" value={document.id} />
+				<input type="hidden" name="handoffAction" value="send" />
+				<button type="submit">Trimite la contabilitate</button>
+			</form>
+		{/if}
 	{/if}
 </article>
 
@@ -85,6 +108,11 @@
 	.status-form {
 		display: grid;
 		gap: 14px;
+	}
+
+	.handoff-form {
+		display: grid;
+		align-content: end;
 	}
 
 	.document-title-line {
@@ -141,6 +169,11 @@
 		color: #991b1b;
 	}
 
+	.send_failed {
+		background: #fef2f2;
+		color: #b91c1c;
+	}
+
 	.archived {
 		background: #f1f5f9;
 		color: #475569;
@@ -182,6 +215,14 @@
 	.reviewer-notes {
 		border-left: 3px solid #0f766e;
 		padding-left: 10px;
+	}
+
+	.handoff-error {
+		border-left: 3px solid #dc2626;
+		background: #fef2f2;
+		padding: 10px;
+		color: #991b1b;
+		font-weight: 800;
 	}
 
 	label {

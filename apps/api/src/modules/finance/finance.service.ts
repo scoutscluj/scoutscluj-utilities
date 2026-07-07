@@ -24,6 +24,7 @@ import {
 } from './dto/finance.dto';
 import { FinanceSettings } from './entities/finance-settings.entity';
 import { FinancialDocumentAudit } from './entities/financial-document-audit.entity';
+import { FinancialDocumentHandoffAttempt } from './entities/financial-document-handoff-attempt.entity';
 import { FinancialDocumentStatus } from './entities/financial-document-status.enum';
 import { FinancialDocument } from './entities/financial-document.entity';
 import { KeezHandoffMode } from './entities/keez-handoff-mode.enum';
@@ -72,6 +73,8 @@ export class FinanceService {
     private readonly documentsRepository: EntityRepository<FinancialDocument>,
     @InjectRepository(FinancialDocumentAudit)
     private readonly auditsRepository: EntityRepository<FinancialDocumentAudit>,
+    @InjectRepository(FinancialDocumentHandoffAttempt)
+    private readonly handoffAttemptsRepository: EntityRepository<FinancialDocumentHandoffAttempt>,
     @InjectRepository(FinanceSettings)
     private readonly settingsRepository: EntityRepository<FinanceSettings>,
     @InjectRepository(Activity)
@@ -141,6 +144,7 @@ export class FinanceService {
         status: document.status,
       },
     });
+    await this.handleDirectHandoffAfterUpload(user, document);
 
     const [serialized] = await this.serializeDocuments([document]);
     return serialized;
@@ -265,6 +269,87 @@ export class FinanceService {
     return serialized;
   }
 
+  async sendDocumentToAccounting(
+    user: CurrentUser,
+    documentId: number,
+  ): Promise<FinancialDocumentDto> {
+    if (!this.canManageFinance(user)) {
+      throw new ForbiddenException('Nu ai acces la documentele financiare.');
+    }
+
+    const document = await this.documentsRepository.findOne({ id: documentId });
+    if (!document) {
+      throw new NotFoundException('Documentul financiar nu existÄƒ.');
+    }
+
+    const currentStatus = document.status as FinancialDocumentStatus;
+    if (currentStatus === FinancialDocumentStatus.Sent) {
+      throw new BadRequestException(
+        'Documentul a fost deja trimis. FoloseÈ™te retrimiterea explicitÄƒ.',
+      );
+    }
+    if (
+      currentStatus === FinancialDocumentStatus.Rejected ||
+      currentStatus === FinancialDocumentStatus.Archived
+    ) {
+      throw new BadRequestException(
+        'Documentul respins sau arhivat nu poate fi trimis cÄƒtre contabilitate.',
+      );
+    }
+
+    await this.submitDocumentHandoff(user, document, 'manual_send');
+    const [serialized] = await this.serializeDocuments([document]);
+    return serialized;
+  }
+
+  async retryDocumentHandoff(
+    user: CurrentUser,
+    documentId: number,
+  ): Promise<FinancialDocumentDto> {
+    if (!this.canManageFinance(user)) {
+      throw new ForbiddenException('Nu ai acces la documentele financiare.');
+    }
+
+    const document = await this.documentsRepository.findOne({ id: documentId });
+    if (!document) {
+      throw new NotFoundException('Documentul financiar nu existÄƒ.');
+    }
+    const currentStatus = document.status as FinancialDocumentStatus;
+    if (currentStatus !== FinancialDocumentStatus.SendFailed) {
+      throw new BadRequestException(
+        'Doar documentele cu trimitere eÈ™uatÄƒ pot fi reÃ®ncercate.',
+      );
+    }
+
+    await this.submitDocumentHandoff(user, document, 'retry');
+    const [serialized] = await this.serializeDocuments([document]);
+    return serialized;
+  }
+
+  async resendDocumentToAccounting(
+    user: CurrentUser,
+    documentId: number,
+  ): Promise<FinancialDocumentDto> {
+    if (!this.canManageFinance(user)) {
+      throw new ForbiddenException('Nu ai acces la documentele financiare.');
+    }
+
+    const document = await this.documentsRepository.findOne({ id: documentId });
+    if (!document) {
+      throw new NotFoundException('Documentul financiar nu existÄƒ.');
+    }
+    const currentStatus = document.status as FinancialDocumentStatus;
+    if (currentStatus !== FinancialDocumentStatus.Sent) {
+      throw new BadRequestException(
+        'Doar documentele trimise pot fi retrimise explicit.',
+      );
+    }
+
+    await this.submitDocumentHandoff(user, document, 'resend');
+    const [serialized] = await this.serializeDocuments([document]);
+    return serialized;
+  }
+
   async getSettings(): Promise<FinanceSettingsDto> {
     const settings = await this.ensureSettings();
     const keezStatus = this.keezService.getConfigurationStatus();
@@ -274,6 +359,17 @@ export class FinanceService {
       keezConfigured: keezStatus.configured,
       keezEnvironment: keezStatus.environment,
       keezDocumentUploadAvailable: keezStatus.documentUploadAvailable,
+      keezEmailHandoffAvailable: keezStatus.emailHandoffAvailable,
+      keezEmailSender: keezStatus.emailSender,
+      keezEmailRecipient: keezStatus.emailRecipient,
+    };
+  }
+
+  async getHandoffGuidance() {
+    const settings = await this.ensureSettings();
+
+    return {
+      keezHandoffMode: settings.keezHandoffMode,
     };
   }
 
@@ -297,7 +393,7 @@ export class FinanceService {
       !keezStatus.documentUploadAvailable
     ) {
       throw new BadRequestException(
-        'Trimiterea directă către Keez nu este disponibilă până când Keez confirmă API-ul pentru documente.',
+        'Trimiterea directă către contabilitate nu este disponibilă până când Gmail este configurat pentru cluj.napoca@scout.ro.',
       );
     }
 
@@ -334,6 +430,198 @@ export class FinanceService {
         (document) => String(document.status) === 'sent',
       ).length,
     };
+  }
+
+  private async handleDirectHandoffAfterUpload(
+    user: CurrentUser,
+    document: FinancialDocument,
+  ) {
+    const settings = await this.ensureSettings();
+    const handoffMode = settings.keezHandoffMode as KeezHandoffMode;
+    if (handoffMode !== KeezHandoffMode.DirectToKeez) {
+      return;
+    }
+
+    const duplicate = await this.findSentDuplicate(document);
+    if (duplicate) {
+      const previousStatus = document.status;
+      document.status = FinancialDocumentStatus.InReview;
+      document.reviewerNotes = `Posibil duplicat: fiÈ™ier identic cu documentul #${duplicate.id} deja trimis cÄƒtre contabilitate.`;
+      this.em.persist(document);
+      await this.em.flush();
+      await this.recordAudit(
+        document.id,
+        user.id,
+        previousStatus,
+        FinancialDocumentStatus.InReview,
+        document.reviewerNotes,
+      );
+      await this.auditService.record({
+        actorId: user.id,
+        action: 'financial_document.direct_handoff_duplicate',
+        entityType: 'financial_document',
+        entityId: document.id,
+        activityId: document.activityId ?? undefined,
+        metadata: {
+          duplicateDocumentId: duplicate.id,
+          checksumSha256: document.checksumSha256,
+        },
+      });
+      return;
+    }
+
+    await this.submitDocumentHandoff(user, document, 'direct_upload');
+  }
+
+  private async findSentDuplicate(document: FinancialDocument) {
+    return this.documentsRepository.findOne({
+      checksumSha256: document.checksumSha256,
+      status: FinancialDocumentStatus.Sent,
+      id: { $ne: document.id },
+    });
+  }
+
+  private async submitDocumentHandoff(
+    user: CurrentUser,
+    document: FinancialDocument,
+    trigger: 'direct_upload' | 'manual_send' | 'retry' | 'resend',
+  ) {
+    const previousStatus = document.status;
+    const uploaderNames = await this.getUserNames([document.uploaderId]);
+    const activityName = await this.getDocumentActivityName(document);
+    const metadata = this.keezService.getDocumentSubmissionMetadata(document);
+
+    try {
+      const result = await this.keezService.submitDocument({
+        document,
+        uploaderName:
+          uploaderNames.get(document.uploaderId) ??
+          `Utilizator #${document.uploaderId}`,
+        activityName,
+      });
+
+      document.status = FinancialDocumentStatus.Sent;
+      document.keezExternalId = result.providerMessageId;
+      document.keezSubmittedAt = new Date();
+      this.em.persist(document);
+      await this.em.flush();
+      await this.recordHandoffAttempt(document, user.id, {
+        status: 'succeeded',
+        senderEmail: result.senderEmail,
+        recipientEmail: result.recipientEmail,
+        subject: result.subject,
+        attachmentFilename: result.attachmentFilename,
+        providerMessageId: result.providerMessageId,
+      });
+      await this.recordAudit(
+        document.id,
+        user.id,
+        previousStatus,
+        FinancialDocumentStatus.Sent,
+        'Trimis cÄƒtre contabilitate.',
+      );
+      await this.auditService.record({
+        actorId: user.id,
+        action: `financial_document.${trigger}.succeeded`,
+        entityType: 'financial_document',
+        entityId: document.id,
+        activityId: document.activityId ?? undefined,
+        metadata: {
+          provider: result.provider,
+          providerMessageId: result.providerMessageId,
+          senderEmail: result.senderEmail,
+          recipientEmail: result.recipientEmail,
+          attachmentFilename: result.attachmentFilename,
+        },
+      });
+    } catch (error) {
+      const errorMessage = this.safeErrorMessage(error);
+      document.status = FinancialDocumentStatus.SendFailed;
+      document.reviewerNotes = errorMessage;
+      this.em.persist(document);
+      await this.em.flush();
+      await this.recordHandoffAttempt(document, user.id, {
+        status: 'failed',
+        senderEmail: metadata.senderEmail,
+        recipientEmail: metadata.recipientEmail,
+        subject: metadata.subject,
+        attachmentFilename: metadata.attachmentFilename,
+        errorMessage,
+      });
+      await this.recordAudit(
+        document.id,
+        user.id,
+        previousStatus,
+        FinancialDocumentStatus.SendFailed,
+        errorMessage,
+      );
+      await this.auditService.record({
+        actorId: user.id,
+        action: `financial_document.${trigger}.failed`,
+        entityType: 'financial_document',
+        entityId: document.id,
+        activityId: document.activityId ?? undefined,
+        metadata: {
+          senderEmail: metadata.senderEmail,
+          recipientEmail: metadata.recipientEmail,
+          attachmentFilename: metadata.attachmentFilename,
+          errorMessage,
+        },
+      });
+    }
+  }
+
+  private async recordHandoffAttempt(
+    document: FinancialDocument,
+    actorId: number,
+    input: {
+      status: 'succeeded' | 'failed';
+      senderEmail: string;
+      recipientEmail: string;
+      subject: string;
+      attachmentFilename: string;
+      providerMessageId?: string;
+      errorMessage?: string;
+    },
+  ) {
+    const attempt = this.handoffAttemptsRepository.create({
+      documentId: document.id,
+      actorId,
+      channel: 'email',
+      provider: 'gmail',
+      status: input.status,
+      senderEmail: input.senderEmail,
+      recipientEmail: input.recipientEmail,
+      subject: input.subject.slice(0, 255),
+      attachmentFilename: input.attachmentFilename.slice(0, 255),
+      providerMessageId: input.providerMessageId,
+      errorMessage: cleanOptionalText(input.errorMessage),
+    });
+
+    this.em.persist(attempt);
+    await this.em.flush();
+  }
+
+  private async getDocumentActivityName(document: FinancialDocument) {
+    if (document.activityName) {
+      return document.activityName;
+    }
+    if (!document.activityId) {
+      return undefined;
+    }
+
+    const activity = await this.activitiesRepository.findOne({
+      id: document.activityId,
+    });
+    return activity?.title;
+  }
+
+  private safeErrorMessage(error: unknown) {
+    if (error instanceof Error) {
+      return error.message.slice(0, 1000);
+    }
+
+    return 'Trimiterea cÄƒtre contabilitate a eÈ™uat.'.slice(0, 1000);
   }
 
   private decodeBase64File(value?: string) {
@@ -513,6 +801,9 @@ export class FinanceService {
         .map((document) => document.activityId)
         .filter((activityId): activityId is number => Boolean(activityId)),
     );
+    const latestFailedAttempts = await this.getLatestFailedHandoffAttempts(
+      documents.map((document) => document.id),
+    );
 
     return documents.map((document) => ({
       id: document.id,
@@ -537,9 +828,34 @@ export class FinanceService {
       reviewerNotes: document.reviewerNotes ?? undefined,
       keezExternalId: document.keezExternalId ?? undefined,
       keezSubmittedAt: document.keezSubmittedAt?.toISOString(),
+      lastHandoffError:
+        latestFailedAttempts.get(document.id)?.errorMessage ?? undefined,
       createdAt: document.createdAt.toISOString(),
       updatedAt: document.updatedAt.toISOString(),
     }));
+  }
+
+  private async getLatestFailedHandoffAttempts(documentIds: number[]) {
+    const uniqueIds = Array.from(new Set(documentIds));
+    if (!uniqueIds.length) {
+      return new Map<number, FinancialDocumentHandoffAttempt>();
+    }
+
+    const attempts = await this.handoffAttemptsRepository.find(
+      {
+        documentId: { $in: uniqueIds },
+        status: 'failed',
+      },
+      { orderBy: { createdAt: 'desc' } },
+    );
+    const latestAttempts = new Map<number, FinancialDocumentHandoffAttempt>();
+    for (const attempt of attempts) {
+      if (!latestAttempts.has(attempt.documentId)) {
+        latestAttempts.set(attempt.documentId, attempt);
+      }
+    }
+
+    return latestAttempts;
   }
 
   private async getActivities(activityIds: number[]) {

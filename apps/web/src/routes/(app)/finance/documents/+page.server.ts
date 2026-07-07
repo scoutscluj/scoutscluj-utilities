@@ -13,6 +13,7 @@ export type FinancialDocumentStatus =
 	| 'in_review'
 	| 'ready_to_send'
 	| 'sent'
+	| 'send_failed'
 	| 'needs_clarification'
 	| 'rejected'
 	| 'archived';
@@ -34,6 +35,7 @@ export type FinancialDocument = {
 	reviewerNotes?: string;
 	keezExternalId?: string;
 	keezSubmittedAt?: string;
+	lastHandoffError?: string;
 	createdAt: string;
 	updatedAt: string;
 };
@@ -57,6 +59,13 @@ export type FinanceSettings = {
 	keezConfigured: boolean;
 	keezEnvironment: string;
 	keezDocumentUploadAvailable: boolean;
+	keezEmailHandoffAvailable: boolean;
+	keezEmailSender?: string;
+	keezEmailRecipient?: string;
+};
+
+export type FinanceHandoffGuidance = {
+	keezHandoffMode: 'review_first' | 'direct_to_keez';
 };
 
 const getSessionToken = (cookies: Cookies) => {
@@ -115,15 +124,19 @@ export const load: PageServerLoad = async ({ cookies, locals }) => {
 	const headers = authHeaders(sessionToken);
 	const isFinanceManager = hasRole(locals.user, 'finance_manager');
 
-	const [documentsResponse, activitiesResponse] = await Promise.all([
+	const [documentsResponse, activitiesResponse, handoffGuidanceResponse] = await Promise.all([
 		apiFetch('/api/finance/documents', { headers }),
-		apiFetch('/api/activities', { headers })
+		apiFetch('/api/activities', { headers }),
+		apiFetch('/api/finance/documents/handoff-guidance', { headers })
 	]);
 	if (!documentsResponse.ok) {
 		error(documentsResponse.status, await readApiMessage(documentsResponse));
 	}
 	if (!activitiesResponse.ok) {
 		error(activitiesResponse.status, await readApiMessage(activitiesResponse));
+	}
+	if (!handoffGuidanceResponse.ok) {
+		error(handoffGuidanceResponse.status, await readApiMessage(handoffGuidanceResponse));
 	}
 
 	let settings: FinanceSettings | null = null;
@@ -138,6 +151,7 @@ export const load: PageServerLoad = async ({ cookies, locals }) => {
 	return {
 		documents: (await documentsResponse.json()) as FinancialDocument[],
 		activities: (await activitiesResponse.json()) as Activity[],
+		handoffGuidance: (await handoffGuidanceResponse.json()) as FinanceHandoffGuidance,
 		isFinanceManager,
 		settings
 	};
@@ -219,6 +233,32 @@ export const actions: Actions = {
 		}
 
 		return { message: 'Starea documentului a fost actualizată.' };
+	},
+	sendDocument: async ({ request, cookies, locals }) => {
+		if (!hasRole(locals.user, 'finance_manager')) {
+			return fail(403, { message: 'Nu ai acces la această acțiune.' });
+		}
+
+		const formData = await request.formData();
+		const documentId = Number(formData.get('documentId'));
+		const action = formData.get('handoffAction')?.toString();
+		const actionPath = action === 'retry' ? 'retry-send' : action === 'resend' ? 'resend' : 'send';
+
+		if (!Number.isInteger(documentId) || documentId <= 0) {
+			return fail(400, { message: 'Documentul nu este valid.' });
+		}
+
+		const sessionToken = getSessionToken(cookies);
+		const response = await apiFetch(`/api/finance/documents/${documentId}/${actionPath}`, {
+			method: 'POST',
+			headers: authHeaders(sessionToken)
+		});
+
+		if (!response.ok) {
+			return fail(response.status, { message: await readApiMessage(response) });
+		}
+
+		return { message: 'Trimiterea către contabilitate a fost procesată.' };
 	},
 	updateSettings: async ({ request, cookies, locals }) => {
 		if (!hasRole(locals.user, 'finance_manager')) {

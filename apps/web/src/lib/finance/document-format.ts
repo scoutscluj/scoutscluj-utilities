@@ -3,6 +3,7 @@ export const financialStatusLabels: Record<string, string> = {
 	in_review: 'În verificare',
 	ready_to_send: 'Gata de trimis',
 	sent: 'Trimis',
+	send_failed: 'Trimitere eșuată',
 	needs_clarification: 'Necesită clarificări',
 	rejected: 'Respins',
 	archived: 'Arhivat'

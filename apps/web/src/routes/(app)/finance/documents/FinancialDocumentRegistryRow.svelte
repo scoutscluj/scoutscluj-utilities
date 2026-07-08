@@ -15,6 +15,11 @@
 		FinancialDocumentStatus,
 		string
 	][];
+	const manuallySendableStatuses = new Set<FinancialDocumentStatus>([
+		'uploaded',
+		'in_review',
+		'ready_to_send'
+	]);
 </script>
 
 <article class="document-row" class:manager={isFinanceManager}>
@@ -83,7 +88,7 @@
 				<input type="hidden" name="handoffAction" value="resend" />
 				<button type="submit">Retrimite la contabilitate</button>
 			</form>
-		{:else if document.status === 'ready_to_send'}
+		{:else if manuallySendableStatuses.has(document.status)}
 			<form class="handoff-form" method="POST" action="?/sendDocument">
 				<input type="hidden" name="documentId" value={document.id} />
 				<input type="hidden" name="handoffAction" value="send" />

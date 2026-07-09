@@ -28,18 +28,15 @@ import { FinancialDocumentHandoffAttempt } from './entities/financial-document-h
 import { FinancialDocumentStatus } from './entities/financial-document-status.enum';
 import { FinancialDocument } from './entities/financial-document.entity';
 import { KeezHandoffMode } from './entities/keez-handoff-mode.enum';
+import {
+  ALLOWED_FINANCIAL_DOCUMENT_CONTENT_TYPES,
+  isFinancialDocumentImageContentType,
+  prepareFinancialDocumentFile,
+} from './financial-document-file.converter';
 import { KeezService } from './keez.service';
 
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 const SETTINGS_ID = 1;
-const ALLOWED_CONTENT_TYPES = new Set([
-  'application/pdf',
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/heic',
-  'image/heif',
-]);
 const TERMINAL_STATUSES = new Set<string>([
   FinancialDocumentStatus.Sent,
   FinancialDocumentStatus.Rejected,
@@ -96,29 +93,37 @@ export class FinanceService {
     input: CreateFinancialDocumentDto,
   ): Promise<FinancialDocumentDto> {
     const contentType = input.contentType?.trim().toLowerCase();
-    if (!ALLOWED_CONTENT_TYPES.has(contentType)) {
+    if (!ALLOWED_FINANCIAL_DOCUMENT_CONTENT_TYPES.has(contentType)) {
       throw new BadRequestException(
         'Tipul fișierului nu este acceptat. Încarcă PDF, JPG, PNG, WEBP sau HEIC.',
       );
     }
 
-    const fileData = this.decodeBase64File(input.contentBase64);
-    if (fileData.length > MAX_UPLOAD_BYTES) {
+    const uploadedFileData = this.decodeBase64File(input.contentBase64);
+    if (uploadedFileData.length > MAX_UPLOAD_BYTES) {
       throw new BadRequestException(
         'Fișierul este prea mare. Limita actuală este 15 MB.',
       );
     }
+    const preparedFile = await prepareFinancialDocumentFile({
+      originalFilename: cleanFilename(input.fileName),
+      contentType,
+      fileData: uploadedFileData,
+    });
+    this.assertUploadSize(preparedFile.fileData);
 
-    const checksumSha256 = createHash('sha256').update(fileData).digest('hex');
+    const checksumSha256 = createHash('sha256')
+      .update(preparedFile.fileData)
+      .digest('hex');
     const activity = await this.resolveActivity(input.activityId);
     const document = this.documentsRepository.create({
       uploaderId: user.id,
       status: FinancialDocumentStatus.ReadyToSend,
-      originalFilename: cleanFilename(input.fileName),
-      contentType,
-      fileSize: fileData.length,
+      originalFilename: preparedFile.originalFilename,
+      contentType: preparedFile.contentType,
+      fileSize: preparedFile.fileData.length,
       checksumSha256,
-      fileData,
+      fileData: preparedFile.fileData,
       activityId: activity?.id,
       activityName: activity
         ? undefined
@@ -145,6 +150,7 @@ export class FinanceService {
         originalFilename: document.originalFilename,
         contentType: document.contentType,
         fileSize: document.fileSize,
+        convertedFromContentType: preparedFile.convertedFromContentType,
         status: document.status,
       },
     });
@@ -527,9 +533,14 @@ export class FinanceService {
     const previousStatus = document.status;
     const uploaderNames = await this.getUserNames([document.uploaderId]);
     const activityName = await this.getDocumentActivityName(document);
-    const metadata = this.keezService.getDocumentSubmissionMetadata(document);
+    let metadata = this.keezService.getDocumentSubmissionMetadata(document);
 
     try {
+      const convertedFromContentType = await this.ensureDocumentStoredAsPdf(
+        document,
+        user.id,
+      );
+      metadata = this.keezService.getDocumentSubmissionMetadata(document);
       const result = await this.keezService.submitDocument({
         document,
         uploaderName:
@@ -571,6 +582,7 @@ export class FinanceService {
           senderEmail: result.senderEmail,
           recipientEmail: result.recipientEmail,
           attachmentFilename: result.attachmentFilename,
+          convertedFromContentType,
         },
       });
     } catch (error) {
@@ -679,6 +691,60 @@ export class FinanceService {
     }
 
     return decoded;
+  }
+
+  private async ensureDocumentStoredAsPdf(
+    document: FinancialDocument,
+    actorId: number,
+  ) {
+    if (!isFinancialDocumentImageContentType(document.contentType)) {
+      return undefined;
+    }
+
+    const previousContentType = document.contentType;
+    const previousFilename = document.originalFilename;
+    const preparedFile = await prepareFinancialDocumentFile({
+      originalFilename: document.originalFilename,
+      contentType: document.contentType,
+      fileData: document.fileData,
+    });
+    this.assertUploadSize(preparedFile.fileData);
+
+    document.originalFilename = preparedFile.originalFilename;
+    document.contentType = preparedFile.contentType;
+    document.fileData = preparedFile.fileData;
+    document.fileSize = preparedFile.fileData.length;
+    document.checksumSha256 = createHash('sha256')
+      .update(preparedFile.fileData)
+      .digest('hex');
+
+    this.em.persist(document);
+    await this.em.flush();
+    await this.auditService.record({
+      actorId,
+      action: 'financial_document.converted_to_pdf',
+      entityType: 'financial_document',
+      entityId: document.id,
+      activityId: document.activityId ?? undefined,
+      metadata: {
+        previousFilename,
+        previousContentType,
+        originalFilename: document.originalFilename,
+        contentType: document.contentType,
+        fileSize: document.fileSize,
+        checksumSha256: document.checksumSha256,
+      },
+    });
+
+    return previousContentType;
+  }
+
+  private assertUploadSize(fileData: Buffer) {
+    if (fileData.length > MAX_UPLOAD_BYTES) {
+      throw new BadRequestException(
+        'Fișierul este prea mare. Limita actuală este 15 MB.',
+      );
+    }
   }
 
   private parseOptionalId(value: string | undefined, fieldName: string) {

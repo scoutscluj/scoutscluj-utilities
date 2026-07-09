@@ -58,10 +58,6 @@
 		display: grid;
 		align-content: start;
 		gap: 14px;
-		border: 1px solid #d8dee6;
-		border-radius: 8px;
-		background: #ffffff;
-		padding: 18px;
 	}
 
 	.panel-title,

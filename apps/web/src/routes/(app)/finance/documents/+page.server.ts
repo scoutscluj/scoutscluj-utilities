@@ -258,7 +258,10 @@ export const actions: Actions = {
 			return fail(response.status, { message: await readApiMessage(response) });
 		}
 
-		return { message: 'Trimiterea către contabilitate a fost procesată.' };
+		return {
+			message: 'Trimiterea către contabilitate a fost procesată.',
+			document: (await response.json()) as FinancialDocument
+		};
 	},
 	deleteDocument: async ({ request, cookies, locals }) => {
 		if (!hasRole(locals.user, 'finance_manager')) {

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Header,
   Param,
@@ -56,6 +57,16 @@ export class FinanceController {
     @Body() body: CreateFinancialDocumentDto,
   ) {
     return this.financeService.createDocument(user, body);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.FinanceManager)
+  @Delete('documents/:id')
+  deleteDocument(
+    @CurrentUserDecorator() user: AuthenticatedUser,
+    @Param('id', ParseIntPipe) documentId: number,
+  ) {
+    return this.financeService.deleteDocument(user, documentId);
   }
 
   @Get('documents/handoff-guidance')

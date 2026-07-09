@@ -5,9 +5,10 @@
 		documentId: number;
 		filename: string;
 		contentType: string;
+		compact?: boolean;
 	};
 
-	let { documentId, filename, contentType }: Props = $props();
+	let { documentId, filename, contentType, compact = false }: Props = $props();
 	let isOpen = $state(false);
 
 	const lowerFilename = $derived(filename.toLowerCase());
@@ -33,7 +34,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="preview-card">
+<div class="preview-card" class:compact>
 	<span class="preview-frame" aria-hidden="true">
 		{#if previewKind === 'image'}
 			<img src={previewUrl} alt="" loading="lazy" />
@@ -106,6 +107,11 @@
 		text-align: center;
 	}
 
+	.preview-card.compact {
+		width: 76px;
+		gap: 5px;
+	}
+
 	.preview-card:has(.preview-overlay:hover) .preview-frame,
 	.preview-card:has(.preview-overlay:focus-visible) .preview-frame {
 		border-color: #991b1b;
@@ -138,6 +144,10 @@
 		background: #f8fafc;
 	}
 
+	.compact .preview-frame {
+		width: 76px;
+	}
+
 	.preview-frame img,
 	.preview-frame iframe {
 		width: 100%;
@@ -167,6 +177,10 @@
 		color: #475569;
 		font-size: 0.78rem;
 		font-weight: 850;
+	}
+
+	.compact .preview-label {
+		font-size: 0.72rem;
 	}
 
 	.preview-backdrop {

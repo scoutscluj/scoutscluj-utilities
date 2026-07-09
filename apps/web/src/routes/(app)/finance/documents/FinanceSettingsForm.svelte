@@ -45,7 +45,8 @@
 
 	{#if !settings.keezDocumentUploadAvailable}
 		<p class="notice">
-			Trimiterea directă cere Gmail configurat pentru cluj.napoca@scout.ro către cui@keez.ro.
+			Trimiterea directă cere Gmail configurat pentru cluj.napoca@scout.ro și destinatarul Keez din
+			secrete.
 		</p>
 	{/if}
 

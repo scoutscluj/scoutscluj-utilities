@@ -4,9 +4,10 @@
 	type Props = {
 		activities: Activity[];
 		handoffMode: 'review_first' | 'direct_to_keez';
+		showHeader?: boolean;
 	};
 
-	let { activities, handoffMode }: Props = $props();
+	let { activities, handoffMode, showHeader = true }: Props = $props();
 
 	const activityTypeLabels: Record<ActivityType, string> = {
 		camp: 'Camp',
@@ -18,16 +19,18 @@
 	};
 </script>
 
-<form class="panel upload-panel" method="POST" action="?/upload" enctype="multipart/form-data">
-	<div>
-		<p class="panel-title">Încărcare document</p>
-		<p class="panel-subtitle">PDF, imagine sau poză din telefon, maxim 15 MB.</p>
-	</div>
+<form class="upload-form" method="POST" action="?/upload" enctype="multipart/form-data">
+	{#if showHeader}
+		<div>
+			<p class="panel-title">Încărcare document</p>
+			<p class="panel-subtitle">PDF, imagine sau poză din telefon, maxim 15 MB.</p>
+		</div>
+	{/if}
 
 	<p class="handoff-note">
 		{handoffMode === 'direct_to_keez'
 			? 'Documentul va fi trimis automat către contabilitate după încărcare.'
-			: 'Documentul va fi verificat de responsabilul financiar înainte de trimiterea către contabilitate.'}
+			: 'Documentul va fi gata de trimis către contabilitate pentru responsabilul financiar.'}
 	</p>
 
 	<label>
@@ -54,14 +57,10 @@
 </form>
 
 <style>
-	.panel {
+	.upload-form {
 		display: grid;
 		align-content: start;
 		gap: 14px;
-		border: 1px solid #d8dee6;
-		border-radius: 8px;
-		background: #ffffff;
-		padding: 18px;
 	}
 
 	.panel-title,

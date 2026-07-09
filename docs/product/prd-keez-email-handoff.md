@@ -2,13 +2,13 @@
 
 ## Problem Statement
 
-Keez does not currently expose an API for generic accounting document upload. The accountant team confirmed that documents sent by email to `cui@keez.ro` from the Keez account email are automatically loaded into Keez under Contabilitate -> Documente.
+Keez does not currently expose an API for generic accounting document upload. The accountant team confirmed that documents sent by email to the company-CUI Keez mailbox, from the Keez account email, are automatically loaded into Keez under Contabilitate -> Documente.
 
 Resurse already lets users upload `Document financiar` records, but the app needs a dependable way to hand those documents to accounting without tying the workflow to a personal email account or requiring a finance user to download and forward files manually.
 
 ## Solution
 
-Resurse will send approved or direct-mode financial documents to accounting by email through the Gmail account `cluj.napoca@scout.ro`. The document email will be sent to `cui@keez.ro`, one email per financial document, with the file attached under a generated traceable name such as `document-financiar-000123.pdf`.
+Resurse will send approved or direct-mode financial documents to accounting by email through the Gmail account `cluj.napoca@scout.ro`. The document email will be sent to the Keez mailbox configured in secrets, one email per financial document, with the file attached under a generated traceable name such as `document-financiar-000123.pdf`.
 
 Regular users will see the destination as `contabilitate`. Finance administrators will see the technical Keez/Gmail details in settings, audit records, and handoff attempts.
 
@@ -48,7 +48,7 @@ The email subject remains shorter: `Document financiar Resurse Scouts Cluj - #00
 - Detect exact duplicate uploads by SHA-256 checksum and avoid automatic duplicate sending.
 - Keep original filenames in Resurse, but send generated attachment names of the form `document-financiar-000123.ext`.
 - Use user-facing copy `contabilitate` for regular users.
-- Use `Keez`, `cui@keez.ro`, and `cluj.napoca@scout.ro` only in finance/admin surfaces and audit data.
+- Use `Keez`, the configured company-CUI Keez mailbox, and `cluj.napoca@scout.ro` only in finance/admin surfaces and audit data.
 - Keep inbound Keez/Gmail reply processing out of v1.
 
 ## Testing Decisions
@@ -70,4 +70,4 @@ The email subject remains shorter: `Document financiar Resurse Scouts Cluj - #00
 
 ## Further Notes
 
-Configuration must make the expected sender and recipient explicit. `direct_to_keez` must remain unavailable unless the handoff is configured for the expected sender `cluj.napoca@scout.ro` and recipient `cui@keez.ro`.
+Configuration must make the expected sender and recipient explicit. `direct_to_keez` must remain unavailable unless the handoff is configured for the expected sender `cluj.napoca@scout.ro` and a non-empty company-CUI Keez recipient.

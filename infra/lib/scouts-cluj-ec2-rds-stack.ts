@@ -90,7 +90,7 @@ export class ScoutsClujEc2RdsStack extends Stack {
           WEB_ORIGINS: `https://${appHostName}`,
           ORGO_OAUTH_REDIRECT_URI: `https://${appHostName}/api/orgo/callback`,
           KEEZ_DOCUMENT_EMAIL_EXPECTED_SENDER: "cluj.napoca@scout.ro",
-          KEEZ_DOCUMENT_EMAIL_RECIPIENT: "cui@keez.ro",
+          KEEZ_DOCUMENT_EMAIL_RECIPIENT: "replace-with-company-cui@keez.ro",
           FINANCE_GMAIL_CLIENT_ID: "replace-me",
           FINANCE_GMAIL_CLIENT_SECRET: "replace-me",
           FINANCE_GMAIL_REFRESH_TOKEN: "replace-me",

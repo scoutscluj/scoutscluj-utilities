@@ -1,6 +1,6 @@
 export const financialStatusLabels: Record<string, string> = {
-	uploaded: 'Încărcat',
-	in_review: 'În verificare',
+	uploaded: 'Gata de trimis',
+	in_review: 'Gata de trimis',
 	ready_to_send: 'Gata de trimis',
 	sent: 'Trimis',
 	send_failed: 'Trimitere eșuată',

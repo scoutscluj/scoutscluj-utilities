@@ -6,9 +6,10 @@
 		filename: string;
 		contentType: string;
 		compact?: boolean;
+		dense?: boolean;
 	};
 
-	let { documentId, filename, contentType, compact = false }: Props = $props();
+	let { documentId, filename, contentType, compact = false, dense = false }: Props = $props();
 	let isOpen = $state(false);
 
 	const lowerFilename = $derived(filename.toLowerCase());
@@ -34,7 +35,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="preview-card" class:compact>
+<div class="preview-card" class:compact class:dense>
 	<span class="preview-frame" aria-hidden="true">
 		{#if previewKind === 'image'}
 			<img src={previewUrl} alt="" loading="lazy" />
@@ -52,7 +53,9 @@
 		aria-label={`Previzualizează ${filename}`}
 		onclick={() => (isOpen = true)}
 	></button>
-	<span class="preview-label">Previzualizare</span>
+	{#if !dense}
+		<span class="preview-label">Previzualizare</span>
+	{/if}
 </div>
 
 {#if isOpen}
@@ -112,6 +115,11 @@
 		gap: 5px;
 	}
 
+	.preview-card.dense {
+		width: 48px;
+		gap: 0;
+	}
+
 	.preview-card:has(.preview-overlay:hover) .preview-frame,
 	.preview-card:has(.preview-overlay:focus-visible) .preview-frame {
 		border-color: #991b1b;
@@ -125,6 +133,11 @@
 		border-radius: 8px;
 		background: transparent;
 		cursor: pointer;
+	}
+
+	.dense .preview-overlay {
+		inset: 0;
+		border-radius: 6px;
 	}
 
 	.preview-overlay:focus-visible {
@@ -146,6 +159,11 @@
 
 	.compact .preview-frame {
 		width: 76px;
+	}
+
+	.dense .preview-frame {
+		width: 48px;
+		border-radius: 6px;
 	}
 
 	.preview-frame img,
@@ -171,6 +189,13 @@
 		position: absolute;
 		right: 6px;
 		bottom: 6px;
+	}
+
+	.dense .preview-badge {
+		right: 3px;
+		bottom: 3px;
+		padding: 2px 5px;
+		font-size: 0.58rem;
 	}
 
 	.preview-label {

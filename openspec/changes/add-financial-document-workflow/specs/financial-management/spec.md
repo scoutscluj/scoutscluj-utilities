@@ -26,7 +26,7 @@ The system SHALL let authenticated users upload a `Document financiar` with only
 - **WHEN** they upload it with optional notes and optional `Activitate`
 - **THEN** the system stores the file privately
 - **AND** records uploader, timestamp, original filename, content type, checksum, notes, and activity link
-- **AND** sets status to `Încărcat`
+- **AND** sets status to `Gata de trimis`
 
 #### Scenario: Invalid file upload
 
@@ -141,7 +141,7 @@ The system SHALL integrate with Keez through a server-side adapter that records 
 
 - **GIVEN** Keez has no configured generic document upload endpoint
 - **WHEN** a document is ready for Keez
-- **THEN** the system sends one email to `cui@keez.ro` from `cluj.napoca@scout.ro`
+- **THEN** the system sends one email to the configured company-CUI Keez mailbox from `cluj.napoca@scout.ro`
 - **AND** attaches the file using a generated name such as `document-financiar-000123.pdf`
 - **AND** records Gmail message id, sender, recipient, and timestamp when Gmail accepts the message
 

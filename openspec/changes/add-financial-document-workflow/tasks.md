@@ -31,7 +31,7 @@
 - [ ] Implement token retrieval with client credentials.
 - [ ] Implement confirmed invoice API operations needed for future extensibility.
 - [x] Add generic document handoff abstraction with unsupported/manual fallback mode.
-- [x] Implement Gmail email handoff to `cui@keez.ro` from `cluj.napoca@scout.ro`.
+- [x] Implement Gmail email handoff to the configured company-CUI Keez mailbox from `cluj.napoca@scout.ro`.
 - [x] Track Keez/Gmail handoff attempts, provider message ids, and errors.
 - [x] Add `send_failed`, retry, explicit resend, and duplicate-check behavior.
 - [x] Add global handoff mode setting.

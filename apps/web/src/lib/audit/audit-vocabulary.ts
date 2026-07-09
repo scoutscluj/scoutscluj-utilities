@@ -73,13 +73,13 @@ const statusLabels = {
 	completed: 'Finalizat',
 	draft: 'Draft',
 	in_progress: 'În lucru',
-	in_review: 'În verificare',
+	in_review: 'Gata de trimis',
 	needs_clarification: 'Necesită clarificări',
 	planned: 'Planificat',
 	ready_to_send: 'Gata de trimis',
 	rejected: 'Respins',
 	sent: 'Trimis',
-	uploaded: 'Încărcat'
+	uploaded: 'Gata de trimis'
 };
 
 export const fieldValueLabels: Record<string, Record<string, string>> = {

@@ -39,7 +39,7 @@
 			<p class="handoff-note">
 				{data.handoffGuidance.keezHandoffMode === 'direct_to_keez'
 					? 'Documentul va fi trimis automat către contabilitate după încărcare.'
-					: 'Documentul va fi verificat de responsabilul financiar înainte de trimiterea către contabilitate.'}
+					: 'Documentul va fi gata de trimis către contabilitate pentru responsabilul financiar.'}
 			</p>
 
 			<label>

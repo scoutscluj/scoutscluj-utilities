@@ -44,6 +44,7 @@ describe('KeezService', () => {
         FINANCE_GMAIL_CLIENT_SECRET: 'client-secret',
         FINANCE_GMAIL_REFRESH_TOKEN: 'refresh-token',
         FINANCE_GMAIL_SENDER_EMAIL: 'andrei.tudorica@scout.ro',
+        KEEZ_DOCUMENT_EMAIL_RECIPIENT: '12345678@keez.ro',
       }),
     );
 
@@ -52,7 +53,7 @@ describe('KeezService', () => {
       emailHandoffAvailable: false,
       emailSender: 'andrei.tudorica@scout.ro',
       expectedEmailSender: 'cluj.napoca@scout.ro',
-      emailRecipient: 'cui@keez.ro',
+      emailRecipient: '12345678@keez.ro',
     });
   });
 
@@ -81,6 +82,7 @@ describe('KeezService', () => {
         FINANCE_GMAIL_CLIENT_SECRET: 'client-secret',
         FINANCE_GMAIL_REFRESH_TOKEN: 'refresh-token',
         FINANCE_GMAIL_SENDER_EMAIL: 'cluj.napoca@scout.ro',
+        KEEZ_DOCUMENT_EMAIL_RECIPIENT: '12345678@keez.ro',
       }),
     );
 
@@ -94,7 +96,7 @@ describe('KeezService', () => {
       provider: 'gmail',
       providerMessageId: 'gmail-message-id',
       senderEmail: 'cluj.napoca@scout.ro',
-      recipientEmail: 'cui@keez.ro',
+      recipientEmail: '12345678@keez.ro',
       attachmentFilename: 'document-financiar-000123.pdf',
     });
     const gmailCall = fetchMock.mock.calls[1];
@@ -106,7 +108,7 @@ describe('KeezService', () => {
     ) as { raw: string };
     const message = decodeRawMessage(requestBody.raw);
     expect(message).toContain('From: cluj.napoca@scout.ro');
-    expect(message).toContain('To: cui@keez.ro');
+    expect(message).toContain('To: 12345678@keez.ro');
     expect(message).toContain(
       'Subject: Document financiar Resurse Scouts Cluj - #000123',
     );

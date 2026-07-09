@@ -9,7 +9,7 @@ export const FinancialDocument = defineEntity({
     uploaderId: p.integer().fieldName('uploader_id'),
     status: p
       .enum(() => FinancialDocumentStatus)
-      .default(FinancialDocumentStatus.Uploaded)
+      .default(FinancialDocumentStatus.ReadyToSend)
       .nativeEnumName('financial_document_status'),
     originalFilename: p.string().fieldName('original_filename'),
     contentType: p.string().fieldName('content_type'),

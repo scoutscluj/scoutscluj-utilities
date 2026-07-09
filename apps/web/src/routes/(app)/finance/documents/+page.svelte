@@ -1,10 +1,13 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { Upload, X } from '@lucide/svelte';
+	import { Dialog } from 'bits-ui';
 	import FinanceSettingsForm from './FinanceSettingsForm.svelte';
 	import FinancialDocumentUploadForm from './FinancialDocumentUploadForm.svelte';
 	import FinancialDocumentRegistryRow from './FinancialDocumentRegistryRow.svelte';
 
 	let { data, form } = $props();
+	let uploadDialogOpen = $state(false);
 </script>
 
 <svelte:head>
@@ -13,25 +16,51 @@
 
 <section class="finance-documents">
 	<div class="page-heading">
-		<p class="eyebrow">Financiar</p>
-		<h1>Documente financiare</h1>
-		<p>Bonuri, facturi și dovezi de plată pentru responsabilul financiar.</p>
+		<div>
+			<p class="eyebrow">Financiar</p>
+			<h1>Documente financiare</h1>
+			<p>Bonuri, facturi și dovezi de plată pentru responsabilul financiar.</p>
+		</div>
+		<button class="add-document-button" type="button" onclick={() => (uploadDialogOpen = true)}>
+			<Upload size={16} strokeWidth={2.4} aria-hidden="true" />
+			Adaugă document
+		</button>
 	</div>
 
 	{#if form?.message}
 		<p class="form-message">{form.message}</p>
 	{/if}
 
-	<div class="top-grid">
-		<FinancialDocumentUploadForm
-			activities={data.activities}
-			handoffMode={data.handoffGuidance.keezHandoffMode}
-		/>
-
-		{#if data.isFinanceManager && data.settings}
+	{#if data.isFinanceManager && data.settings}
+		<div class="top-grid">
 			<FinanceSettingsForm settings={data.settings} />
-		{/if}
-	</div>
+		</div>
+	{/if}
+
+	<Dialog.Root bind:open={uploadDialogOpen}>
+		<Dialog.Portal>
+			<Dialog.Overlay class="upload-dialog-overlay" />
+			<Dialog.Content class="upload-dialog-content">
+				<div class="dialog-heading">
+					<div>
+						<Dialog.Title class="dialog-title">Adaugă document</Dialog.Title>
+						<Dialog.Description class="dialog-description">
+							PDF, imagine sau poză din telefon, maxim 15 MB.
+						</Dialog.Description>
+					</div>
+					<Dialog.Close class="dialog-icon-button" aria-label="Închide dialogul">
+						<X size={18} strokeWidth={2.4} aria-hidden="true" />
+					</Dialog.Close>
+				</div>
+
+				<FinancialDocumentUploadForm
+					activities={data.activities}
+					handoffMode={data.handoffGuidance.keezHandoffMode}
+					showHeader={false}
+				/>
+			</Dialog.Content>
+		</Dialog.Portal>
+	</Dialog.Root>
 
 	<section class="documents-section">
 		<div class="section-heading">
@@ -64,20 +93,19 @@
 	.documents-section,
 	.document-list {
 		display: grid;
-		gap: 22px;
+		gap: 18px;
+	}
+
+	.document-list {
+		gap: 10px;
 	}
 
 	.page-heading,
 	.section-heading {
 		display: flex;
-		align-items: flex-end;
+		align-items: flex-start;
 		justify-content: space-between;
 		gap: 16px;
-	}
-
-	.page-heading {
-		align-items: flex-start;
-		flex-direction: column;
 	}
 
 	.eyebrow,
@@ -122,7 +150,7 @@
 
 	.top-grid {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr);
+		grid-template-columns: minmax(280px, 520px);
 		gap: 16px;
 	}
 
@@ -132,14 +160,29 @@
 		background: #ffffff;
 	}
 
+	.add-document-button,
 	.section-heading a {
 		min-height: 38px;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
+		gap: 8px;
 		border-radius: 8px;
 		font-weight: 900;
 		text-decoration: none;
+	}
+
+	.add-document-button {
+		flex: 0 0 auto;
+		border: 0;
+		background: #c81e1e;
+		padding: 0 14px;
+		color: #ffffff;
+		cursor: pointer;
+	}
+
+	.add-document-button:hover {
+		background: #991b1b;
 	}
 
 	.section-heading a {
@@ -153,10 +196,72 @@
 		padding: 22px;
 	}
 
-	@media (min-width: 820px) {
-		.top-grid {
-			grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
-		}
+	:global(.upload-dialog-overlay) {
+		position: fixed;
+		inset: 0;
+		z-index: 50;
+		background: rgb(15 23 42 / 0.4);
+	}
+
+	:global(.upload-dialog-content) {
+		position: fixed;
+		top: 50%;
+		left: 50%;
+		z-index: 60;
+		width: min(560px, calc(100vw - 32px));
+		max-height: calc(100vh - 32px);
+		display: grid;
+		gap: 18px;
+		overflow: auto;
+		border: 1px solid #d8dee6;
+		border-radius: 8px;
+		background: #ffffff;
+		padding: 18px;
+		box-shadow: 0 24px 70px rgb(15 23 42 / 0.22);
+		transform: translate(-50%, -50%);
+	}
+
+	.dialog-heading {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 12px;
+	}
+
+	:global(.dialog-title) {
+		margin: 0;
+		color: #0f172a;
+		font-size: 1.12rem;
+		font-weight: 900;
+	}
+
+	:global(.dialog-description) {
+		margin-top: 4px;
+		color: #52616f;
+		font-size: 0.92rem;
+	}
+
+	:global(.dialog-icon-button) {
+		width: 34px;
+		height: 34px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border: 1px solid #d8dee6;
+		border-radius: 8px;
+		background: #ffffff;
+		color: #334155;
+		cursor: pointer;
+	}
+
+	:global(.dialog-icon-button:hover) {
+		background: #f8fafc;
+	}
+
+	.add-document-button:focus-visible,
+	:global(.dialog-icon-button:focus-visible) {
+		outline: 3px solid rgb(200 30 30 / 0.24);
+		outline-offset: 2px;
 	}
 
 	@media (max-width: 620px) {
@@ -167,6 +272,7 @@
 			justify-content: stretch;
 		}
 
+		.add-document-button,
 		.section-heading a {
 			width: 100%;
 		}

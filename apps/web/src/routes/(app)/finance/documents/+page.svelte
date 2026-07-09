@@ -45,7 +45,7 @@
 					<div>
 						<Dialog.Title class="dialog-title">Adaugă document</Dialog.Title>
 						<Dialog.Description class="dialog-description">
-							PDF, imagine sau poză din telefon, maxim 15 MB.
+							PDF sau imagine convertită automat în PDF, maxim 15 MB.
 						</Dialog.Description>
 					</div>
 					<Dialog.Close class="dialog-icon-button" aria-label="Închide dialogul">

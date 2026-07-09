@@ -53,9 +53,11 @@
     "@nestjs/swagger": "^11.4.4",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "pdf-lib": "^1.17.1",
     "pg": "^8.21.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "sharp": "^0.35.3",
     "web-push": "^3.6.7"
   },
   "devDependencies": {

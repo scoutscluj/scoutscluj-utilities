@@ -33,7 +33,9 @@
 		<form class="panel upload-panel" method="POST" action="?/upload" enctype="multipart/form-data">
 			<div>
 				<p class="panel-title">Document financiar</p>
-				<p class="panel-subtitle">Documentul va fi legat de această activitate.</p>
+				<p class="panel-subtitle">
+					Documentul va fi legat de această activitate. Imaginile sunt convertite automat în PDF.
+				</p>
 			</div>
 
 			<p class="handoff-note">

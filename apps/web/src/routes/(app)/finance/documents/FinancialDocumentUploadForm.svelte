@@ -23,7 +23,7 @@
 	{#if showHeader}
 		<div>
 			<p class="panel-title">Încărcare document</p>
-			<p class="panel-subtitle">PDF, imagine sau poză din telefon, maxim 15 MB.</p>
+			<p class="panel-subtitle">PDF sau imagine convertită automat în PDF, maxim 15 MB.</p>
 		</div>
 	{/if}
 

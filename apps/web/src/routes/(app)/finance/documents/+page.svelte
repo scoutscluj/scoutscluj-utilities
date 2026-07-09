@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { Upload, X } from '@lucide/svelte';
+	import { Settings, Upload, X } from '@lucide/svelte';
 	import { Dialog } from 'bits-ui';
 	import FinanceSettingsForm from './FinanceSettingsForm.svelte';
 	import FinancialDocumentUploadForm from './FinancialDocumentUploadForm.svelte';
@@ -8,6 +8,7 @@
 
 	let { data, form } = $props();
 	let uploadDialogOpen = $state(false);
+	let settingsDialogOpen = $state(false);
 </script>
 
 <svelte:head>
@@ -21,20 +22,22 @@
 			<h1>Documente financiare</h1>
 			<p>Bonuri, facturi și dovezi de plată pentru responsabilul financiar.</p>
 		</div>
-		<button class="add-document-button" type="button" onclick={() => (uploadDialogOpen = true)}>
-			<Upload size={16} strokeWidth={2.4} aria-hidden="true" />
-			Adaugă document
-		</button>
+		<div class="page-actions">
+			{#if data.isFinanceManager && data.settings}
+				<button class="secondary-button" type="button" onclick={() => (settingsDialogOpen = true)}>
+					<Settings size={16} strokeWidth={2.4} aria-hidden="true" />
+					Keez
+				</button>
+			{/if}
+			<button class="add-document-button" type="button" onclick={() => (uploadDialogOpen = true)}>
+				<Upload size={16} strokeWidth={2.4} aria-hidden="true" />
+				Adaugă document
+			</button>
+		</div>
 	</div>
 
 	{#if form?.message}
 		<p class="form-message">{form.message}</p>
-	{/if}
-
-	{#if data.isFinanceManager && data.settings}
-		<div class="top-grid">
-			<FinanceSettingsForm settings={data.settings} />
-		</div>
 	{/if}
 
 	<Dialog.Root bind:open={uploadDialogOpen}>
@@ -61,6 +64,29 @@
 			</Dialog.Content>
 		</Dialog.Portal>
 	</Dialog.Root>
+
+	{#if data.isFinanceManager && data.settings}
+		<Dialog.Root bind:open={settingsDialogOpen}>
+			<Dialog.Portal>
+				<Dialog.Overlay class="upload-dialog-overlay" />
+				<Dialog.Content class="settings-dialog-content">
+					<div class="dialog-heading">
+						<div>
+							<Dialog.Title class="dialog-title">Configurare Keez</Dialog.Title>
+							<Dialog.Description class="dialog-description">
+								Fluxul de trimitere către contabilitate.
+							</Dialog.Description>
+						</div>
+						<Dialog.Close class="dialog-icon-button" aria-label="Închide dialogul">
+							<X size={18} strokeWidth={2.4} aria-hidden="true" />
+						</Dialog.Close>
+					</div>
+
+					<FinanceSettingsForm settings={data.settings} />
+				</Dialog.Content>
+			</Dialog.Portal>
+		</Dialog.Root>
+	{/if}
 
 	<section class="documents-section">
 		<div class="section-heading">
@@ -148,12 +174,6 @@
 		font-weight: 800;
 	}
 
-	.top-grid {
-		display: grid;
-		grid-template-columns: minmax(280px, 520px);
-		gap: 16px;
-	}
-
 	.empty-state {
 		border: 1px solid #d8dee6;
 		border-radius: 8px;
@@ -161,6 +181,7 @@
 	}
 
 	.add-document-button,
+	.secondary-button,
 	.section-heading a {
 		min-height: 38px;
 		display: inline-flex;
@@ -172,6 +193,13 @@
 		text-decoration: none;
 	}
 
+	.page-actions {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+		gap: 8px;
+	}
+
 	.add-document-button {
 		flex: 0 0 auto;
 		border: 0;
@@ -181,8 +209,21 @@
 		cursor: pointer;
 	}
 
+	.secondary-button {
+		flex: 0 0 auto;
+		border: 1px solid #cbd5e1;
+		background: #ffffff;
+		padding: 0 12px;
+		color: #334155;
+		cursor: pointer;
+	}
+
 	.add-document-button:hover {
 		background: #991b1b;
+	}
+
+	.secondary-button:hover {
+		background: #f8fafc;
 	}
 
 	.section-heading a {
@@ -209,6 +250,24 @@
 		left: 50%;
 		z-index: 60;
 		width: min(560px, calc(100vw - 32px));
+		max-height: calc(100vh - 32px);
+		display: grid;
+		gap: 18px;
+		overflow: auto;
+		border: 1px solid #d8dee6;
+		border-radius: 8px;
+		background: #ffffff;
+		padding: 18px;
+		box-shadow: 0 24px 70px rgb(15 23 42 / 0.22);
+		transform: translate(-50%, -50%);
+	}
+
+	:global(.settings-dialog-content) {
+		position: fixed;
+		top: 50%;
+		left: 50%;
+		z-index: 60;
+		width: min(480px, calc(100vw - 32px));
 		max-height: calc(100vh - 32px);
 		display: grid;
 		gap: 18px;
@@ -259,6 +318,7 @@
 	}
 
 	.add-document-button:focus-visible,
+	.secondary-button:focus-visible,
 	:global(.dialog-icon-button:focus-visible) {
 		outline: 3px solid rgb(200 30 30 / 0.24);
 		outline-offset: 2px;
@@ -273,8 +333,14 @@
 		}
 
 		.add-document-button,
+		.secondary-button,
 		.section-heading a {
 			width: 100%;
+		}
+
+		.page-actions {
+			display: grid;
+			justify-content: stretch;
 		}
 	}
 </style>

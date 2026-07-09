@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import PdfPagePreview from './PdfPagePreview.svelte';
 
 	type Props = {
 		documentId: number;
@@ -19,7 +20,6 @@
 	const isImage = $derived(
 		contentType.startsWith('image/') || /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/.test(lowerFilename)
 	);
-	const pdfPreviewUrl = $derived(`${previewUrl}#toolbar=0&navpanes=0&scrollbar=0&page=1`);
 	const previewKind = $derived(isPdf ? 'pdf' : isImage ? 'image' : 'file');
 
 	const closePreview = () => {
@@ -40,8 +40,7 @@
 		{#if previewKind === 'image'}
 			<img src={previewUrl} alt="" loading="lazy" />
 		{:else if previewKind === 'pdf'}
-			<iframe src={pdfPreviewUrl} title={`Miniatură PDF pentru ${filename}`} loading="lazy"
-			></iframe>
+			<PdfPagePreview url={previewUrl} title={`Miniatură PDF pentru ${filename}`} />
 			<span class="preview-badge">PDF</span>
 		{:else}
 			<span class="file-placeholder">Fișier</span>
@@ -84,11 +83,15 @@
 				</button>
 			</header>
 
-			<div class="preview-body">
+			<div
+				class="preview-body"
+				class:image-preview={previewKind === 'image'}
+				class:pdf-preview={previewKind === 'pdf'}
+			>
 				{#if previewKind === 'image'}
 					<img src={previewUrl} alt={filename} />
 				{:else if previewKind === 'pdf'}
-					<iframe src={pdfPreviewUrl} title={`Previzualizare PDF pentru ${filename}`}></iframe>
+					<PdfPagePreview url={previewUrl} title={`Previzualizare PDF pentru ${filename}`} />
 				{:else}
 					<div class="unsupported-preview">
 						<p>Acest tip de fișier nu poate fi previzualizat în browser.</p>
@@ -166,12 +169,11 @@
 		border-radius: 6px;
 	}
 
-	.preview-frame img,
-	.preview-frame iframe {
+	.preview-frame img {
 		width: 100%;
 		height: 100%;
 		border: 0;
-		object-fit: cover;
+		object-fit: contain;
 		pointer-events: none;
 	}
 
@@ -277,11 +279,18 @@
 		background: #0f172a;
 	}
 
-	.preview-body img,
-	.preview-body iframe {
-		width: 100%;
-		height: 100%;
-		border: 0;
+	.preview-body.image-preview,
+	.preview-body.pdf-preview {
+		place-items: center;
+		overflow: auto;
+		background: #111827;
+	}
+
+	.preview-body img {
+		width: auto;
+		height: auto;
+		max-width: 100%;
+		max-height: 100%;
 		object-fit: contain;
 	}
 

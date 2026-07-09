@@ -1,10 +1,13 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { Download, Pencil, RefreshCcw, RotateCcw, Send, Trash2, X } from '@lucide/svelte';
 	import { Dialog } from 'bits-ui';
+	import { toast } from 'svelte-sonner';
 	import DocumentPreview from '$lib/components/finance/DocumentPreview.svelte';
 	import { financialStatusLabels, formatBytes, formatDateTime } from '$lib/finance/document-format';
 	import type { FinancialDocument, FinancialDocumentStatus } from './+page.server';
+	import type { SubmitFunction } from '@sveltejs/kit';
 
 	type Props = {
 		document: FinancialDocument;
@@ -12,7 +15,11 @@
 	};
 
 	let { document, isFinanceManager }: Props = $props();
+	let localDocument = $state<FinancialDocument | undefined>();
 	let editDialogOpen = $state(false);
+	let sendPending = $state(false);
+
+	const currentDocument = $derived(localDocument ?? document);
 
 	const legacyReadyStatuses = new Set<FinancialDocumentStatus>(['uploaded', 'in_review']);
 	const hiddenStatusOptions = new Set<FinancialDocumentStatus>(['uploaded', 'in_review']);
@@ -27,52 +34,90 @@
 		'ready_to_send'
 	]);
 	const displayStatus = $derived(
-		legacyReadyStatuses.has(document.status) ? 'ready_to_send' : document.status
+		legacyReadyStatuses.has(currentDocument.status) ? 'ready_to_send' : currentDocument.status
 	);
 
+	type DocumentActionPayload = {
+		message?: string;
+		document?: FinancialDocument;
+	};
+
 	const confirmDelete = (event: SubmitEvent) => {
-		if (!window.confirm(`Ștergi documentul "${document.originalFilename}"?`)) {
+		if (!window.confirm(`Ștergi documentul "${currentDocument.originalFilename}"?`)) {
 			event.preventDefault();
 		}
+	};
+
+	const handleSendSubmit: SubmitFunction<DocumentActionPayload, DocumentActionPayload> = () => {
+		sendPending = true;
+
+		return async ({ result }) => {
+			sendPending = false;
+
+			if (result.type === 'success') {
+				const updatedDocument = result.data?.document;
+				if (updatedDocument) {
+					localDocument = updatedDocument;
+					if (updatedDocument.status === 'send_failed') {
+						toast.error(
+							updatedDocument.lastHandoffError ?? 'Trimiterea către contabilitate a eșuat.'
+						);
+						return;
+					}
+				}
+
+				toast.success(result.data?.message ?? 'Documentul a fost trimis către contabilitate.');
+				return;
+			}
+
+			if (result.type === 'failure') {
+				toast.error(result.data?.message ?? 'Trimiterea către contabilitate a eșuat.');
+				return;
+			}
+
+			toast.error('Trimiterea către contabilitate a eșuat.');
+		};
 	};
 </script>
 
 <article class="document-row" class:manager={isFinanceManager}>
 	<DocumentPreview
-		documentId={document.id}
-		filename={document.originalFilename}
-		contentType={document.contentType}
+		documentId={currentDocument.id}
+		filename={currentDocument.originalFilename}
+		contentType={currentDocument.contentType}
 		compact
 		dense
 	/>
 
 	<div class="document-main">
 		<div class="document-title-line">
-			<h3>{document.originalFilename}</h3>
+			<h3>{currentDocument.originalFilename}</h3>
 			<span class={`status ${displayStatus}`}>{financialStatusLabels[displayStatus]}</span>
 		</div>
 
 		<div class="meta-grid">
-			<span>{formatDateTime(document.createdAt)}</span>
-			<span>{formatBytes(document.fileSize)}</span>
-			<span>{document.uploaderName}</span>
-			{#if document.activityId && document.activityTitle}
-				<a href={resolve(`/activities/${document.activityId}`)}>{document.activityTitle}</a>
-			{:else if document.activityName}
-				<span>{document.activityName}</span>
+			<span>{formatDateTime(currentDocument.createdAt)}</span>
+			<span>{formatBytes(currentDocument.fileSize)}</span>
+			<span>{currentDocument.uploaderName}</span>
+			{#if currentDocument.activityId && currentDocument.activityTitle}
+				<a href={resolve(`/activities/${currentDocument.activityId}`)}
+					>{currentDocument.activityTitle}</a
+				>
+			{:else if currentDocument.activityName}
+				<span>{currentDocument.activityName}</span>
 			{/if}
 		</div>
 
-		{#if document.notes || document.reviewerNotes || document.lastHandoffError}
+		{#if currentDocument.notes || currentDocument.reviewerNotes || currentDocument.lastHandoffError}
 			<div class="feedback-stack">
-				{#if document.notes}
-					<p class="notes">{document.notes}</p>
+				{#if currentDocument.notes}
+					<p class="notes">{currentDocument.notes}</p>
 				{/if}
-				{#if document.reviewerNotes}
-					<p class="reviewer-notes">{document.reviewerNotes}</p>
+				{#if currentDocument.reviewerNotes}
+					<p class="reviewer-notes">{currentDocument.reviewerNotes}</p>
 				{/if}
-				{#if document.lastHandoffError}
-					<p class="handoff-error">{document.lastHandoffError}</p>
+				{#if currentDocument.lastHandoffError}
+					<p class="handoff-error">{currentDocument.lastHandoffError}</p>
 				{/if}
 			</div>
 		{/if}
@@ -80,39 +125,42 @@
 
 	<div class="actions-area" aria-label="Acțiuni document">
 		{#if isFinanceManager}
-			{#if document.status === 'send_failed'}
-				<form method="POST" action="?/sendDocument">
-					<input type="hidden" name="documentId" value={document.id} />
+			{#if currentDocument.status === 'send_failed'}
+				<form method="POST" action="?/sendDocument" use:enhance={handleSendSubmit}>
+					<input type="hidden" name="documentId" value={currentDocument.id} />
 					<input type="hidden" name="handoffAction" value="retry" />
 					<button
 						class="icon-action primary"
 						type="submit"
+						disabled={sendPending}
 						aria-label="Reîncearcă trimiterea"
 						title="Reîncearcă trimiterea"
 					>
 						<RefreshCcw size={16} strokeWidth={2.4} aria-hidden="true" />
 					</button>
 				</form>
-			{:else if document.status === 'sent'}
-				<form method="POST" action="?/sendDocument">
-					<input type="hidden" name="documentId" value={document.id} />
+			{:else if currentDocument.status === 'sent'}
+				<form method="POST" action="?/sendDocument" use:enhance={handleSendSubmit}>
+					<input type="hidden" name="documentId" value={currentDocument.id} />
 					<input type="hidden" name="handoffAction" value="resend" />
 					<button
 						class="icon-action primary"
 						type="submit"
+						disabled={sendPending}
 						aria-label="Retrimite la contabilitate"
 						title="Retrimite la contabilitate"
 					>
 						<RotateCcw size={16} strokeWidth={2.4} aria-hidden="true" />
 					</button>
 				</form>
-			{:else if manuallySendableStatuses.has(document.status)}
-				<form method="POST" action="?/sendDocument">
-					<input type="hidden" name="documentId" value={document.id} />
+			{:else if manuallySendableStatuses.has(currentDocument.status)}
+				<form method="POST" action="?/sendDocument" use:enhance={handleSendSubmit}>
+					<input type="hidden" name="documentId" value={currentDocument.id} />
 					<input type="hidden" name="handoffAction" value="send" />
 					<button
 						class="icon-action primary"
 						type="submit"
+						disabled={sendPending}
 						aria-label="Trimite la contabilitate"
 						title="Trimite la contabilitate"
 					>
@@ -134,7 +182,7 @@
 
 		<a
 			class="icon-action"
-			href={resolve(`/finance/documents/${document.id}/file`)}
+			href={resolve(`/finance/documents/${currentDocument.id}/file`)}
 			aria-label="Descarcă documentul"
 			title="Descarcă documentul"
 		>
@@ -143,7 +191,7 @@
 
 		{#if isFinanceManager}
 			<form method="POST" action="?/deleteDocument" onsubmit={confirmDelete}>
-				<input type="hidden" name="documentId" value={document.id} />
+				<input type="hidden" name="documentId" value={currentDocument.id} />
 				<button
 					class="icon-action danger"
 					type="submit"
@@ -166,7 +214,7 @@
 					<div>
 						<Dialog.Title class="dialog-title">Editează documentul</Dialog.Title>
 						<Dialog.Description class="dialog-description">
-							{document.originalFilename}
+							{currentDocument.originalFilename}
 						</Dialog.Description>
 					</div>
 					<Dialog.Close class="dialog-icon-button" aria-label="Închide dialogul">
@@ -175,7 +223,7 @@
 				</div>
 
 				<form class="dialog-form" method="POST" action="?/updateStatus">
-					<input type="hidden" name="documentId" value={document.id} />
+					<input type="hidden" name="documentId" value={currentDocument.id} />
 					<label>
 						<span>Stare</span>
 						<select name="status">
@@ -186,7 +234,7 @@
 					</label>
 					<label>
 						<span>Observații</span>
-						<textarea name="reviewerNotes" rows="4">{document.reviewerNotes ?? ''}</textarea>
+						<textarea name="reviewerNotes" rows="4">{currentDocument.reviewerNotes ?? ''}</textarea>
 					</label>
 
 					<div class="dialog-actions">
@@ -368,6 +416,11 @@
 	:global(.dialog-icon-button:hover) {
 		border-color: #94a3b8;
 		background: #f8fafc;
+	}
+
+	.icon-action:disabled {
+		cursor: wait;
+		opacity: 0.62;
 	}
 
 	.icon-action.primary {

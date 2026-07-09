@@ -60,6 +60,8 @@ export const menuHref = (href: AppHref) => {
 			return resolve('/programe/regulamente');
 		case '/sediu/regulament':
 			return resolve('/sediu/regulament');
+		case '/sediu/orar':
+			return resolve('/sediu/orar');
 	}
 };
 
@@ -146,5 +148,8 @@ export const routeTitle = (pathname: string) => {
 	if (pathname.startsWith('/info/statut')) return 'Statut ONCR';
 	if (pathname.startsWith('/programe/regulamente')) return 'Regulament ONCR';
 	if (pathname.startsWith('/sediu/regulament')) return 'Regulament sediu';
+	if (pathname.startsWith('/sediu/orar')) return 'Calendar sediu';
+	if (pathname.startsWith('/user/docs')) return 'Documentație aplicație';
+	if (pathname.startsWith('/user/feedback')) return 'Feedback';
 	return 'Resurse';
 };

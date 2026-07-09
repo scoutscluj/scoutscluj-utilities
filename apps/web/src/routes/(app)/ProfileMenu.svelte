@@ -50,6 +50,16 @@
 							<a {...props} href={resolve('/profile')}>Profil</a>
 						{/snippet}
 					</DropdownMenu.Item>
+					<DropdownMenu.Item class="profile-menu-item" textValue="Documentație">
+						{#snippet child({ props })}
+							<a {...props} href={resolve('/user/docs')}>Documentație</a>
+						{/snippet}
+					</DropdownMenu.Item>
+					<DropdownMenu.Item class="profile-menu-item" textValue="Feedback">
+						{#snippet child({ props })}
+							<a {...props} href={resolve('/user/feedback')}>Feedback</a>
+						{/snippet}
+					</DropdownMenu.Item>
 					<form method="POST" action={resolve('/auth/logout')} class="profile-logout-form">
 						<DropdownMenu.Item class="profile-menu-item danger" textValue="Logout">
 							{#snippet child({ props })}

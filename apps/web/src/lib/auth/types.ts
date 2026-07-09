@@ -11,7 +11,8 @@ export type AppHref =
 	| '/finance/documents'
 	| '/info/statut'
 	| '/programe/regulamente'
-	| '/sediu/regulament';
+	| '/sediu/regulament'
+	| '/sediu/orar';
 
 export type CurrentUser = {
 	id: number;

@@ -13,7 +13,7 @@ Build a finance-first module with:
 - `Documente financiare`: simple user uploads with optional `Activitate` link and notes.
 - Protected document previews in the general finance register and activity finance view, with PDF and image files opening inline before download.
 - An Orgo-first activity reference: if Orgo exposes event creation/reference APIs, local `Activitate` records should link to Orgo events and keep finance, reporting, and future meal planning as local extensions.
-- A review inbox for `Responsabil financiar`, with statuses: `Încărcat`, `În verificare`, `Gata de trimis`, `Trimis`, `Necesită clarificări`, `Respins`, `Arhivat`.
+- A review inbox for `Responsabil financiar`, with uploaded documents starting at `Gata de trimis`, then moving through `Trimis`, `Trimitere eșuată`, `Necesită clarificări`, `Respins`, or `Arhivat`.
 - PWA/Web Push notifications for new document uploads, clarification requests, and status changes.
 - A Keez adapter that supports confirmed public API capabilities now and can switch to direct document submission if Keez exposes a suitable endpoint.
 - A global direct-to-Keez setting plus per-`Activitate` override.

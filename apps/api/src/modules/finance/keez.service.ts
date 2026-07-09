@@ -3,8 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { FinancialDocument } from './entities/financial-document.entity';
 
 const KEEZ_DOCUMENT_UPLOAD_AVAILABLE = false;
-const DEFAULT_KEEZ_EMAIL_RECIPIENT = 'cui@keez.ro';
 const DEFAULT_KEEZ_EMAIL_EXPECTED_SENDER = 'cluj.napoca@scout.ro';
+const UNCONFIGURED_KEEZ_EMAIL_RECIPIENT = 'recipient-keez-neconfigurat';
 const OFFICIAL_ORGANIZATION_NAME =
   'ASOCIAŢIA ORGANIZAŢIA NAŢIONALĂ CERCETAŞII ROMÂNIEI FILIALA CLUJ';
 
@@ -112,7 +112,8 @@ export class KeezService {
 
     return {
       senderEmail: emailConfig.senderEmail ?? emailConfig.expectedSenderEmail,
-      recipientEmail: emailConfig.recipientEmail,
+      recipientEmail:
+        emailConfig.recipientEmail ?? UNCONFIGURED_KEEZ_EMAIL_RECIPIENT,
       subject,
       attachmentFilename: buildKeezAttachmentFilename(document),
     };
@@ -186,10 +187,9 @@ export class KeezService {
       normalizeEmail(
         this.config.get<string>('KEEZ_DOCUMENT_EMAIL_EXPECTED_SENDER'),
       ) ?? DEFAULT_KEEZ_EMAIL_EXPECTED_SENDER;
-    const recipientEmail =
-      normalizeEmail(
-        this.config.get<string>('KEEZ_DOCUMENT_EMAIL_RECIPIENT'),
-      ) ?? DEFAULT_KEEZ_EMAIL_RECIPIENT;
+    const recipientEmail = normalizeEmail(
+      this.config.get<string>('KEEZ_DOCUMENT_EMAIL_RECIPIENT'),
+    );
 
     return {
       clientId,
@@ -204,7 +204,7 @@ export class KeezService {
         refreshToken &&
         senderEmail &&
         senderEmail === expectedSenderEmail &&
-        recipientEmail === DEFAULT_KEEZ_EMAIL_RECIPIENT,
+        recipientEmail,
       ),
     };
   }

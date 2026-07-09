@@ -77,8 +77,6 @@ The system records:
 
 Document statuses:
 
-- `Încărcat`
-- `În verificare`
 - `Gata de trimis`
 - `Trimis`
 - `Necesită clarificări`
@@ -116,7 +114,7 @@ Adapter behavior:
 - Store external IDs and raw safe response metadata.
 - Map Keez errors into retryable, unauthorized, validation, unsupported, and unknown categories.
 - If generic document upload is unsupported, use Gmail email handoff where configured and track status locally.
-- Send from `cluj.napoca@scout.ro` to `cui@keez.ro`.
+- Send from `cluj.napoca@scout.ro` to the configured company-CUI Keez mailbox.
 - Send one email per `Document financiar`.
 - Use regular-user copy that says `contabilitate`; expose Keez/Gmail technical details only to finance users and audit records.
 - Use the official organization name in the email body: `ASOCIAŢIA ORGANIZAŢIA NAŢIONALĂ CERCETAŞII ROMÂNIEI FILIALA CLUJ`.
@@ -140,7 +138,7 @@ Ask Keez:
 6. Whether document upload works in staging with current credentials.
 7. Whether purchase invoices/expense documents have separate APIs from customer invoice APIs.
 8. Whether uploaded documents support caller-supplied external IDs/idempotency keys.
-9. Whether an email-ingestion fallback exists and can be automated. Keez confirmed documents sent to `cui@keez.ro` from the Keez account email are loaded automatically under Contabilitate -> Documente.
+9. Whether an email-ingestion fallback exists and can be automated. Keez confirmed documents sent to the company-CUI Keez mailbox from the Keez account email are loaded automatically under Contabilitate -> Documente.
 
 ## Notifications
 

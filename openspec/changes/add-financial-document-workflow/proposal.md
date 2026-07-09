@@ -28,7 +28,7 @@ Keez is the external accounting partner, but the public Keez API currently docum
 - Stripe implementation.
 - Automatic OCR or document metadata extraction.
 - Automatic document-to-transaction matching.
-- Direct Keez generic document upload unless Keez confirms an API. Confirmed email ingestion through `cui@keez.ro` is in scope.
+- Direct Keez generic document upload unless Keez confirms an API. Confirmed email ingestion through the configured company-CUI Keez mailbox is in scope.
 - Full legacy data migration.
 
 ## Impact

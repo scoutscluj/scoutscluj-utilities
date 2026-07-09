@@ -45,6 +45,10 @@ const TERMINAL_STATUSES = new Set<string>([
   FinancialDocumentStatus.Rejected,
   FinancialDocumentStatus.Archived,
 ]);
+const LEGACY_READY_STATUSES = new Set<FinancialDocumentStatus>([
+  FinancialDocumentStatus.Uploaded,
+  FinancialDocumentStatus.InReview,
+]);
 
 type FinancialDocumentFile = {
   originalFilename: string;
@@ -109,7 +113,7 @@ export class FinanceService {
     const activity = await this.resolveActivity(input.activityId);
     const document = this.documentsRepository.create({
       uploaderId: user.id,
-      status: FinancialDocumentStatus.Uploaded,
+      status: FinancialDocumentStatus.ReadyToSend,
       originalFilename: cleanFilename(input.fileName),
       contentType,
       fileSize: fileData.length,
@@ -128,7 +132,7 @@ export class FinanceService {
       document.id,
       user.id,
       undefined,
-      FinancialDocumentStatus.Uploaded,
+      FinancialDocumentStatus.ReadyToSend,
       document.notes ?? undefined,
     );
     await this.auditService.record({
@@ -270,9 +274,12 @@ export class FinanceService {
     }
 
     const previousStatus = document.status;
+    const nextStatus = this.normalizeDocumentStatus(input.status);
     const reviewerNotes = cleanOptionalText(input.reviewerNotes);
-    document.status = input.status;
-    document.reviewerNotes = reviewerNotes ?? document.reviewerNotes;
+    document.status = nextStatus;
+    document.reviewerNotes = Object.hasOwn(input, 'reviewerNotes')
+      ? (reviewerNotes ?? null)
+      : document.reviewerNotes;
 
     this.em.persist(document);
     await this.em.flush();
@@ -280,7 +287,7 @@ export class FinanceService {
       document.id,
       user.id,
       previousStatus,
-      input.status,
+      nextStatus,
       reviewerNotes,
     );
     await this.auditService.record({
@@ -291,7 +298,7 @@ export class FinanceService {
       activityId: document.activityId ?? undefined,
       metadata: {
         fromStatus: previousStatus,
-        toStatus: input.status,
+        toStatus: nextStatus,
         reviewerNotes,
       },
     });
@@ -310,13 +317,13 @@ export class FinanceService {
 
     const document = await this.documentsRepository.findOne({ id: documentId });
     if (!document) {
-      throw new NotFoundException('Documentul financiar nu existÄƒ.');
+      throw new NotFoundException('Documentul financiar nu există.');
     }
 
     const currentStatus = document.status as FinancialDocumentStatus;
     if (currentStatus === FinancialDocumentStatus.Sent) {
       throw new BadRequestException(
-        'Documentul a fost deja trimis. FoloseÈ™te retrimiterea explicitÄƒ.',
+        'Documentul a fost deja trimis. Folosește retrimiterea explicită.',
       );
     }
     if (
@@ -324,7 +331,7 @@ export class FinanceService {
       currentStatus === FinancialDocumentStatus.Archived
     ) {
       throw new BadRequestException(
-        'Documentul respins sau arhivat nu poate fi trimis cÄƒtre contabilitate.',
+        'Documentul respins sau arhivat nu poate fi trimis către contabilitate.',
       );
     }
 
@@ -343,12 +350,12 @@ export class FinanceService {
 
     const document = await this.documentsRepository.findOne({ id: documentId });
     if (!document) {
-      throw new NotFoundException('Documentul financiar nu existÄƒ.');
+      throw new NotFoundException('Documentul financiar nu există.');
     }
     const currentStatus = document.status as FinancialDocumentStatus;
     if (currentStatus !== FinancialDocumentStatus.SendFailed) {
       throw new BadRequestException(
-        'Doar documentele cu trimitere eÈ™uatÄƒ pot fi reÃ®ncercate.',
+        'Doar documentele cu trimitere eșuată pot fi reîncercate.',
       );
     }
 
@@ -367,7 +374,7 @@ export class FinanceService {
 
     const document = await this.documentsRepository.findOne({ id: documentId });
     if (!document) {
-      throw new NotFoundException('Documentul financiar nu existÄƒ.');
+      throw new NotFoundException('Documentul financiar nu există.');
     }
     const currentStatus = document.status as FinancialDocumentStatus;
     if (currentStatus !== FinancialDocumentStatus.Sent) {
@@ -476,15 +483,15 @@ export class FinanceService {
     const duplicate = await this.findSentDuplicate(document);
     if (duplicate) {
       const previousStatus = document.status;
-      document.status = FinancialDocumentStatus.InReview;
-      document.reviewerNotes = `Posibil duplicat: fiÈ™ier identic cu documentul #${duplicate.id} deja trimis cÄƒtre contabilitate.`;
+      document.status = FinancialDocumentStatus.ReadyToSend;
+      document.reviewerNotes = `Posibil duplicat: fișier identic cu documentul #${duplicate.id} deja trimis către contabilitate.`;
       this.em.persist(document);
       await this.em.flush();
       await this.recordAudit(
         document.id,
         user.id,
         previousStatus,
-        FinancialDocumentStatus.InReview,
+        FinancialDocumentStatus.ReadyToSend,
         document.reviewerNotes,
       );
       await this.auditService.record({
@@ -532,6 +539,7 @@ export class FinanceService {
       });
 
       document.status = FinancialDocumentStatus.Sent;
+      document.reviewerNotes = null;
       document.keezExternalId = result.providerMessageId;
       document.keezSubmittedAt = new Date();
       this.em.persist(document);
@@ -549,7 +557,7 @@ export class FinanceService {
         user.id,
         previousStatus,
         FinancialDocumentStatus.Sent,
-        'Trimis cÄƒtre contabilitate.',
+        'Trimis către contabilitate.',
       );
       await this.auditService.record({
         actorId: user.id,
@@ -652,7 +660,7 @@ export class FinanceService {
       return error.message.slice(0, 1000);
     }
 
-    return 'Trimiterea cÄƒtre contabilitate a eÈ™uat.'.slice(0, 1000);
+    return 'Trimiterea către contabilitate a eșuat.'.slice(0, 1000);
   }
 
   private decodeBase64File(value?: string) {
@@ -832,7 +840,7 @@ export class FinanceService {
         .map((document) => document.activityId)
         .filter((activityId): activityId is number => Boolean(activityId)),
     );
-    const latestFailedAttempts = await this.getLatestFailedHandoffAttempts(
+    const latestHandoffAttempts = await this.getLatestHandoffAttempts(
       documents.map((document) => document.id),
     );
 
@@ -860,13 +868,15 @@ export class FinanceService {
       keezExternalId: document.keezExternalId ?? undefined,
       keezSubmittedAt: document.keezSubmittedAt?.toISOString(),
       lastHandoffError:
-        latestFailedAttempts.get(document.id)?.errorMessage ?? undefined,
+        latestHandoffAttempts.get(document.id)?.status === 'failed'
+          ? (latestHandoffAttempts.get(document.id)?.errorMessage ?? undefined)
+          : undefined,
       createdAt: document.createdAt.toISOString(),
       updatedAt: document.updatedAt.toISOString(),
     }));
   }
 
-  private async getLatestFailedHandoffAttempts(documentIds: number[]) {
+  private async getLatestHandoffAttempts(documentIds: number[]) {
     const uniqueIds = Array.from(new Set(documentIds));
     if (!uniqueIds.length) {
       return new Map<number, FinancialDocumentHandoffAttempt>();
@@ -875,7 +885,6 @@ export class FinanceService {
     const attempts = await this.handoffAttemptsRepository.find(
       {
         documentId: { $in: uniqueIds },
-        status: 'failed',
       },
       { orderBy: { createdAt: 'desc' } },
     );
@@ -887,6 +896,12 @@ export class FinanceService {
     }
 
     return latestAttempts;
+  }
+
+  private normalizeDocumentStatus(status: FinancialDocumentStatus) {
+    return LEGACY_READY_STATUSES.has(status)
+      ? FinancialDocumentStatus.ReadyToSend
+      : status;
   }
 
   private async getActivities(activityIds: number[]) {

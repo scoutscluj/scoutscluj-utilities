@@ -40,22 +40,6 @@
           "collation": null,
           "enumItems": []
         },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": true,
-          "unique": false,
-          "length": null,
-          "precision": null,
-          "scale": null,
-          "default": null,
-          "comment": null,
-          "collation": null,
-          "enumItems": []
-        },
         "departments": {
           "name": "departments",
           "type": "activity_department[]",
@@ -77,6 +61,22 @@
             "logistics"
           ],
           "nativeEnumName": "activity_department"
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": []
         },
         "end_date": {
           "name": "end_date",

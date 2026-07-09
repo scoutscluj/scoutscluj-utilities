@@ -220,6 +220,37 @@ export class FinanceService {
     };
   }
 
+  async deleteDocument(user: CurrentUser, documentId: number) {
+    if (!this.canManageFinance(user)) {
+      throw new ForbiddenException('Nu ai acces la documentele financiare.');
+    }
+
+    const document = await this.documentsRepository.findOne({ id: documentId });
+    if (!document) {
+      throw new NotFoundException('Documentul financiar nu există.');
+    }
+
+    await this.auditService.record({
+      actorId: user.id,
+      action: 'financial_document.deleted',
+      entityType: 'financial_document',
+      entityId: document.id,
+      activityId: document.activityId ?? undefined,
+      metadata: {
+        originalFilename: document.originalFilename,
+        contentType: document.contentType,
+        fileSize: document.fileSize,
+        status: document.status,
+        checksumSha256: document.checksumSha256,
+      },
+    });
+
+    this.em.remove(document);
+    await this.em.flush();
+
+    return { deleted: true };
+  }
+
   async updateDocumentStatus(
     user: CurrentUser,
     documentId: number,

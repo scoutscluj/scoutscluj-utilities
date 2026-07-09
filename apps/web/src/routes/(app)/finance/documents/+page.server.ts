@@ -260,6 +260,29 @@ export const actions: Actions = {
 
 		return { message: 'Trimiterea către contabilitate a fost procesată.' };
 	},
+	deleteDocument: async ({ request, cookies, locals }) => {
+		if (!hasRole(locals.user, 'finance_manager')) {
+			return fail(403, { message: 'Nu ai acces la această acțiune.' });
+		}
+
+		const formData = await request.formData();
+		const documentId = Number(formData.get('documentId'));
+		if (!Number.isInteger(documentId) || documentId <= 0) {
+			return fail(400, { message: 'Documentul nu este valid.' });
+		}
+
+		const sessionToken = getSessionToken(cookies);
+		const response = await apiFetch(`/api/finance/documents/${documentId}`, {
+			method: 'DELETE',
+			headers: authHeaders(sessionToken)
+		});
+
+		if (!response.ok) {
+			return fail(response.status, { message: await readApiMessage(response) });
+		}
+
+		return { message: 'Documentul a fost șters.' };
+	},
 	updateSettings: async ({ request, cookies, locals }) => {
 		if (!hasRole(locals.user, 'finance_manager')) {
 			return fail(403, { message: 'Nu ai acces la setările financiare.' });

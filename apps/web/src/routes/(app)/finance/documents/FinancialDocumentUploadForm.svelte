@@ -2,12 +2,20 @@
 	import type { Activity, ActivityType } from './+page.server';
 
 	type Props = {
-		activities: Activity[];
+		activities?: Activity[];
 		handoffMode: 'review_first' | 'direct_to_keez';
 		showHeader?: boolean;
+		fixedActivityId?: number;
+		fixedActivityLabel?: string;
 	};
 
-	let { activities, handoffMode, showHeader = true }: Props = $props();
+	let {
+		activities = [],
+		handoffMode,
+		showHeader = true,
+		fixedActivityId,
+		fixedActivityLabel
+	}: Props = $props();
 
 	const activityTypeLabels: Record<ActivityType, string> = {
 		camp: 'Camp',
@@ -38,15 +46,25 @@
 		<input name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif" required />
 	</label>
 
-	<label>
-		<span>Activitate</span>
-		<select name="activityId">
-			<option value="">Fără activitate</option>
-			{#each activities as activity (activity.id)}
-				<option value={activity.id}>{activity.title} · {activityTypeLabels[activity.type]}</option>
-			{/each}
-		</select>
-	</label>
+	{#if fixedActivityId}
+		<input type="hidden" name="activityId" value={fixedActivityId} />
+		<div class="fixed-activity">
+			<span>Activitate</span>
+			<strong>{fixedActivityLabel ?? 'Activitatea curenta'}</strong>
+		</div>
+	{:else}
+		<label>
+			<span>Activitate</span>
+			<select name="activityId">
+				<option value="">Fără activitate</option>
+				{#each activities as activity (activity.id)}
+					<option value={activity.id}>
+						{activity.title} · {activityTypeLabels[activity.type]}
+					</option>
+				{/each}
+			</select>
+		</label>
+	{/if}
 
 	<label>
 		<span>Notițe</span>
@@ -91,6 +109,32 @@
 		display: grid;
 		gap: 6px;
 		font-weight: 800;
+	}
+
+	.fixed-activity {
+		display: grid;
+		gap: 4px;
+		border: 1px solid #dbe3ef;
+		border-radius: 8px;
+		background: #f8fafc;
+		padding: 10px 12px;
+		color: #334155;
+	}
+
+	.fixed-activity span {
+		font-size: 0.78rem;
+		font-weight: 900;
+		letter-spacing: 0;
+		text-transform: uppercase;
+	}
+
+	.fixed-activity strong {
+		min-width: 0;
+		overflow: hidden;
+		color: #0f172a;
+		font-size: 0.95rem;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	input,

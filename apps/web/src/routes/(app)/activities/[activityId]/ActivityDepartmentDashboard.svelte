@@ -69,6 +69,14 @@
 				signals: ['Departament activ', 'Pagina nu este implementată încă']
 			});
 		}
+		if (hasDepartment('parental_consent')) {
+			items.push({
+				id: 'parental_consent',
+				label: 'Acord parental',
+				href: resolve(`/activities/${activity.id}/parental-consent`),
+				signals: ['Configurare pe ramuri', 'Preview PDF', 'Publicare și descărcare']
+			});
+		}
 		return items;
 	};
 	const cards = $derived(buildCards());

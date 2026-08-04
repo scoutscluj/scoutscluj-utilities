@@ -3,4 +3,5 @@ export enum ActivityDepartment {
   Kitchen = 'kitchen',
   Program = 'program',
   Logistics = 'logistics',
+  ParentalConsent = 'parental_consent',
 }

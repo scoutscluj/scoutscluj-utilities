@@ -3,7 +3,10 @@ import { apiText, parseActivityId } from '../../kitchen-api';
 
 export const GET: RequestHandler = async ({ cookies, params }) => {
 	const activityId = parseActivityId(params.activityId);
-	const csv = await apiText(cookies, `/api/activities/${activityId}/kitchen/reports/procurement.csv`);
+	const csv = await apiText(
+		cookies,
+		`/api/activities/${activityId}/kitchen/reports/procurement.csv`
+	);
 
 	return new Response(csv, {
 		headers: {

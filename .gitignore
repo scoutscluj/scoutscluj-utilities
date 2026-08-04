@@ -8,6 +8,9 @@ dist
 build
 .svelte-kit
 coverage
+test-results
+playwright-report
+/tmp/
 *.log
 old_app
 cdk.out

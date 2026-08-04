@@ -5,6 +5,7 @@ export type AppHref =
 	| '/admin'
 	| '/admin/users'
 	| '/admin/notifications'
+	| '/admin/parental-consent'
 	| '/audit'
 	| '/activities'
 	| '/finance'

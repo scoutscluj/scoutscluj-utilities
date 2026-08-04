@@ -12,6 +12,7 @@ import { HealthModule } from './modules/health/health.module';
 import { UsersAdminModule } from './modules/users/users-admin.module';
 import { KitchenModule } from './modules/kitchen/kitchen.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { ParentalConsentModule } from './modules/parental-consent/parental-consent.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     FinanceModule,
     KitchenModule,
     NotificationsModule,
+    ParentalConsentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

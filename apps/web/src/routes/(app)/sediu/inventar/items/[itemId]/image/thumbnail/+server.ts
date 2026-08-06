@@ -5,5 +5,5 @@ export const GET: RequestHandler = ({ cookies, params, request }) =>
 	proxyInventoryImage({
 		cookies,
 		request,
-		apiPath: `/api/inventory/items/${params.itemId}/image`
+		apiPath: `/api/inventory/items/${params.itemId}/image/thumbnail`
 	});

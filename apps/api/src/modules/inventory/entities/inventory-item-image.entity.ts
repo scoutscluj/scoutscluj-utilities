@@ -13,6 +13,16 @@ export const InventoryItemImage = defineEntity({
     fileSize: p.integer().fieldName('file_size'),
     checksumSha256: p.string().fieldName('checksum_sha256'),
     fileData: p.type('bytea').fieldName('file_data'),
+    thumbnailContentType: p
+      .string()
+      .nullable()
+      .fieldName('thumbnail_content_type'),
+    thumbnailFileSize: p.integer().nullable().fieldName('thumbnail_file_size'),
+    thumbnailChecksumSha256: p
+      .string()
+      .nullable()
+      .fieldName('thumbnail_checksum_sha256'),
+    thumbnailData: p.type('bytea').nullable().fieldName('thumbnail_data'),
     uploadedByUserId: p.integer().nullable().fieldName('uploaded_by_user_id'),
     uploadedByDisplayName: p
       .string()

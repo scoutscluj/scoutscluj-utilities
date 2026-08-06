@@ -233,6 +233,13 @@
 		return resolve(`/sediu/inventar/items/${itemId}/image`);
 	}
 
+	function thumbnailProxyUrl(item: InventoryItem) {
+		if (!item.image?.thumbnailChecksumSha256) return '';
+		return resolve(
+			`/sediu/inventar/items/${item.id}/image/thumbnail?v=${encodeURIComponent(item.image.thumbnailChecksumSha256)}`
+		);
+	}
+
 	function paginationFields(page: number) {
 		return Object.entries(data.filters)
 			.map(([name, value]) => ({
@@ -496,9 +503,17 @@
 								>{/if}
 							{#if isVisible('image')}
 								<td>
-									{#if item.image}
+									{#if thumbnailProxyUrl(item)}
 										<a class="thumb-link" href={imageProxyUrl(item.id)} target="_blank">
-											<img src={imageProxyUrl(item.id)} alt={item.name} />
+											<img
+												src={thumbnailProxyUrl(item)}
+												alt={item.name}
+												loading="lazy"
+												decoding="async"
+												fetchpriority="low"
+												width="46"
+												height="46"
+											/>
 										</a>
 									{:else}
 										<span class="muted-icon">
@@ -539,8 +554,16 @@
 			{#each data.inventory.items as item (item.id)}
 				<article class="inventory-card">
 					<div class="card-image">
-						{#if item.image}
-							<img src={imageProxyUrl(item.id)} alt={item.name} />
+						{#if thumbnailProxyUrl(item)}
+							<img
+								src={thumbnailProxyUrl(item)}
+								alt={item.name}
+								loading="lazy"
+								decoding="async"
+								fetchpriority="low"
+								width="84"
+								height="84"
+							/>
 						{:else}
 							<ImageIcon size={24} aria-hidden="true" />
 						{/if}

@@ -37,6 +37,10 @@ export type InventoryImage = {
 	contentType: string;
 	fileSize: number;
 	checksumSha256: string;
+	thumbnailContentType?: string;
+	thumbnailFileSize?: number;
+	thumbnailChecksumSha256?: string;
+	thumbnailUrl?: string;
 	uploadedByUserId?: number;
 	uploadedByDisplayName?: string;
 	url: string;

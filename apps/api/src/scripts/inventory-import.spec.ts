@@ -8,6 +8,8 @@ import {
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import sharp from 'sharp';
+import { createInventoryThumbnail } from '../modules/inventory/inventory-image-thumbnail';
 
 const item: LegacyInventoryItem = {
   id: 'firestore-id',
@@ -24,6 +26,18 @@ const item: LegacyInventoryItem = {
   imageUrl:
     'https://firebasestorage.googleapis.com/v0/b/example/o/inventory%2Fphoto.jpg?alt=media&token=secret',
 };
+
+const createImageBytes = () =>
+  sharp({
+    create: {
+      width: 320,
+      height: 180,
+      channels: 3,
+      background: '#c81e1e',
+    },
+  })
+    .jpeg()
+    .toBuffer();
 
 describe('inventory import', () => {
   it('parses a valid Firestore export', () => {
@@ -44,7 +58,7 @@ describe('inventory import', () => {
 
   it('downloads an image without leaking the Firebase token into its filename', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'inventory-import-'));
-    const bytes = Buffer.from('image bytes');
+    const bytes = await createImageBytes();
     const fetchImage = jest.fn().mockResolvedValue(
       new Response(bytes, {
         status: 200,
@@ -58,6 +72,7 @@ describe('inventory import', () => {
       expect(image.localPath).not.toContain('secret');
       expect(await readFile(image.localPath)).toEqual(bytes);
       expect(image.checksumSha256).toHaveLength(64);
+      expect(image.thumbnail.contentType).toBe('image/webp');
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
@@ -65,7 +80,7 @@ describe('inventory import', () => {
 
   it('reuses a downloaded image cache without another network request', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'inventory-import-'));
-    const bytes = Buffer.from('image bytes');
+    const bytes = await createImageBytes();
     const fetchImage = jest.fn().mockResolvedValue(
       new Response(bytes, {
         status: 200,
@@ -100,7 +115,8 @@ describe('inventory import', () => {
   it('writes a transactional SQL migration with bytea image data', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'inventory-import-'));
     const outputPath = join(directory, 'inventory.sql');
-    const fileData = Buffer.from('image bytes');
+    const fileData = await createImageBytes();
+    const thumbnail = await createInventoryThumbnail(fileData);
 
     try {
       await writeInventorySql(
@@ -114,6 +130,7 @@ describe('inventory import', () => {
             fileData,
             localPath: '/tmp/photo.jpg',
             checksumSha256: 'abc123',
+            thumbnail,
           },
         ],
         false,
@@ -122,6 +139,10 @@ describe('inventory import', () => {
       expect(sql).toContain('BEGIN;');
       expect(sql).toContain('inventory_items must be empty');
       expect(sql).toContain(`decode('${fileData.toString('hex')}', 'hex')`);
+      expect(sql).toContain(
+        `decode('${thumbnail.fileData.toString('hex')}', 'hex')`,
+      );
+      expect(sql).toContain('thumbnail_checksum_sha256');
       expect(sql).toContain('FROM inserted_item;');
       expect(sql).toContain('COMMIT;');
       expect(sql).not.toContain(item.imageUrl);

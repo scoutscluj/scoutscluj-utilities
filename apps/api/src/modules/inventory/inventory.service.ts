@@ -19,6 +19,7 @@ import {
 } from './dto/inventory.dto';
 import { InventoryItemImage } from './entities/inventory-item-image.entity';
 import { InventoryItem } from './entities/inventory-item.entity';
+import { createInventoryThumbnail } from './inventory-image-thumbnail';
 import { INVENTORY_OPTIONS } from './inventory-options';
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -57,10 +58,16 @@ type ListInventoryInput = {
   pageSize?: string;
 };
 
+type InventoryImageMetadata = Omit<
+  InventoryItemImage,
+  'fileData' | 'thumbnailData'
+>;
+
 export type InventoryImageFile = {
   originalFilename: string;
   contentType: string;
   fileSize: number;
+  checksumSha256: string;
   fileData: Buffer;
 };
 
@@ -332,6 +339,15 @@ export class InventoryService {
       );
     }
 
+    let thumbnail: Awaited<ReturnType<typeof createInventoryThumbnail>>;
+    try {
+      thumbnail = await createInventoryThumbnail(fileData);
+    } catch {
+      throw new BadRequestException(
+        'Imaginea nu a putut fi citită sau redimensionată. Încarcă o imagine validă.',
+      );
+    }
+
     const checksumSha256 = createHash('sha256').update(fileData).digest('hex');
     const existing = await this.imagesRepository.findOne({
       inventoryItemId: item.id,
@@ -345,6 +361,10 @@ export class InventoryService {
         fileSize: fileData.length,
         checksumSha256,
         fileData,
+        thumbnailContentType: thumbnail.contentType,
+        thumbnailFileSize: thumbnail.fileSize,
+        thumbnailChecksumSha256: thumbnail.checksumSha256,
+        thumbnailData: thumbnail.fileData,
         uploadedByUserId: user.id,
         uploadedByDisplayName: user.displayName,
       });
@@ -354,6 +374,10 @@ export class InventoryService {
     image.fileSize = fileData.length;
     image.checksumSha256 = checksumSha256;
     image.fileData = fileData;
+    image.thumbnailContentType = thumbnail.contentType;
+    image.thumbnailFileSize = thumbnail.fileSize;
+    image.thumbnailChecksumSha256 = thumbnail.checksumSha256;
+    image.thumbnailData = thumbnail.fileData;
     image.uploadedByUserId = user.id;
     image.uploadedByDisplayName = user.displayName;
     item.updatedByUserId = user.id;
@@ -397,9 +421,18 @@ export class InventoryService {
 
   async getImageFile(itemId: number): Promise<InventoryImageFile> {
     const item = await this.getActiveItem(itemId);
-    const image = await this.imagesRepository.findOne({
-      inventoryItemId: item.id,
-    });
+    const image = await this.imagesRepository.findOne(
+      { inventoryItemId: item.id },
+      {
+        fields: [
+          'originalFilename',
+          'contentType',
+          'fileSize',
+          'checksumSha256',
+          'fileData',
+        ],
+      },
+    );
     if (!image) {
       throw new NotFoundException('Imaginea obiectului nu există.');
     }
@@ -408,7 +441,42 @@ export class InventoryService {
       originalFilename: image.originalFilename,
       contentType: image.contentType,
       fileSize: image.fileSize,
+      checksumSha256: image.checksumSha256,
       fileData: image.fileData,
+    };
+  }
+
+  async getThumbnailFile(itemId: number): Promise<InventoryImageFile> {
+    const item = await this.getActiveItem(itemId);
+    const image = await this.imagesRepository.findOne(
+      { inventoryItemId: item.id },
+      {
+        fields: [
+          'originalFilename',
+          'thumbnailContentType',
+          'thumbnailFileSize',
+          'thumbnailChecksumSha256',
+          'thumbnailData',
+        ],
+      },
+    );
+    if (
+      !image?.thumbnailData ||
+      !image.thumbnailContentType ||
+      !image.thumbnailFileSize ||
+      !image.thumbnailChecksumSha256
+    ) {
+      throw new NotFoundException('Miniatura obiectului nu există.');
+    }
+
+    const filenameWithoutExtension =
+      image.originalFilename.replace(/\.[^./\\]+$/, '').trim() || 'inventar';
+    return {
+      originalFilename: `${filenameWithoutExtension.slice(0, 250)}.webp`,
+      contentType: image.thumbnailContentType,
+      fileSize: image.thumbnailFileSize,
+      checksumSha256: image.thumbnailChecksumSha256,
+      fileData: image.thumbnailData,
     };
   }
 
@@ -533,16 +601,38 @@ export class InventoryService {
   private async getImagesForItems(items: InventoryItem[]) {
     const itemIds = items.map((item) => item.id);
     if (!itemIds.length) {
-      return new Map<number, InventoryItemImage>();
+      return new Map<number, InventoryImageMetadata>();
     }
 
-    const images = await this.imagesRepository.find({
-      inventoryItemId: { $in: itemIds },
-    });
-    return new Map(images.map((image) => [image.inventoryItemId, image]));
+    const images = await this.imagesRepository.find(
+      { inventoryItemId: { $in: itemIds } },
+      {
+        fields: [
+          'id',
+          'inventoryItemId',
+          'originalFilename',
+          'contentType',
+          'fileSize',
+          'checksumSha256',
+          'thumbnailContentType',
+          'thumbnailFileSize',
+          'thumbnailChecksumSha256',
+          'uploadedByUserId',
+          'uploadedByDisplayName',
+          'createdAt',
+          'updatedAt',
+        ],
+      },
+    );
+    return new Map(
+      images.map((image) => [
+        image.inventoryItemId,
+        image as unknown as InventoryImageMetadata,
+      ]),
+    );
   }
 
-  private serializeImage(image: InventoryItemImage): InventoryImageDto {
+  private serializeImage(image: InventoryImageMetadata): InventoryImageDto {
     return {
       id: image.id,
       originalFilename: image.originalFilename,
@@ -552,6 +642,12 @@ export class InventoryService {
       uploadedByUserId: image.uploadedByUserId ?? undefined,
       uploadedByDisplayName: image.uploadedByDisplayName ?? undefined,
       url: `/api/inventory/items/${image.inventoryItemId}/image`,
+      thumbnailContentType: image.thumbnailContentType ?? undefined,
+      thumbnailFileSize: image.thumbnailFileSize ?? undefined,
+      thumbnailChecksumSha256: image.thumbnailChecksumSha256 ?? undefined,
+      thumbnailUrl: image.thumbnailChecksumSha256
+        ? `/api/inventory/items/${image.inventoryItemId}/image/thumbnail?v=${image.thumbnailChecksumSha256}`
+        : undefined,
       createdAt: image.createdAt.toISOString(),
       updatedAt: image.updatedAt.toISOString(),
     };

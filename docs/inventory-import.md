@@ -1,6 +1,6 @@
 # Firestore Inventory Import
 
-The inventory importer reads the legacy Firestore JSON export, downloads its Firebase Storage images into a local cache, and inserts both the inventory records and image bytes into PostgreSQL.
+The inventory importer reads the legacy Firestore JSON export, downloads its Firebase Storage images into a local cache, generates small WebP previews, and inserts the inventory records, protected originals, and thumbnail bytes into PostgreSQL.
 
 ## Prerequisites
 
@@ -28,7 +28,7 @@ pnpm --filter api inventory:import \
   --sql-output ../../data/inventory-import.sql
 ```
 
-The SQL embeds image bytes as PostgreSQL `bytea` hex values, wraps all inserts in one transaction, and refuses to run if `inventory_items` is not empty. Inspect the generated file, transfer it through your normal secure deployment channel, then apply it to production:
+The SQL embeds original and thumbnail bytes as PostgreSQL `bytea` hex values, wraps all inserts in one transaction, and refuses to run if `inventory_items` is not empty. Inspect the generated file, transfer it through your normal secure deployment channel, then apply it to production:
 
 ```bash
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
@@ -46,7 +46,7 @@ DATABASE_URL=postgresql://user:password@host:5432/database \
   pnpm --filter api inventory:import
 ```
 
-The utility downloads any missing images before starting one database transaction. It inserts image bytes into `inventory_item_images.file_data` (`bytea`) and stores filename, MIME type, size, and SHA-256 checksum metadata. On success, `data/inventory-import-report.json` maps each Firestore document ID to its new PostgreSQL ID.
+The utility downloads any missing images and generates their thumbnails before starting one database transaction. It inserts original and thumbnail bytes into `inventory_item_images` and stores MIME type, size, and SHA-256 checksum metadata for both variants. On success, `data/inventory-import-report.json` maps each Firestore document ID to its new PostgreSQL ID.
 
 By default, the utility refuses to run when `inventory_items` is non-empty. To intentionally append the export, use:
 
@@ -74,3 +74,34 @@ pnpm --filter api inventory:import \
   --images-dir ../../data/inventory-images \
   --report ../../data/inventory-import-report.json
 ```
+
+## Backfill Thumbnails For Existing Images
+
+After applying the thumbnail migration to a database that already contains inventory images, run the resumable backfill before enabling thumbnail URLs in the web UI:
+
+```bash
+pnpm --filter api inventory:thumbnails:backfill
+```
+
+The command selects only records with missing thumbnail data, processes them in primary-key batches, limits concurrent image transformations, and commits each generated thumbnail independently. It can be rerun safely; completed records are skipped. The default report is written to `data/inventory-thumbnail-backfill-report.json` and contains image IDs and error messages, never image bytes.
+
+Optional controls:
+
+- `--batch-size <1-250>`: database read batch size; default `25`.
+- `--concurrency <1-8>`: simultaneous image transformations; default `2`.
+- `--report <path>`: explicit JSON report path.
+
+For production, start with the defaults during a low-traffic window and monitor API/database CPU and memory. The command exits non-zero when invalid images remain. Failed records keep their original bytes and can be investigated from the report before rerunning the command.
+
+Verify completion with:
+
+```sql
+select count(*)
+from inventory_item_images
+where thumbnail_data is null
+   or thumbnail_content_type is null
+   or thumbnail_file_size is null
+   or thumbnail_checksum_sha256 is null;
+```
+
+The expected result is zero, excluding any invalid originals deliberately accepted for placeholder display.

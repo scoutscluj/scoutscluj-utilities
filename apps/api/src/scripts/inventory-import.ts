@@ -10,6 +10,10 @@ import {
 import { basename, dirname, extname, join, resolve } from 'node:path';
 import type { Options } from '@mikro-orm/core';
 import type { PostgreSqlDriver } from '@mikro-orm/postgresql';
+import {
+  createInventoryThumbnail,
+  type InventoryThumbnail,
+} from '../modules/inventory/inventory-image-thumbnail';
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const FIREBASE_STORAGE_HOST = 'firebasestorage.googleapis.com';
@@ -43,6 +47,7 @@ export interface DownloadedImage {
   fileData: Buffer;
   localPath: string;
   checksumSha256: string;
+  thumbnail: InventoryThumbnail;
 }
 
 export interface InventoryImportOptions {
@@ -196,6 +201,7 @@ export const downloadInventoryImage = async (
     cachedData.length <= MAX_IMAGE_BYTES &&
     ALLOWED_IMAGE_CONTENT_TYPES.has(cachedContentType)
   ) {
+    const thumbnail = await createInventoryThumbnail(cachedData);
     return {
       firestoreId: item.id,
       originalFilename,
@@ -203,6 +209,7 @@ export const downloadInventoryImage = async (
       fileData: cachedData,
       localPath,
       checksumSha256: createHash('sha256').update(cachedData).digest('hex'),
+      thumbnail,
     };
   }
 
@@ -243,6 +250,8 @@ export const downloadInventoryImage = async (
     );
   }
 
+  const thumbnail = await createInventoryThumbnail(fileData);
+
   await mkdir(imagesDirectory, { recursive: true });
   await writeFile(localPath, fileData, { flag: 'wx' }).catch(async (error) => {
     const existing = await readFile(localPath).catch(() => undefined);
@@ -258,6 +267,7 @@ export const downloadInventoryImage = async (
     fileData,
     localPath,
     checksumSha256: createHash('sha256').update(fileData).digest('hex'),
+    thumbnail,
   };
 };
 
@@ -340,7 +350,7 @@ export const writeInventorySql = async (
       }
 
       await file.write(
-        `WITH inserted_item AS (\n  INSERT INTO inventory_items (name, quantity, category, subcategory, owner, location_description, condition, is_consumable, notes, created_by_display_name, updated_by_display_name, created_at, updated_at)\n  VALUES (${itemSqlValues(item)}, now(), now())\n  RETURNING id\n)\nINSERT INTO inventory_item_images (inventory_item_id, original_filename, content_type, file_size, checksum_sha256, file_data, uploaded_by_display_name, created_at, updated_at)\nSELECT id, ${sqlLiteral(image.originalFilename)}, ${sqlLiteral(image.contentType)}, ${image.fileData.length}, ${sqlLiteral(image.checksumSha256)}, decode('${image.fileData.toString('hex')}', 'hex'), ${sqlLiteral(optionalText(item.addedBy))}, now(), now()\nFROM inserted_item;\n\n`,
+        `WITH inserted_item AS (\n  INSERT INTO inventory_items (name, quantity, category, subcategory, owner, location_description, condition, is_consumable, notes, created_by_display_name, updated_by_display_name, created_at, updated_at)\n  VALUES (${itemSqlValues(item)}, now(), now())\n  RETURNING id\n)\nINSERT INTO inventory_item_images (inventory_item_id, original_filename, content_type, file_size, checksum_sha256, file_data, thumbnail_content_type, thumbnail_file_size, thumbnail_checksum_sha256, thumbnail_data, uploaded_by_display_name, created_at, updated_at)\nSELECT id, ${sqlLiteral(image.originalFilename)}, ${sqlLiteral(image.contentType)}, ${image.fileData.length}, ${sqlLiteral(image.checksumSha256)}, decode('${image.fileData.toString('hex')}', 'hex'), ${sqlLiteral(image.thumbnail.contentType)}, ${image.thumbnail.fileSize}, ${sqlLiteral(image.thumbnail.checksumSha256)}, decode('${image.thumbnail.fileData.toString('hex')}', 'hex'), ${sqlLiteral(optionalText(item.addedBy))}, now(), now()\nFROM inserted_item;\n\n`,
       );
     }
 
@@ -439,9 +449,11 @@ export const runInventoryImport = async (
           await connection.execute(
             `insert into inventory_item_images
               (inventory_item_id, original_filename, content_type, file_size,
-               checksum_sha256, file_data, uploaded_by_display_name,
+               checksum_sha256, file_data, thumbnail_content_type,
+               thumbnail_file_size, thumbnail_checksum_sha256, thumbnail_data,
+               uploaded_by_display_name,
                created_at, updated_at)
-             values (?, ?, ?, ?, ?, ?, ?, now(), now())`,
+             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(), now())`,
             [
               postgresId,
               image.originalFilename,
@@ -449,6 +461,10 @@ export const runInventoryImport = async (
               image.fileData.length,
               image.checksumSha256,
               image.fileData,
+              image.thumbnail.contentType,
+              image.thumbnail.fileSize,
+              image.thumbnail.checksumSha256,
+              image.thumbnail.fileData,
               optionalText(item.addedBy),
             ],
           );

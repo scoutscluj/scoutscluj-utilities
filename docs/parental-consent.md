@@ -128,11 +128,12 @@ previews, publication, current metadata, history, and downloads.
 
 ## Renderer deployment and operations
 
-Railway uses `Dockerfile.api`, based on the Playwright image matching the
-application's Playwright version. It includes Chromium, its Linux libraries,
-and DejaVu/Liberation fonts. `railway.api.json` runs the database migration as a
-pre-deploy command and checks `/api/health` before replacing the previous
-deployment.
+Railway uses `Dockerfile.api`, and the AWS workflow uses
+`deploy/docker/api.Dockerfile`. Both API runtimes are based on the Playwright
+image matching the application's Playwright version. They include Chromium, its
+Linux libraries, and DejaVu/Liberation fonts. `railway.api.json` runs the
+database migration as a pre-deploy command and checks `/api/health` before
+replacing the previous deployment.
 
 The renderer uses Paged.js to split the structured document into Letter pages,
 then fills the generated margin cells on every page with the approved header

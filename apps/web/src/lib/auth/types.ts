@@ -11,6 +11,7 @@ export type AppHref =
 	| '/finance/documents'
 	| '/info/statut'
 	| '/programe/regulamente'
+	| '/sediu/inventar'
 	| '/sediu/regulament'
 	| '/sediu/orar';
 

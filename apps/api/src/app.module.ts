@@ -9,6 +9,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { HealthModule } from './modules/health/health.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
 import { UsersAdminModule } from './modules/users/users-admin.module';
 import { KitchenModule } from './modules/kitchen/kitchen.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
@@ -26,6 +27,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     AuditModule,
     ActivitiesModule,
     FinanceModule,
+    InventoryModule,
     KitchenModule,
     NotificationsModule,
   ],

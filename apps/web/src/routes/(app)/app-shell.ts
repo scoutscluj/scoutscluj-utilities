@@ -9,7 +9,8 @@ export const departmentLabels: Record<SidebarActivityDepartment, string> = {
 	finance: 'Financiar',
 	kitchen: 'Bucătărie',
 	program: 'Program',
-	logistics: 'Logistică'
+	logistics: 'Logistică',
+	parental_consent: 'Acord parental'
 };
 
 const activityStatusLabels: Record<SidebarActivity['status'], string> = {
@@ -46,6 +47,8 @@ export const menuHref = (href: AppHref) => {
 			return resolve('/admin/users');
 		case '/admin/notifications':
 			return resolve('/admin/notifications');
+		case '/admin/parental-consent':
+			return resolve('/admin/parental-consent');
 		case '/audit':
 			return resolve('/audit');
 		case '/activities':
@@ -121,11 +124,13 @@ export const activitySubtitle = (activity: SidebarActivity, pathname: string) =>
 		? 'Financiar'
 		: pathname.includes('/kitchen')
 			? kitchenSectionLabel(pathname)
-			: pathname.includes('/audit')
-				? 'Audit'
-				: pathname.includes('/settings')
-					? 'Setări'
-					: 'Prezentare';
+			: pathname.includes('/parental-consent')
+				? 'Acord parental'
+				: pathname.includes('/audit')
+					? 'Audit'
+					: pathname.includes('/settings')
+						? 'Setări'
+						: 'Prezentare';
 	const details = [
 		section,
 		activityTypeLabels[activity.type],
@@ -144,6 +149,7 @@ export const routeTitle = (pathname: string) => {
 	if (pathname === '/finance') return 'Panou financiar';
 	if (pathname.startsWith('/audit')) return 'Audit';
 	if (pathname.startsWith('/admin/notifications')) return 'Notificări';
+	if (pathname.startsWith('/admin/parental-consent')) return 'Acorduri parentale';
 	if (pathname.startsWith('/admin/users')) return 'Utilizatori';
 	if (pathname.startsWith('/admin')) return 'Administrare';
 	if (pathname.startsWith('/profile')) return 'Profil';

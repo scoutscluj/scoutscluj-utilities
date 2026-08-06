@@ -19,6 +19,8 @@ administration.
   `super_admin`.
 - Admin user list and role management.
 - Activity management with activity-scoped department toggles.
+- Versioned parental-consent templates, activity wizard, PDF publication, and
+  authenticated downloads. See [the feature documentation](docs/parental-consent.md).
 - Activity workspaces for overview, finance, kitchen, and audit.
 - Kitchen planning for activities: shared ingredients and recipes, meals,
   attendance, quantity adjustments, procurement, document links/uploads, CSV

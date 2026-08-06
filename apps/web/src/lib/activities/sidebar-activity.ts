@@ -1,6 +1,11 @@
 export type SidebarActivityStatus = 'planned' | 'active' | 'completed' | 'cancelled';
 export type SidebarActivityType = 'camp' | 'hike' | 'festival' | 'training' | 'meeting' | 'other';
-export type SidebarActivityDepartment = 'finance' | 'kitchen' | 'program' | 'logistics';
+export type SidebarActivityDepartment =
+	| 'finance'
+	| 'kitchen'
+	| 'program'
+	| 'logistics'
+	| 'parental_consent';
 
 export type SidebarActivity = {
 	id: number;

@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer';
 import { error, fail } from '@sveltejs/kit';
+import { hasRole } from '$lib/auth/roles';
 import { SESSION_COOKIE_NAME } from '$lib/server/cookies';
 import { apiFetch } from '$lib/server/api';
 import type { Cookies } from '@sveltejs/kit';
@@ -39,6 +40,16 @@ export type FinancialDocument = {
 
 export type FinanceHandoffGuidance = {
 	keezHandoffMode: 'review_first' | 'direct_to_keez';
+};
+
+export type FinanceSettings = {
+	keezHandoffMode: 'review_first' | 'direct_to_keez';
+	keezConfigured: boolean;
+	keezEnvironment: string;
+	keezDocumentUploadAvailable: boolean;
+	keezEmailHandoffAvailable: boolean;
+	keezEmailSender?: string;
+	keezEmailRecipient?: string;
 };
 
 const getSessionToken = (cookies: Cookies) => {
@@ -101,10 +112,11 @@ const inferContentType = (file: File) => {
 	}
 };
 
-export const load: PageServerLoad = async ({ cookies, params }) => {
+export const load: PageServerLoad = async ({ cookies, locals, params }) => {
 	const sessionToken = getSessionToken(cookies);
 	const activityId = parseActivityId(params.activityId);
 	const headers = authHeaders(sessionToken);
+	const isFinanceManager = hasRole(locals.user, 'finance_manager');
 	const [response, handoffGuidanceResponse] = await Promise.all([
 		apiFetch(`/api/finance/documents?activityId=${activityId}`, { headers }),
 		apiFetch('/api/finance/documents/handoff-guidance', { headers })
@@ -117,9 +129,20 @@ export const load: PageServerLoad = async ({ cookies, params }) => {
 		error(handoffGuidanceResponse.status, await readApiMessage(handoffGuidanceResponse));
 	}
 
+	let settings: FinanceSettings | null = null;
+	if (isFinanceManager) {
+		const settingsResponse = await apiFetch('/api/finance/settings', { headers });
+		if (!settingsResponse.ok) {
+			error(settingsResponse.status, await readApiMessage(settingsResponse));
+		}
+		settings = (await settingsResponse.json()) as FinanceSettings;
+	}
+
 	return {
 		documents: (await response.json()) as FinancialDocument[],
-		handoffGuidance: (await handoffGuidanceResponse.json()) as FinanceHandoffGuidance
+		handoffGuidance: (await handoffGuidanceResponse.json()) as FinanceHandoffGuidance,
+		isFinanceManager,
+		settings
 	};
 };
 
@@ -159,5 +182,112 @@ export const actions: Actions = {
 		}
 
 		return { message: 'Documentul a fost încărcat.' };
+	},
+	updateStatus: async ({ request, cookies, locals }) => {
+		if (!hasRole(locals.user, 'finance_manager')) {
+			return fail(403, { message: 'Nu ai acces la această acțiune.' });
+		}
+
+		const formData = await request.formData();
+		const documentId = Number(formData.get('documentId'));
+		const status = formData.get('status')?.toString();
+
+		if (!Number.isInteger(documentId) || !status) {
+			return fail(400, { message: 'Datele documentului nu sunt valide.' });
+		}
+
+		const sessionToken = getSessionToken(cookies);
+		const response = await apiFetch(`/api/finance/documents/${documentId}/status`, {
+			method: 'PATCH',
+			headers: {
+				...authHeaders(sessionToken),
+				'content-type': 'application/json'
+			},
+			body: JSON.stringify({
+				status,
+				reviewerNotes: formData.get('reviewerNotes')?.toString()
+			})
+		});
+
+		if (!response.ok) {
+			return fail(response.status, { message: await readApiMessage(response) });
+		}
+
+		return { message: 'Starea documentului a fost actualizată.' };
+	},
+	sendDocument: async ({ request, cookies, locals }) => {
+		if (!hasRole(locals.user, 'finance_manager')) {
+			return fail(403, { message: 'Nu ai acces la această acțiune.' });
+		}
+
+		const formData = await request.formData();
+		const documentId = Number(formData.get('documentId'));
+		const action = formData.get('handoffAction')?.toString();
+		const actionPath = action === 'retry' ? 'retry-send' : action === 'resend' ? 'resend' : 'send';
+
+		if (!Number.isInteger(documentId) || documentId <= 0) {
+			return fail(400, { message: 'Documentul nu este valid.' });
+		}
+
+		const sessionToken = getSessionToken(cookies);
+		const response = await apiFetch(`/api/finance/documents/${documentId}/${actionPath}`, {
+			method: 'POST',
+			headers: authHeaders(sessionToken)
+		});
+
+		if (!response.ok) {
+			return fail(response.status, { message: await readApiMessage(response) });
+		}
+
+		return {
+			message: 'Trimiterea către contabilitate a fost procesată.',
+			document: (await response.json()) as FinancialDocument
+		};
+	},
+	deleteDocument: async ({ request, cookies, locals }) => {
+		if (!hasRole(locals.user, 'finance_manager')) {
+			return fail(403, { message: 'Nu ai acces la această acțiune.' });
+		}
+
+		const formData = await request.formData();
+		const documentId = Number(formData.get('documentId'));
+		if (!Number.isInteger(documentId) || documentId <= 0) {
+			return fail(400, { message: 'Documentul nu este valid.' });
+		}
+
+		const sessionToken = getSessionToken(cookies);
+		const response = await apiFetch(`/api/finance/documents/${documentId}`, {
+			method: 'DELETE',
+			headers: authHeaders(sessionToken)
+		});
+
+		if (!response.ok) {
+			return fail(response.status, { message: await readApiMessage(response) });
+		}
+
+		return { message: 'Documentul a fost șters.' };
+	},
+	updateSettings: async ({ request, cookies, locals }) => {
+		if (!hasRole(locals.user, 'finance_manager')) {
+			return fail(403, { message: 'Nu ai acces la setările financiare.' });
+		}
+
+		const formData = await request.formData();
+		const keezHandoffMode = formData.get('keezHandoffMode')?.toString();
+		const sessionToken = getSessionToken(cookies);
+		const response = await apiFetch('/api/finance/settings', {
+			method: 'PATCH',
+			headers: {
+				...authHeaders(sessionToken),
+				'content-type': 'application/json'
+			},
+			body: JSON.stringify({ keezHandoffMode })
+		});
+
+		if (!response.ok) {
+			return fail(response.status, { message: await readApiMessage(response) });
+		}
+
+		return { message: 'Setările financiare au fost actualizate.' };
 	}
 };

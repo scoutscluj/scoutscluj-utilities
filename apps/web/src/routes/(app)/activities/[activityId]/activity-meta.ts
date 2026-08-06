@@ -41,6 +41,11 @@ export const departmentOptions: Array<{
 		id: 'logistics',
 		label: 'Logistică',
 		description: 'Transport, materiale, cazare și alte nevoi logistice.'
+	},
+	{
+		id: 'parental_consent',
+		label: 'Acord parental',
+		description: 'Configurează, generează și publică formularele parentale pe ramuri.'
 	}
 ];
 

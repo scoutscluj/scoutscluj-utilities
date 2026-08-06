@@ -13,6 +13,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { UsersAdminModule } from './modules/users/users-admin.module';
 import { KitchenModule } from './modules/kitchen/kitchen.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { ParentalConsentModule } from './modules/parental-consent/parental-consent.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     InventoryModule,
     KitchenModule,
     NotificationsModule,
+    ParentalConsentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

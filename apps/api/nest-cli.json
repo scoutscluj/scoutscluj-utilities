@@ -8,6 +8,10 @@
       {
         "include": "modules/kitchen/fixtures/legacy-catalog/*.json",
         "outDir": "dist"
+      },
+      {
+        "include": "modules/parental-consent/seed-assets/*.png",
+        "outDir": "dist"
       }
     ]
   }

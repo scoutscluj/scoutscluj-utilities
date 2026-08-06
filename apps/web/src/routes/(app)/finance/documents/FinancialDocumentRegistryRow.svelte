@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { Download, Pencil, RefreshCcw, RotateCcw, Send, Trash2, X } from '@lucide/svelte';
 	import { Dialog } from 'bits-ui';
@@ -62,11 +63,13 @@
 						toast.error(
 							updatedDocument.lastHandoffError ?? 'Trimiterea către contabilitate a eșuat.'
 						);
+						await invalidateAll();
 						return;
 					}
 				}
 
 				toast.success(result.data?.message ?? 'Documentul a fost trimis către contabilitate.');
+				await invalidateAll();
 				return;
 			}
 

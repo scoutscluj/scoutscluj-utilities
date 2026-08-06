@@ -5,7 +5,7 @@ Implementation MUST proceed as vertical slices. Each completed slice must leave 
 ## 1. Shared Contracts And Persistence
 
 - [x] Add a workspace package for the parental-consent document, form-field, organizer-draft, branch, module, and validation contracts shared by the API and web app.
-- [x] Add `ParentalConsent = 'parental_consent'` to `ActivityDepartment` and expose its Romanian label consistently.
+- [x] Add `Administrative = 'administrative'` to `ActivityDepartment` and expose `Acord parental` as a feature inside it.
 - [x] Add organization-settings, asset, template-version, activity-draft, publication, and generated-document entities.
 - [x] Add enums and database constraints for template lifecycle, publication lifecycle, supported branches, and uniqueness of active versions/publications.
 - [x] Add a MikroORM migration for all new tables, indexes, foreign keys, enum values, and uniqueness constraints.

@@ -13,6 +13,7 @@
 		isPathActive,
 		kitchenHref,
 		menuHref,
+		parentalConsentHref,
 		parseCurrentActivityId,
 		settingsHref
 	} from './app-shell';
@@ -105,6 +106,22 @@
 								<span class="disabled department-disabled" title="Departament neimplementat încă">
 									{departmentLabels.logistics}
 								</span>
+							{/if}
+							{#if hasDepartment(activity, 'administrative')}
+								<div class="department-feature-group">
+									<span class="department-heading">{departmentLabels.administrative}</span>
+									<a
+										class="feature-link"
+										href={parentalConsentHref(activity.id)}
+										class:active={isPathActive(parentalConsentHref(activity.id), pathname)}
+										onclick={closeMobile}
+										aria-current={isPathActive(parentalConsentHref(activity.id), pathname)
+											? 'page'
+											: undefined}
+									>
+										Acord parental
+									</a>
+								</div>
 							{/if}
 							{#if canManageActivity(activity, user) || canViewActivityAudit(activity, user)}
 								<div class="utility-items">
@@ -221,6 +238,23 @@
 		margin-left: 10px;
 		padding-left: 8px;
 		border-left: 1px solid #edf1f5;
+	}
+
+	.department-feature-group {
+		display: grid;
+		gap: 2px;
+	}
+
+	.department-heading {
+		padding: 6px 10px 2px;
+		color: #475569;
+		font-size: 0.84rem;
+		font-weight: 800;
+	}
+
+	.department-items a.feature-link {
+		margin-left: 12px;
+		font-weight: 650;
 	}
 
 	.utility-items {

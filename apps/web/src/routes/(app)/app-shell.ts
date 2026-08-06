@@ -10,7 +10,7 @@ export const departmentLabels: Record<SidebarActivityDepartment, string> = {
 	kitchen: 'Bucătărie',
 	program: 'Program',
 	logistics: 'Logistică',
-	parental_consent: 'Acord parental'
+	administrative: 'Administrativ'
 };
 
 const activityStatusLabels: Record<SidebarActivity['status'], string> = {
@@ -73,6 +73,8 @@ export const menuHref = (href: AppHref) => {
 export const activityHref = (activityId: number) => resolve(`/activities/${activityId}`);
 export const financeHref = (activityId: number) => resolve(`/activities/${activityId}/finance`);
 export const kitchenHref = (activityId: number) => resolve(`/activities/${activityId}/kitchen`);
+export const parentalConsentHref = (activityId: number) =>
+	resolve(`/activities/${activityId}/parental-consent`);
 export const auditHref = (activityId: number) => resolve(`/activities/${activityId}/audit`);
 export const settingsHref = (activityId: number) => resolve(`/activities/${activityId}/settings`);
 

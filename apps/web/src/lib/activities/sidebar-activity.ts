@@ -5,7 +5,7 @@ export type SidebarActivityDepartment =
 	| 'kitchen'
 	| 'program'
 	| 'logistics'
-	| 'parental_consent';
+	| 'administrative';
 
 export type SidebarActivity = {
 	id: number;

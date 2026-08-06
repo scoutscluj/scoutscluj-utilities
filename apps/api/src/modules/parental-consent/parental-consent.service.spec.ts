@@ -122,7 +122,7 @@ const setup = () => {
 const managedActivity = (coordinatorId = 1) => ({
   id: 10,
   title: 'Cântul Vâlvelor',
-  departments: [ActivityDepartment.ParentalConsent],
+  departments: [ActivityDepartment.Administrative],
   coordinatorId,
 });
 
@@ -264,5 +264,18 @@ describe('ParentalConsentService', () => {
     await expect(service.getDraft(user(2), 10)).rejects.toBeInstanceOf(
       ForbiddenException,
     );
+  });
+
+  it('exposes parental consent as a feature of the administrative department', async () => {
+    const { service, activityRepository, publicationRepository } = setup();
+    activityRepository.findOne.mockResolvedValue({
+      ...managedActivity(),
+      departments: [ActivityDepartment.Administrative],
+    });
+    publicationRepository.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.getCurrentPublication(user(2), 10),
+    ).resolves.toBeNull();
   });
 });

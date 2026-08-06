@@ -12,7 +12,8 @@
 		id: ActivityDepartment;
 		label: string;
 		href?: ReturnType<typeof resolve>;
-		signals: string[];
+		signals?: string[];
+		features?: Array<{ label: string; href: ReturnType<typeof resolve> }>;
 	};
 
 	let { activity, kitchenOverview }: Props = $props();
@@ -69,12 +70,16 @@
 				signals: ['Departament activ', 'Pagina nu este implementată încă']
 			});
 		}
-		if (hasDepartment('parental_consent')) {
+		if (hasDepartment('administrative')) {
 			items.push({
-				id: 'parental_consent',
-				label: 'Acord parental',
-				href: resolve(`/activities/${activity.id}/parental-consent`),
-				signals: ['Configurare pe ramuri', 'Preview PDF', 'Publicare și descărcare']
+				id: 'administrative',
+				label: 'Administrativ',
+				features: [
+					{
+						label: 'Acord parental',
+						href: resolve(`/activities/${activity.id}/parental-consent`)
+					}
+				]
 			});
 		}
 		return items;
@@ -89,19 +94,27 @@
 				<a class="department-card" href={card.href}>
 					<strong>{card.label}</strong>
 					<ul>
-						{#each card.signals as signal (signal)}
+						{#each card.signals ?? [] as signal (signal)}
 							<li>{signal}</li>
 						{/each}
 					</ul>
 				</a>
 			{:else}
-				<article class="department-card inactive">
+				<article class="department-card" class:inactive={!card.features?.length}>
 					<strong>{card.label}</strong>
-					<ul>
-						{#each card.signals as signal (signal)}
-							<li>{signal}</li>
-						{/each}
-					</ul>
+					{#if card.features?.length}
+						<ul class="feature-list">
+							{#each card.features as feature (feature.label)}
+								<li><a href={feature.href}>{feature.label}</a></li>
+							{/each}
+						</ul>
+					{:else}
+						<ul>
+							{#each card.signals ?? [] as signal (signal)}
+								<li>{signal}</li>
+							{/each}
+						</ul>
+					{/if}
 				</article>
 			{/if}
 		{/each}
@@ -152,6 +165,15 @@
 
 	li {
 		font-size: 0.9rem;
+	}
+
+	.feature-list a {
+		color: #0f766e;
+		font-weight: 800;
+	}
+
+	.feature-list a:hover {
+		color: #991b1b;
 	}
 
 	@media (max-width: 760px) {

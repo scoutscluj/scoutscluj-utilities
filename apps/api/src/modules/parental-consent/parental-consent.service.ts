@@ -1048,7 +1048,7 @@ export class ParentalConsentService {
   private async requireReadableActivity(activityId: number) {
     const activity = await this.activityRepository.findOne({ id: activityId });
     if (!activity) throw new NotFoundException('Activitatea nu există.');
-    if (!activity.departments.includes(ActivityDepartment.ParentalConsent)) {
+    if (!activity.departments.includes(ActivityDepartment.Administrative)) {
       throw new NotFoundException(
         'Zona Acord parental nu este activă pentru această activitate.',
       );

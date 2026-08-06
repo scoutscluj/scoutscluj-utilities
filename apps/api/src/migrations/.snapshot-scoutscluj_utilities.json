@@ -59,7 +59,7 @@
             "kitchen",
             "program",
             "logistics",
-            "parental_consent"
+            "administrative"
           ],
           "nativeEnumName": "activity_department"
         },
@@ -7719,7 +7719,7 @@
         "kitchen",
         "program",
         "logistics",
-        "parental_consent"
+        "administrative"
       ]
     },
     "activity_status": {

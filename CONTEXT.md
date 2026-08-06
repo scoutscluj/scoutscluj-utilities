@@ -44,6 +44,10 @@ _Avoid_: Department, delivery workspace, global settings
 A named operational area inside an activitate that owns a coherent slice of planning or delivery, such as finance, kitchen, program, or logistics. Departamentele de activitate are activity-scoped responsibility areas chosen for each activitate from a standard set, not standalone global modules.
 _Avoid_: Tab, UI section, global module
 
+**Departament administrativ**:
+The activity-scoped responsibility area for administrative work. It contains features such as `Acord parental`; those features appear inside the department and are not modeled as separate departamente de activitate.
+_Avoid_: Acord parental as a department, global Administrare
+
 **Plan de bucătărie**:
 A local operational plan attached to an activitate for organizing meals, recipes, ingredients, attendance assumptions, procurement, and kitchen-facing exports. A plan de bucătărie can support any activitate with meal logistics, while camp activities are the primary initial use case. Each activitate has one primary plan de bucătărie.
 _Avoid_: Camp Kitchen Planner as the domain term, standalone camp kitchen detached from an activitate, separate scenario plans as the default

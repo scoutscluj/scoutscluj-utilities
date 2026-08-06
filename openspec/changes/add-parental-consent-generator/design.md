@@ -44,7 +44,7 @@ The old parent document contains wording that the new product specification expl
 
 ## Product Placement And Navigation
 
-Add `ParentalConsent` to `ActivityDepartment` and expose the feature under the activity workspace when that department is enabled.
+Add `Administrative` to `ActivityDepartment` and expose `Acord parental` as a feature inside that department. Enabling or disabling the administrative department controls access to its activity-scoped features; parental consent is not itself a department.
 
 Coordinator and elevated routes:
 

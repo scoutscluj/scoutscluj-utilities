@@ -6,7 +6,7 @@ The system SHALL expose parental consent configuration inside an existing `Activ
 
 #### Scenario: Coordinator opens parental consent administration
 
-- **GIVEN** parental consent is enabled for an activity
+- **GIVEN** the `Administrativ` department is enabled for an activity
 - **AND** the authenticated user coordinates that activity
 - **WHEN** the user opens `Acord parental`
 - **THEN** the app shows the parental consent configuration and publication workspace for that activity
@@ -14,7 +14,7 @@ The system SHALL expose parental consent configuration inside an existing `Activ
 
 #### Scenario: Feature is not enabled for the activity
 
-- **GIVEN** parental consent is not enabled in the activity departments
+- **GIVEN** the `Administrativ` department is not enabled for the activity
 - **WHEN** the activity workspace renders
 - **THEN** parental consent administration is not shown as an available section.
 

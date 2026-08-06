@@ -6,12 +6,7 @@ import type { LayoutServerLoad } from './$types';
 
 export type ActivityType = 'camp' | 'hike' | 'festival' | 'training' | 'meeting' | 'other';
 export type ActivityStatus = 'planned' | 'active' | 'completed' | 'cancelled';
-export type ActivityDepartment =
-	| 'finance'
-	| 'kitchen'
-	| 'program'
-	| 'logistics'
-	| 'parental_consent';
+export type ActivityDepartment = 'finance' | 'kitchen' | 'program' | 'logistics' | 'administrative';
 
 export type Activity = {
 	id: number;
@@ -99,7 +94,7 @@ export const load: LayoutServerLoad = async ({ cookies, params, url }) => {
 
 	if (
 		url.pathname.startsWith(`/activities/${activity.id}/parental-consent`) &&
-		!activity.departments.includes('parental_consent')
+		!activity.departments.includes('administrative')
 	) {
 		error(404, 'Zona Acord parental nu este activă pentru această activitate.');
 	}

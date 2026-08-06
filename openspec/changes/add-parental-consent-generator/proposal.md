@@ -46,5 +46,5 @@ The first delivery is an internal, handwritten-form MVP. It must let leaders con
 - Affected app areas: API parental-consent module, activity department enum, activity workspace navigation, admin template routes, activity parental-consent routes, audit vocabulary, PDF file endpoints, seed tooling, and deployment configuration for the PDF renderer.
 - Affected data: organization settings, template assets, template versions, activity consent drafts, publications, branch-specific generated documents, and audit entries.
 - Security impact: template content must be sanitized, arbitrary HTML and arbitrary file embedding must be rejected, download authorization must follow activity visibility, and audit metadata must not contain generated file bytes or future sensitive response data.
-- Migration impact: add parental-consent tables and a new activity department enum value without changing existing activity, finance, kitchen, or audit records.
+- Migration impact: add parental-consent tables and rename the initial `parental_consent` activity department value to `administrative`, preserving existing activity activation while correcting the department/feature model.
 - Deployment impact: the API runtime must include a deterministic Chromium-compatible HTML-to-PDF renderer and Romanian fonts.

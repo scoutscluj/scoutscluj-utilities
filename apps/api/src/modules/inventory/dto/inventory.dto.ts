@@ -52,6 +52,18 @@ export class InventoryImageDto {
   @ApiProperty()
   url!: string;
 
+  @ApiPropertyOptional()
+  thumbnailContentType?: string;
+
+  @ApiPropertyOptional()
+  thumbnailFileSize?: number;
+
+  @ApiPropertyOptional()
+  thumbnailChecksumSha256?: string;
+
+  @ApiPropertyOptional()
+  thumbnailUrl?: string;
+
   @ApiProperty()
   createdAt!: string;
 

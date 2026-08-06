@@ -19,6 +19,8 @@
     "kitchen:seed:prod": "node dist/seed-kitchen-catalog.js",
     "inventory:import": "tsx src/scripts/import-inventory.ts",
     "inventory:import:prod": "node dist/scripts/import-inventory.js",
+    "inventory:thumbnails:backfill": "tsx src/scripts/backfill-inventory-thumbnails.ts",
+    "inventory:thumbnails:backfill:prod": "node dist/scripts/backfill-inventory-thumbnails.js",
     "parental-consent:smoke": "tsx src/modules/parental-consent/parental-consent-renderer.smoke.ts",
     "vapid:generate": "tsx src/scripts/generate-vapid-keys.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",

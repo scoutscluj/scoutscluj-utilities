@@ -45,6 +45,7 @@ jest.mock('@mikro-orm/nestjs', () => ({
 }));
 
 import { BadRequestException } from '@nestjs/common';
+import sharp from 'sharp';
 import { AuditService } from '../audit/audit.service';
 import { UserRole } from '../users/entities/user-role.enum';
 import type { CurrentUser } from '../users/users.types';
@@ -89,6 +90,10 @@ const createImage = (
   fileSize: 4,
   checksumSha256: 'checksum',
   fileData: Buffer.from('test'),
+  thumbnailContentType: null,
+  thumbnailFileSize: null,
+  thumbnailChecksumSha256: null,
+  thumbnailData: null,
   uploadedByUserId: editor.id,
   uploadedByDisplayName: editor.displayName,
   createdAt: new Date('2026-07-10T08:00:00.000Z'),
@@ -105,14 +110,17 @@ const createService = ({
 } = {}) => {
   let currentImage = image;
   const itemsRepository = {
-    find: jest.fn(() =>
-      Promise.resolve(items.filter((item) => !item.deletedAt)),
-    ),
-    findOne: jest.fn(({ id }: { id: number }) =>
-      Promise.resolve(
+    find: jest.fn((where?: unknown, options?: unknown) => {
+      void where;
+      void options;
+      return Promise.resolve(items.filter((item) => !item.deletedAt));
+    }),
+    findOne: jest.fn(({ id }: { id: number }, options?: unknown) => {
+      void options;
+      return Promise.resolve(
         items.find((item) => item.id === id && !item.deletedAt) ?? null,
-      ),
-    ),
+      );
+    }),
     create: jest.fn((value: InventoryItem) =>
       Object.assign(
         {
@@ -125,8 +133,16 @@ const createService = ({
     ),
   };
   const imagesRepository = {
-    find: jest.fn(() => Promise.resolve(currentImage ? [currentImage] : [])),
-    findOne: jest.fn(() => Promise.resolve(currentImage)),
+    find: jest.fn((where?: unknown, options?: unknown) => {
+      void where;
+      void options;
+      return Promise.resolve(currentImage ? [currentImage] : []);
+    }),
+    findOne: jest.fn((where?: unknown, options?: unknown) => {
+      void where;
+      void options;
+      return Promise.resolve(currentImage);
+    }),
     create: jest.fn((value: InventoryItemImage) => {
       currentImage = Object.assign(
         {
@@ -167,6 +183,18 @@ const createService = ({
 };
 
 describe('InventoryService', () => {
+  const createTestImage = () =>
+    sharp({
+      create: {
+        width: 320,
+        height: 180,
+        channels: 3,
+        background: '#c81e1e',
+      },
+    })
+      .jpeg()
+      .toBuffer();
+
   it('filters search text accent-insensitively and combines structured filters', async () => {
     const { service } = createService({
       items: [
@@ -252,16 +280,34 @@ describe('InventoryService', () => {
 
   it('uploads and serializes a protected image', async () => {
     const { service, imagesRepository } = createService();
+    const imageData = await createTestImage();
 
     const result = await service.uploadImage(editor, 1, {
       fileName: 'trusa.jpg',
       contentType: 'image/jpeg',
-      contentBase64: Buffer.from('image-data').toString('base64'),
+      contentBase64: imageData.toString('base64'),
     });
 
     expect(imagesRepository.create).toHaveBeenCalled();
     expect(result.image?.url).toBe('/api/inventory/items/1/image');
     expect(result.image?.contentType).toBe('image/jpeg');
+    expect(result.image?.thumbnailContentType).toBe('image/webp');
+    expect(result.image?.thumbnailUrl).toContain('/image/thumbnail?v=');
+  });
+
+  it('uses an image metadata projection when listing items', async () => {
+    const { service, imagesRepository } = createService({
+      image: createImage(),
+    });
+
+    await service.listItems();
+
+    const findOptions = imagesRepository.find.mock.calls[0]?.[1] as
+      | { fields?: string[] }
+      | undefined;
+    const fields = findOptions?.fields;
+    expect(fields).not.toContain('fileData');
+    expect(fields).not.toContain('thumbnailData');
   });
 
   it('rejects unsupported image uploads without replacing existing image', async () => {
@@ -279,5 +325,20 @@ describe('InventoryService', () => {
     ).rejects.toThrow(BadRequestException);
     expect(imagesRepository.create).not.toHaveBeenCalled();
     expect(existingImage.originalFilename).toBe('trusa.jpg');
+  });
+
+  it('rejects corrupt supported uploads without replacing existing image', async () => {
+    const existingImage = createImage();
+    const { service } = createService({ image: existingImage });
+
+    await expect(
+      service.uploadImage(editor, 1, {
+        fileName: 'trusa.jpg',
+        contentType: 'image/jpeg',
+        contentBase64: Buffer.from('not-an-image').toString('base64'),
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(existingImage.originalFilename).toBe('trusa.jpg');
+    expect(existingImage.fileData).toEqual(Buffer.from('test'));
   });
 });

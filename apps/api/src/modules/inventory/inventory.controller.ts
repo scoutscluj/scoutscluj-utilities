@@ -3,7 +3,7 @@ import {
   Controller,
   Delete,
   Get,
-  Header,
+  Headers,
   Param,
   ParseIntPipe,
   Patch,
@@ -29,9 +29,18 @@ import {
   UploadInventoryImageDto,
 } from './dto/inventory.dto';
 import { InventoryService } from './inventory.service';
+import type { InventoryImageFile } from './inventory.service';
 
 const safeDispositionFilename = (filename: string) =>
   filename.replace(/[\r\n"]/g, '_');
+
+const CACHE_CONTROL = 'private, max-age=300';
+
+const etagMatches = (ifNoneMatch: string | undefined, etag: string) =>
+  ifNoneMatch
+    ?.split(',')
+    .map((value) => value.trim())
+    .some((value) => value === etag || value === '*') ?? false;
 
 @ApiTags('inventory')
 @UseGuards(AuthGuard)
@@ -138,12 +147,36 @@ export class InventoryController {
   }
 
   @Get('items/:id/image')
-  @Header('Cache-Control', 'private, max-age=300')
   async getImage(
     @Param('id', ParseIntPipe) itemId: number,
+    @Headers('if-none-match') ifNoneMatch: string | undefined,
     @Res() response: Response,
   ) {
     const file = await this.inventoryService.getImageFile(itemId);
+    return this.sendImage(response, file, ifNoneMatch);
+  }
+
+  @Get('items/:id/image/thumbnail')
+  async getThumbnail(
+    @Param('id', ParseIntPipe) itemId: number,
+    @Headers('if-none-match') ifNoneMatch: string | undefined,
+    @Res() response: Response,
+  ) {
+    const file = await this.inventoryService.getThumbnailFile(itemId);
+    return this.sendImage(response, file, ifNoneMatch);
+  }
+
+  private sendImage(
+    response: Response,
+    file: InventoryImageFile,
+    ifNoneMatch: string | undefined,
+  ) {
+    const etag = `"${file.checksumSha256}"`;
+    response.setHeader('Cache-Control', CACHE_CONTROL);
+    response.setHeader('ETag', etag);
+    if (etagMatches(ifNoneMatch, etag)) {
+      return response.status(304).end();
+    }
 
     response.setHeader('Content-Type', file.contentType);
     response.setHeader('Content-Length', file.fileSize);

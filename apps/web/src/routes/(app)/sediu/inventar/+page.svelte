@@ -4,15 +4,19 @@
 	import {
 		Boxes,
 		Check,
+		ChevronDown,
+		Columns3,
 		Edit3,
 		Image as ImageIcon,
 		Plus,
 		RotateCcw,
 		Search,
+		SlidersHorizontal,
 		Trash2,
 		Upload,
 		X
 	} from '@lucide/svelte';
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import type { InventoryItem, InventoryOption } from './+page.server';
 	import type { PageProps } from './$types';
 
@@ -128,9 +132,7 @@
 				if (Array.isArray(parsed)) {
 					const allowed = new Set(optionalColumns.map((column) => column.key));
 					const sanitized = parsed.filter((key): key is ColumnKey => allowed.has(key));
-					if (sanitized.length) {
-						visibleColumns = sanitized;
-					}
+					visibleColumns = sanitized;
 				}
 			} catch {
 				visibleColumns = optionalColumns.map((column) => column.key);
@@ -189,6 +191,56 @@
 			data.inventory.items.map((item) => item.condition)
 		)
 	);
+	const filterSubcategoryOptions = $derived(
+		mergeOptions(
+			data.options.categories.flatMap((category) => category.subcategories),
+			data.inventory.items.map((item) => item.subcategory)
+		)
+	);
+	const activeFilters = $derived.by(() => {
+		const filters: { key: string; label: string }[] = [];
+		if (data.filters.search) {
+			filters.push({ key: 'search', label: `Căutare: ${data.filters.search}` });
+		}
+		if (data.filters.category) {
+			filters.push({
+				key: 'category',
+				label: `Categorie: ${categoryLabel(data.filters.category)}`
+			});
+		}
+		if (data.filters.subcategory) {
+			filters.push({
+				key: 'subcategory',
+				label: `Subcategorie: ${labelFor(filterSubcategoryOptions, data.filters.subcategory)}`
+			});
+		}
+		if (data.filters.owner) {
+			filters.push({
+				key: 'owner',
+				label: `Centru: ${labelFor(ownerOptions, data.filters.owner)}`
+			});
+		}
+		if (data.filters.locationDescription) {
+			filters.push({
+				key: 'locationDescription',
+				label: `Locație: ${labelFor(locationOptions, data.filters.locationDescription)}`
+			});
+		}
+		if (data.filters.condition) {
+			filters.push({
+				key: 'condition',
+				label: `Stare: ${conditionLabel(data.filters.condition)}`
+			});
+		}
+		if (data.filters.consumable !== 'all') {
+			filters.push({
+				key: 'consumable',
+				label: data.filters.consumable === 'yes' ? 'Consumabile' : 'Neconsumabile'
+			});
+		}
+
+		return filters;
+	});
 	const subcategoryOptions = $derived.by(() => {
 		const configured = draft.category
 			? (data.options.categories.find((category) => category.value === draft.category)
@@ -289,9 +341,18 @@
 		draft.removeImage = false;
 	}
 
-	function handleColumnChange(event: Event) {
-		const select = event.currentTarget as HTMLSelectElement;
-		visibleColumns = Array.from(select.selectedOptions).map((option) => option.value as ColumnKey);
+	function filterHref(removedFilter: string): '/sediu/inventar' | `/sediu/inventar?${string}` {
+		const params = new SvelteURLSearchParams();
+		for (const [key, value] of Object.entries(data.filters)) {
+			if (key === 'page' || key === removedFilter || !value || value === 'all') continue;
+			params.set(key, String(value));
+		}
+		const query = params.toString();
+		return query ? `/sediu/inventar?${query}` : '/sediu/inventar';
+	}
+
+	function showAllColumns() {
+		visibleColumns = optionalColumns.map((column) => column.key);
 	}
 
 	function isVisible(column: ColumnKey) {
@@ -332,124 +393,186 @@
 	{/if}
 
 	<form class="filter-panel" method="GET">
-		<div class="filter-heading">
-			<div>
-				<p class="panel-title">Filtre</p>
-				<span>{activeFilterCount ? `${activeFilterCount} active` : 'Niciun filtru activ'}</span>
-			</div>
+		<div class="filter-bar">
+			<label class="search-control">
+				<span class="sr-only">Caută în inventar</span>
+				<span class="search-icon"><Search size={18} aria-hidden="true" /></span>
+				<input
+					name="search"
+					type="search"
+					value={data.filters.search}
+					placeholder="Caută în inventar…"
+				/>
+			</label>
+
 			<div class="filter-actions">
-				<a class="secondary-button" href={resolve('/sediu/inventar')}>
-					<RotateCcw size={15} aria-hidden="true" />
-					Resetează
-				</a>
-				<button class="secondary-button" type="submit">
-					<Search size={15} aria-hidden="true" />
-					Aplică
+				<details class="filter-disclosure">
+					<summary class="secondary-button">
+						<SlidersHorizontal size={16} aria-hidden="true" />
+						<span>Filtre</span>
+						{#if activeFilterCount}<span class="control-count">{activeFilterCount}</span>{/if}
+						<span class="disclosure-chevron">
+							<ChevronDown size={15} aria-hidden="true" />
+						</span>
+					</summary>
+
+					<div class="filter-popover">
+						<div class="popover-heading">
+							<div>
+								<p class="panel-title">Filtre avansate</p>
+								<p>Restrânge lista folosind unul sau mai multe criterii.</p>
+							</div>
+							{#if activeFilterCount}
+								<a class="text-button" href={resolve('/sediu/inventar')}>
+									<RotateCcw size={14} aria-hidden="true" />
+									Resetează
+								</a>
+							{/if}
+						</div>
+
+						<div class="filter-grid">
+							<label>
+								<span>Categorie</span>
+								<select name="category" value={data.filters.category}>
+									<option value="">Toate categoriile</option>
+									{#each categoryOptions as option (option.value)}
+										<option value={option.value}>{option.label}</option>
+									{/each}
+								</select>
+							</label>
+
+							<label>
+								<span>Subcategorie</span>
+								<select name="subcategory" value={data.filters.subcategory}>
+									<option value="">Toate subcategoriile</option>
+									{#each filterSubcategoryOptions as option (option.value)}
+										<option value={option.value}>{option.label}</option>
+									{/each}
+								</select>
+							</label>
+
+							<label>
+								<span>Centru Local</span>
+								<select name="owner" value={data.filters.owner}>
+									<option value="">Toate centrele</option>
+									{#each ownerOptions as option (option.value)}
+										<option value={option.value}>{option.label}</option>
+									{/each}
+								</select>
+							</label>
+
+							<label>
+								<span>Locație</span>
+								<select name="locationDescription" value={data.filters.locationDescription}>
+									<option value="">Toate locațiile</option>
+									{#each locationOptions as option (option.value)}
+										<option value={option.value}>{option.label}</option>
+									{/each}
+								</select>
+							</label>
+
+							<label>
+								<span>Stare</span>
+								<select name="condition" value={data.filters.condition}>
+									<option value="">Toate stările</option>
+									{#each conditionOptions as option (option.value)}
+										<option value={option.value}>{option.label}</option>
+									{/each}
+								</select>
+							</label>
+
+							<label>
+								<span>Consumabil</span>
+								<select name="consumable" value={data.filters.consumable}>
+									<option value="all">Toate obiectele</option>
+									<option value="yes">Doar consumabile</option>
+									<option value="no">Doar neconsumabile</option>
+								</select>
+							</label>
+
+							<label>
+								<span>Sortare</span>
+								<select name="sort" value={data.filters.sort}>
+									<option value="name">Nume</option>
+									<option value="quantity">Cantitate</option>
+									<option value="category">Categorie</option>
+									<option value="locationDescription">Locație</option>
+									<option value="condition">Stare</option>
+									<option value="updatedAt">Actualizat</option>
+								</select>
+							</label>
+
+							<label>
+								<span>Direcție</span>
+								<select name="direction" value={data.filters.direction}>
+									<option value="asc">Crescător</option>
+									<option value="desc">Descrescător</option>
+								</select>
+							</label>
+						</div>
+
+						<div class="popover-actions">
+							<button class="primary-button" type="submit">Aplică filtrele</button>
+						</div>
+					</div>
+				</details>
+
+				<button class="primary-button apply-button" type="submit">
+					<Search size={16} aria-hidden="true" />
+					<span>Caută</span>
 				</button>
 			</div>
 		</div>
 
-		<div class="filter-grid">
-			<label class="search-field">
-				<span>Căutare</span>
-				<input name="search" type="search" value={data.filters.search} />
-			</label>
-
-			<label>
-				<span>Categorie</span>
-				<select name="category" value={data.filters.category}>
-					<option value="">Toate</option>
-					{#each categoryOptions as option (option.value)}
-						<option value={option.value}>{option.label}</option>
-					{/each}
-				</select>
-			</label>
-
-			<label>
-				<span>Subcategorie</span>
-				<select name="subcategory" value={data.filters.subcategory}>
-					<option value="">Toate</option>
-					{#each mergeOptions( data.options.categories.flatMap((category) => category.subcategories), data.inventory.items.map((item) => item.subcategory) ) as option (option.value)}
-						<option value={option.value}>{option.label}</option>
-					{/each}
-				</select>
-			</label>
-
-			<label>
-				<span>Locație</span>
-				<select name="locationDescription" value={data.filters.locationDescription}>
-					<option value="">Toate</option>
-					{#each locationOptions as option (option.value)}
-						<option value={option.value}>{option.label}</option>
-					{/each}
-				</select>
-			</label>
-
-			<label>
-				<span>Stare</span>
-				<select name="condition" value={data.filters.condition}>
-					<option value="">Toate</option>
-					{#each conditionOptions as option (option.value)}
-						<option value={option.value}>{option.label}</option>
-					{/each}
-				</select>
-			</label>
-
-			<label>
-				<span>Centru Local</span>
-				<select name="owner" value={data.filters.owner}>
-					<option value="">Toate</option>
-					{#each ownerOptions as option (option.value)}
-						<option value={option.value}>{option.label}</option>
-					{/each}
-				</select>
-			</label>
-
-			<label>
-				<span>Consumabil</span>
-				<select name="consumable" value={data.filters.consumable}>
-					<option value="all">Toate</option>
-					<option value="yes">Doar consumabile</option>
-					<option value="no">Doar neconsumabile</option>
-				</select>
-			</label>
-
-			<label>
-				<span>Sortare</span>
-				<select name="sort" value={data.filters.sort}>
-					<option value="name">Nume</option>
-					<option value="quantity">Cantitate</option>
-					<option value="category">Categorie</option>
-					<option value="locationDescription">Locație</option>
-					<option value="condition">Stare</option>
-					<option value="updatedAt">Actualizat</option>
-				</select>
-			</label>
-
-			<label>
-				<span>Direcție</span>
-				<select name="direction" value={data.filters.direction}>
-					<option value="asc">Crescător</option>
-					<option value="desc">Descrescător</option>
-				</select>
-			</label>
-		</div>
+		{#if activeFilters.length}
+			<div class="active-filters" aria-label="Filtre active">
+				{#each activeFilters as activeFilter (activeFilter.key)}
+					<a class="filter-chip" href={resolve(filterHref(activeFilter.key))}>
+						<span>{activeFilter.label}</span>
+						<X size={13} aria-hidden="true" />
+						<span class="sr-only">Elimină filtrul</span>
+					</a>
+				{/each}
+				<a class="clear-filters" href={resolve('/sediu/inventar')}>Șterge toate</a>
+			</div>
+		{/if}
 
 		<input type="hidden" name="pageSize" value={data.filters.pageSize} />
 	</form>
 
 	{#if data.inventory.items.length}
 		<div class="table-tools">
-			<label>
-				<span>Coloane vizibile</span>
-				<select multiple onchange={handleColumnChange}>
-					{#each optionalColumns as column (column.key)}
-						<option value={column.key} selected={visibleColumns.includes(column.key)}>
-							{column.label}
-						</option>
-					{/each}
-				</select>
-			</label>
+			<div class="results-summary">
+				<strong>{data.inventory.total} {data.inventory.total === 1 ? 'obiect' : 'obiecte'}</strong>
+				<span>în inventar</span>
+			</div>
+			<details class="column-picker">
+				<summary class="secondary-button">
+					<Columns3 size={16} aria-hidden="true" />
+					<span>Coloane</span>
+					<span class="control-count">{visibleColumns.length}/{optionalColumns.length}</span>
+					<span class="disclosure-chevron">
+						<ChevronDown size={15} aria-hidden="true" />
+					</span>
+				</summary>
+				<div class="column-menu">
+					<div class="column-menu-heading">
+						<div>
+							<strong>Coloane vizibile</strong>
+							<span>Numele și acțiunile rămân mereu vizibile.</span>
+						</div>
+						<button class="text-button" type="button" onclick={showAllColumns}>Toate</button>
+					</div>
+					<div class="column-options">
+						{#each optionalColumns as column (column.key)}
+							<label class="column-option">
+								<input type="checkbox" value={column.key} bind:group={visibleColumns} />
+								<span>{column.label}</span>
+							</label>
+						{/each}
+					</div>
+				</div>
+			</details>
 		</div>
 
 		<div class="table-shell">
@@ -835,7 +958,6 @@
 	}
 
 	.page-heading,
-	.filter-heading,
 	.card-title-row,
 	.modal-heading,
 	.modal-actions,
@@ -849,7 +971,7 @@
 	}
 
 	.page-heading,
-	.filter-heading {
+	.modal-heading {
 		align-items: flex-start;
 	}
 
@@ -888,7 +1010,6 @@
 
 	.filter-panel,
 	.table-shell,
-	.table-tools,
 	.inventory-card,
 	.empty-state,
 	.modal-panel,
@@ -900,11 +1021,17 @@
 	}
 
 	.filter-panel,
-	.table-tools,
 	.empty-state,
 	.modal-panel,
 	.confirm-panel {
 		padding: 16px;
+	}
+
+	.filter-panel {
+		position: relative;
+		gap: 10px;
+		padding: 12px;
+		box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
 	}
 
 	.panel-title {
@@ -913,7 +1040,7 @@
 		font-weight: 900;
 	}
 
-	.filter-heading span,
+	.popover-heading p,
 	.item-note,
 	.card-body p,
 	.card-notes,
@@ -925,6 +1052,13 @@
 	.form-grid {
 		display: grid;
 		gap: 12px;
+	}
+
+	.filter-grid {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+
+	.form-grid {
 		grid-template-columns: repeat(4, minmax(0, 1fr));
 	}
 
@@ -932,8 +1066,245 @@
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 
-	.search-field {
-		grid-column: span 2;
+	.filter-bar {
+		display: grid;
+		grid-template-columns: minmax(240px, 1fr) auto;
+		gap: 10px;
+		align-items: center;
+	}
+
+	.search-control {
+		position: relative;
+		display: block;
+	}
+
+	.search-icon {
+		position: absolute;
+		top: 50%;
+		left: 12px;
+		z-index: 1;
+		display: inline-flex;
+		color: #64748b;
+		transform: translateY(-50%);
+		pointer-events: none;
+	}
+
+	.search-control input {
+		height: 42px;
+		padding-left: 40px;
+		background: #f8fafc;
+	}
+
+	.filter-disclosure,
+	.column-picker {
+		position: relative;
+	}
+
+	details > summary {
+		list-style: none;
+	}
+
+	details > summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.disclosure-chevron {
+		transition: transform 180ms ease;
+	}
+
+	details[open] > summary .disclosure-chevron {
+		transform: rotate(180deg);
+	}
+
+	.filter-popover,
+	.column-menu {
+		position: absolute;
+		top: calc(100% + 8px);
+		right: 0;
+		z-index: 30;
+		border: 1px solid #cbd5e1;
+		border-radius: 10px;
+		background: #ffffff;
+		box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16);
+	}
+
+	.filter-popover {
+		width: min(780px, calc(100vw - 64px));
+		display: grid;
+		gap: 16px;
+		padding: 16px;
+	}
+
+	.popover-heading,
+	.popover-actions,
+	.column-menu-heading,
+	.table-tools,
+	.results-summary,
+	.active-filters {
+		display: flex;
+		align-items: center;
+	}
+
+	.popover-heading,
+	.column-menu-heading,
+	.table-tools {
+		justify-content: space-between;
+		gap: 12px;
+	}
+
+	.popover-heading {
+		align-items: flex-start;
+	}
+
+	.popover-heading p:not(.panel-title),
+	.column-menu-heading span {
+		display: block;
+		margin-top: 3px;
+		color: #64748b;
+		font-size: 0.8rem;
+		font-weight: 500;
+	}
+
+	.popover-actions {
+		justify-content: flex-end;
+		padding-top: 2px;
+	}
+
+	.active-filters {
+		flex-wrap: wrap;
+		gap: 7px;
+	}
+
+	.filter-chip {
+		min-height: 30px;
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		border-radius: 999px;
+		background: #eef6ff;
+		padding: 4px 9px;
+		color: #164e63;
+		font-size: 0.78rem;
+		font-weight: 800;
+		text-decoration: none;
+		transition: background-color 180ms ease;
+	}
+
+	.filter-chip:hover {
+		background: #dbeafe;
+	}
+
+	.clear-filters,
+	.text-button {
+		border: 0;
+		background: transparent;
+		padding: 4px;
+		color: #475569;
+		font: inherit;
+		font-size: 0.8rem;
+		font-weight: 800;
+		text-decoration: none;
+		cursor: pointer;
+	}
+
+	.text-button {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	.clear-filters:hover,
+	.text-button:hover {
+		color: #0f172a;
+		text-decoration: underline;
+	}
+
+	.control-count {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 20px;
+		height: 20px;
+		border-radius: 999px;
+		background: #e2e8f0;
+		padding: 0 6px;
+		color: #334155;
+		font-size: 0.72rem;
+		font-weight: 900;
+	}
+
+	.table-tools {
+		position: relative;
+		z-index: 20;
+		min-height: 42px;
+	}
+
+	.results-summary {
+		gap: 5px;
+		color: #64748b;
+		font-size: 0.86rem;
+	}
+
+	.results-summary strong {
+		color: #0f172a;
+	}
+
+	.column-menu {
+		width: 320px;
+		padding: 12px;
+	}
+
+	.column-menu-heading {
+		align-items: flex-start;
+		border-bottom: 1px solid #e2e8f0;
+		padding: 2px 2px 11px;
+	}
+
+	.column-menu-heading strong {
+		color: #0f172a;
+		font-size: 0.9rem;
+	}
+
+	.column-options {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 4px;
+		padding-top: 8px;
+	}
+
+	.column-option {
+		min-height: 38px;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		border-radius: 7px;
+		padding: 6px 8px;
+		font-size: 0.82rem;
+		font-weight: 700;
+		cursor: pointer;
+		transition: background-color 180ms ease;
+	}
+
+	.column-option:hover {
+		background: #f1f5f9;
+	}
+
+	.column-option input {
+		width: 16px;
+		height: 16px;
+		accent-color: #c81e1e;
+		cursor: pointer;
+	}
+
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
 	}
 
 	label {
@@ -957,10 +1328,6 @@
 		font: inherit;
 	}
 
-	select[multiple] {
-		min-height: 92px;
-	}
-
 	textarea {
 		resize: vertical;
 	}
@@ -978,6 +1345,10 @@
 		border-radius: 8px;
 		font-weight: 900;
 		text-decoration: none;
+		transition:
+			border-color 180ms ease,
+			background-color 180ms ease,
+			color 180ms ease;
 	}
 
 	.primary-button {
@@ -994,6 +1365,25 @@
 		padding: 0 12px;
 		color: #334155;
 		cursor: pointer;
+	}
+
+	.primary-button:hover {
+		background: #a91515;
+	}
+
+	.secondary-button:hover {
+		border-color: #94a3b8;
+		background: #f8fafc;
+	}
+
+	input:focus-visible,
+	select:focus-visible,
+	textarea:focus-visible,
+	button:focus-visible,
+	a:focus-visible,
+	summary:focus-visible {
+		outline: 3px solid rgba(37, 99, 235, 0.24);
+		outline-offset: 2px;
 	}
 
 	.danger-button {
@@ -1309,26 +1699,48 @@
 
 	@media (max-width: 760px) {
 		.page-heading,
-		.filter-heading,
 		.modal-actions {
 			display: grid;
 			justify-content: stretch;
 		}
 
 		.page-actions,
-		.filter-actions,
 		.empty-actions {
 			justify-content: flex-start;
 		}
 
-		.filter-grid,
+		.filter-bar {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.filter-actions {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			justify-content: stretch;
+		}
+
+		.filter-actions .secondary-button,
+		.filter-actions .primary-button {
+			width: 100%;
+			min-height: 44px;
+		}
+
+		.filter-disclosure {
+			position: static;
+		}
+
+		.filter-popover {
+			top: calc(100% + 8px);
+			left: 0;
+			right: 0;
+			width: auto;
+			max-height: calc(100vh - 180px);
+			overflow-y: auto;
+		}
+
 		.form-grid.two,
 		.image-editor {
 			grid-template-columns: 1fr;
-		}
-
-		.search-field {
-			grid-column: span 1;
 		}
 
 		.table-shell,
@@ -1346,6 +1758,38 @@
 
 		.image-preview {
 			width: 100%;
+		}
+	}
+
+	@media (max-width: 560px) {
+		.filter-grid {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.filter-popover {
+			padding: 14px;
+		}
+
+		.popover-heading {
+			display: grid;
+		}
+
+		.popover-actions .primary-button {
+			width: 100%;
+			min-height: 44px;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.disclosure-chevron,
+		.filter-chip,
+		.column-option,
+		.primary-button,
+		.secondary-button,
+		.danger-button,
+		.icon-button,
+		.upload-button {
+			transition: none;
 		}
 	}
 </style>

@@ -3,8 +3,7 @@ import {
   defaultLayoutSettings,
   initialTemplateDocument,
 } from '@scouts-cluj/parental-consent-schema';
-import { EntityManager, EntityRepository } from '@mikro-orm/core';
-import { InjectRepository } from '@mikro-orm/nestjs';
+import { EntityManager } from '@mikro-orm/core';
 import {
   Inject,
   Injectable,
@@ -55,15 +54,7 @@ export const PARENTAL_CONSENT_SEED_ASSETS: SeedAsset[] = [
 export class ParentalConsentSeedService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ParentalConsentSeedService.name);
 
-  constructor(
-    @InjectRepository(ParentalConsentOrganizationSettings)
-    private readonly organizationRepository: EntityRepository<ParentalConsentOrganizationSettings>,
-    @InjectRepository(ParentalConsentAsset)
-    private readonly assetRepository: EntityRepository<ParentalConsentAsset>,
-    @InjectRepository(ParentalConsentTemplateVersion)
-    private readonly templateRepository: EntityRepository<ParentalConsentTemplateVersion>,
-    @Inject(EntityManager) private readonly em: EntityManager,
-  ) {}
+  constructor(@Inject(EntityManager) private readonly em: EntityManager) {}
 
   async onApplicationBootstrap() {
     if (process.env.PARENTAL_CONSENT_AUTO_SEED === 'false') return;
@@ -76,9 +67,16 @@ export class ParentalConsentSeedService implements OnApplicationBootstrap {
   }
 
   async seed() {
-    let organization = await this.organizationRepository.findOne({ id: 1 });
+    const em = this.em.fork();
+    const organizationRepository = em.getRepository(
+      ParentalConsentOrganizationSettings,
+    );
+    const assetRepository = em.getRepository(ParentalConsentAsset);
+    const templateRepository = em.getRepository(ParentalConsentTemplateVersion);
+
+    let organization = await organizationRepository.findOne({ id: 1 });
     if (!organization) {
-      organization = this.organizationRepository.create({
+      organization = organizationRepository.create({
         id: 1,
         name: 'Cercetașii României – Centrul Local Cluj-Napoca',
         legalName: 'Organizația Națională Cercetașii României',
@@ -88,12 +86,12 @@ export class ParentalConsentSeedService implements OnApplicationBootstrap {
         website: 'https://scoutscluj.ro',
         revision: 1,
       });
-      this.em.persist(organization);
+      em.persist(organization);
     }
 
     const assets: ParentalConsentAsset[] = [];
     for (const definition of PARENTAL_CONSENT_SEED_ASSETS) {
-      let asset = await this.assetRepository.findOne({
+      let asset = await assetRepository.findOne({
         checksumSha256: definition.checksumSha256,
       });
       if (!asset) {
@@ -114,7 +112,7 @@ export class ParentalConsentSeedService implements OnApplicationBootstrap {
             `Seed asset dimensions unavailable: ${definition.filename}`,
           );
         }
-        asset = this.assetRepository.create({
+        asset = assetRepository.create({
           name: definition.name,
           altText: definition.altText,
           contentType: 'image/png',
@@ -124,14 +122,14 @@ export class ParentalConsentSeedService implements OnApplicationBootstrap {
           checksumSha256,
           fileData,
         });
-        this.em.persist(asset);
+        em.persist(asset);
       }
       assets.push(asset);
     }
-    await this.em.flush();
+    await em.flush();
 
-    if ((await this.templateRepository.count()) === 0) {
-      const template = this.templateRepository.create({
+    if ((await templateRepository.count()) === 0) {
+      const template = templateRepository.create({
         version: 1,
         name: 'Acord parental Scouts Cluj',
         status: ParentalConsentTemplateStatus.Active,
@@ -143,8 +141,8 @@ export class ParentalConsentSeedService implements OnApplicationBootstrap {
         },
         activatedAt: new Date(),
       });
-      this.em.persist(template);
-      await this.em.flush();
+      em.persist(template);
+      await em.flush();
     }
 
     return {

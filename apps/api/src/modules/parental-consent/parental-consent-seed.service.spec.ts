@@ -64,16 +64,23 @@ describe('ParentalConsentSeedService', () => {
     const organizations = memoryRepository();
     const assets = memoryRepository();
     const templates = memoryRepository();
-    const em = {
+    const repositories = {
+      ParentalConsentOrganizationSettings: organizations,
+      ParentalConsentAsset: assets,
+      ParentalConsentTemplateVersion: templates,
+    };
+    const fork = {
       persist: jest.fn(),
       flush: jest.fn().mockResolvedValue(undefined),
+      getRepository: jest.fn(
+        (entity: { name: keyof typeof repositories }) =>
+          repositories[entity.name],
+      ),
     };
-    const service = new ParentalConsentSeedService(
-      organizations as never,
-      assets as never,
-      templates as never,
-      em as never,
-    );
+    const em = {
+      fork: jest.fn(() => fork),
+    };
+    const service = new ParentalConsentSeedService(em as never);
 
     const first = await service.seed();
     const second = await service.seed();
@@ -83,5 +90,6 @@ describe('ParentalConsentSeedService', () => {
     expect(assets.rows).toHaveLength(3);
     expect(templates.rows).toHaveLength(1);
     expect(templates.rows[0]).toMatchObject({ version: 1, status: 'active' });
+    expect(em.fork).toHaveBeenCalledTimes(2);
   });
 });

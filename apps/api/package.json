@@ -17,6 +17,8 @@
     "migrate:prod": "node dist/migrate",
     "kitchen:seed": "tsx src/seed-kitchen-catalog.ts",
     "kitchen:seed:prod": "node dist/seed-kitchen-catalog.js",
+    "inventory:import": "tsx src/scripts/import-inventory.ts",
+    "inventory:import:prod": "node dist/scripts/import-inventory.js",
     "parental-consent:smoke": "tsx src/modules/parental-consent/parental-consent-renderer.smoke.ts",
     "vapid:generate": "tsx src/scripts/generate-vapid-keys.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",

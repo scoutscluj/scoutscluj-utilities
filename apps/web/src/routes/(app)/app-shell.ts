@@ -61,6 +61,8 @@ export const menuHref = (href: AppHref) => {
 			return resolve('/info/statut');
 		case '/programe/regulamente':
 			return resolve('/programe/regulamente');
+		case '/sediu/inventar':
+			return resolve('/sediu/inventar');
 		case '/sediu/regulament':
 			return resolve('/sediu/regulament');
 		case '/sediu/orar':
@@ -153,6 +155,7 @@ export const routeTitle = (pathname: string) => {
 	if (pathname.startsWith('/profile')) return 'Profil';
 	if (pathname.startsWith('/info/statut')) return 'Statut ONCR';
 	if (pathname.startsWith('/programe/regulamente')) return 'Regulament ONCR';
+	if (pathname.startsWith('/sediu/inventar')) return 'Inventar sediu';
 	if (pathname.startsWith('/sediu/regulament')) return 'Regulament sediu';
 	if (pathname.startsWith('/sediu/orar')) return 'Calendar sediu';
 	if (pathname.startsWith('/user/docs')) return 'Documentație aplicație';

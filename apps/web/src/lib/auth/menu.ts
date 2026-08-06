@@ -16,7 +16,7 @@ export const menuItems: MenuItem[] = [
 		label: 'Sediu',
 		children: [
 			{ label: 'Regulament', href: '/sediu/regulament' },
-			{ label: 'Inventar', disabled: true },
+			{ label: 'Inventar', href: '/sediu/inventar' },
 			{ label: 'Calendar', href: '/sediu/orar' }
 		]
 	},

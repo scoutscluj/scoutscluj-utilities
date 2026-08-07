@@ -37,6 +37,20 @@ export const parentalConsentJson = async <T>(
 	return (await response.json()) as T;
 };
 
+export const parentalConsentJsonOrNull = async <T>(
+	cookies: Cookies,
+	path: string,
+	init: RequestInit = {}
+): Promise<T | null> => {
+	const response = await apiFetch(path, {
+		...init,
+		headers: { ...parentalConsentHeaders(cookies, Boolean(init.body)), ...(init.headers ?? {}) }
+	});
+	if (!response.ok) error(response.status, await readParentalConsentError(response));
+	const body = await response.text();
+	return body.trim() ? (JSON.parse(body) as T) : null;
+};
+
 export const parentalConsentResponse = (cookies: Cookies, path: string, init: RequestInit = {}) =>
 	apiFetch(path, {
 		...init,

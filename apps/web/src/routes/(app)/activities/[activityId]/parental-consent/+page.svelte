@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
+	import { fetchParentalConsentPreview } from '$lib/parental-consent/preview';
+	import { onDestroy } from 'svelte';
 	import {
 		branchCodes,
 		branchLabels,
@@ -19,6 +21,10 @@
 	let step = $state(0);
 	let dirty = $state(false);
 	let saving = $state(false);
+	let previewBranch = $state<BranchCode>();
+	let previewUrl = $state<string>();
+	let previewLoading = $state(false);
+	let previewError = $state('');
 	let autosaveTimer: ReturnType<typeof setTimeout> | undefined;
 	let saveForm = $state<HTMLFormElement>();
 
@@ -28,7 +34,8 @@
 		{ label: 'Transport', prefixes: ['branches'] },
 		{ label: 'Cazare și program', prefixes: ['accommodation', 'branches'] },
 		{ label: 'Apă, unelte și foc', prefixes: ['water', 'tools', 'fireCookingBlacksmithing'] },
-		{ label: 'Drumeție și prim ajutor', prefixes: ['hiking', 'firstAid'] },
+		{ label: 'Drumeție', prefixes: ['hiking'] },
+		{ label: 'Prim ajutor', prefixes: ['firstAid'] },
 		{
 			label: 'Hrană, echipament și conduită',
 			prefixes: ['foodAllergies', 'conductSfh', 'branches']
@@ -38,6 +45,18 @@
 		draft ? branchCodes.filter((code) => draft!.branches[code].enabled) : []
 	);
 	const blockingIssues = $derived(issues.filter((issue) => issue.severity === 'error'));
+	const previewDisabled = $derived(
+		dirty || saving || blockingIssues.length > 0 || enabledBranches.length === 0
+	);
+	const previewHint = $derived(
+		dirty || saving
+			? 'Așteaptă salvarea modificărilor înainte de preview.'
+			: blockingIssues.length
+				? 'Rezolvă erorile marcate în pașii formularului înainte de preview.'
+				: enabledBranches.length === 0
+					? 'Activează cel puțin o ramură pentru a genera un preview.'
+					: 'Alege ramura; PDF-ul se va afișa mai jos, fără să părăsești pagina.'
+	);
 	const currentIssues = $derived(
 		issues.filter((issue) => steps[step].prefixes.some((prefix) => issue.path.startsWith(prefix)))
 	);
@@ -58,6 +77,7 @@
 
 	const markDirty = () => {
 		dirty = true;
+		clearPreview();
 		if (autosaveTimer) clearTimeout(autosaveTimer);
 		autosaveTimer = setTimeout(() => {
 			if (dirty && !saving) saveForm?.requestSubmit();
@@ -84,6 +104,31 @@
 		draft.water.activities = fromLines(value);
 		markDirty();
 	};
+	const clearPreview = () => {
+		if (previewUrl) URL.revokeObjectURL(previewUrl);
+		previewUrl = undefined;
+		previewBranch = undefined;
+		previewError = '';
+	};
+	const loadPreview = async (branch: BranchCode) => {
+		clearPreview();
+		previewBranch = branch;
+		previewLoading = true;
+		try {
+			const result = await fetchParentalConsentPreview(
+				resolve(`/activities/${data.activity.id}/parental-consent/preview/${branch}`)
+			);
+			if (!result.ok) throw new Error(result.message);
+			previewUrl = URL.createObjectURL(result.pdf);
+		} catch (cause) {
+			previewError = cause instanceof Error ? cause.message : 'Preview-ul nu a putut fi generat.';
+		} finally {
+			previewLoading = false;
+		}
+	};
+	onDestroy(() => {
+		if (previewUrl) URL.revokeObjectURL(previewUrl);
+	});
 	const beforeUnload = (event: BeforeUnloadEvent) => {
 		if (dirty) event.preventDefault();
 	};
@@ -234,13 +279,6 @@
 										oninput={markDirty}
 										disabled={!draft.branches[branch].enabled}
 									/></label
-								><label
-									>Interval vârstă<input
-										bind:value={draft.branches[branch].ageRange}
-										oninput={markDirty}
-										disabled={!draft.branches[branch].enabled}
-										placeholder="ex. 11–14 ani"
-									/></label
 								>
 							</fieldset>{/each}
 					</div>
@@ -300,36 +338,47 @@
 					<div class="module-grid">
 						<fieldset>
 							<legend>Apă / tobogan / plută</legend><label class="check"
-								><input type="checkbox" bind:checked={draft.water.enabled} onchange={markDirty} /> Activ</label
+								><input type="checkbox" bind:checked={draft.water.enabled} onchange={markDirty} />
+								Activitatea include apă, tobogan sau plută</label
 							><label
 								>Activități<textarea
 									value={toLines(draft.water.activities)}
 									oninput={(event) => updateWaterActivities(event.currentTarget.value)}
+									disabled={!draft.water.enabled}
 								></textarea></label
 							><label class="check"
 								><input
 									type="checkbox"
 									bind:checked={draft.water.raftConstructionOnly}
 									onchange={markDirty}
+									disabled={!draft.water.enabled}
 								/> Pluta este doar construită la mal</label
 							><label
-								>Detalii<textarea bind:value={draft.water.details} oninput={markDirty}
+								>Detalii<textarea
+									bind:value={draft.water.details}
+									oninput={markDirty}
+									disabled={!draft.water.enabled}
 								></textarea></label
 							>
 						</fieldset>
 						<fieldset>
 							<legend>Unelte / obiecte ascuțite</legend><label class="check"
-								><input type="checkbox" bind:checked={draft.tools.enabled} onchange={markDirty} /> Activ</label
+								><input type="checkbox" bind:checked={draft.tools.enabled} onchange={markDirty} />
+								Se folosesc unelte sau obiecte ascuțite</label
 							>{#each branchCodes as branch (branch)}<label class="check"
 									><input
 										type="checkbox"
 										value={branch}
 										bind:group={draft.tools.branches}
 										onchange={markDirty}
+										disabled={!draft.tools.enabled}
 									/>
 									{branchLabels[branch]}</label
 								>{/each}<label
-								>Detalii<textarea bind:value={draft.tools.details} oninput={markDirty}
+								>Detalii<textarea
+									bind:value={draft.tools.details}
+									oninput={markDirty}
+									disabled={!draft.tools.enabled}
 								></textarea></label
 							>
 						</fieldset>
@@ -339,19 +388,21 @@
 									type="checkbox"
 									bind:checked={draft.fireCookingBlacksmithing.enabled}
 									onchange={markDirty}
-								/> Activ</label
+								/> Activitatea include foc, gătit sau fierărie</label
 							>{#each branchCodes as branch (branch)}<label class="check"
 									><input
 										type="checkbox"
 										value={branch}
 										bind:group={draft.fireCookingBlacksmithing.branches}
 										onchange={markDirty}
+										disabled={!draft.fireCookingBlacksmithing.enabled}
 									/>
 									{branchLabels[branch]}</label
 								>{/each}<label
 								>Detalii<textarea
 									bind:value={draft.fireCookingBlacksmithing.details}
 									oninput={markDirty}
+									disabled={!draft.fireCookingBlacksmithing.enabled}
 								></textarea></label
 							>
 						</fieldset>
@@ -360,20 +411,32 @@
 					<div class="module-grid">
 						<fieldset>
 							<legend>Drumeție și adăpost</legend><label class="check"
-								><input type="checkbox" bind:checked={draft.hiking.enabled} onchange={markDirty} /> Activ</label
+								><input type="checkbox" bind:checked={draft.hiking.enabled} onchange={markDirty} />
+								Activitatea include drumeție sau adăpost</label
 							><label class="check"
 								><input
 									type="checkbox"
 									bind:checked={draft.hiking.overnightShelter}
 									onchange={markDirty}
+									disabled={!draft.hiking.enabled}
 								/> Înnoptare în adăpost</label
 							><label
-								>Detalii<textarea bind:value={draft.hiking.details} oninput={markDirty}
+								>Detalii<textarea
+									bind:value={draft.hiking.details}
+									oninput={markDirty}
+									disabled={!draft.hiking.enabled}
 								></textarea></label
 							>
 						</fieldset>
-						<fieldset>
-							<legend>Prim ajutor</legend><label
+					</div>
+				{:else if step === 6}
+					<section class="standalone-section">
+						<div>
+							<h2>Prim ajutor</h2>
+							<p>Persoanele și unitatea medicală de referință pentru întreaga activitate.</p>
+						</div>
+						<div class="fields two">
+							<label
 								>Responsabili (unul pe linie)<textarea
 									value={toLines(draft.firstAid.responsiblePeople)}
 									oninput={(event) => updatePeople(event.currentTarget.value)}
@@ -387,8 +450,8 @@
 								>Detalii<textarea bind:value={draft.firstAid.details} oninput={markDirty}
 								></textarea></label
 							>
-						</fieldset>
-					</div>
+						</div>
+					</section>
 				{:else}
 					<div class="module-grid">
 						<fieldset>
@@ -477,14 +540,42 @@
 				value={JSON.stringify(draft)}
 			/>
 			<button type="submit" class="secondary" disabled={!dirty || saving}>Salvează acum</button>
-			<div class="preview-links">
-				{#each enabledBranches as branch (branch)}<a
-						target="_blank"
-						href={resolve(`/activities/${data.activity.id}/parental-consent/preview/${branch}`)}
-						>Preview {branchLabels[branch]}</a
-					>{/each}
+			<div class="preview-controls">
+				<span>{previewHint}</span>
+				<div>
+					{#each enabledBranches as branch (branch)}<button
+							type="button"
+							class="secondary"
+							class:active-preview={previewBranch === branch}
+							disabled={previewDisabled || previewLoading}
+							onclick={() => loadPreview(branch)}>Previzualizează {branchLabels[branch]}</button
+						>{/each}
+				</div>
 			</div>
 		</form>
+		{#if previewBranch || previewLoading || previewError}
+			<section class="preview-panel panel">
+				<div class="panel-heading">
+					<div>
+						<h2>
+							Preview PDF{previewBranch ? ` · ${branchLabels[previewBranch]}` : ''}
+						</h2>
+						<p>Document generat din ultima versiune salvată a formularului.</p>
+					</div>
+					<button type="button" class="secondary" onclick={clearPreview}>
+						Închide preview-ul
+					</button>
+				</div>
+				{#if previewLoading}
+					<div class="preview-status">Se generează PDF-ul…</div>
+				{:else if previewError}
+					<div class="notice error" role="alert">{previewError}</div>
+				{:else if previewUrl && previewBranch}
+					<iframe title={`Preview acord parental ${branchLabels[previewBranch]}`} src={previewUrl}
+					></iframe>
+				{/if}
+			</section>
+		{/if}
 		<form
 			method="POST"
 			action="?/publish"
@@ -722,7 +813,8 @@
 		min-height: 70px;
 		resize: vertical;
 	}
-	input:disabled {
+	input:disabled,
+	textarea:disabled {
 		background: #f1f5f9;
 	}
 	.branch-grid,
@@ -742,6 +834,18 @@
 	legend {
 		padding: 0 5px;
 		font-weight: 900;
+	}
+	.standalone-section {
+		display: grid;
+		gap: 14px;
+	}
+	.standalone-section h2,
+	.standalone-section p {
+		margin: 0;
+	}
+	.standalone-section p {
+		margin-top: 4px;
+		color: #64748b;
 	}
 	.issue-list {
 		display: grid;
@@ -765,8 +869,7 @@
 		border-top: 1px solid #edf2f7;
 		padding-top: 12px;
 	}
-	button,
-	.preview-links a {
+	button {
 		min-height: 38px;
 		border: 0;
 		border-radius: 7px;
@@ -776,8 +879,7 @@
 		font-weight: 850;
 		cursor: pointer;
 	}
-	button.secondary,
-	.preview-links a {
+	button.secondary {
 		border: 1px solid #cbd5e1;
 		background: #fff;
 		color: #334155;
@@ -798,10 +900,46 @@
 		background: #fff;
 		padding: 12px;
 	}
-	.preview-links {
+	.preview-controls {
+		display: grid;
+		gap: 6px;
+		justify-items: end;
+	}
+	.preview-controls > span {
+		max-width: 560px;
+		color: #64748b;
+		font-size: 0.82rem;
+		text-align: right;
+	}
+	.preview-controls > div {
 		display: flex;
 		flex-wrap: wrap;
+		justify-content: flex-end;
 		gap: 7px;
+	}
+	button.active-preview {
+		border-color: #991b1b;
+		color: #991b1b;
+	}
+	.preview-panel {
+		display: grid;
+		gap: 12px;
+	}
+	.preview-panel iframe {
+		width: 100%;
+		height: min(75vh, 900px);
+		border: 1px solid #cbd5e1;
+		border-radius: 8px;
+		background: #f8fafc;
+	}
+	.preview-status {
+		display: grid;
+		min-height: 180px;
+		place-items: center;
+		border-radius: 8px;
+		background: #f8fafc;
+		color: #475569;
+		font-weight: 800;
 	}
 	.publish-card {
 		border-color: #fecaca;

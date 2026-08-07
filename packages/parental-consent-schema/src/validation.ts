@@ -465,7 +465,6 @@ const validateBranch = (
   const issues = [
     ...required(branch.startDate, `${path}.startDate`, "Data de început"),
     ...required(branch.endDate, `${path}.endDate`, "Data de final"),
-    ...required(branch.ageRange, `${path}.ageRange`, "Intervalul de vârstă"),
   ];
   if (branch.startDate && branch.endDate && branch.endDate < branch.startDate) {
     issues.push(

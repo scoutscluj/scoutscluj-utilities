@@ -29,7 +29,6 @@ export const variableKeys = [
   "branch.label",
   "branch.startDate",
   "branch.endDate",
-  "branch.ageRange",
 ] as const;
 export type VariableKey = (typeof variableKeys)[number];
 
@@ -169,7 +168,7 @@ export type BranchDraft = {
   enabled: boolean;
   startDate: string;
   endDate: string;
-  ageRange: string;
+  ageRange?: string;
   outboundTransport: string;
   returnTransport: string;
   pickupDetails: string;

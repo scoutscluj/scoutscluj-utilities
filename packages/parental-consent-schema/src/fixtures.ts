@@ -11,7 +11,6 @@ const emptyBranch = () => ({
   enabled: false,
   startDate: "",
   endDate: "",
-  ageRange: "",
   outboundTransport: "",
   returnTransport: "",
   pickupDetails: "",
@@ -66,8 +65,6 @@ export const createRepresentativeOrganizerDraft = (): OrganizerDraft => {
       enabled: true,
       startDate: `2026-08-${String(10 + index).padStart(2, "0")}`,
       endDate: "2026-08-16",
-      ageRange:
-        index === 0 ? "7–10 ani" : index === 1 ? "11–14 ani" : "15–18 ani",
       outboundTransport: `Autocar – plecare ${branchLabels[code]}`,
       returnTransport: "Autocar",
       pickupDetails: "Detaliile se comunică de coordonator.",

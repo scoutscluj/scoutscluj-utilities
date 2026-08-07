@@ -320,7 +320,6 @@ export class ParentalConsentRendererService {
       'branch.label': branchLabels[input.branch],
       'branch.startDate': branch.startDate,
       'branch.endDate': branch.endDate,
-      'branch.ageRange': branch.ageRange,
     };
     if (!(key in values))
       throw new Error(`Unknown parental-consent variable: ${key}`);

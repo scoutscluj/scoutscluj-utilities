@@ -48,11 +48,12 @@ test('template preview through publication and ordinary-user download', async ({
 
 	await page.goto(`/activities/${activityId}/parental-consent`);
 	await expect(page.getByRole('heading', { name: 'Acord parental' })).toBeVisible();
-	const branchPreview = page.getByRole('link', { name: /^Preview / }).first();
-	await expect(branchPreview).toBeVisible();
-	const branchPreviewResponse = await page.request.get((await branchPreview.getAttribute('href'))!);
-	expect(branchPreviewResponse.ok()).toBeTruthy();
-	expect(branchPreviewResponse.headers()['content-type']).toContain('application/pdf');
+	const branchPreview = page.getByRole('button', { name: /^Previzualizează / }).first();
+	await expect(branchPreview).toBeEnabled();
+	await branchPreview.click();
+	const branchPreviewFrame = page.getByTitle(/^Preview acord parental /);
+	await expect(branchPreviewFrame).toBeVisible();
+	expect(await branchPreviewFrame.getAttribute('src')).toMatch(/^blob:/);
 
 	const publishButton = page.getByRole('button', { name: /^(Publică|Republică)$/ });
 	await expect(publishButton).toBeEnabled();

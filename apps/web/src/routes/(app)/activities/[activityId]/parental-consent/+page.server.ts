@@ -1,12 +1,16 @@
 import type { ParentalConsentDraft, ParentalConsentPublication } from '$lib/parental-consent/types';
-import { parentalConsentJson, parentalConsentResult } from '$lib/server/parental-consent-api';
+import {
+	parentalConsentJson,
+	parentalConsentJsonOrNull,
+	parentalConsentResult
+} from '$lib/server/parental-consent-api';
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ cookies, parent }) => {
 	const { activity, user } = await parent();
 	const canManage = activity.coordinatorId === user.id || user.roles.includes('super_admin');
-	const publicationPromise = parentalConsentJson<ParentalConsentPublication | null>(
+	const publicationPromise = parentalConsentJsonOrNull<ParentalConsentPublication>(
 		cookies,
 		`/api/activities/${activity.id}/parental-consent/publication`
 	);

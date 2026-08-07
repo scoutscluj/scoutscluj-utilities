@@ -3,16 +3,8 @@ import { apiFetch } from '$lib/server/api';
 import { SESSION_COOKIE_NAME } from '$lib/server/cookies';
 import type { Cookies } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import type { ActivityDepartment } from '../+layout.server';
-import { canManageActivity } from '../activity-meta';
+import { canManageActivity, filterActivityDepartments } from '../activity-meta';
 import { authHeaders, parseActivityId, readApiMessage } from '../kitchen/kitchen-api';
-
-const validDepartments = new Set<ActivityDepartment>([
-	'finance',
-	'kitchen',
-	'program',
-	'logistics'
-]);
 
 const cleanValue = (value: FormDataEntryValue | null) => {
 	const cleaned = value?.toString().trim();
@@ -24,14 +16,15 @@ const patchActivity = async (
 	activityId: number,
 	body: Record<string, unknown>,
 	messageKey: 'detailsMessage' | 'departmentMessage',
-	successMessage: string
+	successMessage: string,
+	pathSuffix = ''
 ) => {
 	const sessionToken = cookies.get(SESSION_COOKIE_NAME);
 	if (!sessionToken) {
 		return fail(401, { [messageKey]: 'Autentificarea este necesară.' });
 	}
 
-	const response = await apiFetch(`/api/activities/${activityId}`, {
+	const response = await apiFetch(`/api/activities/${activityId}${pathSuffix}`, {
 		method: 'PATCH',
 		headers: {
 			...authHeaders(sessionToken),
@@ -80,19 +73,15 @@ export const actions: Actions = {
 	departments: async ({ request, cookies, params }) => {
 		const activityId = parseActivityId(params.activityId);
 		const formData = await request.formData();
-		const departments = formData
-			.getAll('departments')
-			.map((value) => value.toString())
-			.filter((department): department is ActivityDepartment =>
-				validDepartments.has(department as ActivityDepartment)
-			);
+		const departments = filterActivityDepartments(formData.getAll('departments'));
 
 		return patchActivity(
 			cookies,
 			activityId,
 			{ departments },
 			'departmentMessage',
-			'Departamentele au fost salvate.'
+			'Departamentele au fost salvate.',
+			'/departments'
 		);
 	}
 };

@@ -49,6 +49,15 @@ export const departmentOptions: Array<{
 	}
 ];
 
+const validActivityDepartments = new Set(departmentOptions.map((department) => department.id));
+
+export const filterActivityDepartments = (values: FormDataEntryValue[]): ActivityDepartment[] =>
+	values
+		.map((value) => value.toString())
+		.filter((department): department is ActivityDepartment =>
+			validActivityDepartments.has(department as ActivityDepartment)
+		);
+
 export const canManageActivity = (activity: Activity, user: CurrentUser) =>
 	activity.coordinatorId === user.id || user.roles.includes('super_admin');
 

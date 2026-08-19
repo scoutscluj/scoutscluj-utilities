@@ -238,6 +238,7 @@ write_env_value "${API_ENV_FILE}" KEEZ_DOCUMENT_EMAIL_RECIPIENT "${KEEZ_DOCUMENT
 
 : >"${WEB_ENV_FILE}"
 write_env_value "${WEB_ENV_FILE}" NODE_ENV production
+write_env_value "${WEB_ENV_FILE}" BODY_SIZE_LIMIT 16M
 write_env_value "${WEB_ENV_FILE}" HOST 0.0.0.0
 write_env_value "${WEB_ENV_FILE}" PORT 3000
 write_env_value "${WEB_ENV_FILE}" PUBLIC_API_BASE_URL "${PUBLIC_API_BASE_URL}"

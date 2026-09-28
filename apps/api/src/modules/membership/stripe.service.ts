@@ -121,7 +121,6 @@ export class StripeService implements PaymentProvider<StripeConfiguration> {
       'line_items[0][price_data][unit_amount]': String(input.amountBani),
       'line_items[0][price_data][product_data][name]': input.description,
       'line_items[0][quantity]': '1',
-      customer_email: input.billing.email,
       locale: 'ro',
     });
     const response = await fetch(

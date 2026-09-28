@@ -12,6 +12,18 @@ import type {
   StartPaymentInput,
 } from './payment-provider';
 
+const CHECKOUT_CONTACT = {
+  email: 'cluj.napoca@scout.ro',
+  phone: '0749417925',
+  firstName: 'Centrul Local',
+  lastName: 'Cluj',
+  city: 'Cluj-Napoca',
+  country: 642,
+  state: 'Cluj',
+  postalCode: '400613',
+  details: 'Cotizatie membru',
+};
+
 export function verifyNotification(
   raw: Buffer,
   token: string,
@@ -118,8 +130,8 @@ export class NetopiaService implements PaymentProvider<NetopiaConfiguration> {
           description: input.description,
           amount: input.amountBani / 100,
           currency: 'RON',
-          billing: { ...input.billing, country: 642 },
-          shipping: { ...input.billing, country: 642 },
+          billing: CHECKOUT_CONTACT,
+          shipping: CHECKOUT_CONTACT,
         },
       }),
     });

@@ -774,20 +774,6 @@ export class MembershipService {
       throw new BadRequestException(
         'Acceptă termenii, politica de anulare și politica de confidențialitate.',
       );
-    const billingInput = record(body.billing);
-    const billing: Record<string, string> = {};
-    for (const field of [
-      'firstName',
-      'lastName',
-      'email',
-      'phone',
-      'city',
-      'state',
-      'postalCode',
-    ])
-      billing[field] = text(billingInput[field], 200);
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(billing.email))
-      throw new BadRequestException('Email invalid.');
     const token = text(body.attemptToken, 100);
     if (!/^[A-Za-z0-9_-]{43}$/.test(token))
       throw new BadRequestException('Referință de plată invalidă.');
@@ -911,7 +897,6 @@ export class MembershipService {
         id: checkout.id,
         amountBani: checkout.amountBani,
         description: 'Cotizație Centrul Local Cluj',
-        billing,
       };
       const started =
         startConfiguration.provider === 'stripe'

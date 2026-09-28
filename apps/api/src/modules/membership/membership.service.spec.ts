@@ -296,15 +296,6 @@ describe('membership service rules', () => {
       identifier: 'at36805',
       acceptTerms: true,
       attemptToken: 'a'.repeat(43),
-      billing: {
-        firstName: 'Payer',
-        lastName: 'Test',
-        email: 'payer@example.test',
-        phone: '0700000000',
-        city: 'Cluj',
-        state: 'Cluj',
-        postalCode: '400000',
-      },
     };
     await f.service.checkout(body);
     await f.service.checkout(body);
@@ -343,15 +334,6 @@ describe('membership service rules', () => {
       acceptUnverified: true,
       acceptTerms: true,
       attemptToken: 's'.repeat(43),
-      billing: {
-        firstName: 'Payer',
-        lastName: 'Test',
-        email: 'payer@example.test',
-        phone: '0700000000',
-        city: 'Cluj',
-        state: 'Cluj',
-        postalCode: '400000',
-      },
     });
     expect(f.stripe.start).toHaveBeenCalledTimes(1);
     expect(f.netopia.start).not.toHaveBeenCalled();
@@ -373,15 +355,6 @@ describe('membership service rules', () => {
       acceptUnverified: true,
       acceptTerms: true,
       attemptToken: 'r'.repeat(43),
-      billing: {
-        firstName: 'Payer',
-        lastName: 'Test',
-        email: 'payer@example.test',
-        phone: '0700000000',
-        city: 'Cluj',
-        state: 'Cluj',
-        postalCode: '400000',
-      },
     });
     const checkout = f.rows.find((row) => row.table === 'checkout')!;
     const originalConfigId = checkout.providerConfigId;
@@ -416,15 +389,6 @@ describe('membership service rules', () => {
       acceptUnverified: true,
       acceptTerms: true,
       attemptToken: 't'.repeat(43),
-      billing: {
-        firstName: 'Payer',
-        lastName: 'Test',
-        email: 'payer@example.test',
-        phone: '0700000000',
-        city: 'Cluj',
-        state: 'Cluj',
-        postalCode: '400000',
-      },
     });
     const checkout = f.rows.find((row) => row.table === 'checkout')!;
     f.stripe.verify.mockReturnValue({
@@ -465,15 +429,6 @@ describe('membership service rules', () => {
       acceptUnverified: true,
       acceptTerms: true,
       attemptToken: 'b'.repeat(43),
-      billing: {
-        firstName: 'A',
-        lastName: 'B',
-        email: 'a@example.test',
-        phone: '0700000000',
-        city: 'Cluj',
-        state: 'Cluj',
-        postalCode: '400000',
-      },
     };
     await expect(f.service.checkout(body)).rejects.toThrow(
       'Inițiere neconfirmată',

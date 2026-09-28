@@ -71,12 +71,6 @@ export const actions: Actions = {
 		const fields = await request.formData();
 		const own = fields.get('mode') === 'own';
 		if (own && !locals.user) return fail(401, { message: 'Autentificarea este necesară.' });
-		const billing = Object.fromEntries(
-			['firstName', 'lastName', 'email', 'phone', 'city', 'state', 'postalCode'].map((key) => [
-				key,
-				fields.get(key)
-			])
-		);
 		const guestIdentifier = String(fields.get('identifier') ?? '')
 			.trim()
 			.toUpperCase();
@@ -97,8 +91,7 @@ export const actions: Actions = {
 					obligationId: fields.get('obligationId'),
 					identifier: guestIdentifier,
 					acceptTerms: fields.get('acceptTerms') === 'on',
-					attemptToken: cookies.get(ATTEMPT_COOKIE),
-					billing
+					attemptToken: cookies.get(ATTEMPT_COOKIE)
 				})
 			}
 		);

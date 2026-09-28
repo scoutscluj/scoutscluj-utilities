@@ -8,44 +8,8 @@
 	const ownRemaining = $derived(own ? Math.max(0, own.totalBani - (own.paidBani ?? 0)) : 0);
 	const lookup = $derived(form?.lookup);
 	const providerName = $derived(data.activeProvider === 'stripe' ? 'Stripe' : 'NETOPIA');
+	const periodLabel = $derived(data.period?.name.replace(/^Cotizație\s*/i, '') ?? '');
 </script>
-
-{#snippet billingFields()}
-	<fieldset>
-		<legend>Datele persoanei care plătește</legend>
-		<div class="field-grid">
-			<label
-				>Prenume<input
-					name="firstName"
-					autocomplete="given-name"
-					value={data.user?.firstName ?? ''}
-					required
-				/></label
-			>
-			<label
-				>Nume<input
-					name="lastName"
-					autocomplete="family-name"
-					value={data.user?.lastName ?? ''}
-					required
-				/></label
-			>
-			<label class="wide"
-				>Email<input
-					name="email"
-					type="email"
-					autocomplete="email"
-					value={data.user?.email ?? ''}
-					required
-				/></label
-			>
-			<label>Telefon<input name="phone" type="tel" autocomplete="tel" required /></label>
-			<label>Localitate<input name="city" autocomplete="address-level2" required /></label>
-			<label>Județ<input name="state" autocomplete="address-level1" required /></label>
-			<label>Cod poștal<input name="postalCode" autocomplete="postal-code" required /></label>
-		</div>
-	</fieldset>
-{/snippet}
 
 {#snippet legalAcceptance()}
 	<label class="check">
@@ -115,7 +79,6 @@
 						name="periodId"
 						value={data.period?.id}
 					/><input type="hidden" name="identifier" value={lookup.identifier} />
-					{@render billingFields()}
 					<div class="payment-summary">
 						<div><span>Total de plată</span><strong>{money(lookup.amountBani)}</strong></div>
 						<p>Datele cardului se introduc pe pagina securizată {providerName}.</p>
@@ -159,7 +122,6 @@
 						name="periodId"
 						value={data.period?.id}
 					/><input type="hidden" name="obligationId" value={own.id} />
-					{@render billingFields()}
 					<div class="payment-summary">
 						<div><span>Total de plată</span><strong>{money(ownRemaining)}</strong></div>
 						<p>Datele cardului se introduc pe pagina securizată {providerName}.</p>
@@ -188,7 +150,10 @@
 {/snippet}
 
 <svelte:head
-	><title>Plată cotizație · Scouts Cluj</title><meta name="robots" content="noindex" /></svelte:head
+	><title>Plată cotizație{periodLabel ? ` (${periodLabel})` : ''} · Scouts Cluj</title><meta
+		name="robots"
+		content="noindex"
+	/></svelte:head
 >
 
 <header class="public-topbar">
@@ -205,14 +170,7 @@
 <main class="payment-page">
 	<div class="page-heading">
 		<p class="eyebrow">Centrul Local Cluj</p>
-		<h1>Plată cotizație</h1>
-		<p>
-			O singură plată către Centrul Local Cluj. Noi transferăm ulterior partea către Organizația
-			Națională.
-		</p>
-		{#if data.period}<span class="period-chip"
-				>{data.period.name} · {data.period.startsOn} – {data.period.endsOn}</span
-			>{/if}
+		<h1>Plată cotizație{periodLabel ? ` (${periodLabel})` : ''}</h1>
 	</div>
 	{#if data.environment !== 'live'}<p class="environment-notice">
 			Mediu de test · {providerName}. Nu folosi datele unui card real.
@@ -303,20 +261,9 @@
 		font-size: clamp(2rem, 5vw, 3rem);
 		line-height: 1.05;
 	}
-	.page-heading > p:not(.eyebrow),
 	.section-intro {
 		color: #52616f;
 		line-height: 1.6;
-	}
-	.period-chip {
-		display: inline-flex;
-		margin-top: 8px;
-		border-radius: 999px;
-		background: #e2e8f0;
-		padding: 7px 12px;
-		color: #334155;
-		font-size: 0.84rem;
-		font-weight: 750;
 	}
 	.environment-notice,
 	.notice,
@@ -368,8 +315,9 @@
 		font-size: 1.55rem;
 	}
 	.flow-divider {
-		width: 1px;
-		height: 64px;
+		width: calc(100% - 48px);
+		height: 1px;
+		margin: 32px 0;
 		background: #b8c2cc;
 	}
 	.lookup-form,
@@ -378,8 +326,7 @@
 		gap: 16px;
 		margin-top: 24px;
 	}
-	.lookup-form > label,
-	fieldset label {
+	.lookup-form > label {
 		font-size: 0.9rem;
 		font-weight: 750;
 	}
@@ -466,27 +413,6 @@
 		color: #166534;
 		text-align: right;
 	}
-	fieldset {
-		border: 1px solid #e2e8f0;
-		border-radius: 10px;
-		padding: 18px;
-	}
-	legend {
-		padding: 0 6px;
-		font-weight: 850;
-	}
-	.field-grid {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 14px;
-	}
-	.field-grid label {
-		display: grid;
-		gap: 6px;
-	}
-	.field-grid .wide {
-		grid-column: 1/-1;
-	}
 	.payment-summary {
 		display: flex;
 		align-items: center;
@@ -547,12 +473,8 @@
 		.payment-page {
 			margin-top: 28px;
 		}
-		.lookup-row,
-		.field-grid {
+		.lookup-row {
 			grid-template-columns: 1fr;
-		}
-		.field-grid .wide {
-			grid-column: auto;
 		}
 		.member-result {
 			grid-template-columns: auto 1fr;

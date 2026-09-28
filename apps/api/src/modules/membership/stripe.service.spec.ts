@@ -99,7 +99,6 @@ describe('Stripe payment boundary', () => {
             id: '11111111-1111-4111-8111-111111111111',
             amountBani: 30000,
             description: 'Cotizație Centrul Local Cluj',
-            billing: { email: 'payer@example.test' },
           },
           {
             provider: 'stripe',
@@ -116,6 +115,7 @@ describe('Stripe payment boundary', () => {
       if (!request) throw new Error('Stripe request was not made');
       const form = request.body as URLSearchParams;
       expect(form.get('line_items[0][price_data][currency]')).toBe('ron');
+      expect(form.has('customer_email')).toBe(false);
       expect(form.get('line_items[0][price_data][unit_amount]')).toBe('30000');
       expect(form.get('metadata[checkout_id]')).toBe(
         '11111111-1111-4111-8111-111111111111',

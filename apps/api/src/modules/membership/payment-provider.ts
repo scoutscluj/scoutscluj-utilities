@@ -23,7 +23,6 @@ export type StartPaymentInput = {
   id: string;
   amountBani: number;
   description: string;
-  billing: Record<string, string>;
 };
 
 export type StartedPayment = {

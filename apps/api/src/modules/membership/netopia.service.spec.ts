@@ -105,7 +105,6 @@ describe('NETOPIA notification boundary', () => {
             id: 'order-id',
             amountBani: 7500,
             description: 'Cotizație',
-            billing: { email: 'payer@example.test' },
           },
           {
             provider: 'netopia',
@@ -120,10 +119,15 @@ describe('NETOPIA notification boundary', () => {
       if (typeof sentBody !== 'string')
         throw new Error('Expected JSON request body');
       const body = JSON.parse(sentBody) as {
-        order: { amount: number; currency: string };
+        order: {
+          amount: number;
+          currency: string;
+          billing: { email: string };
+        };
         payment: { instrument: unknown };
       };
       expect(body.order).toMatchObject({ amount: 75, currency: 'RON' });
+      expect(body.order.billing.email).toBe('cluj.napoca@scout.ro');
       expect(body.payment.instrument).toEqual({ type: 'card' });
     } finally {
       mock.mockRestore();

@@ -25,14 +25,7 @@ export class MembershipController {
   >();
   constructor(private readonly membership: MembershipService) {}
 
-  @Get('catalog')
-  @Header('Cache-Control', 'no-store')
-  catalog() {
-    return this.membership.catalog();
-  }
-
-  @Post('guest-checkout')
-  guest(@Body() body: unknown, @Req() request: Request) {
+  private rateLimit(request: Request) {
     const now = Date.now();
     for (const [key, item] of this.attempts)
       if (item.until < now) this.attempts.delete(key);
@@ -45,7 +38,24 @@ export class MembershipController {
       );
     entry.count++;
     this.attempts.set(key, entry);
+  }
+
+  @Get('catalog')
+  @Header('Cache-Control', 'no-store')
+  catalog() {
+    return this.membership.catalog();
+  }
+
+  @Post('guest-checkout')
+  guest(@Body() body: unknown, @Req() request: Request) {
+    this.rateLimit(request);
     return this.membership.checkout(body);
+  }
+
+  @Post('guest-lookup')
+  guestLookup(@Body() body: unknown, @Req() request: Request) {
+    this.rateLimit(request);
+    return this.membership.guestLookup(body);
   }
 
   @Get('status/:token')

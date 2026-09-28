@@ -277,13 +277,23 @@ describe('membership service rules', () => {
     ).rejects.toThrow('deja într-un transfer');
   });
 
-  it('holds confirmed guest payment for review and deduplicates success callbacks', async () => {
+  it('validates a local member before guest payment and deduplicates success callbacks', async () => {
     const f = await setup();
+    await expect(
+      f.service.guestLookup({ identifier: 'at36805' }),
+    ).resolves.toEqual({
+      identifier: 'AT36805',
+      displayName: 'Test M.',
+      affiliation: 'Centrul Local Cluj',
+      amountBani: 30000,
+      paid: false,
+    });
+    await expect(
+      f.service.guestLookup({ identifier: 'AT99999' }),
+    ).rejects.toThrow('ID-ul nu corespunde');
     const body = {
       periodId: f.period.id,
       identifier: 'at36805',
-      plan: 'normal',
-      acceptUnverified: true,
       acceptTerms: true,
       attemptToken: 'a'.repeat(43),
       billing: {
@@ -310,17 +320,9 @@ describe('membership service rules', () => {
     await f.service.notifyNetopia(callback, 'verified');
     await f.service.notifyNetopia(callback, 'verified');
     expect(f.rows.filter((r) => r.table === 'receipt')).toHaveLength(1);
-    expect(f.rows.filter((r) => r.table === 'allocation')).toHaveLength(0);
-    const receipt = f.rows.find((r) => r.table === 'receipt')!;
-    expect(receipt.reviewRequired).toBe(true);
-    await f.service.allocate(f.staff, {
-      receiptId: receipt.id,
-      obligationId: f.obligation.id,
-      amountBani: 30000,
-      note: 'Checked ID and plan in ORGO',
-    });
-    expect(receipt.reviewRequired).toBe(false);
     expect(f.rows.filter((r) => r.table === 'allocation')).toHaveLength(1);
+    const receipt = f.rows.find((r) => r.table === 'receipt')!;
+    expect(receipt.reviewRequired).toBe(false);
   });
 
   it('requires explicit acceptance of the current legal policies', async () => {

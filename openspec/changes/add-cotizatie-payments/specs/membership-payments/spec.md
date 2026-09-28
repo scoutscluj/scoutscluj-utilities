@@ -18,12 +18,13 @@ The system SHALL distinguish obligations, receipts, allocations, national transf
 - **WHEN** authorized staff record one bank transfer and allocate it to several obligations
 - **THEN** allocations cannot exceed the receipt, remaining money is visible, and actor/date/transfer notes are retained
 
-### Requirement: Unverified guest payments
-The system SHALL accept numeric ORGO IDs and uppercase card IDs without claiming identity validation when administrative ORGO access is absent.
+### Requirement: Locally verified guest payments
+The system SHALL accept numeric ORGO IDs and uppercase card IDs only when they match a verified obligation in the active local-center membership register. Public lookup SHALL disclose only a minimized identity preview, local-center affiliation, payable amount, and paid status.
 
 #### Scenario: Guest pays by card
-- **WHEN** a guest chooses a published plan and a verified processor success arrives
-- **THEN** a receipt awaits staff review and does not automatically mark a member paid
+- **WHEN** a guest enters an ID matching an eligible member, confirms the minimized preview, and a verified processor success arrives
+- **THEN** the receipt is allocated to that member's verified obligation
+- **AND** unknown, ineligible, and already-paid IDs cannot start another checkout
 
 ### Requirement: Trusted card confirmation
 The system SHALL apply the selected processor's authenticated notification protocol and verify the raw body, environment, internal reference, provider reference, amount and currency before crediting a receipt.

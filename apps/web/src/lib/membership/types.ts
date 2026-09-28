@@ -94,6 +94,13 @@ export type PaymentStatus = {
 	requiresStaffReview: boolean;
 	paymentUrl?: string | null;
 };
+export type GuestMemberLookup = {
+	identifier: string;
+	displayName: string;
+	affiliation: string;
+	amountBani: number;
+	paid: boolean;
+};
 export const money = (bani: number) =>
 	new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON' }).format(bani / 100);
 export const paymentLabels: Record<string, string> = {

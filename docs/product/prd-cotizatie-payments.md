@@ -8,9 +8,9 @@ Code baseline: main, 8669191; remote metadata refreshed during this review.
 
 - NETOPIA is the initial selection. Provider credentials are entered by authorized financial staff, encrypted by the API with AWS KMS and must never be committed or returned to the browser.
 - Only member-scoped ORGO login tokens are currently available. There is no administrative server token. Background roster lookup and national write-back remain unavailable until suitable access is supplied and verified; represent this explicitly rather than reporting synchronization success.
-- Guest checkout is allowed without ORGO identity validation. Guests enter an ORGO numeric ID or card ID, choose a published fee plan, and acknowledge that staff must review the payment before it credits a member. No profile preview is promised. Preserve the submitted identifier separately from the verified beneficiary.
+- Guest checkout requires a numeric ORGO ID or card ID that matches a verified obligation in the active local-center register. Show only a minimized identity preview, local-center affiliation, payable amount, and paid status before checkout; never let the payer select a fee plan.
 - Normalize card IDs to uppercase in the textbox and on the server. Numeric IDs and card IDs are distinct identifier types; never derive a numeric ID by stripping a card prefix.
-- Guest identity validation can be added later without changing historical receipts. The earlier verified guest preview and automatic guest credit requirements below are superseded.
+- A future administrative ORGO token can refresh the local register, but checkout remains bound to the verified local obligation so historical receipts do not depend on a live lookup.
 - Baseline prices remain until staff explicitly publish an approved change. Sandbox testing does not authorize live activation.
 
 ## Problem Statement

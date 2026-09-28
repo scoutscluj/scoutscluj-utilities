@@ -144,6 +144,49 @@ export class MembershipService {
     return allocations.reduce((sum, item) => sum + item.amountBani, 0);
   }
 
+  private findObligationByIdentifier(
+    em: EntityManager,
+    periodId: string,
+    entered: ReturnType<typeof identifier>,
+  ) {
+    return entered.kind === 'orgo_id'
+      ? em.findOne(Obligation, {
+          periodId,
+          orgoUserId: Number(entered.value),
+        })
+      : em.findOne(Obligation, { periodId, cardId: entered.value });
+  }
+
+  async guestLookup(input: unknown) {
+    const body = record(input);
+    const entered = identifier(body.identifier);
+    const period = await this.em.findOne(Period, { active: true });
+    if (!period)
+      throw new NotFoundException('Perioada de cotizație nu este activă.');
+    const obligation = await this.findObligationByIdentifier(
+      this.em,
+      period.id,
+      entered,
+    );
+    if (!obligation)
+      throw new NotFoundException(
+        'ID-ul nu corespunde unui membru eligibil din Centrul Local Cluj.',
+      );
+    const paidBani = await this.balance(this.em, obligation.id);
+    const name = obligation.memberName.trim().split(/\s+/);
+    const displayName = [
+      name[0],
+      ...name.slice(1).map((part) => `${part.charAt(0).toUpperCase()}.`),
+    ].join(' ');
+    return {
+      identifier: entered.value,
+      displayName,
+      affiliation: 'Centrul Local Cluj',
+      amountBani: Math.max(0, obligation.totalBani - paidBani),
+      paid: paidBani >= obligation.totalBani,
+    };
+  }
+
   async mine(user: CurrentUser): Promise<
     Array<{
       id: string;
@@ -770,11 +813,12 @@ export class MembershipService {
         throw new ConflictException(
           'Configurația plăților s-a schimbat. Reîncearcă inițierea.',
         );
-      const period = await em.findOneOrFail(Period, {
+      await em.findOneOrFail(Period, {
         id: periodId,
         active: true,
       });
       let obligation: Obligation | null = null;
+      let entered: ReturnType<typeof identifier>;
       if (user) {
         if (!user.orgoConnection?.orgoUserId)
           throw new ForbiddenException('Cont fără ID ORGO.');
@@ -787,32 +831,37 @@ export class MembershipService {
           throw new NotFoundException(
             'Cotizația verificată nu este disponibilă.',
           );
-        const pending = await em.findOne(Checkout, {
-          obligationId: obligation.id,
-          state: { $in: ['starting', 'pending', 'unknown'] },
-        });
-        if (pending)
-          throw new ConflictException(
-            'Există o plată în curs. Reia pagina inițială sau contactează responsabilul financiar.',
-          );
-      } else if (body.acceptUnverified !== true)
-        throw new BadRequestException(
-          'Confirmă verificarea ulterioară de către centru.',
+        entered = identifier(String(obligation.orgoUserId));
+      } else {
+        entered = identifier(body.identifier);
+        obligation = await this.findObligationByIdentifier(
+          em,
+          periodId,
+          entered,
         );
-      const entered = identifier(
-        obligation ? String(obligation.orgoUserId) : body.identifier,
-      );
-      const planKey = plan(obligation ? obligation.plan : body.plan);
-      const amountBani = obligation
-        ? obligation.totalBani - (await this.balance(em, obligation.id))
-        : period.prices[planKey].totalBani;
+        if (!obligation)
+          throw new NotFoundException(
+            'ID-ul nu corespunde unui membru eligibil din Centrul Local Cluj.',
+          );
+      }
+      const pending = await em.findOne(Checkout, {
+        obligationId: obligation.id,
+        state: { $in: ['starting', 'pending', 'unknown'] },
+      });
+      if (pending)
+        throw new ConflictException(
+          'Există o plată în curs. Reia pagina inițială sau contactează responsabilul financiar.',
+        );
+      const planKey = plan(obligation.plan);
+      const amountBani =
+        obligation.totalBani - (await this.balance(em, obligation.id));
       if (amountBani <= 0)
         throw new ConflictException('Cotizație deja plătită.');
       const attempt = em.create(Checkout, {
         id: randomUUID(),
         tokenHash,
         periodId,
-        obligationId: obligation?.id,
+        obligationId: obligation.id,
         identifier: entered.value,
         identifierKind: entered.kind,
         plan: planKey,

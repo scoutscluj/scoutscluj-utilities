@@ -37,6 +37,10 @@ export const visibleChildren = (item: MenuItem, user: CurrentUser) =>
 
 export const menuHref = (href: AppHref) => {
 	switch (href) {
+		case '/cotizatie':
+			return resolve('/cotizatie');
+		case '/membership':
+			return resolve('/membership');
 		case '/':
 			return resolve('/');
 		case '/profile':

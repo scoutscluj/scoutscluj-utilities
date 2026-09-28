@@ -26,7 +26,7 @@ export const menuItems: MenuItem[] = [
 			{ label: 'Documente', href: '/finance/documents' },
 			{ label: 'Panou financiar', href: '/finance', minRole: 'finance_manager' },
 			{ label: 'Buget', disabled: true },
-			{ label: 'Cotizații', disabled: true }
+			{ label: 'Cotizații', href: '/cotizatie' }
 		]
 	},
 	{ label: 'Activități', href: '/activities' },

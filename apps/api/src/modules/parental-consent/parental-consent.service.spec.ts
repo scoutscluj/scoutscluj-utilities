@@ -23,6 +23,7 @@ jest.mock('@mikro-orm/core', () => {
     integer: jest.fn(() => chain),
     json: jest.fn(() => chain),
     string: jest.fn(() => chain),
+    text: jest.fn(() => chain),
     type: jest.fn(() => chain),
   };
   return {

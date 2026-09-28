@@ -7,17 +7,25 @@ import { RolesGuard } from './guards/roles.guard';
 import { OrgoClientService } from './orgo-client.service';
 import { OrgoCallbackController } from './orgo-callback.controller';
 import { SessionService } from './session.service';
+import { OrgoTokenService } from './orgo-token.service';
 
 @Module({
   imports: [UsersModule],
   controllers: [AuthController, OrgoCallbackController],
   providers: [
     AuthService,
+    OrgoTokenService,
     OrgoClientService,
     SessionService,
     AuthGuard,
     RolesGuard,
   ],
-  exports: [AuthService, AuthGuard, RolesGuard, SessionService],
+  exports: [
+    AuthService,
+    AuthGuard,
+    RolesGuard,
+    SessionService,
+    OrgoTokenService,
+  ],
 })
 export class AuthModule {}

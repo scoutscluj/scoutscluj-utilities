@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { MembershipModule } from './modules/membership/membership.module';
 import { ConfigModule } from '@nestjs/config';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { AppController } from './app.controller';
@@ -28,6 +29,7 @@ import { ParentalConsentModule } from './modules/parental-consent/parental-conse
     AuditModule,
     ActivitiesModule,
     FinanceModule,
+    MembershipModule,
     InventoryModule,
     KitchenModule,
     NotificationsModule,

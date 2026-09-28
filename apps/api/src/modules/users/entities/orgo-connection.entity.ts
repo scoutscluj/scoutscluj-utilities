@@ -18,6 +18,7 @@ export const OrgoConnection = defineEntity({
     cardId: p.string().nullable().unique().fieldName('card_id'),
     email: p.string().nullable(),
     profile: p.json<Record<string, unknown>>(),
+    apiTokenEncrypted: p.text().nullable().fieldName('api_token_encrypted'),
     connectedAt: p
       .datetime()
       .fieldName('connected_at')

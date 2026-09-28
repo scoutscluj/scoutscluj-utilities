@@ -30,6 +30,7 @@ jest.mock('@mikro-orm/core', () => {
     oneToMany: jest.fn(() => chain),
     oneToOne: jest.fn(() => chain),
     string: jest.fn(() => chain),
+    text: jest.fn(() => chain),
     type: jest.fn(() => chain),
   };
 

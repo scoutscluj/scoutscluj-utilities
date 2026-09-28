@@ -1,3 +1,10 @@
+<script lang="ts">
+	import { resolve } from '$app/paths';
+	import { hasRole } from '$lib/auth/roles';
+
+	let { data } = $props();
+</script>
+
 <svelte:head>
 	<title>Administrare | Scouts Cluj Utilities</title>
 </svelte:head>
@@ -5,7 +12,17 @@
 <section class="admin-page">
 	<p class="eyebrow">Admin</p>
 	<h1>Administrare</h1>
-	<p>Zona de administrare este pregatita pentru modulele urmatoare.</p>
+	<p>Alege zona pe care vrei să o configurezi.</p>
+
+	{#if hasRole(data.user, 'admin') || hasRole(data.user, 'finance_manager')}
+		<div class="admin-section">
+			<h2>Financiar</h2>
+			<a class="module-card" href={resolve('/admin/finance/payment-processor')}>
+				<strong>Procesator plăți</strong>
+				<span>Alege NETOPIA sau Stripe și gestionează configurația securizată.</span>
+			</a>
+		</div>
+	{/if}
 </section>
 
 <style>
@@ -33,6 +50,34 @@
 
 	p:not(.eyebrow) {
 		margin: 10px 0 0;
+		color: #52616f;
+	}
+
+	.admin-section {
+		margin-top: 28px;
+	}
+
+	h2 {
+		margin: 0 0 12px;
+		font-size: 1.2rem;
+	}
+
+	.module-card {
+		display: grid;
+		gap: 6px;
+		border: 1px solid #cbd5e1;
+		border-radius: 10px;
+		padding: 16px;
+		color: #0f172a;
+		text-decoration: none;
+	}
+
+	.module-card:hover {
+		border-color: #166534;
+		background: #f0fdf4;
+	}
+
+	.module-card span {
 		color: #52616f;
 	}
 </style>

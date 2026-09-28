@@ -7,6 +7,7 @@ set -Eeuo pipefail
 : "${APP_SECRET_NAME:?APP_SECRET_NAME is required}"
 : "${DATABASE_SECRET_NAME:?DATABASE_SECRET_NAME is required}"
 : "${DATABASE_ENDPOINT:?DATABASE_ENDPOINT is required}"
+: "${PAYMENT_CONFIG_KMS_KEY_ID:?PAYMENT_CONFIG_KMS_KEY_ID is required}"
 
 DB_NAME="${DB_NAME:-scoutscluj_utilities}"
 LOG_GROUP_PREFIX="${LOG_GROUP_PREFIX:-/scoutscluj/production}"
@@ -218,6 +219,8 @@ write_env_value "${API_ENV_FILE}" API_PORT 3000
 write_env_value "${API_ENV_FILE}" DATABASE_URL "${DATABASE_URL}"
 write_env_value "${API_ENV_FILE}" DATABASE_SSL true
 write_env_value "${API_ENV_FILE}" DATABASE_SSL_REJECT_UNAUTHORIZED false
+write_env_value "${API_ENV_FILE}" AWS_REGION "${AWS_REGION}"
+write_env_value "${API_ENV_FILE}" PAYMENT_CONFIG_KMS_KEY_ID "${PAYMENT_CONFIG_KMS_KEY_ID}"
 write_env_value "${API_ENV_FILE}" AUTH_SESSION_SECRET "${AUTH_SESSION_SECRET}"
 write_env_value "${API_ENV_FILE}" ORGO_OAUTH_BASE_URL "${ORGO_OAUTH_BASE_URL}"
 write_env_value "${API_ENV_FILE}" ORGO_OAUTH_CLIENT_ID "${ORGO_OAUTH_CLIENT_ID}"

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Toaster } from '$lib/components/ui/sonner';
 	import PWAStatusToasts from '$lib/components/pwa/PWAStatusToasts.svelte';
+	import SiteFooter from '$lib/legal/SiteFooter.svelte';
 
 	let { children } = $props();
 </script>
@@ -18,6 +19,7 @@
 </svelte:head>
 
 {@render children()}
+<SiteFooter />
 <Toaster />
 <PWAStatusToasts />
 

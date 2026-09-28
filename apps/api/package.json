@@ -48,6 +48,7 @@
     ]
   },
   "dependencies": {
+    "@aws-sdk/client-kms": "^3.1141.0",
     "@mikro-orm/core": "^7.1.4",
     "@mikro-orm/migrations": "^7.1.4",
     "@mikro-orm/nestjs": "^7.0.2",

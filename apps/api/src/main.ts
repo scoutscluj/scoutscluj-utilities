@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { json, urlencoded } from 'express';
+import { json, raw, urlencoded } from 'express';
 import { AppModule } from './app.module';
 
 const DOCUMENT_UPLOAD_BODY_LIMIT = '25mb';
@@ -42,6 +42,14 @@ async function bootstrap() {
   const config = app.get(ConfigService);
   const port = getPort(config);
 
+  app.use(
+    '/api/membership/netopia/notify',
+    raw({ type: 'application/json', limit: '64kb' }),
+  );
+  app.use(
+    '/api/membership/stripe/notify',
+    raw({ type: 'application/json', limit: '64kb' }),
+  );
   app.use(json({ limit: DOCUMENT_UPLOAD_BODY_LIMIT }));
   app.use(urlencoded({ extended: true, limit: DOCUMENT_UPLOAD_BODY_LIMIT }));
   app.setGlobalPrefix('api');

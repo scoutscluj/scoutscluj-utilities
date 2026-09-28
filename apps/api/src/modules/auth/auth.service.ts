@@ -4,6 +4,7 @@ import { UsersService } from '../users/users.service';
 import { OrgoClientService } from './orgo-client.service';
 import { SESSION_COOKIE_NAME } from './session.constants';
 import { SessionService } from './session.service';
+import { OrgoTokenService, safeOrgoProfile } from './orgo-token.service';
 
 @Injectable()
 export class AuthService {
@@ -11,6 +12,7 @@ export class AuthService {
     private readonly orgoClientService: OrgoClientService,
     private readonly sessionService: SessionService,
     private readonly usersService: UsersService,
+    private readonly orgoTokenService: OrgoTokenService,
   ) {}
 
   requestOrgoLogin() {
@@ -18,10 +20,12 @@ export class AuthService {
   }
 
   async signInWithOrgo(successToken: string, response?: Response) {
-    const orgoProfile =
+    const rawProfile =
       await this.orgoClientService.verifySuccessToken(successToken);
+    const orgoProfile = safeOrgoProfile(rawProfile);
     const { user, wasCreated } =
       await this.usersService.resolveOrCreateFromOrgoProfile(orgoProfile);
+    await this.orgoTokenService.capture(user.id, rawProfile);
     const sessionToken = this.sessionService.createSessionToken(user.id);
 
     if (response) {

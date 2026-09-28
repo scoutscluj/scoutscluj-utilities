@@ -83,6 +83,7 @@ jobs:
             echo "app_secret_name=$(output_value ApplicationSecretName)"
             echo "database_secret_name=$(output_value DatabaseSecretName)"
             echo "database_endpoint=$(output_value DatabaseEndpoint)"
+            echo "payment_configuration_key_arn=$(output_value PaymentConfigurationKeyArn)"
             echo "api_log_group_name=$(output_value ApiLogGroupName)"
             echo "web_log_group_name=$(output_value WebLogGroupName)"
             echo "caddy_log_group_name=$(output_value CaddyLogGroupName)"
@@ -135,6 +136,7 @@ jobs:
             --arg appSecret "${{ steps.stack.outputs.app_secret_name }}" \
             --arg databaseSecret "${{ steps.stack.outputs.database_secret_name }}" \
             --arg databaseEndpoint "${{ steps.stack.outputs.database_endpoint }}" \
+            --arg paymentConfigurationKeyArn "${{ steps.stack.outputs.payment_configuration_key_arn }}" \
             --arg dbName "${DB_NAME}" \
             --arg apiLogGroup "${{ steps.stack.outputs.api_log_group_name }}" \
             --arg webLogGroup "${{ steps.stack.outputs.web_log_group_name }}" \
@@ -149,6 +151,7 @@ jobs:
                   " APP_SECRET_NAME=" + ($appSecret | @sh) +
                   " DATABASE_SECRET_NAME=" + ($databaseSecret | @sh) +
                   " DATABASE_ENDPOINT=" + ($databaseEndpoint | @sh) +
+                  " PAYMENT_CONFIG_KMS_KEY_ID=" + ($paymentConfigurationKeyArn | @sh) +
                   " DB_NAME=" + ($dbName | @sh) +
                   " API_LOG_GROUP=" + ($apiLogGroup | @sh) +
                   " WEB_LOG_GROUP=" + ($webLogGroup | @sh) +

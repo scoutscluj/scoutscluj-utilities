@@ -24,8 +24,14 @@ export const load: PageServerLoad = async ({ cookies, locals, setHeaders }) => {
 				period: Period | null;
 				cardEnabled: boolean;
 				environment: string;
+				activeProvider: 'netopia' | 'stripe';
 			})
-		: { period: null, cardEnabled: false, environment: 'sandbox' };
+		: {
+				period: null,
+				cardEnabled: false,
+				environment: 'sandbox',
+				activeProvider: 'netopia' as const
+			};
 	const statusResponse = await apiFetch(`/api/membership/status/${encodeURIComponent(token)}`);
 	const status = statusResponse.ok ? ((await statusResponse.json()) as PaymentStatus) : null;
 	let obligations: Obligation[] = [];
@@ -71,6 +77,7 @@ export const actions: Actions = {
 						.toUpperCase(),
 					plan: fields.get('plan'),
 					acceptUnverified: fields.get('acceptUnverified') === 'on',
+					acceptTerms: fields.get('acceptTerms') === 'on',
 					attemptToken: cookies.get(ATTEMPT_COOKIE),
 					billing
 				})

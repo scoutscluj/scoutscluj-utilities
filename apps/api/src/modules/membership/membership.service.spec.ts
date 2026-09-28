@@ -12,12 +12,14 @@ jest.mock('./entities/membership.entity', () => ({
   MembershipNationalItem: 'item',
   MembershipProviderEvent: 'event',
   MembershipPayout: 'payout',
+  MembershipPaymentSettings: 'settings',
 }));
 
 import type { EntityManager } from '@mikro-orm/postgresql';
 import { randomUUID } from 'node:crypto';
 import { MembershipService } from './membership.service';
 import type { NetopiaService } from './netopia.service';
+import type { StripeService } from './stripe.service';
 import { UserRole } from '../users/entities/user-role.enum';
 import type { CurrentUser } from '../users/users.types';
 
@@ -80,16 +82,28 @@ function fixture() {
       }),
     ),
   };
+  const stripe = {
+    ready: () => true,
+    environment: () => 'test',
+    verify: jest.fn(),
+    start: jest.fn(() =>
+      Promise.resolve({
+        providerId: 'cs_test_123',
+        paymentUrl: 'https://checkout.stripe.com/c/pay/test',
+      }),
+    ),
+  };
   const service = new MembershipService(
     em as unknown as EntityManager,
     netopia as unknown as NetopiaService,
+    stripe as unknown as StripeService,
   );
   const staff: CurrentUser = {
     id: 1,
     displayName: 'Finance',
     roles: [UserRole.FinanceManager],
   };
-  return { rows, em, netopia, service, staff };
+  return { rows, em, netopia, stripe, service, staff };
 }
 
 async function setup() {
@@ -186,6 +200,7 @@ describe('membership service rules', () => {
       identifier: 'at36805',
       plan: 'normal',
       acceptUnverified: true,
+      acceptTerms: true,
       attemptToken: 'a'.repeat(43),
       billing: {
         firstName: 'Payer',
@@ -208,8 +223,8 @@ describe('membership service rules', () => {
         payment: { ntpID: 'ntp-test', amount: 300, currency: 'RON', status: 3 },
       }),
     );
-    await f.service.notify(callback, 'verified');
-    await f.service.notify(callback, 'verified');
+    await f.service.notifyNetopia(callback, 'verified');
+    await f.service.notifyNetopia(callback, 'verified');
     expect(f.rows.filter((r) => r.table === 'receipt')).toHaveLength(1);
     expect(f.rows.filter((r) => r.table === 'allocation')).toHaveLength(0);
     const receipt = f.rows.find((r) => r.table === 'receipt')!;
@@ -224,6 +239,84 @@ describe('membership service rules', () => {
     expect(f.rows.filter((r) => r.table === 'allocation')).toHaveLength(1);
   });
 
+  it('requires explicit acceptance of the current legal policies', async () => {
+    const f = await setup();
+    await expect(f.service.checkout({ periodId: f.period.id })).rejects.toThrow(
+      'Acceptă termenii',
+    );
+    expect(f.netopia.start).not.toHaveBeenCalled();
+  });
+
+  it('uses the administrator-selected provider only for new checkouts', async () => {
+    const f = await setup();
+    await f.service.selectPaymentProvider(f.staff, { provider: 'stripe' });
+    await f.service.checkout({
+      periodId: f.period.id,
+      identifier: 'AT36805',
+      plan: 'normal',
+      acceptUnverified: true,
+      acceptTerms: true,
+      attemptToken: 's'.repeat(43),
+      billing: {
+        firstName: 'Payer',
+        lastName: 'Test',
+        email: 'payer@example.test',
+        phone: '0700000000',
+        city: 'Cluj',
+        state: 'Cluj',
+        postalCode: '400000',
+      },
+    });
+    expect(f.stripe.start).toHaveBeenCalledTimes(1);
+    expect(f.netopia.start).not.toHaveBeenCalled();
+    expect(f.rows.find((row) => row.table === 'checkout')?.provider).toBe(
+      'stripe',
+    );
+    await expect(f.service.catalog()).resolves.toMatchObject({
+      activeProvider: 'stripe',
+      cardEnabled: true,
+    });
+  });
+
+  it('deduplicates signed Stripe success events and keeps provider attribution', async () => {
+    const f = await setup();
+    await f.service.selectPaymentProvider(f.staff, { provider: 'stripe' });
+    await f.service.checkout({
+      periodId: f.period.id,
+      identifier: 'AT36805',
+      plan: 'normal',
+      acceptUnverified: true,
+      acceptTerms: true,
+      attemptToken: 't'.repeat(43),
+      billing: {
+        firstName: 'Payer',
+        lastName: 'Test',
+        email: 'payer@example.test',
+        phone: '0700000000',
+        city: 'Cluj',
+        state: 'Cluj',
+        postalCode: '400000',
+      },
+    });
+    const checkout = f.rows.find((row) => row.table === 'checkout')!;
+    f.stripe.verify.mockReturnValue({
+      checkoutId: checkout.id,
+      providerId: 'cs_test_123',
+      providerStatus: 'checkout.session.completed:paid',
+      amountBani: 30000,
+      currency: 'RON',
+      outcome: 'succeeded',
+    });
+    const raw = Buffer.from('{"id":"evt_123"}');
+    await f.service.notifyStripe(raw, 'signed');
+    await f.service.notifyStripe(raw, 'signed');
+    expect(f.rows.filter((row) => row.table === 'receipt')).toHaveLength(1);
+    expect(f.rows.find((row) => row.table === 'event')).toMatchObject({
+      provider: 'stripe',
+      providerStatus: 'checkout.session.completed:paid',
+    });
+  });
+
   it('rejects wrong-amount notifications and holds unknown checkout outcomes', async () => {
     const f = await setup();
     f.netopia.start.mockRejectedValueOnce(new Error('Lost response'));
@@ -232,6 +325,7 @@ describe('membership service rules', () => {
       identifier: '36805',
       plan: 'normal',
       acceptUnverified: true,
+      acceptTerms: true,
       attemptToken: 'b'.repeat(43),
       billing: {
         firstName: 'A',
@@ -252,7 +346,7 @@ describe('membership service rules', () => {
     expect(f.netopia.start).toHaveBeenCalledTimes(1);
     const checkout = f.rows.find((r) => r.table === 'checkout')!;
     await expect(
-      f.service.notify(
+      f.service.notifyNetopia(
         Buffer.from(
           JSON.stringify({
             order: { orderID: checkout.id },
@@ -279,6 +373,7 @@ describe('membership service rules', () => {
       identifierKind: 'card_id',
       plan: 'normal',
       amountBani: 30000,
+      provider: 'netopia',
       environment: 'sandbox',
       state: 'succeeded',
       reviewRequired: true,
@@ -333,6 +428,7 @@ describe('membership service rules', () => {
       identifierKind: 'orgo_id',
       plan: 'normal',
       amountBani: 30000,
+      provider: 'netopia',
       environment: 'sandbox',
       state: 'unknown',
     });

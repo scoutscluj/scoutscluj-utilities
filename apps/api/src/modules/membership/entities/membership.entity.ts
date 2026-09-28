@@ -24,6 +24,23 @@ export const MembershipPeriod = defineEntity({
 });
 export type MembershipPeriod = InferEntity<typeof MembershipPeriod>;
 
+export const MembershipPaymentSettings = defineEntity({
+  name: 'MembershipPaymentSettings',
+  tableName: 'membership_payment_settings',
+  properties: {
+    id: p.string().primary(),
+    activeProvider: p.string().default('netopia'),
+    updatedBy: p.integer().nullable(),
+    updatedAt: p
+      .datetime()
+      .onCreate(() => new Date())
+      .onUpdate(() => new Date()),
+  },
+});
+export type MembershipPaymentSettings = InferEntity<
+  typeof MembershipPaymentSettings
+>;
+
 export const MembershipObligation = defineEntity({
   name: 'MembershipObligation',
   tableName: 'membership_obligations',
@@ -55,11 +72,14 @@ export const MembershipCheckout = defineEntity({
     identifierKind: p.string(),
     plan: p.string(),
     amountBani: p.integer(),
+    provider: p.string(),
     environment: p.string(),
     state: p.string(),
     paymentUrl: p.text().nullable(),
     providerId: p.string().nullable().unique(),
     reviewRequired: p.boolean().default(false),
+    termsVersion: p.string(),
+    termsAcceptedAt: p.datetime(),
     createdAt: created(),
   },
 });
@@ -158,7 +178,8 @@ export const MembershipProviderEvent = defineEntity({
     id: id(),
     hash: p.string().unique(),
     checkoutId: p.uuid(),
-    providerStatus: p.integer(),
+    provider: p.string(),
+    providerStatus: p.string(),
     amountBani: p.integer(),
     createdAt: created(),
   },
@@ -166,6 +187,7 @@ export const MembershipProviderEvent = defineEntity({
 
 export const MEMBERSHIP_ENTITIES = [
   MembershipPayout,
+  MembershipPaymentSettings,
   MembershipPeriod,
   MembershipObligation,
   MembershipCheckout,

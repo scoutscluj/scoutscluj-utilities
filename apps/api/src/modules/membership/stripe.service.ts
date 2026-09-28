@@ -1,0 +1,177 @@
+import {
+  BadGatewayException,
+  Injectable,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import type {
+  PaymentProvider,
+  StartPaymentInput,
+  VerifiedPaymentEvent,
+} from './payment-provider';
+import { record, text, uuid } from './membership.rules';
+
+export function verifyStripeNotification(
+  raw: Buffer,
+  signature: string,
+  secret: string,
+  live: boolean,
+  now = Date.now(),
+): VerifiedPaymentEvent {
+  try {
+    const parts = signature.split(',').map((part) => part.split('='));
+    const timestampText = parts.find(([key]) => key === 't')?.[1];
+    const signatures = parts
+      .filter(([key]) => key === 'v1')
+      .map(([, value]) => value);
+    if (!timestampText || signatures.length === 0) throw new Error();
+    const timestamp = Number(timestampText);
+    if (!Number.isInteger(timestamp) || Math.abs(now / 1000 - timestamp) > 300)
+      throw new Error();
+    const expected = createHmac('sha256', secret)
+      .update(`${timestampText}.${raw.toString('utf8')}`)
+      .digest();
+    if (
+      !signatures.some((value) => {
+        try {
+          const actual = Buffer.from(value, 'hex');
+          return (
+            actual.length === expected.length &&
+            timingSafeEqual(actual, expected)
+          );
+        } catch {
+          return false;
+        }
+      })
+    )
+      throw new Error();
+    const event = record(JSON.parse(raw.toString('utf8')));
+    if (event.livemode !== live) throw new Error();
+    const type = text(event.type, 100);
+    const object = record(record(event.data).object);
+    if (object.object !== 'checkout.session') throw new Error();
+    const metadata = record(object.metadata);
+    const checkoutId = uuid(metadata.checkout_id ?? object.client_reference_id);
+    const providerId = text(object.id, 100);
+    const amountBani = object.amount_total;
+    if (!Number.isInteger(amountBani) || Number(amountBani) <= 0)
+      throw new Error();
+    let outcome: VerifiedPaymentEvent['outcome'];
+    if (
+      [
+        'checkout.session.completed',
+        'checkout.session.async_payment_succeeded',
+      ].includes(type) &&
+      object.payment_status === 'paid'
+    )
+      outcome = 'succeeded';
+    else if (
+      [
+        'checkout.session.expired',
+        'checkout.session.async_payment_failed',
+      ].includes(type)
+    )
+      outcome = 'failed';
+    else outcome = 'pending';
+    const status =
+      typeof object.payment_status === 'string'
+        ? object.payment_status
+        : typeof object.status === 'string'
+          ? object.status
+          : '';
+    return {
+      checkoutId,
+      providerId,
+      providerStatus: `${type}:${status}`,
+      amountBani: Number(amountBani),
+      currency: text(object.currency, 10).toUpperCase(),
+      outcome,
+    };
+  } catch {
+    throw new UnauthorizedException('Notificare Stripe invalidă.');
+  }
+}
+
+@Injectable()
+export class StripeService implements PaymentProvider {
+  constructor(private readonly config: ConfigService) {}
+
+  environment() {
+    return this.config.get<string>('STRIPE_ENVIRONMENT') ?? 'test';
+  }
+
+  ready() {
+    const key = this.config.get<string>('STRIPE_SECRET_KEY') ?? '';
+    return (
+      this.config.get<string>('MEMBERSHIP_CARD_ENABLED') === 'true' &&
+      ['test', 'live'].includes(this.environment()) &&
+      key.startsWith(this.environment() === 'live' ? 'sk_live_' : 'sk_test_') &&
+      Boolean(this.config.get<string>('STRIPE_WEBHOOK_SECRET')) &&
+      Boolean(this.config.get<string>('MEMBERSHIP_WEB_ORIGIN'))
+    );
+  }
+
+  verify(raw: Buffer, signature: string) {
+    return verifyStripeNotification(
+      raw,
+      signature,
+      this.config.getOrThrow<string>('STRIPE_WEBHOOK_SECRET'),
+      this.environment() === 'live',
+    );
+  }
+
+  async start(input: StartPaymentInput) {
+    if (!this.ready())
+      throw new ServiceUnavailableException(
+        'Stripe nu este încă activat pentru acest mediu.',
+      );
+    const origin = this.config.getOrThrow<string>('MEMBERSHIP_WEB_ORIGIN');
+    const body = new URLSearchParams({
+      mode: 'payment',
+      success_url: new URL('/cotizatie/rezultat', origin).href,
+      cancel_url: new URL('/cotizatie', origin).href,
+      client_reference_id: input.id,
+      'metadata[checkout_id]': input.id,
+      'payment_intent_data[metadata][checkout_id]': input.id,
+      'payment_method_types[0]': 'card',
+      'line_items[0][price_data][currency]': 'ron',
+      'line_items[0][price_data][unit_amount]': String(input.amountBani),
+      'line_items[0][price_data][product_data][name]': input.description,
+      'line_items[0][quantity]': '1',
+      customer_email: input.billing.email,
+      locale: 'ro',
+    });
+    const response = await fetch(
+      'https://api.stripe.com/v1/checkout/sessions',
+      {
+        method: 'POST',
+        redirect: 'error',
+        signal: AbortSignal.timeout(20000),
+        headers: {
+          Authorization: `Bearer ${this.config.getOrThrow<string>('STRIPE_SECRET_KEY')}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body,
+      },
+    );
+    if (!response.ok)
+      throw new BadGatewayException('Stripe nu a confirmat inițierea plății.');
+    const payload = record(await response.json());
+    const paymentUrl = new URL(text(payload.url, 4000));
+    if (
+      paymentUrl.protocol !== 'https:' ||
+      paymentUrl.username ||
+      paymentUrl.password ||
+      paymentUrl.hostname !== 'checkout.stripe.com'
+    )
+      throw new BadGatewayException(
+        'Stripe nu a returnat o pagină de plată validă.',
+      );
+    return {
+      providerId: text(payload.id, 100),
+      paymentUrl: paymentUrl.href,
+    };
+  }
+}

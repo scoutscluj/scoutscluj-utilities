@@ -14,12 +14,13 @@
 			: 'Plata nu poate fi identificată în acest browser'}
 	</h1>
 	{#if data.status}
+		{@const provider = data.status.provider === 'stripe' ? 'Stripe' : 'NETOPIA'}
 		{#if data.status.state === 'pending' && data.status.paymentUrl}<p>
-				<a href={data.status.paymentUrl}>Reia aceeași plată pe NETOPIA</a>
+				<a href={data.status.paymentUrl}>Reia aceeași plată pe {provider}</a>
 			</p>{/if}
 		<p>{money(data.status.amountBani)}</p>
-		{#if data.status.state === 'succeeded'}<p>NETOPIA a confirmat primirea plății.</p>{:else}<p>
-				Revenirea de la NETOPIA nu confirmă singură plata. Nu repeta plata cât timp este în curs sau
+		{#if data.status.state === 'succeeded'}<p>{provider} a confirmat primirea plății.</p>{:else}<p>
+				Revenirea de la {provider} nu confirmă singură plata. Nu repeta plata cât timp este în curs sau
 				necesită verificare.
 			</p>{/if}
 		{#if data.status.requiresStaffReview}<p>

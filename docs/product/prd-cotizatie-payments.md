@@ -157,7 +157,7 @@ Show last synchronization time and failures to staff. Missing or stale pricing/e
 
 NETOPIA recommendation is conditional on successful hosted checkout, authenticated notifications, recovery of uncertain payments, and documented refund handling in sandbox. The existing account must have the Resurse payment channel approved/activated. Do not assume an existing account activates every domain or activity automatically.
 
-Use a small provider boundary for creating checkout, validating events, and reconciling status where supported. Persist provider identity and transaction references. Implement one provider, not a multi-provider routing system. Dashboard refunds with audited reconciliation are the proposed pilot fallback because NETOPIA's public API specification labels some operations as future functionality.
+Use a small provider boundary for creating checkout, validating events, and reconciling status where supported. Persist provider identity, environment and transaction references. NETOPIA Payments and Stripe are supported, with one processor selected by authorized financial staff for new checkouts. Existing attempts remain bound to their recorded processor when the selection changes. Dashboard refunds with audited reconciliation remain the pilot fallback when a provider's automated operation is unavailable.
 
 Track gross collected, actual processing costs (including provider VAT where applicable), payout fees, net received, national owed, and national transferred separately. Provider estimates are not accounting facts. Reconcile to provider settlement statements and bank evidence; a net payout is not a second member payment. Automatic accounting invoice issuance and Keez integration are outside this slice.
 
@@ -197,7 +197,7 @@ The pilot succeeds when every collected payment maps to the intended member-peri
 
 The 25-question interview is complete. Resolve the following through evidence and review of this draft, without treating unconfirmed assumptions as accepted requirements:
 
-1. Final provider selection. NETOPIA is recommended, not yet explicitly chosen by the user.
+1. Production processor selection may be changed administratively between NETOPIA and Stripe only after the selected provider is fully configured and tested.
 2. Screenshot rate versus contract and amendments: confirm 1.19%, zero fixed fee, VAT treatment, and current payout charges using an invoice/settlement statement or NETOPIA confirmation.
 3. Final published amount for every tier and period, including any Cluj addition. Until approved, baseline totals apply; no default extra amount is invented.
 4. Exact current Orgo period boundaries, active/fee-eligible member rules, public identifier mapping, and the working API contract for plan reading and national write-back. Endpoint names in generic documentation do not establish tenant permission.

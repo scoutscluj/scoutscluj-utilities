@@ -69,14 +69,25 @@ export type Dashboard = {
 		plan: string;
 		state: string;
 		amountBani: number;
+		provider: 'netopia' | 'stripe';
 		reviewRequired: boolean;
 	}>;
 	cardEnabled: boolean;
+	paymentConfiguration: {
+		activeProvider: 'netopia' | 'stripe';
+		providers: Array<{
+			id: 'netopia' | 'stripe';
+			label: string;
+			ready: boolean;
+			environment: string;
+		}>;
+	};
 	orgoIntegration: string;
 };
 export type PaymentStatus = {
 	state: string;
 	amountBani: number;
+	provider: 'netopia' | 'stripe';
 	requiresStaffReview: boolean;
 	paymentUrl?: string | null;
 };

@@ -59,7 +59,18 @@ export class MembershipController {
   notify(@Body() body: unknown, @Headers('verification-token') token: string) {
     if (!Buffer.isBuffer(body) || !token)
       throw new HttpException('Notificare invalidă.', 400);
-    return this.membership.notify(body, token);
+    return this.membership.notifyNetopia(body, token);
+  }
+
+  @Post('stripe/notify')
+  @HttpCode(200)
+  stripeNotify(
+    @Body() body: unknown,
+    @Headers('stripe-signature') signature: string,
+  ) {
+    if (!Buffer.isBuffer(body) || !signature)
+      throw new HttpException('Notificare invalidă.', 400);
+    return this.membership.notifyStripe(body, signature);
   }
 
   @UseGuards(AuthGuard)
@@ -80,6 +91,15 @@ export class MembershipController {
   @Header('Cache-Control', 'no-store')
   dashboard(@CurrentUser() user: AuthenticatedUser) {
     return this.membership.dashboard(user);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('payment-provider')
+  paymentProvider(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: unknown,
+  ) {
+    return this.membership.selectPaymentProvider(user, body);
   }
 
   @UseGuards(AuthGuard)

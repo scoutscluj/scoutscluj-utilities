@@ -21,6 +21,7 @@ import {
   MembershipProviderEvent as Event,
   MembershipReceipt as Receipt,
   MembershipPayout as Payout,
+  MembershipPaymentSettings as PaymentSettings,
 } from './entities/membership.entity';
 import {
   BASELINE_PLANS,
@@ -34,6 +35,14 @@ import {
   type Prices,
 } from './membership.rules';
 import { NetopiaService } from './netopia.service';
+import { StripeService } from './stripe.service';
+import type {
+  PaymentProvider,
+  PaymentProviderName,
+  VerifiedPaymentEvent,
+} from './payment-provider';
+
+const MEMBERSHIP_TERMS_VERSION = '2026-09-28';
 
 const hash = (value: string | Buffer) =>
   createHash('sha256').update(value).digest('hex');
@@ -43,7 +52,34 @@ export class MembershipService {
   constructor(
     private readonly em: EntityManager,
     private readonly netopia: NetopiaService,
+    private readonly stripe: StripeService,
   ) {}
+
+  private provider(name: PaymentProviderName): PaymentProvider {
+    return name === 'stripe' ? this.stripe : this.netopia;
+  }
+
+  private async paymentSettings(em = this.em) {
+    return (
+      (await em.findOne(PaymentSettings, { id: 'membership' })) ??
+      em.create(PaymentSettings, {
+        id: 'membership',
+        activeProvider: 'netopia',
+      })
+    );
+  }
+
+  private providerSummary(activeProvider: PaymentProviderName) {
+    return {
+      activeProvider,
+      providers: (['netopia', 'stripe'] as const).map((id) => ({
+        id,
+        label: id === 'netopia' ? 'NETOPIA Payments' : 'Stripe',
+        ready: this.provider(id).ready(),
+        environment: this.provider(id).environment(),
+      })),
+    };
+  }
 
   private staff(user: CurrentUser) {
     if (
@@ -85,10 +121,13 @@ export class MembershipService {
 
   async catalog() {
     const period = await this.em.findOne(Period, { active: true });
+    const settings = await this.paymentSettings();
+    const activeProvider = settings.activeProvider as PaymentProviderName;
     return {
       period,
-      cardEnabled: this.netopia.ready(),
-      environment: this.netopia.environment(),
+      cardEnabled: this.provider(activeProvider).ready(),
+      environment: this.provider(activeProvider).environment(),
+      activeProvider,
     };
   }
 
@@ -145,12 +184,14 @@ export class MembershipService {
         | 'identifierKind'
         | 'plan'
         | 'amountBani'
+        | 'provider'
         | 'state'
         | 'reviewRequired'
         | 'createdAt'
       >
     >;
     cardEnabled: boolean;
+    paymentConfiguration: ReturnType<MembershipService['providerSummary']>;
     orgoIntegration: string;
   }> {
     this.staff(user);
@@ -179,6 +220,7 @@ export class MembershipService {
             'identifierKind',
             'plan',
             'amountBani',
+            'provider',
             'state',
             'reviewRequired',
             'createdAt',
@@ -204,13 +246,41 @@ export class MembershipService {
         identifierKind: c.identifierKind,
         plan: c.plan,
         amountBani: c.amountBani,
+        provider: c.provider,
         state: c.state,
         reviewRequired: c.reviewRequired,
         createdAt: c.createdAt,
       })),
-      cardEnabled: this.netopia.ready(),
+      cardEnabled: this.provider(
+        (await this.paymentSettings()).activeProvider as PaymentProviderName,
+      ).ready(),
+      paymentConfiguration: this.providerSummary(
+        (await this.paymentSettings()).activeProvider as PaymentProviderName,
+      ),
       orgoIntegration: 'awaiting_access',
     };
+  }
+
+  async selectPaymentProvider(user: CurrentUser, input: unknown) {
+    this.staff(user);
+    const value = record(input).provider;
+    if (value !== 'netopia' && value !== 'stripe')
+      throw new BadRequestException('Procesator de plată invalid.');
+    if (!this.provider(value).ready())
+      throw new ConflictException(
+        `${value === 'stripe' ? 'Stripe' : 'NETOPIA'} nu poate fi selectat până când toate secretele și URL-urile necesare sunt configurate.`,
+      );
+    return this.mutate(async (em) => {
+      const settings = await this.paymentSettings(em);
+      settings.activeProvider = value;
+      settings.updatedBy = user.id;
+      em.persist(settings);
+      this.audit(em, user.id, 'provider.selected', settings.id, {
+        provider: value,
+        ready: this.provider(value).ready(),
+      });
+      return this.providerSummary(value);
+    });
   }
 
   async createPeriod(user: CurrentUser, input: unknown) {
@@ -608,9 +678,9 @@ export class MembershipService {
   async checkout(input: unknown, user?: CurrentUser) {
     const body = record(input),
       periodId = uuid(body.periodId);
-    if (!this.netopia.ready())
-      throw new ServiceUnavailableException(
-        'Plata cu cardul nu este încă activată pentru testare.',
+    if (body.acceptTerms !== true)
+      throw new BadRequestException(
+        'Acceptă termenii, politica de anulare și politica de confidențialitate.',
       );
     const billingInput = record(body.billing);
     const billing: Record<string, string> = {};
@@ -633,6 +703,13 @@ export class MembershipService {
     const checkout = await this.mutate(async (em) => {
       const previous = await em.findOne(Checkout, { tokenHash });
       if (previous) return previous;
+      const settings = await this.paymentSettings(em);
+      const providerName = settings.activeProvider as PaymentProviderName;
+      const provider = this.provider(providerName);
+      if (!provider.ready())
+        throw new ServiceUnavailableException(
+          `Procesatorul ${providerName === 'stripe' ? 'Stripe' : 'NETOPIA'} nu este configurat pentru acest mediu.`,
+        );
       const period = await em.findOneOrFail(Period, {
         id: periodId,
         active: true,
@@ -680,8 +757,11 @@ export class MembershipService {
         identifierKind: entered.kind,
         plan: planKey,
         amountBani,
-        environment: this.netopia.environment(),
+        provider: providerName,
+        environment: provider.environment(),
         state: 'starting',
+        termsVersion: MEMBERSHIP_TERMS_VERSION,
+        termsAcceptedAt: new Date(),
       });
       em.persist(attempt);
       await em.flush();
@@ -702,7 +782,9 @@ export class MembershipService {
     });
     if (!claimed) return { state: 'unknown', paymentUrl: null };
     try {
-      const started = await this.netopia.start({
+      const started = await this.provider(
+        checkout.provider as PaymentProviderName,
+      ).start({
         id: checkout.id,
         amountBani: checkout.amountBani,
         description: 'Cotizație Centrul Local Cluj',
@@ -738,51 +820,90 @@ export class MembershipService {
     return {
       state: checkout.state,
       amountBani: checkout.amountBani,
+      provider: checkout.provider,
       requiresStaffReview: !checkout.obligationId || checkout.reviewRequired,
       paymentUrl: checkout.state === 'pending' ? checkout.paymentUrl : null,
     };
   }
 
-  async notify(raw: Buffer, token: string) {
+  async notifyNetopia(raw: Buffer, token: string) {
     const body = this.netopia.verify(raw, token),
       payment = record(body.payment),
       order = record(body.order);
     const id = uuid(order.orderID),
       providerId = text(payment.ntpID, 100);
     if (!Number.isInteger(payment.status)) throw new BadRequestException();
-    const providerStatus = Number(payment.status),
-      eventHash = hash(raw);
+    if (
+      payment.currency !== 'RON' ||
+      typeof payment.amount !== 'number' ||
+      !Number.isFinite(payment.amount)
+    )
+      throw new BadRequestException('Notificare NETOPIA invalidă.');
+    const providerStatus = Number(payment.status);
     const reviewEvent = [8, 9, 10, 13, 16, 17].includes(providerStatus);
+    await this.applyPaymentEvent('netopia', raw, {
+      checkoutId: id,
+      providerId,
+      providerStatus: String(providerStatus),
+      amountBani: Math.round(payment.amount * 100),
+      currency: 'RON',
+      outcome: reviewEvent
+        ? 'review'
+        : [3, 5].includes(providerStatus)
+          ? 'succeeded'
+          : [4, 11, 12, 23].includes(providerStatus)
+            ? 'failed'
+            : 'pending',
+    });
+    return { errorCode: 0 };
+  }
+
+  async notifyStripe(raw: Buffer, signature: string) {
+    await this.applyPaymentEvent(
+      'stripe',
+      raw,
+      this.stripe.verify(raw, signature),
+    );
+    return { received: true };
+  }
+
+  private async applyPaymentEvent(
+    provider: PaymentProviderName,
+    raw: Buffer,
+    event: VerifiedPaymentEvent,
+  ) {
+    const eventHash = hash(Buffer.concat([Buffer.from(`${provider}:`), raw]));
     return this.mutate(async (em) => {
       const checkout = await em.findOneOrFail(
         Checkout,
-        { id },
+        { id: event.checkoutId },
         { refresh: true },
       );
       if (
-        checkout.environment !== this.netopia.environment() ||
-        payment.currency !== 'RON' ||
-        typeof payment.amount !== 'number' ||
-        !Number.isFinite(payment.amount) ||
-        (reviewEvent
-          ? payment.amount <= 0 ||
-            payment.amount * 100 > checkout.amountBani + 0.00001
-          : Math.abs(payment.amount * 100 - checkout.amountBani) > 0.00001) ||
-        (checkout.providerId && checkout.providerId !== providerId)
+        checkout.provider !== provider ||
+        checkout.environment !== this.provider(provider).environment() ||
+        event.currency !== 'RON' ||
+        (event.outcome === 'review'
+          ? event.amountBani <= 0 || event.amountBani > checkout.amountBani
+          : event.amountBani !== checkout.amountBani) ||
+        (checkout.providerId && checkout.providerId !== event.providerId)
       )
         throw new BadRequestException('Notificarea nu corespunde plății.');
-      if (await em.findOne(Event, { hash: eventHash })) return { errorCode: 0 };
-      checkout.providerId = providerId;
+      if (await em.findOne(Event, { hash: eventHash })) return;
+      checkout.providerId = event.providerId;
       em.persist(
         em.create(Event, {
           hash: eventHash,
-          checkoutId: id,
-          providerStatus,
-          amountBani: Math.round(Number(payment.amount) * 100),
+          checkoutId: event.checkoutId,
+          provider,
+          providerStatus: event.providerStatus,
+          amountBani: event.amountBani,
         }),
       );
-      let receipt = await em.findOne(Receipt, { checkoutId: id });
-      if (reviewEvent) {
+      let receipt = await em.findOne(Receipt, {
+        checkoutId: event.checkoutId,
+      });
+      if (event.outcome === 'review') {
         checkout.reviewRequired = true;
         if (receipt) {
           receipt.reviewRequired = true;
@@ -796,17 +917,17 @@ export class MembershipService {
             if (item) item.orgoState = 'correction_required';
           }
         }
-      } else if ([3, 5].includes(providerStatus)) {
+      } else if (event.outcome === 'succeeded') {
         checkout.state = 'succeeded';
         if (!receipt) {
           receipt = em.create(Receipt, {
             periodId: checkout.periodId,
-            checkoutId: id,
+            checkoutId: event.checkoutId,
             amountBani: checkout.amountBani,
             method: 'card',
             receivedOn: new Date().toISOString().slice(0, 10),
-            note: 'NETOPIA — confirmare verificată',
-            reference: providerId,
+            note: `${provider === 'stripe' ? 'Stripe' : 'NETOPIA'} — confirmare verificată`,
+            reference: event.providerId,
             reviewRequired: !checkout.obligationId || checkout.reviewRequired,
           });
           em.persist(receipt);
@@ -826,19 +947,15 @@ export class MembershipService {
                   receiptId: receipt.id,
                   obligationId: obligation.id,
                   amountBani: allocated,
-                  note: 'Confirmare NETOPIA',
+                  note: `Confirmare ${provider === 'stripe' ? 'Stripe' : 'NETOPIA'}`,
                 }),
               );
             if (allocated < receipt.amountBani) receipt.reviewRequired = true;
           }
           this.audit(em, undefined, 'card.received', receipt.id);
         }
-      } else if (
-        [4, 11, 12, 23].includes(providerStatus) &&
-        checkout.state !== 'succeeded'
-      )
+      } else if (event.outcome === 'failed' && checkout.state !== 'succeeded')
         checkout.state = 'failed';
-      return { errorCode: 0 };
     });
   }
 }

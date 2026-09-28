@@ -16,6 +16,7 @@ import {
 } from '../modules/membership/entities/membership.entity';
 import { MembershipService } from '../modules/membership/membership.service';
 import { NetopiaService } from '../modules/membership/netopia.service';
+import { StripeService } from '../modules/membership/stripe.service';
 import { AuditEntry } from '../modules/audit/entities/audit-entry.entity';
 import { Migration20260921000100 } from '../migrations/Migration20260921000100';
 import { UserRole } from '../modules/users/entities/user-role.enum';
@@ -70,6 +71,7 @@ async function main() {
       new MembershipService(
         orm.em.fork(),
         new NetopiaService(new ConfigService()),
+        new StripeService(new ConfigService()),
       );
     const service = makeService(),
       user = {
@@ -152,8 +154,11 @@ async function main() {
       identifierKind: 'card_id',
       plan: 'normal',
       amountBani: 30000,
+      provider: 'netopia',
       environment: 'sandbox',
       state: 'pending',
+      termsVersion: '2026-09-28',
+      termsAcceptedAt: new Date(),
     });
     checkoutEm.persist(checkout);
     await checkoutEm.flush();
@@ -179,7 +184,8 @@ async function main() {
         new MembershipService(
           orm.em.fork(),
           new NetopiaService(callbackConfig),
-        ).notify(callback, jwt),
+          new StripeService(callbackConfig),
+        ).notifyNetopia(callback, jwt),
       ),
     );
     const cardReceipts = await orm.em

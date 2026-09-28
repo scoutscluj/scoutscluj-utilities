@@ -7,6 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createHash, createPublicKey, verify } from 'node:crypto';
 import { record, text } from './membership.rules';
+import type { PaymentProvider, StartPaymentInput } from './payment-provider';
 
 export function verifyNotification(
   raw: Buffer,
@@ -65,7 +66,7 @@ export function verifyNotification(
 }
 
 @Injectable()
-export class NetopiaService {
+export class NetopiaService implements PaymentProvider {
   constructor(private readonly config: ConfigService) {}
 
   environment() {
@@ -97,12 +98,7 @@ export class NetopiaService {
     );
   }
 
-  async start(input: {
-    id: string;
-    amountBani: number;
-    description: string;
-    billing: Record<string, string>;
-  }) {
+  async start(input: StartPaymentInput) {
     if (!this.ready())
       throw new ServiceUnavailableException(
         'Plata cu cardul nu este încă activată pentru testare.',

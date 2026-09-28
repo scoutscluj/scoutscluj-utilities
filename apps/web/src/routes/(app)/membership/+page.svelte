@@ -52,6 +52,33 @@
 </p>
 {#if form?.message}<p role="status" class="notice">{form.message}</p>{/if}
 
+<section>
+	<h2>Procesatorul plăților cu cardul</h2>
+	<form method="POST" class="provider-form">
+		<input type="hidden" name="action" value="provider" />
+		{#each ledger.paymentConfiguration.providers as provider (provider.id)}
+			<label class="provider-option">
+				<input
+					type="radio"
+					name="provider"
+					value={provider.id}
+					checked={provider.id === ledger.paymentConfiguration.activeProvider}
+					disabled={!provider.ready}
+				/>
+				<span>
+					<strong>{provider.label}</strong>
+					<small>{provider.environment} · {provider.ready ? 'configurat' : 'neconfigurat'}</small>
+				</span>
+			</label>
+		{/each}
+		<p>
+			Schimbarea se aplică numai plăților inițiate după salvare. O plată deja pornită rămâne la
+			procesatorul și în mediul înregistrate pentru ea.
+		</p>
+		<button>Folosește procesatorul selectat</button>
+	</form>
+</section>
+
 <details>
 	<summary>Perioade și tarife publicate</summary>
 	{#each ledger.periods as p (p.id)}<div class="row">
@@ -296,7 +323,7 @@
 </details>
 
 <details>
-	<summary>Reconciliază decont NETOPIA în bancă</summary>
+	<summary>Reconciliază decontul procesatorului în bancă</summary>
 	<form method="POST" class="grid">
 		<input type="hidden" name="action" value="payout" />
 		<fieldset>
@@ -331,8 +358,8 @@
 		>
 		<label>Detalii<textarea name="note" maxlength="2000" required></textarea></label>
 		<p>
-			Aplicația verifică: brut − refunduri − costuri = net. Costurile NETOPIA nu reduc cotizația
-			membrului.
+			Aplicația verifică: brut − refunduri − costuri = net. Costurile procesatorului nu reduc
+			cotizația membrului.
 		</p>
 		<button>Înregistrează decontul</button>
 	</form>
@@ -384,21 +411,24 @@
 <details>
 	<summary>Încercări de plată care necesită verificare</summary
 	>{#each ledger.checkouts.filter((c) => c.state === 'unknown' || c.reviewRequired) as c (c.id)}
-		<p>{c.id} · {c.identifier} · {money(c.amountBani)} · {c.state}</p>
+		<p>{c.id} · {c.identifier} · {money(c.amountBani)} · {c.provider} · {c.state}</p>
 		{#if c.state === 'unknown'}<form method="POST" class="grid">
 				<input type="hidden" name="action" value="close" /><input
 					type="hidden"
 					name="id"
 					value={c.id}
 				/><label
-					>Dovadă că nu există încasare NETOPIA<textarea name="evidence" required maxlength="2000"
+					>Dovadă că nu există încasare la procesator<textarea
+						name="evidence"
+						required
+						maxlength="2000"
 					></textarea></label
 				><button>Închide încercarea fără plată</button>
 			</form>{/if}
 	{/each}
 	<p>
-		Verifică aceste tranzacții în NETOPIA înainte de a cere o nouă plată. Nu se reîncearcă automat o
-		inițiere cu rezultat necunoscut.
+		Verifică aceste tranzacții la procesatorul indicat înainte de a cere o nouă plată. Nu se
+		reîncearcă automat o inițiere cu rezultat necunoscut.
 	</p>
 </details>
 
@@ -420,6 +450,19 @@
 		grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 		gap: 16px;
 		margin-top: 20px;
+	}
+	.provider-form {
+		display: grid;
+		gap: 12px;
+		max-width: 680px;
+	}
+	.provider-option {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		border: 1px solid #cbd5e1;
+		border-radius: 8px;
+		padding: 14px;
 	}
 	label {
 		display: grid;

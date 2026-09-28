@@ -6,6 +6,7 @@ import { MEMBERSHIP_ENTITIES } from './entities/membership.entity';
 import { MembershipController } from './membership.controller';
 import { MembershipService } from './membership.service';
 import { NetopiaService } from './netopia.service';
+import { StripeService } from './stripe.service';
 
 @Module({
   imports: [
@@ -13,6 +14,6 @@ import { NetopiaService } from './netopia.service';
     MikroOrmModule.forFeature([...MEMBERSHIP_ENTITIES, AuditEntry]),
   ],
   controllers: [MembershipController],
-  providers: [MembershipService, NetopiaService],
+  providers: [MembershipService, NetopiaService, StripeService],
 })
 export class MembershipModule {}

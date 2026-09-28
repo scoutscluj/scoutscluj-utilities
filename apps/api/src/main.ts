@@ -46,6 +46,10 @@ async function bootstrap() {
     '/api/membership/netopia/notify',
     raw({ type: 'application/json', limit: '64kb' }),
   );
+  app.use(
+    '/api/membership/stripe/notify',
+    raw({ type: 'application/json', limit: '64kb' }),
+  );
   app.use(json({ limit: DOCUMENT_UPLOAD_BODY_LIMIT }));
   app.use(urlencoded({ extended: true, limit: DOCUMENT_UPLOAD_BODY_LIMIT }));
   app.setGlobalPrefix('api');

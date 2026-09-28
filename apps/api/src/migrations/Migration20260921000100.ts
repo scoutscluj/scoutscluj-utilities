@@ -15,10 +15,16 @@ export class Migration20260921000100 extends Migration {
       `create unique index membership_one_active_period on membership_periods (active) where active = true;`,
     );
     this.addSql(
+      `create table membership_payment_settings (id varchar(255) primary key, active_provider varchar(255) not null default 'netopia', updated_by integer, updated_at timestamptz not null);`,
+    );
+    this.addSql(
+      `insert into membership_payment_settings (id, active_provider, updated_at) values ('membership', 'netopia', now());`,
+    );
+    this.addSql(
       `create table membership_obligations (id uuid primary key, period_id uuid not null references membership_periods(id), orgo_user_id integer not null, card_id varchar(255), member_name varchar(255) not null, plan varchar(255) not null, total_bani integer not null check(total_bani > 0), national_bani integer not null check(national_bani > 0 and national_bani <= total_bani), verification_note text not null, created_at timestamptz not null, unique(period_id, orgo_user_id), unique(period_id, card_id));`,
     );
     this.addSql(
-      `create table membership_checkouts (id uuid primary key, token_hash varchar(255) not null unique, period_id uuid not null references membership_periods(id), obligation_id uuid references membership_obligations(id), identifier varchar(255) not null, identifier_kind varchar(255) not null, plan varchar(255) not null, amount_bani integer not null check(amount_bani > 0), environment varchar(255) not null, state varchar(255) not null, payment_url text, provider_id varchar(255) unique, review_required boolean not null default false, created_at timestamptz not null);`,
+      `create table membership_checkouts (id uuid primary key, token_hash varchar(255) not null unique, period_id uuid not null references membership_periods(id), obligation_id uuid references membership_obligations(id), identifier varchar(255) not null, identifier_kind varchar(255) not null, plan varchar(255) not null, amount_bani integer not null check(amount_bani > 0), provider varchar(255) not null, environment varchar(255) not null, state varchar(255) not null, payment_url text, provider_id varchar(255) unique, review_required boolean not null default false, terms_version varchar(255) not null, terms_accepted_at timestamptz not null, created_at timestamptz not null);`,
     );
     this.addSql(
       `create table membership_payouts (id uuid primary key, reference varchar(255) not null unique, received_on varchar(255) not null, gross_bani integer not null check(gross_bani > 0), refunded_bani integer not null check(refunded_bani >= 0), charges_bani integer not null check(charges_bani >= 0), net_bani integer not null check(net_bani > 0), note text not null, actor_id integer not null, created_at timestamptz not null);`,
@@ -42,7 +48,7 @@ export class Migration20260921000100 extends Migration {
       `create table membership_national_items (id uuid primary key, batch_id uuid not null references membership_national_batches(id), obligation_id uuid not null unique references membership_obligations(id), amount_bani integer not null check(amount_bani > 0), orgo_state varchar(255) not null default 'awaiting_access', evidence text);`,
     );
     this.addSql(
-      `create table membership_provider_events (id uuid primary key, hash varchar(255) not null unique, checkout_id uuid not null references membership_checkouts(id), provider_status integer not null, amount_bani integer not null, created_at timestamptz not null);`,
+      `create table membership_provider_events (id uuid primary key, hash varchar(255) not null unique, checkout_id uuid not null references membership_checkouts(id), provider varchar(255) not null, provider_status varchar(255) not null, amount_bani integer not null, created_at timestamptz not null);`,
     );
   }
 

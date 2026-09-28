@@ -24,7 +24,10 @@
 	<a href={resolve('/')}>← Resurse Scouts Cluj</a>
 	<h1>Cotizație</h1>
 	<p>O singură plată către Centrul Local Cluj. Centrul transferă ulterior partea națională.</p>
-	<p class="notice">Mediu de test NETOPIA. Nu folosi datele unui card real.</p>
+	<p class="notice">
+		Mediu {data.environment} · procesator {data.activeProvider === 'stripe' ? 'Stripe' : 'NETOPIA'}.
+		Nu folosi datele unui card real într-un mediu de test.
+	</p>
 	{#if data.user?.roles.some((r) => ['admin', 'finance_manager', 'super_admin'].includes(r))}<a
 			href={resolve('/membership')}>Administrare cotizații →</a
 		>{/if}
@@ -141,7 +144,18 @@
 				<label>Cod poștal<input name="postalCode" autocomplete="postal-code" required /></label>
 			</fieldset>
 			<p class="total">Total: {money(Math.max(0, amount))}</p>
-			<p>Nu se adaugă automat comision. Datele cardului se introduc pe pagina NETOPIA.</p>
+			<p>
+				Nu se adaugă automat comision. Datele cardului se introduc pe pagina securizată a
+				procesatorului {data.activeProvider === 'stripe' ? 'Stripe' : 'NETOPIA'}.
+			</p>
+			<label class="check"
+				><input name="acceptTerms" type="checkbox" required />Am citit și accept
+				<a href={resolve('/legal/termeni-si-conditii')} target="_blank">termenii și condițiile</a>,
+				<a href={resolve('/legal/anulare-si-retragere')} target="_blank">politica de anulare</a> și
+				<a href={resolve('/legal/confidentialitate')} target="_blank"
+					>politica de confidențialitate</a
+				>.</label
+			>
 			<button disabled={!data.cardEnabled || amount <= 0}>Continuă la plata de test</button>
 		</form>
 	{/if}

@@ -90,12 +90,6 @@ export class ScoutsClujEc2RdsStack extends Stack {
           WEB_ORIGIN: `https://${appHostName}`,
           WEB_ORIGINS: `https://${appHostName}`,
           ORGO_OAUTH_REDIRECT_URI: `https://${appHostName}/api/orgo/callback`,
-          KEEZ_DOCUMENT_EMAIL_EXPECTED_SENDER: "cluj.napoca@scout.ro",
-          KEEZ_DOCUMENT_EMAIL_RECIPIENT: "replace-with-company-cui@keez.ro",
-          FINANCE_GMAIL_CLIENT_ID: "replace-me",
-          FINANCE_GMAIL_CLIENT_SECRET: "replace-me",
-          FINANCE_GMAIL_REFRESH_TOKEN: "replace-me",
-          FINANCE_GMAIL_SENDER_EMAIL: "cluj.napoca@scout.ro",
         }),
       },
     });
@@ -206,13 +200,14 @@ export class ScoutsClujEc2RdsStack extends Stack {
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
       instanceType: new ec2.InstanceType(ec2InstanceType),
-      machineImage: ec2.MachineImage.latestAmazonLinux2023({
-        cpuType: ec2.AmazonLinuxCpuType.ARM_64,
+      // Keep the single stateful host on its reviewed AMI. AMI upgrades must be
+      // explicit maintenance changes because changing ImageId replaces EC2.
+      machineImage: ec2.MachineImage.genericLinux({
+        "eu-central-1": "ami-0e083e623847ee300",
       }),
       role: hostRole,
       securityGroup: hostSecurityGroup,
       httpTokens: ec2.HttpTokens.REQUIRED,
-      httpPutResponseHopLimit: 2,
       blockDevices: [
         {
           deviceName: "/dev/xvda",
@@ -223,6 +218,25 @@ export class ScoutsClujEc2RdsStack extends Stack {
         },
       ],
       userData,
+    });
+    // Preserve the launch-template shape used by the existing production
+    // instance. Moving IMDS settings onto AWS::EC2::Instance would force an
+    // unnecessary host replacement during this additive stack update.
+    const hostLaunchTemplate = new ec2.CfnLaunchTemplate(
+      host,
+      "LaunchTemplate",
+      {
+        launchTemplateName: "AppHostLaunchTemplate",
+        launchTemplateData: {
+          metadataOptions: { httpTokens: "required" },
+        },
+      },
+    );
+    const hostResource = host.node.defaultChild as ec2.CfnInstance;
+    hostResource.addPropertyDeletionOverride("MetadataOptions");
+    hostResource.addPropertyOverride("LaunchTemplate", {
+      LaunchTemplateName: "AppHostLaunchTemplate",
+      Version: hostLaunchTemplate.attrLatestVersionNumber,
     });
 
     const elasticIp = new ec2.CfnEIP(this, "AppHostElasticIp", {

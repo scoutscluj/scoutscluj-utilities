@@ -10,7 +10,7 @@ deployment orchestration.
 - Database: one private RDS PostgreSQL `db.t4g.micro` instance
 - Reverse proxy: Caddy on the EC2 host
 - Container registry: ECR repositories for API and web images
-- Secrets: Secrets Manager for app runtime configuration and RDS credentials
+- Secrets: Secrets Manager for core app runtime configuration and RDS credentials; KMS-encrypted PostgreSQL records for administrator-managed payment credentials
 - Access: AWS Systems Manager Session Manager, no public SSH
 
 Only ports `80` and `443` are open to the internet. The API port is not exposed
@@ -67,10 +67,18 @@ CDK creates:
 
 - `scoutscluj/production/app`
 - a generated RDS credential secret
+- a retained, automatically rotating KMS key for payment-provider configuration
 
 After the first deploy, update `scoutscluj/production/app` with the real Orgo
 client id and secret. The CDK-generated values set the web/API origins to
 `https://resurse.scoutscluj.ro`.
+
+The deployment passes only the KMS key ARN and AWS region to the API container.
+The EC2 role can encrypt and decrypt with that key. NETOPIA and Stripe
+credentials entered in the administration page are stored only as KMS
+ciphertext in PostgreSQL; the KMS key material cannot be exported. Historical
+ciphertext revisions are retained so callbacks for already-started payments can
+still be verified after credential rotation.
 
 ## GitHub Actions Boundary
 

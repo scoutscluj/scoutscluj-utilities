@@ -13,6 +13,7 @@ jest.mock('./entities/membership.entity', () => ({
   MembershipProviderEvent: 'event',
   MembershipPayout: 'payout',
   MembershipPaymentSettings: 'settings',
+  MembershipPaymentProviderConfig: 'provider-config',
 }));
 
 import type { EntityManager } from '@mikro-orm/postgresql';
@@ -71,8 +72,6 @@ function fixture() {
     },
   };
   const netopia = {
-    ready: () => true,
-    environment: () => 'sandbox',
     verify: (raw: Buffer) =>
       JSON.parse(raw.toString()) as Record<string, unknown>,
     start: jest.fn(() =>
@@ -83,8 +82,6 @@ function fixture() {
     ),
   };
   const stripe = {
-    ready: () => true,
-    environment: () => 'test',
     verify: jest.fn(),
     start: jest.fn(() =>
       Promise.resolve({
@@ -93,17 +90,102 @@ function fixture() {
       }),
     ),
   };
+  rows.push(
+    {
+      id: '11111111-1111-4111-8111-111111111111',
+      table: 'provider-config',
+      provider: 'netopia',
+      active: true,
+      environment: 'sandbox',
+      encryptedConfiguration: 'netopia',
+      secretHint: 'opia',
+    },
+    {
+      id: '22222222-2222-4222-8222-222222222222',
+      table: 'provider-config',
+      provider: 'stripe',
+      active: true,
+      environment: 'test',
+      encryptedConfiguration: 'stripe',
+      secretHint: 'test',
+    },
+  );
+  const runtimeConfiguration = (provider: 'netopia' | 'stripe') =>
+    provider === 'stripe'
+      ? {
+          provider,
+          environment: 'test' as const,
+          secretKey: 'sk_test_secret',
+          webhookSecret: 'whsec_test',
+        }
+      : {
+          provider,
+          environment: 'sandbox' as const,
+          apiKey: 'api-key',
+          posSignature: 'pos',
+          publicKey: 'certificate',
+        };
+  const configurations = {
+    vaultReady: () => true,
+    summaries: () =>
+      Promise.resolve(
+        rows
+          .filter((row) => row.table === 'provider-config' && row.active)
+          .map((row) => ({
+            id: row.provider,
+            label: row.provider === 'stripe' ? 'Stripe' : 'NETOPIA Payments',
+            ready: true,
+            environment: row.environment,
+            secretHint: row.secretHint,
+            updatedAt: null,
+          })),
+      ),
+    activeRevision: (provider: 'netopia' | 'stripe') => {
+      const row = rows.find(
+        (item) =>
+          item.table === 'provider-config' &&
+          item.provider === provider &&
+          item.active,
+      );
+      return Promise.resolve(
+        row
+          ? {
+              id: row.id,
+              configuration: runtimeConfiguration(provider),
+            }
+          : null,
+      );
+    },
+    getRevision: (provider: 'netopia' | 'stripe', id: string) =>
+      Promise.resolve(
+        rows.some(
+          (row) =>
+            row.table === 'provider-config' &&
+            row.id === id &&
+            row.provider === provider,
+        )
+          ? runtimeConfiguration(provider)
+          : null,
+      ),
+    parse: (provider: 'netopia' | 'stripe') => runtimeConfiguration(provider),
+    encrypt: (configuration: { provider: 'netopia' | 'stripe' }) =>
+      Promise.resolve({
+        ciphertext: `encrypted-${configuration.provider}`,
+        secretHint: 'test',
+      }),
+  };
   const service = new MembershipService(
     em as unknown as EntityManager,
     netopia as unknown as NetopiaService,
     stripe as unknown as StripeService,
+    configurations as never,
   );
   const staff: CurrentUser = {
     id: 1,
     displayName: 'Finance',
     roles: [UserRole.FinanceManager],
   };
-  return { rows, em, netopia, stripe, service, staff };
+  return { rows, em, netopia, stripe, configurations, service, staff };
 }
 
 async function setup() {
@@ -132,7 +214,9 @@ describe('membership service rules', () => {
     await expect(f.service.dashboard(user)).rejects.toThrow();
     await expect(f.service.bankReceipt(user, {})).rejects.toThrow();
     await expect(f.service.nationalBatch(user, {})).rejects.toThrow();
-    expect(f.rows).toHaveLength(0);
+    expect(
+      f.rows.filter((row) => row.table !== 'provider-config'),
+    ).toHaveLength(0);
   });
 
   it('allocates one receipt across members without spending it twice', async () => {
@@ -278,6 +362,48 @@ describe('membership service rules', () => {
     });
   });
 
+  it('keeps prior encrypted revisions for callbacks after credential rotation', async () => {
+    const f = await setup();
+    await f.service.checkout({
+      periodId: f.period.id,
+      identifier: 'AT36805',
+      plan: 'normal',
+      acceptUnverified: true,
+      acceptTerms: true,
+      attemptToken: 'r'.repeat(43),
+      billing: {
+        firstName: 'Payer',
+        lastName: 'Test',
+        email: 'payer@example.test',
+        phone: '0700000000',
+        city: 'Cluj',
+        state: 'Cluj',
+        postalCode: '400000',
+      },
+    });
+    const checkout = f.rows.find((row) => row.table === 'checkout')!;
+    const originalConfigId = checkout.providerConfigId;
+    await f.service.configurePaymentProvider(f.staff, {
+      provider: 'netopia',
+      environment: 'sandbox',
+      apiKey: 'ultra-secret-new-key',
+      posSignature: 'new-pos',
+      publicKey: 'new-certificate',
+    });
+    const original = f.rows.find((row) => row.id === originalConfigId);
+    expect(original?.active).toBe(false);
+    const callback = Buffer.from(
+      JSON.stringify({
+        order: { orderID: checkout.id },
+        payment: { ntpID: 'ntp-test', amount: 300, currency: 'RON', status: 3 },
+      }),
+    );
+    await expect(
+      f.service.notifyNetopia(callback, 'verified'),
+    ).resolves.toEqual({ errorCode: 0 });
+    expect(JSON.stringify(f.rows)).not.toContain('ultra-secret-new-key');
+  });
+
   it('deduplicates signed Stripe success events and keeps provider attribution', async () => {
     const f = await setup();
     await f.service.selectPaymentProvider(f.staff, { provider: 'stripe' });
@@ -307,7 +433,17 @@ describe('membership service rules', () => {
       currency: 'RON',
       outcome: 'succeeded',
     });
-    const raw = Buffer.from('{"id":"evt_123"}');
+    const raw = Buffer.from(
+      JSON.stringify({
+        id: 'evt_123',
+        data: {
+          object: {
+            client_reference_id: checkout.id,
+            metadata: { checkout_id: checkout.id },
+          },
+        },
+      }),
+    );
     await f.service.notifyStripe(raw, 'signed');
     await f.service.notifyStripe(raw, 'signed');
     expect(f.rows.filter((row) => row.table === 'receipt')).toHaveLength(1);

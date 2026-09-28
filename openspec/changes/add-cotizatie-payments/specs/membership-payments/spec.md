@@ -41,6 +41,16 @@ The system SHALL support NETOPIA Payments and Stripe through a common checkout b
 - **AND** existing checkouts continue to validate against the processor and environment recorded when they were created
 - **AND** an unconfigured processor cannot be selected
 
+### Requirement: Administratively managed provider credentials
+The system SHALL allow authorized financial staff to create and rotate NETOPIA and Stripe configurations without exposing stored secrets or requiring a deployment-secret change.
+
+#### Scenario: Staff saves or rotates credentials
+- **WHEN** authorized staff submit a complete environment-specific provider configuration
+- **THEN** the API encrypts the configuration with the application KMS key before persisting it
+- **AND** responses and audit records contain no credential value
+- **AND** the previous encrypted revision remains available only for validating checkouts already bound to it
+- **AND** new checkouts bind to the active revision
+
 ### Requirement: National settlement
 The system SHALL record manual national transfers separately from member collection and remote ORGO confirmation.
 

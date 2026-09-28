@@ -1,13 +1,16 @@
 import {
   BadGatewayException,
   Injectable,
-  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, createPublicKey, verify } from 'node:crypto';
 import { record, text } from './membership.rules';
-import type { PaymentProvider, StartPaymentInput } from './payment-provider';
+import type {
+  NetopiaConfiguration,
+  PaymentProvider,
+  StartPaymentInput,
+} from './payment-provider';
 
 export function verifyNotification(
   raw: Buffer,
@@ -66,85 +69,60 @@ export function verifyNotification(
 }
 
 @Injectable()
-export class NetopiaService implements PaymentProvider {
+export class NetopiaService implements PaymentProvider<NetopiaConfiguration> {
   constructor(private readonly config: ConfigService) {}
 
-  environment() {
-    return this.config.get<string>('NETOPIA_ENVIRONMENT') ?? 'sandbox';
-  }
-
-  ready() {
-    return (
-      this.config.get<string>('MEMBERSHIP_CARD_ENABLED') === 'true' &&
-      this.environment() === 'sandbox' &&
-      [
-        'NETOPIA_API_KEY',
-        'NETOPIA_POS_SIGNATURE',
-        'NETOPIA_PUBLIC_KEY',
-        'MEMBERSHIP_API_ORIGIN',
-        'MEMBERSHIP_WEB_ORIGIN',
-      ].every((key) => Boolean(this.config.get<string>(key)))
-    );
-  }
-
-  verify(raw: Buffer, token: string) {
+  verify(raw: Buffer, token: string, configuration: NetopiaConfiguration) {
     return verifyNotification(
       raw,
       token,
-      this.config
-        .getOrThrow<string>('NETOPIA_PUBLIC_KEY')
-        .replace(/\\n/g, '\n'),
-      this.config.getOrThrow<string>('NETOPIA_POS_SIGNATURE'),
+      configuration.publicKey,
+      configuration.posSignature,
     );
   }
 
-  async start(input: StartPaymentInput) {
-    if (!this.ready())
-      throw new ServiceUnavailableException(
-        'Plata cu cardul nu este încă activată pentru testare.',
-      );
-    const response = await fetch(
-      'https://secure.sandbox.netopia-payments.com/payment/card/start',
-      {
-        method: 'POST',
-        redirect: 'error',
-        signal: AbortSignal.timeout(20000),
-        headers: {
-          Authorization: this.config.getOrThrow<string>('NETOPIA_API_KEY'),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          config: {
-            notifyUrl: new URL(
-              '/api/membership/netopia/notify',
-              this.config.getOrThrow<string>('MEMBERSHIP_API_ORIGIN'),
-            ).href,
-            redirectUrl: new URL(
-              '/cotizatie/rezultat',
-              this.config.getOrThrow<string>('MEMBERSHIP_WEB_ORIGIN'),
-            ).href,
-            language: 'ro',
-            emailTemplate: '',
-          },
-          payment: {
-            options: { installments: 0, bonus: 0 },
-            instrument: { type: 'card' },
-          },
-          order: {
-            orderID: input.id,
-            posSignature: this.config.getOrThrow<string>(
-              'NETOPIA_POS_SIGNATURE',
-            ),
-            dateTime: new Date().toISOString(),
-            description: input.description,
-            amount: input.amountBani / 100,
-            currency: 'RON',
-            billing: { ...input.billing, country: 642 },
-            shipping: { ...input.billing, country: 642 },
-          },
-        }),
+  async start(input: StartPaymentInput, configuration: NetopiaConfiguration) {
+    const endpoint =
+      configuration.environment === 'live'
+        ? 'https://secure.mobilpay.ro/pay/payment/card/start'
+        : 'https://secure.sandbox.netopia-payments.com/payment/card/start';
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      redirect: 'error',
+      signal: AbortSignal.timeout(20000),
+      headers: {
+        Authorization: configuration.apiKey,
+        'Content-Type': 'application/json',
       },
-    );
+      body: JSON.stringify({
+        config: {
+          notifyUrl: new URL(
+            '/api/membership/netopia/notify',
+            this.config.getOrThrow<string>('MEMBERSHIP_API_ORIGIN'),
+          ).href,
+          redirectUrl: new URL(
+            '/cotizatie/rezultat',
+            this.config.getOrThrow<string>('MEMBERSHIP_WEB_ORIGIN'),
+          ).href,
+          language: 'ro',
+          emailTemplate: '',
+        },
+        payment: {
+          options: { installments: 0, bonus: 0 },
+          instrument: { type: 'card' },
+        },
+        order: {
+          orderID: input.id,
+          posSignature: configuration.posSignature,
+          dateTime: new Date().toISOString(),
+          description: input.description,
+          amount: input.amountBani / 100,
+          currency: 'RON',
+          billing: { ...input.billing, country: 642 },
+          shipping: { ...input.billing, country: 642 },
+        },
+      }),
+    });
     if (!response.ok)
       throw new BadGatewayException('NETOPIA nu a confirmat inițierea plății.');
     const payload = record(await response.json());
@@ -154,10 +132,12 @@ export class NetopiaService implements PaymentProvider {
       paymentUrl.protocol !== 'https:' ||
       paymentUrl.username ||
       paymentUrl.password ||
-      ![
-        'secure.sandbox.netopia-payments.com',
-        'sandbox.netopia-payments.com',
-      ].includes(paymentUrl.hostname)
+      !(configuration.environment === 'live'
+        ? ['secure.mobilpay.ro'].includes(paymentUrl.hostname)
+        : [
+            'secure.sandbox.netopia-payments.com',
+            'sandbox.netopia-payments.com',
+          ].includes(paymentUrl.hostname))
     ) {
       throw new BadGatewayException(
         'NETOPIA nu a returnat o pagină de plată validă.',

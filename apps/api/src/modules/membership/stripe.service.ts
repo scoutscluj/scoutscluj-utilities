@@ -1,7 +1,6 @@
 import {
   BadGatewayException,
   Injectable,
-  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -9,6 +8,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import type {
   PaymentProvider,
   StartPaymentInput,
+  StripeConfiguration,
   VerifiedPaymentEvent,
 } from './payment-provider';
 import { record, text, uuid } from './membership.rules';
@@ -95,38 +95,19 @@ export function verifyStripeNotification(
 }
 
 @Injectable()
-export class StripeService implements PaymentProvider {
+export class StripeService implements PaymentProvider<StripeConfiguration> {
   constructor(private readonly config: ConfigService) {}
 
-  environment() {
-    return this.config.get<string>('STRIPE_ENVIRONMENT') ?? 'test';
-  }
-
-  ready() {
-    const key = this.config.get<string>('STRIPE_SECRET_KEY') ?? '';
-    return (
-      this.config.get<string>('MEMBERSHIP_CARD_ENABLED') === 'true' &&
-      ['test', 'live'].includes(this.environment()) &&
-      key.startsWith(this.environment() === 'live' ? 'sk_live_' : 'sk_test_') &&
-      Boolean(this.config.get<string>('STRIPE_WEBHOOK_SECRET')) &&
-      Boolean(this.config.get<string>('MEMBERSHIP_WEB_ORIGIN'))
-    );
-  }
-
-  verify(raw: Buffer, signature: string) {
+  verify(raw: Buffer, signature: string, configuration: StripeConfiguration) {
     return verifyStripeNotification(
       raw,
       signature,
-      this.config.getOrThrow<string>('STRIPE_WEBHOOK_SECRET'),
-      this.environment() === 'live',
+      configuration.webhookSecret,
+      configuration.environment === 'live',
     );
   }
 
-  async start(input: StartPaymentInput) {
-    if (!this.ready())
-      throw new ServiceUnavailableException(
-        'Stripe nu este încă activat pentru acest mediu.',
-      );
+  async start(input: StartPaymentInput, configuration: StripeConfiguration) {
     const origin = this.config.getOrThrow<string>('MEMBERSHIP_WEB_ORIGIN');
     const body = new URLSearchParams({
       mode: 'payment',
@@ -150,7 +131,7 @@ export class StripeService implements PaymentProvider {
         redirect: 'error',
         signal: AbortSignal.timeout(20000),
         headers: {
-          Authorization: `Bearer ${this.config.getOrThrow<string>('STRIPE_SECRET_KEY')}`,
+          Authorization: `Bearer ${configuration.secretKey}`,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body,

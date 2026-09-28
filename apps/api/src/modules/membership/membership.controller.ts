@@ -103,6 +103,15 @@ export class MembershipController {
   }
 
   @UseGuards(AuthGuard)
+  @Post('payment-provider/configuration')
+  paymentProviderConfiguration(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: unknown,
+  ) {
+    return this.membership.configurePaymentProvider(user, body);
+  }
+
+  @UseGuards(AuthGuard)
   @Post('periods')
   period(@CurrentUser() user: AuthenticatedUser, @Body() body: unknown) {
     return this.membership.createPeriod(user, body);

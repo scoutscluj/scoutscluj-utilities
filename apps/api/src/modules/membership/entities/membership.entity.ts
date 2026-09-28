@@ -41,6 +41,27 @@ export type MembershipPaymentSettings = InferEntity<
   typeof MembershipPaymentSettings
 >;
 
+export const MembershipPaymentProviderConfig = defineEntity({
+  name: 'MembershipPaymentProviderConfig',
+  tableName: 'membership_payment_provider_configs',
+  properties: {
+    id: id(),
+    provider: p.string(),
+    active: p.boolean().default(true),
+    environment: p.string(),
+    encryptedConfiguration: p.text(),
+    secretHint: p.string(),
+    updatedBy: p.integer(),
+    updatedAt: p
+      .datetime()
+      .onCreate(() => new Date())
+      .onUpdate(() => new Date()),
+  },
+});
+export type MembershipPaymentProviderConfig = InferEntity<
+  typeof MembershipPaymentProviderConfig
+>;
+
 export const MembershipObligation = defineEntity({
   name: 'MembershipObligation',
   tableName: 'membership_obligations',
@@ -73,6 +94,7 @@ export const MembershipCheckout = defineEntity({
     plan: p.string(),
     amountBani: p.integer(),
     provider: p.string(),
+    providerConfigId: p.uuid().nullable(),
     environment: p.string(),
     state: p.string(),
     paymentUrl: p.text().nullable(),
@@ -188,6 +210,7 @@ export const MembershipProviderEvent = defineEntity({
 export const MEMBERSHIP_ENTITIES = [
   MembershipPayout,
   MembershipPaymentSettings,
+  MembershipPaymentProviderConfig,
   MembershipPeriod,
   MembershipObligation,
   MembershipCheckout,

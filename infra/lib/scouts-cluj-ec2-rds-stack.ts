@@ -9,6 +9,7 @@ import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as ecr from "aws-cdk-lib/aws-ecr";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as logs from "aws-cdk-lib/aws-logs";
+import * as kms from "aws-cdk-lib/aws-kms";
 import * as rds from "aws-cdk-lib/aws-rds";
 import * as route53 from "aws-cdk-lib/aws-route53";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
@@ -165,6 +166,18 @@ export class ScoutsClujEc2RdsStack extends Stack {
         ),
       ],
     });
+    const paymentConfigurationKey = new kms.Key(
+      this,
+      "PaymentConfigurationKey",
+      {
+        alias: `alias/scoutscluj-${environmentName}-payment-configuration`,
+        description:
+          "Encrypts administrator-managed payment provider credentials.",
+        enableKeyRotation: true,
+        removalPolicy: RemovalPolicy.RETAIN,
+      },
+    );
+    paymentConfigurationKey.grantEncryptDecrypt(hostRole);
     apiRepository.grantPull(hostRole);
     webRepository.grantPull(hostRole);
     appSecret.grantRead(hostRole);
@@ -198,7 +211,8 @@ export class ScoutsClujEc2RdsStack extends Stack {
       }),
       role: hostRole,
       securityGroup: hostSecurityGroup,
-      requireImdsv2: true,
+      httpTokens: ec2.HttpTokens.REQUIRED,
+      httpPutResponseHopLimit: 2,
       blockDevices: [
         {
           deviceName: "/dev/xvda",
@@ -261,6 +275,9 @@ export class ScoutsClujEc2RdsStack extends Stack {
     });
     new CfnOutput(this, "DatabaseEndpoint", {
       value: database.dbInstanceEndpointAddress,
+    });
+    new CfnOutput(this, "PaymentConfigurationKeyArn", {
+      value: paymentConfigurationKey.keyArn,
     });
     new CfnOutput(this, "ApiLogGroupName", {
       value: apiLogGroup.logGroupName,

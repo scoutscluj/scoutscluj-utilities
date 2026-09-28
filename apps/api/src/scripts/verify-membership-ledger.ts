@@ -13,12 +13,15 @@ import {
   MembershipAllocation,
   MembershipReceipt,
   MembershipCheckout,
+  MembershipPaymentProviderConfig,
 } from '../modules/membership/entities/membership.entity';
 import { MembershipService } from '../modules/membership/membership.service';
 import { NetopiaService } from '../modules/membership/netopia.service';
 import { StripeService } from '../modules/membership/stripe.service';
 import { AuditEntry } from '../modules/audit/entities/audit-entry.entity';
 import { Migration20260921000100 } from '../migrations/Migration20260921000100';
+import { Migration20260928000100 } from '../migrations/Migration20260928000100';
+import type { PaymentConfigurationService } from '../modules/membership/payment-configuration.service';
 import { UserRole } from '../modules/users/entities/user-role.enum';
 
 async function main() {
@@ -67,11 +70,31 @@ async function main() {
       if (typeof sql !== 'string') throw new Error('Expected SQL migration');
       await orm.em.getConnection().execute(sql);
     }
+    const configurationMigration = new Migration20260928000100(
+      orm.em.getDriver(),
+      orm.config,
+    );
+    configurationMigration.up();
+    for (const sql of configurationMigration.getQueries()) {
+      if (typeof sql !== 'string') throw new Error('Expected SQL migration');
+      await orm.em.getConnection().execute(sql);
+    }
+    const netopiaConfiguration = {
+      provider: 'netopia' as const,
+      environment: 'sandbox' as const,
+      apiKey: 'test-key',
+      posSignature: 'test-pos',
+      publicKey: '',
+    };
+    const paymentConfigurations = {
+      getRevision: () => Promise.resolve(netopiaConfiguration),
+    } as unknown as PaymentConfigurationService;
     const makeService = () =>
       new MembershipService(
         orm.em.fork(),
         new NetopiaService(new ConfigService()),
         new StripeService(new ConfigService()),
+        paymentConfigurations,
       );
     const service = makeService(),
       user = {
@@ -147,6 +170,19 @@ async function main() {
         .toString(),
     });
     const checkoutEm = orm.em.fork();
+    const providerConfig = checkoutEm.create(MembershipPaymentProviderConfig, {
+      provider: 'netopia',
+      active: true,
+      environment: 'sandbox',
+      encryptedConfiguration: 'integration-test',
+      secretHint: 'test',
+      updatedBy: user.id,
+    });
+    netopiaConfiguration.publicKey = keys.publicKey
+      .export({ type: 'spki', format: 'pem' })
+      .toString();
+    checkoutEm.persist(providerConfig);
+    await checkoutEm.flush();
     const checkout = checkoutEm.create(MembershipCheckout, {
       periodId: period.id,
       tokenHash: createHash('sha256').update('test').digest('hex'),
@@ -155,6 +191,7 @@ async function main() {
       plan: 'normal',
       amountBani: 30000,
       provider: 'netopia',
+      providerConfigId: providerConfig.id,
       environment: 'sandbox',
       state: 'pending',
       termsVersion: '2026-09-28',
@@ -185,6 +222,7 @@ async function main() {
           orm.em.fork(),
           new NetopiaService(callbackConfig),
           new StripeService(callbackConfig),
+          paymentConfigurations,
         ).notifyNetopia(callback, jwt),
       ),
     );

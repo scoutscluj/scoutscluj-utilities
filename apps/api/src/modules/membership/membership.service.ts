@@ -22,6 +22,7 @@ import {
   MembershipReceipt as Receipt,
   MembershipPayout as Payout,
   MembershipPaymentSettings as PaymentSettings,
+  MembershipPaymentProviderConfig as ProviderConfig,
 } from './entities/membership.entity';
 import {
   BASELINE_PLANS,
@@ -37,10 +38,13 @@ import {
 import { NetopiaService } from './netopia.service';
 import { StripeService } from './stripe.service';
 import type {
-  PaymentProvider,
+  NetopiaConfiguration,
+  PaymentProviderConfiguration,
   PaymentProviderName,
+  StripeConfiguration,
   VerifiedPaymentEvent,
 } from './payment-provider';
+import { PaymentConfigurationService } from './payment-configuration.service';
 
 const MEMBERSHIP_TERMS_VERSION = '2026-09-28';
 
@@ -53,11 +57,8 @@ export class MembershipService {
     private readonly em: EntityManager,
     private readonly netopia: NetopiaService,
     private readonly stripe: StripeService,
+    private readonly paymentConfigurations: PaymentConfigurationService,
   ) {}
-
-  private provider(name: PaymentProviderName): PaymentProvider {
-    return name === 'stripe' ? this.stripe : this.netopia;
-  }
 
   private async paymentSettings(em = this.em) {
     return (
@@ -69,15 +70,17 @@ export class MembershipService {
     );
   }
 
-  private providerSummary(activeProvider: PaymentProviderName) {
+  private async providerSummary(
+    activeProvider: PaymentProviderName,
+    em = this.em,
+  ) {
+    const vaultReady = this.paymentConfigurations.vaultReady();
     return {
       activeProvider,
-      providers: (['netopia', 'stripe'] as const).map((id) => ({
-        id,
-        label: id === 'netopia' ? 'NETOPIA Payments' : 'Stripe',
-        ready: this.provider(id).ready(),
-        environment: this.provider(id).environment(),
-      })),
+      vaultReady,
+      providers: (await this.paymentConfigurations.summaries(em)).map(
+        (provider) => ({ ...provider, ready: vaultReady && provider.ready }),
+      ),
     };
   }
 
@@ -123,10 +126,12 @@ export class MembershipService {
     const period = await this.em.findOne(Period, { active: true });
     const settings = await this.paymentSettings();
     const activeProvider = settings.activeProvider as PaymentProviderName;
+    const summary = await this.providerSummary(activeProvider);
+    const active = summary.providers.find((item) => item.id === activeProvider);
     return {
       period,
-      cardEnabled: this.provider(activeProvider).ready(),
-      environment: this.provider(activeProvider).environment(),
+      cardEnabled: Boolean(active?.ready),
+      environment: active?.environment ?? 'unconfigured',
       activeProvider,
     };
   }
@@ -191,7 +196,9 @@ export class MembershipService {
       >
     >;
     cardEnabled: boolean;
-    paymentConfiguration: ReturnType<MembershipService['providerSummary']>;
+    paymentConfiguration: Awaited<
+      ReturnType<MembershipService['providerSummary']>
+    >;
     orgoIntegration: string;
   }> {
     this.staff(user);
@@ -228,6 +235,13 @@ export class MembershipService {
         },
       ),
     ]);
+    const settings = await this.paymentSettings();
+    const paymentConfiguration = await this.providerSummary(
+      settings.activeProvider as PaymentProviderName,
+    );
+    const active = paymentConfiguration.providers.find(
+      (item) => item.id === paymentConfiguration.activeProvider,
+    );
     return {
       payouts: await this.em.find(
         Payout,
@@ -251,12 +265,8 @@ export class MembershipService {
         reviewRequired: c.reviewRequired,
         createdAt: c.createdAt,
       })),
-      cardEnabled: this.provider(
-        (await this.paymentSettings()).activeProvider as PaymentProviderName,
-      ).ready(),
-      paymentConfiguration: this.providerSummary(
-        (await this.paymentSettings()).activeProvider as PaymentProviderName,
-      ),
+      cardEnabled: Boolean(active?.ready),
+      paymentConfiguration,
       orgoIntegration: 'awaiting_access',
     };
   }
@@ -266,7 +276,10 @@ export class MembershipService {
     const value = record(input).provider;
     if (value !== 'netopia' && value !== 'stripe')
       throw new BadRequestException('Procesator de plată invalid.');
-    if (!this.provider(value).ready())
+    const configured = (await this.paymentConfigurations.summaries()).find(
+      (item) => item.id === value,
+    )?.ready;
+    if (!this.paymentConfigurations.vaultReady() || !configured)
       throw new ConflictException(
         `${value === 'stripe' ? 'Stripe' : 'NETOPIA'} nu poate fi selectat până când toate secretele și URL-urile necesare sunt configurate.`,
       );
@@ -277,9 +290,45 @@ export class MembershipService {
       em.persist(settings);
       this.audit(em, user.id, 'provider.selected', settings.id, {
         provider: value,
-        ready: this.provider(value).ready(),
       });
-      return this.providerSummary(value);
+      return this.providerSummary(value, em);
+    });
+  }
+
+  async configurePaymentProvider(user: CurrentUser, input: unknown) {
+    this.staff(user);
+    const body = record(input);
+    const provider = body.provider;
+    if (provider !== 'netopia' && provider !== 'stripe')
+      throw new BadRequestException('Procesator de plată invalid.');
+    const configuration = this.paymentConfigurations.parse(provider, body);
+    const encrypted = await this.paymentConfigurations.encrypt(configuration);
+    return this.mutate(async (em) => {
+      const previous = await em.find(ProviderConfig, {
+        provider,
+        active: true,
+      });
+      for (const row of previous) row.active = false;
+      await em.flush();
+      const revision = em.create(ProviderConfig, {
+        provider,
+        active: true,
+        environment: configuration.environment,
+        encryptedConfiguration: encrypted.ciphertext,
+        secretHint: encrypted.secretHint,
+        updatedBy: user.id,
+      });
+      em.persist(revision);
+      this.audit(em, user.id, 'provider.configured', revision.id, {
+        provider,
+        environment: configuration.environment,
+      });
+      const settings = await this.paymentSettings(em);
+      await em.flush();
+      return this.providerSummary(
+        settings.activeProvider as PaymentProviderName,
+        em,
+      );
     });
   }
 
@@ -700,15 +749,26 @@ export class MembershipService {
     if (!/^[A-Za-z0-9_-]{43}$/.test(token))
       throw new BadRequestException('Referință de plată invalidă.');
     const tokenHash = hash(token);
+    const selected = await this.paymentSettings();
+    const providerName = selected.activeProvider as PaymentProviderName;
+    const providerRevision =
+      await this.paymentConfigurations.activeRevision(providerName);
+    if (!providerRevision)
+      throw new ServiceUnavailableException(
+        `Procesatorul ${providerName === 'stripe' ? 'Stripe' : 'NETOPIA'} nu este configurat pentru acest mediu.`,
+      );
     const checkout = await this.mutate(async (em) => {
       const previous = await em.findOne(Checkout, { tokenHash });
       if (previous) return previous;
       const settings = await this.paymentSettings(em);
-      const providerName = settings.activeProvider as PaymentProviderName;
-      const provider = this.provider(providerName);
-      if (!provider.ready())
-        throw new ServiceUnavailableException(
-          `Procesatorul ${providerName === 'stripe' ? 'Stripe' : 'NETOPIA'} nu este configurat pentru acest mediu.`,
+      const activeRevision = await em.findOne(ProviderConfig, {
+        id: providerRevision.id,
+        provider: providerName,
+        active: true,
+      });
+      if (settings.activeProvider !== providerName || !activeRevision)
+        throw new ConflictException(
+          'Configurația plăților s-a schimbat. Reîncearcă inițierea.',
         );
       const period = await em.findOneOrFail(Period, {
         id: periodId,
@@ -758,7 +818,8 @@ export class MembershipService {
         plan: planKey,
         amountBani,
         provider: providerName,
-        environment: provider.environment(),
+        providerConfigId: providerRevision.id,
+        environment: providerRevision.configuration.environment,
         state: 'starting',
         termsVersion: MEMBERSHIP_TERMS_VERSION,
         termsAcceptedAt: new Date(),
@@ -782,14 +843,31 @@ export class MembershipService {
     });
     if (!claimed) return { state: 'unknown', paymentUrl: null };
     try {
-      const started = await this.provider(
+      if (!checkout.providerConfigId)
+        throw new ServiceUnavailableException(
+          'Revizia configurației pentru această plată nu este disponibilă.',
+        );
+      const startConfiguration = await this.paymentConfigurations.getRevision(
         checkout.provider as PaymentProviderName,
-      ).start({
+        checkout.providerConfigId,
+      );
+      if (
+        !startConfiguration ||
+        startConfiguration.environment !== checkout.environment
+      )
+        throw new ServiceUnavailableException(
+          'Configurația inițială a plății nu mai este disponibilă.',
+        );
+      const startInput = {
         id: checkout.id,
         amountBani: checkout.amountBani,
         description: 'Cotizație Centrul Local Cluj',
         billing,
-      });
+      };
+      const started =
+        startConfiguration.provider === 'stripe'
+          ? await this.stripe.start(startInput, startConfiguration)
+          : await this.netopia.start(startInput, startConfiguration);
       return await this.mutate(async (em) => {
         const fresh = await em.findOneOrFail(
           Checkout,
@@ -826,12 +904,23 @@ export class MembershipService {
     };
   }
 
+  private untrustedNotificationBody(raw: Buffer) {
+    try {
+      return record(JSON.parse(raw.toString('utf8')));
+    } catch {
+      throw new BadRequestException('Notificare invalidă.');
+    }
+  }
+
   async notifyNetopia(raw: Buffer, token: string) {
-    const body = this.netopia.verify(raw, token),
+    const unsigned = this.untrustedNotificationBody(raw);
+    const id = uuid(record(unsigned.order).orderID);
+    const configuration = await this.configurationForCheckout('netopia', id);
+    const body = this.netopia.verify(raw, token, configuration),
       payment = record(body.payment),
       order = record(body.order);
-    const id = uuid(order.orderID),
-      providerId = text(payment.ntpID, 100);
+    if (uuid(order.orderID) !== id) throw new BadRequestException();
+    const providerId = text(payment.ntpID, 100);
     if (!Number.isInteger(payment.status)) throw new BadRequestException();
     if (
       payment.currency !== 'RON' ||
@@ -859,12 +948,44 @@ export class MembershipService {
   }
 
   async notifyStripe(raw: Buffer, signature: string) {
+    const unsigned = this.untrustedNotificationBody(raw);
+    const object = record(record(unsigned.data).object);
+    const id = uuid(
+      record(object.metadata).checkout_id ?? object.client_reference_id,
+    );
+    const configuration = await this.configurationForCheckout('stripe', id);
     await this.applyPaymentEvent(
       'stripe',
       raw,
-      this.stripe.verify(raw, signature),
+      this.stripe.verify(raw, signature, configuration),
     );
     return { received: true };
+  }
+
+  private async configurationForCheckout(
+    provider: 'netopia',
+    id: string,
+  ): Promise<NetopiaConfiguration>;
+  private async configurationForCheckout(
+    provider: 'stripe',
+    id: string,
+  ): Promise<StripeConfiguration>;
+  private async configurationForCheckout(
+    provider: PaymentProviderName,
+    id: string,
+  ): Promise<PaymentProviderConfiguration> {
+    const checkout = await this.em.findOne(Checkout, { id, provider });
+    if (!checkout?.providerConfigId)
+      throw new ServiceUnavailableException(
+        'Revizia configurației pentru această plată nu este disponibilă.',
+      );
+    const configuration = await this.paymentConfigurations.getRevision(
+      provider,
+      checkout.providerConfigId,
+    );
+    if (!configuration || configuration.environment !== checkout.environment)
+      throw new BadRequestException('Configurația plății nu corespunde.');
+    return configuration;
   }
 
   private async applyPaymentEvent(
@@ -881,7 +1002,6 @@ export class MembershipService {
       );
       if (
         checkout.provider !== provider ||
-        checkout.environment !== this.provider(provider).environment() ||
         event.currency !== 'RON' ||
         (event.outcome === 'review'
           ? event.amountBani <= 0 || event.amountBani > checkout.amountBani

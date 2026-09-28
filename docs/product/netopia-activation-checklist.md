@@ -24,7 +24,7 @@ Status: implementation ready for legal review; external merchant checks remain.
 - [ ] Confirm that the production domain is owned or controlled by the contracted association.
 - [ ] Deploy the site exclusively through HTTPS and verify the full certificate chain.
 - [ ] Add the production website, return URL and notification URL in the NETOPIA point of sale.
-- [ ] Add the POS signature and the production public verification certificate to secret configuration.
+- [ ] Enter the API key, POS signature and production verification certificate in the financial administration page.
 - [ ] Run a sandbox payment, failed payment, callback replay and refund/reconciliation exercise.
 - [ ] Ask NETOPIA to review and activate the point of sale before enabling live card payments.
 
@@ -34,7 +34,10 @@ Status: implementation ready for legal review; external merchant checks remain.
 - [x] A processor can be selected only when its required server-side configuration is present.
 - [x] The processor selected when checkout starts is retained for that payment, including retries and callbacks.
 - [x] Stripe Checkout uses the amount calculated by the application, RON currency and signed webhooks.
-- [ ] Add the Stripe secret key and webhook signing secret to production secret configuration.
+- [x] Provider credentials can be entered by authorized staff and are encrypted in PostgreSQL with the application's KMS key.
+- [x] The administration API never returns stored credentials; it exposes only configuration state and a four-character hint.
+- [x] Credential rotation retains encrypted historical revisions for callbacks from checkouts already in progress.
+- [ ] Enter the Stripe secret key and webhook signing secret in the financial administration page.
 - [ ] Register `POST /api/membership/stripe/notify` as the Stripe webhook endpoint.
 - [ ] Subscribe the endpoint to successful, failed and expired Checkout Session events.
 - [ ] Run test-mode successful, failed, expired, duplicate-callback and reconciliation exercises.

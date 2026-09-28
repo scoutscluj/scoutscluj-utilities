@@ -2,6 +2,7 @@
 - [x] Implement identifier normalization, period pricing and ledger invariants.
 - [x] Implement NETOPIA hosted checkout and signed callback verification.
 - [x] Implement Stripe hosted Checkout, signed webhook verification and audited processor selection.
+- [x] Add administrator-managed, KMS-encrypted provider configuration with write-only secrets and revision-safe rotation.
 - [x] Implement unverified guest payment and staff allocation workflow.
 - [x] Implement member payment, manual transfers and national batches.
 - [x] Add Romanian member and financial staff pages.

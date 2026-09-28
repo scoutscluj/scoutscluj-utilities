@@ -80,6 +80,95 @@
 </section>
 
 <details>
+	<summary>Configurare securizată NETOPIA și Stripe</summary>
+	{#if !ledger.paymentConfiguration.vaultReady}
+		<p class="notice">
+			Cheia KMS a aplicației nu este disponibilă. Configurațiile nu pot fi salvate până la activarea
+			seifului.
+		</p>
+	{/if}
+	<p>
+		Valorile secrete sunt criptate de API înainte de salvare și nu pot fi afișate ulterior. Pentru
+		rotație, completează din nou toate câmpurile procesatorului.
+	</p>
+	<div class="provider-configurations">
+		<form method="POST" class="provider-form" autocomplete="off">
+			<input type="hidden" name="action" value="provider-configuration" />
+			<input type="hidden" name="provider" value="netopia" />
+			<h3>NETOPIA Payments</h3>
+			{#each ledger.paymentConfiguration.providers.filter((item) => item.id === 'netopia') as current (current.id)}
+				<small>
+					{current.ready ? `Configurat · cheie …${current.secretHint}` : 'Neconfigurat'}
+				</small>
+			{/each}
+			<fieldset disabled={!ledger.paymentConfiguration.vaultReady}>
+				<label
+					>Mediu<select name="environment" required
+						><option value="sandbox">Sandbox</option><option value="live">Producție</option></select
+					></label
+				>
+				<label
+					>API key<input
+						type="password"
+						name="apiKey"
+						required
+						autocomplete="new-password"
+					/></label
+				>
+				<label
+					>Semnătura POS<input
+						type="password"
+						name="posSignature"
+						required
+						autocomplete="new-password"
+					/></label
+				>
+				<label
+					>Certificatul public<textarea name="publicKey" required rows="8" spellcheck="false"
+					></textarea></label
+				>
+				<button>Salvează o revizie NETOPIA</button>
+			</fieldset>
+		</form>
+
+		<form method="POST" class="provider-form" autocomplete="off">
+			<input type="hidden" name="action" value="provider-configuration" />
+			<input type="hidden" name="provider" value="stripe" />
+			<h3>Stripe</h3>
+			{#each ledger.paymentConfiguration.providers.filter((item) => item.id === 'stripe') as current (current.id)}
+				<small>
+					{current.ready ? `Configurat · cheie …${current.secretHint}` : 'Neconfigurat'}
+				</small>
+			{/each}
+			<fieldset disabled={!ledger.paymentConfiguration.vaultReady}>
+				<label
+					>Mediu<select name="environment" required
+						><option value="test">Test</option><option value="live">Producție</option></select
+					></label
+				>
+				<label
+					>Secret key<input
+						type="password"
+						name="secretKey"
+						required
+						autocomplete="new-password"
+					/></label
+				>
+				<label
+					>Webhook signing secret<input
+						type="password"
+						name="webhookSecret"
+						required
+						autocomplete="new-password"
+					/></label
+				>
+				<button>Salvează o revizie Stripe</button>
+			</fieldset>
+		</form>
+	</div>
+</details>
+
+<details>
 	<summary>Perioade și tarife publicate</summary>
 	{#each ledger.periods as p (p.id)}<div class="row">
 			<span>{p.name} · {p.startsOn} – {p.endsOn} {p.active ? '· Activă' : ''}</span
@@ -463,6 +552,18 @@
 		border: 1px solid #cbd5e1;
 		border-radius: 8px;
 		padding: 14px;
+	}
+	.provider-configurations {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+		gap: 24px;
+	}
+	.provider-configurations fieldset {
+		display: grid;
+		gap: 12px;
+		border: 0;
+		padding: 0;
+		margin: 0;
 	}
 	label {
 		display: grid;

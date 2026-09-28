@@ -6,7 +6,7 @@ Code baseline: main, 8669191; remote metadata refreshed during this review.
 
 ## Approved implementation amendments
 
-- NETOPIA is selected; sandbox credentials were supplied privately and must never be committed.
+- NETOPIA is the initial selection. Provider credentials are entered by authorized financial staff, encrypted by the API with AWS KMS and must never be committed or returned to the browser.
 - Only member-scoped ORGO login tokens are currently available. There is no administrative server token. Background roster lookup and national write-back remain unavailable until suitable access is supplied and verified; represent this explicitly rather than reporting synchronization success.
 - Guest checkout is allowed without ORGO identity validation. Guests enter an ORGO numeric ID or card ID, choose a published fee plan, and acknowledge that staff must review the payment before it credits a member. No profile preview is promised. Preserve the submitted identifier separately from the verified beneficiary.
 - Normalize card IDs to uppercase in the textbox and on the server. Numeric IDs and card IDs are distinct identifier types; never derive a numeric ID by stripping a card prefix.
@@ -157,7 +157,7 @@ Show last synchronization time and failures to staff. Missing or stale pricing/e
 
 NETOPIA recommendation is conditional on successful hosted checkout, authenticated notifications, recovery of uncertain payments, and documented refund handling in sandbox. The existing account must have the Resurse payment channel approved/activated. Do not assume an existing account activates every domain or activity automatically.
 
-Use a small provider boundary for creating checkout, validating events, and reconciling status where supported. Persist provider identity, environment and transaction references. NETOPIA Payments and Stripe are supported, with one processor selected by authorized financial staff for new checkouts. Existing attempts remain bound to their recorded processor when the selection changes. Dashboard refunds with audited reconciliation remain the pilot fallback when a provider's automated operation is unavailable.
+Use a small provider boundary for creating checkout, validating events, and reconciling status where supported. Persist provider identity, environment, configuration revision and transaction references. NETOPIA Payments and Stripe are supported, with one processor selected by authorized financial staff for new checkouts. Existing attempts remain bound to their recorded processor and encrypted credential revision when the selection or credentials change. Provider credentials are write-only in the administration interface, stored as KMS ciphertext in PostgreSQL and excluded from audit metadata. Dashboard refunds with audited reconciliation remain the pilot fallback when a provider's automated operation is unavailable.
 
 Track gross collected, actual processing costs (including provider VAT where applicable), payout fees, net received, national owed, and national transferred separately. Provider estimates are not accounting facts. Reconcile to provider settlement statements and bank evidence; a net payout is not a second member payment. Automatic accounting invoice issuance and Keez integration are outside this slice.
 

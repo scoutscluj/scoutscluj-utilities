@@ -74,22 +74,6 @@ describe('NETOPIA notification boundary', () => {
     ).toThrow();
   });
 
-  it('does not enable live payments or incomplete sandbox configuration', () => {
-    expect(
-      new NetopiaService(
-        new ConfigService({
-          MEMBERSHIP_CARD_ENABLED: 'true',
-          NETOPIA_ENVIRONMENT: 'live',
-        }),
-      ).ready(),
-    ).toBe(false);
-    expect(
-      new NetopiaService(
-        new ConfigService({ MEMBERSHIP_CARD_ENABLED: 'true' }),
-      ).ready(),
-    ).toBe(false);
-  });
-
   it('sends only server prices and requests hosted card collection', async () => {
     const mock = jest.spyOn(global, 'fetch').mockResolvedValue(
       new Response(
@@ -116,12 +100,21 @@ describe('NETOPIA notification boundary', () => {
         }),
       );
       await expect(
-        service.start({
-          id: 'order-id',
-          amountBani: 7500,
-          description: 'Cotizație',
-          billing: { email: 'payer@example.test' },
-        }),
+        service.start(
+          {
+            id: 'order-id',
+            amountBani: 7500,
+            description: 'Cotizație',
+            billing: { email: 'payer@example.test' },
+          },
+          {
+            provider: 'netopia',
+            environment: 'sandbox',
+            apiKey: 'test-key',
+            posSignature: 'sandbox-pos',
+            publicKey,
+          },
+        ),
       ).resolves.toMatchObject({ providerId: '123' });
       const sentBody = mock.mock.calls[0][1]?.body;
       if (typeof sentBody !== 'string')

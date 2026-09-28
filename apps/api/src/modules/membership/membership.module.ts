@@ -7,6 +7,8 @@ import { MembershipController } from './membership.controller';
 import { MembershipService } from './membership.service';
 import { NetopiaService } from './netopia.service';
 import { StripeService } from './stripe.service';
+import { PaymentConfigurationService } from './payment-configuration.service';
+import { PaymentSecretVault } from './payment-secret-vault.service';
 
 @Module({
   imports: [
@@ -14,6 +16,12 @@ import { StripeService } from './stripe.service';
     MikroOrmModule.forFeature([...MEMBERSHIP_ENTITIES, AuditEntry]),
   ],
   controllers: [MembershipController],
-  providers: [MembershipService, NetopiaService, StripeService],
+  providers: [
+    MembershipService,
+    NetopiaService,
+    StripeService,
+    PaymentConfigurationService,
+    PaymentSecretVault,
+  ],
 })
 export class MembershipModule {}

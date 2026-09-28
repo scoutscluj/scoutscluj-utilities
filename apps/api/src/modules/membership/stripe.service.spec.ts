@@ -94,12 +94,20 @@ describe('Stripe payment boundary', () => {
         }),
       );
       await expect(
-        service.start({
-          id: '11111111-1111-4111-8111-111111111111',
-          amountBani: 30000,
-          description: 'Cotizație Centrul Local Cluj',
-          billing: { email: 'payer@example.test' },
-        }),
+        service.start(
+          {
+            id: '11111111-1111-4111-8111-111111111111',
+            amountBani: 30000,
+            description: 'Cotizație Centrul Local Cluj',
+            billing: { email: 'payer@example.test' },
+          },
+          {
+            provider: 'stripe',
+            environment: 'test',
+            secretKey: 'sk_test_secret',
+            webhookSecret: secret,
+          },
+        ),
       ).resolves.toEqual({
         providerId: 'cs_test_123',
         paymentUrl: 'https://checkout.stripe.com/c/pay/test',

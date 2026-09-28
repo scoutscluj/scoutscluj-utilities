@@ -5,6 +5,7 @@ export type AppHref =
 	| '/'
 	| '/profile'
 	| '/admin'
+	| '/admin/finance/payment-processor'
 	| '/admin/users'
 	| '/admin/notifications'
 	| '/admin/parental-consent'
@@ -39,6 +40,7 @@ export type MenuItem = {
 	label: string;
 	href?: AppHref;
 	minRole?: UserRole;
+	anyRole?: UserRole[];
 	disabled?: boolean;
 	children?: MenuItem[];
 };

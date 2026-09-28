@@ -30,7 +30,8 @@ const activityTypeLabels: Record<SidebarActivity['type'], string> = {
 };
 
 export const canSee = (item: MenuItem, user: CurrentUser) =>
-	!item.minRole || hasRole(user, item.minRole);
+	(!item.minRole || hasRole(user, item.minRole)) &&
+	(!item.anyRole || item.anyRole.some((role) => hasRole(user, role)));
 
 export const visibleChildren = (item: MenuItem, user: CurrentUser) =>
 	item.children?.filter((child) => canSee(child, user)) ?? [];
@@ -47,6 +48,8 @@ export const menuHref = (href: AppHref) => {
 			return resolve('/profile');
 		case '/admin':
 			return resolve('/admin');
+		case '/admin/finance/payment-processor':
+			return resolve('/admin/finance/payment-processor');
 		case '/admin/users':
 			return resolve('/admin/users');
 		case '/admin/notifications':
@@ -157,6 +160,7 @@ export const routeTitle = (pathname: string) => {
 	if (pathname.startsWith('/admin/notifications')) return 'Notificări';
 	if (pathname.startsWith('/admin/parental-consent')) return 'Acorduri parentale';
 	if (pathname.startsWith('/admin/users')) return 'Utilizatori';
+	if (pathname.startsWith('/admin/finance/payment-processor')) return 'Procesator plăți';
 	if (pathname.startsWith('/admin')) return 'Administrare';
 	if (pathname.startsWith('/profile')) return 'Profil';
 	if (pathname.startsWith('/info/statut')) return 'Statut ONCR';

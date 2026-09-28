@@ -42,7 +42,7 @@ The system SHALL support NETOPIA Payments and Stripe through a common checkout b
 - **AND** an unconfigured processor cannot be selected
 
 ### Requirement: Administratively managed provider credentials
-The system SHALL allow authorized financial staff to create and rotate NETOPIA and Stripe configurations without exposing stored secrets or requiring a deployment-secret change.
+The system SHALL allow authorized financial staff to create and rotate NETOPIA and Stripe configurations from Admin > Financiar > Procesator plăți without exposing stored secrets or requiring a deployment-secret change.
 
 #### Scenario: Staff saves or rotates credentials
 - **WHEN** authorized staff submit a complete environment-specific provider configuration

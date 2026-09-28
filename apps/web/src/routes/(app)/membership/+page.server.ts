@@ -37,9 +37,7 @@ export const actions: Actions = {
 			body.totals = Object.fromEntries(
 				['normal', 'fam1', 'fam2', 'fam3', 'social'].map((key) => [key, amount(form.get(key))])
 			);
-		} else if (action === 'provider') path = 'payment-provider';
-		else if (action === 'provider-configuration') path = 'payment-provider/configuration';
-		else if (action === 'activate')
+		} else if (action === 'activate')
 			path = `periods/${encodeURIComponent(String(form.get('id')))}/activate`;
 		else if (action === 'obligation') path = 'obligations';
 		else if (action === 'bank') {

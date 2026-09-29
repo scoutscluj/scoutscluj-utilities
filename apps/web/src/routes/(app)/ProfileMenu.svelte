@@ -45,6 +45,11 @@
 				<DropdownMenu.Separator class="profile-menu-separator" />
 
 				<DropdownMenu.Group aria-label="Cont utilizator">
+					<DropdownMenu.Item class="profile-menu-item" textValue="Cotizație">
+						{#snippet child({ props })}
+							<a {...props} href={resolve('/cotizatie')}>Cotizație</a>
+						{/snippet}
+					</DropdownMenu.Item>
 					<DropdownMenu.Item class="profile-menu-item" textValue="Profil">
 						{#snippet child({ props })}
 							<a {...props} href={resolve('/profile')}>Profil</a>

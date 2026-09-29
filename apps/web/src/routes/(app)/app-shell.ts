@@ -153,6 +153,7 @@ export const activitySubtitle = (activity: SidebarActivity, pathname: string) =>
 
 export const routeTitle = (pathname: string) => {
 	if (pathname === '/') return 'Dashboard';
+	if (pathname.startsWith('/cotizatie')) return 'Cotizație';
 	if (pathname === '/activities') return 'Activități';
 	if (pathname.startsWith('/finance/documents')) return 'Documente financiare';
 	if (pathname === '/finance') return 'Panou financiar';

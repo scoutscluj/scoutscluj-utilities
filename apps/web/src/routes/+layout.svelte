@@ -1,9 +1,12 @@
 <script lang="ts">
+	import { page } from '$app/state';
+	import { usesAuthenticatedShell } from '$lib/auth/authenticated-shell';
 	import { Toaster } from '$lib/components/ui/sonner';
 	import PWAStatusToasts from '$lib/components/pwa/PWAStatusToasts.svelte';
 	import SiteFooter from '$lib/legal/SiteFooter.svelte';
+	import AppShell from './(app)/AppShell.svelte';
 
-	let { children } = $props();
+	let { data, children } = $props();
 </script>
 
 <svelte:head>
@@ -18,7 +21,11 @@
 	<link rel="apple-touch-icon" href="/icons/icon-192.png" />
 </svelte:head>
 
-{@render children()}
+{#if data.user && usesAuthenticatedShell(page.url.pathname, true)}
+	<AppShell user={data.user} sidebarActivities={data.sidebarActivities} {children} />
+{:else}
+	{@render children()}
+{/if}
 <SiteFooter />
 <Toaster />
 <PWAStatusToasts />

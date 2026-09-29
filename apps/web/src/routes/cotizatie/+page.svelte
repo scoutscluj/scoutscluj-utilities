@@ -156,16 +156,16 @@
 	/></svelte:head
 >
 
-<header class="public-topbar">
-	<a class="brand" href={resolve('/')}
-		><span class="brand-mark" aria-hidden="true">SC</span><span
-			><strong>Scouts Cluj</strong><small>Resurse</small></span
-		></a
-	>
-	<a class="topbar-link" href={data.user ? resolve('/') : resolve('/login?redirectTo=%2Fcotizatie')}
-		>{data.user ? 'Înapoi în aplicație' : 'Autentificare'}</a
-	>
-</header>
+{#if !data.user}
+	<header class="public-topbar">
+		<a class="brand" href={resolve('/')}
+			><span class="brand-mark" aria-hidden="true">SC</span><span
+				><strong>Scouts Cluj</strong><small>Resurse</small></span
+			></a
+		>
+		<a class="topbar-link" href={resolve('/login?redirectTo=%2Fcotizatie')}>Autentificare</a>
+	</header>
+{/if}
 
 <main class="payment-page">
 	<div class="page-heading">

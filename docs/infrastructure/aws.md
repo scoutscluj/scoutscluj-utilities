@@ -46,11 +46,18 @@ the same stack shape for the main production repository.
 Override values with CDK context when needed:
 
 ```bash
-pnpm --filter infra deploy \
+pnpm --filter infra run deploy \
   --context domainName=scoutscluj.ro \
   --context appHostName=resurse.scoutscluj.ro \
   --context hostedZoneId=Z1234567890 \
   --context githubRepository=owner/repository
+```
+
+When using a named local AWS profile, pass it to the package script:
+
+```bash
+pnpm --filter infra run diff --profile scouts-cluj
+pnpm --filter infra run deploy --profile scouts-cluj --require-approval never
 ```
 
 If `manageDns=true`, CDK expects the `scoutscluj.ro` hosted zone to exist in
@@ -79,6 +86,51 @@ credentials entered in the administration page are stored only as KMS
 ciphertext in PostgreSQL; the KMS key material cannot be exported. Historical
 ciphertext revisions are retained so callbacks for already-started payments can
 still be verified after credential rotation.
+
+The production payment key uses the alias
+`alias/scoutscluj-production-payment-configuration`. Automatic rotation and a
+retention policy are enabled. Its ARN is exposed through the
+`PaymentConfigurationKeyArn` CloudFormation output and is injected into the API
+container by the deployment workflow.
+
+## Safe Infrastructure Updates
+
+The production app currently runs on one stateful EC2 host. Its Amazon Linux
+2023 AMI is pinned in CDK rather than resolved from the public "latest AMI"
+parameter. Resolving that parameter during an unrelated stack update can replace
+the instance after the change set is created. AMI upgrades must therefore be
+explicit maintenance changes with a database backup, a planned replacement, and
+post-deployment health checks.
+
+The EC2 launch template shape is preserved to match the existing production
+resource. Removing or restructuring it can also force an instance replacement.
+Before every infrastructure deployment, inspect the diff and stop if an
+additive change unexpectedly modifies or replaces EC2, RDS, or the application
+secret:
+
+```bash
+pnpm --filter infra run diff --profile scouts-cluj
+```
+
+The real values in `scoutscluj/production/app` are maintained in Secrets
+Manager. Do not add manually configured values to the CDK
+`GenerateSecretString.SecretStringTemplate` after the secret exists: changing
+that template creates a new secret version and can overwrite runtime values.
+CDK should define only safe generated defaults and the application should read
+the current secret version at deployment time.
+
+After an infrastructure deployment, verify the stack output and both public
+health endpoints:
+
+```bash
+aws cloudformation describe-stacks \
+  --stack-name ScoutsClujEc2RdsProductionStack \
+  --profile scouts-cluj \
+  --region eu-central-1
+
+curl --fail https://resurse.scoutscluj.ro/health
+curl --fail https://resurse.scoutscluj.ro/api/health
+```
 
 ## GitHub Actions Boundary
 

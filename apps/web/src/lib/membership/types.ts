@@ -68,6 +68,7 @@ export type Dashboard = {
 	nationalItems: NationalItem[];
 	checkouts: Array<{
 		id: string;
+		periodId: string;
 		identifier: string;
 		plan: string;
 		state: string;
@@ -119,6 +120,7 @@ export type RosterPreview = {
 	newCount: number;
 };
 export type PaymentStatus = {
+	environment: string;
 	state: string;
 	amountBani: number;
 	provider: 'netopia' | 'stripe';

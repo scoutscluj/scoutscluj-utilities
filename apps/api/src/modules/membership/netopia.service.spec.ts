@@ -81,7 +81,7 @@ describe('NETOPIA notification boundary', () => {
           payment: {
             ntpID: '123',
             paymentURL:
-              'https://secure.sandbox.netopia-payments.com/checkout/123',
+              'https://secure-sandbox.netopia-payments.com/checkout/123',
           },
         }),
         { status: 200 },
@@ -95,8 +95,8 @@ describe('NETOPIA notification boundary', () => {
           NETOPIA_API_KEY: 'test-key',
           NETOPIA_POS_SIGNATURE: 'sandbox-pos',
           NETOPIA_PUBLIC_KEY: publicKey,
-          MEMBERSHIP_API_ORIGIN: 'https://api.example.test',
-          MEMBERSHIP_WEB_ORIGIN: 'https://example.test',
+          PUBLIC_API_BASE_URL: 'https://api.example.test',
+          WEB_ORIGIN: 'https://example.test',
         }),
       );
       await expect(

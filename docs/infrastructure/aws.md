@@ -171,6 +171,26 @@ The workflow:
 
 ## Runtime Logs
 
+### Membership checkout origins
+
+The deployment writes `MEMBERSHIP_WEB_ORIGIN=WEB_ORIGIN` and
+`MEMBERSHIP_API_ORIGIN=PUBLIC_API_BASE_URL` into the API runtime. Both payment
+providers need these addresses to construct return/notification URLs. Missing
+origins previously prevented requests from reaching Stripe/NETOPIA and left a
+checkout awaiting financial review. The adapters also fall back to the existing
+public origin settings. A proven local configuration failure or explicit API
+rejection closes the attempt as failed with an audit entry; network timeouts and
+uncertain responses still require reconciliation. Stripe submissions carry the
+checkout ID as an idempotency key. NETOPIA sandbox hosted URLs may use the exact
+domain `secure-sandbox.netopia-payments.com`; this is distinct from its API host
+`secure.sandbox.netopia-payments.com` and is explicitly allowed.
+
+After deployment, verify hosted URL creation separately for Stripe test and
+NETOPIA sandbox without entering a card or making a charge. Expire disposable
+Stripe test sessions after the check. Keep provider switching separate from
+existing attempts: those remain attached to their original provider/environment.
+
+
 Production runtime logs are sent to CloudWatch Logs through Docker's `awslogs`
 logging driver. CDK creates one log group per runtime container:
 

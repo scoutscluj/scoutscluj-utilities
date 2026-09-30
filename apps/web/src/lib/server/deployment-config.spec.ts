@@ -10,6 +10,12 @@ describe('web deployment configuration', () => {
 	it('pins the public origin behind the AWS reverse proxy without disabling CSRF', () => {
 		const script = readFileSync(resolve(process.cwd(), '../../deploy/ec2-deploy.sh'), 'utf8');
 		expect(script).toContain('write_env_value "${WEB_ENV_FILE}" ORIGIN "${WEB_ORIGIN}"');
+		expect(script).toContain(
+			'write_env_value "${API_ENV_FILE}" MEMBERSHIP_WEB_ORIGIN "${WEB_ORIGIN}"'
+		);
+		expect(script).toContain(
+			'write_env_value "${API_ENV_FILE}" MEMBERSHIP_API_ORIGIN "${PUBLIC_API_BASE_URL}"'
+		);
 	});
 	it('allows the advertised 15 MB upload in Railway and AWS production', () => {
 		const packageJson = JSON.parse(

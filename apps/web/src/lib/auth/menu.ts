@@ -39,6 +39,11 @@ export const menuItems: MenuItem[] = [
 		children: [
 			{ label: 'Administrare', href: '/admin', minRole: 'moderator' },
 			{
+				label: 'Membri și cotizații',
+				href: '/membership',
+				anyRole: ['admin', 'finance_manager', 'super_admin']
+			},
+			{
 				label: 'Financiar',
 				href: '/admin/finance/payment-processor',
 				anyRole: ['admin', 'finance_manager', 'super_admin']

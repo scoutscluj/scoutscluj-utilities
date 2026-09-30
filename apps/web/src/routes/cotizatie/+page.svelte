@@ -7,7 +7,9 @@
 	const own = $derived(data.obligations.find((item) => item.periodId === data.period?.id));
 	const ownRemaining = $derived(own ? Math.max(0, own.totalBani - (own.paidBani ?? 0)) : 0);
 	const lookup = $derived(form?.lookup);
-	const providerName = $derived(data.activeProvider === 'stripe' ? 'Stripe' : 'NETOPIA');
+	const providerName = $derived(
+		(data.status?.provider ?? data.activeProvider) === 'stripe' ? 'Stripe' : 'NETOPIA'
+	);
 	const periodLabel = $derived(
 		data.period ? `${data.period.startsOn.slice(0, 4)}–${data.period.endsOn.slice(0, 4)}` : ''
 	);
@@ -178,15 +180,28 @@
 		<p class="eyebrow">Centrul Local Cluj</p>
 		<h1>Plată cotizație{periodLabel ? ` (${periodLabel})` : ''}</h1>
 	</div>
-	{#if data.environment !== 'live'}<p class="environment-notice">
+	{#if (data.status?.environment ?? data.environment) !== 'live'}<p class="environment-notice">
 			Mediu de test · {providerName}. Nu folosi datele unui card real.
 		</p>{/if}
 	{#if data.status}
 		<section class="status-card">
 			<h2>{paymentLabels[data.status.state] ?? 'În curs de verificare'}</h2>
 			<p class="status-amount">{money(data.status.amountBani)}</p>
-			<a href={resolve('/cotizatie/rezultat')}>Verifică starea plății</a
-			>{#if ['succeeded', 'failed'].includes(data.status.state)}<form
+			{#if data.status.state === 'unknown'}<p>
+					Nu avem confirmarea rezultatului acestei încercări pe {providerName}. Acest mesaj nu
+					înseamnă că ai plătit. Responsabilul financiar poate verifica și debloca încercarea din
+					panoul de cotizații.
+				</p>{/if}
+			{#if data.status.state === 'failed'}<p>
+					Încercarea a fost închisă fără o plată confirmată. Poți începe o nouă plată.
+				</p>{/if}
+			<a href={resolve('/cotizatie/rezultat')}>Verifică starea plății</a>
+			{#if data.status.state === 'pending' && data.status.paymentUrl}<p>
+					<a class="primary-button" href={data.status.paymentUrl}
+						>Continuă plata pe {providerName}</a
+					>
+				</p>{/if}
+			{#if ['succeeded', 'failed'].includes(data.status.state)}<form
 					method="POST"
 					action="?/another"
 				>

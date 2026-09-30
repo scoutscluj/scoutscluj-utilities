@@ -90,7 +90,7 @@ describe('Stripe payment boundary', () => {
           STRIPE_ENVIRONMENT: 'test',
           STRIPE_SECRET_KEY: 'sk_test_secret',
           STRIPE_WEBHOOK_SECRET: secret,
-          MEMBERSHIP_WEB_ORIGIN: 'https://resurse.example.test',
+          WEB_ORIGIN: 'https://resurse.example.test',
         }),
       );
       await expect(

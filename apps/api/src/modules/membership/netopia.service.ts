@@ -6,6 +6,10 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createHash, createPublicKey, verify } from 'node:crypto';
 import { record, text } from './membership.rules';
+import {
+  paymentOrigin,
+  PaymentNotSubmittedException,
+} from './payment-provider';
 import type {
   NetopiaConfiguration,
   PaymentProvider,
@@ -110,11 +114,11 @@ export class NetopiaService implements PaymentProvider<NetopiaConfiguration> {
         config: {
           notifyUrl: new URL(
             '/api/membership/netopia/notify',
-            this.config.getOrThrow<string>('MEMBERSHIP_API_ORIGIN'),
+            paymentOrigin(this.config, 'api'),
           ).href,
           redirectUrl: new URL(
             '/cotizatie/rezultat',
-            this.config.getOrThrow<string>('MEMBERSHIP_WEB_ORIGIN'),
+            paymentOrigin(this.config, 'web'),
           ).href,
           language: 'ro',
           emailTemplate: '',
@@ -135,6 +139,10 @@ export class NetopiaService implements PaymentProvider<NetopiaConfiguration> {
         },
       }),
     });
+    if ([400, 401, 403, 404, 422].includes(response.status))
+      throw new PaymentNotSubmittedException(
+        'NETOPIA a respins inițierea plății. Verifică configurația procesatorului.',
+      );
     if (!response.ok)
       throw new BadGatewayException('NETOPIA nu a confirmat inițierea plății.');
     const payload = record(await response.json());
@@ -149,6 +157,7 @@ export class NetopiaService implements PaymentProvider<NetopiaConfiguration> {
         : [
             'secure.sandbox.netopia-payments.com',
             'sandbox.netopia-payments.com',
+            'secure-sandbox.netopia-payments.com',
           ].includes(paymentUrl.hostname))
     ) {
       throw new BadGatewayException(

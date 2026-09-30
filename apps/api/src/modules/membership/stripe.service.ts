@@ -12,6 +12,10 @@ import type {
   VerifiedPaymentEvent,
 } from './payment-provider';
 import { record, text, uuid } from './membership.rules';
+import {
+  paymentOrigin,
+  PaymentNotSubmittedException,
+} from './payment-provider';
 
 export function verifyStripeNotification(
   raw: Buffer,
@@ -108,7 +112,7 @@ export class StripeService implements PaymentProvider<StripeConfiguration> {
   }
 
   async start(input: StartPaymentInput, configuration: StripeConfiguration) {
-    const origin = this.config.getOrThrow<string>('MEMBERSHIP_WEB_ORIGIN');
+    const origin = paymentOrigin(this.config, 'web');
     const body = new URLSearchParams({
       mode: 'payment',
       success_url: new URL('/cotizatie/rezultat', origin).href,
@@ -132,10 +136,15 @@ export class StripeService implements PaymentProvider<StripeConfiguration> {
         headers: {
           Authorization: `Bearer ${configuration.secretKey}`,
           'Content-Type': 'application/x-www-form-urlencoded',
+          'Idempotency-Key': input.id,
         },
         body,
       },
     );
+    if ([400, 401, 403, 404, 422].includes(response.status))
+      throw new PaymentNotSubmittedException(
+        'Stripe a respins inițierea plății. Verifică configurația procesatorului.',
+      );
     if (!response.ok)
       throw new BadGatewayException('Stripe nu a confirmat inițierea plății.');
     const payload = record(await response.json());

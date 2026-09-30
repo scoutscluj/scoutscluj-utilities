@@ -17,6 +17,10 @@
 	{#if hasRole(data.user, 'admin') || hasRole(data.user, 'finance_manager')}
 		<div class="admin-section">
 			<h2>Financiar</h2>
+			<a class="module-card" href={resolve('/membership')}>
+				<strong>Membri și cotizații</strong>
+				<span>Registru ORGO, încasări, restanțe și transferuri naționale.</span>
+			</a>
 			<a class="module-card" href={resolve('/admin/finance/payment-processor')}>
 				<strong>Procesator plăți</strong>
 				<span>Alege NETOPIA sau Stripe și gestionează configurația securizată.</span>
@@ -63,6 +67,7 @@
 	}
 
 	.module-card {
+		margin-bottom: 12px;
 		display: grid;
 		gap: 6px;
 		border: 1px solid #cbd5e1;

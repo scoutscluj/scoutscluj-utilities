@@ -21,6 +21,7 @@ jest.mock('./entities/membership.entity', () => ({
 import type { EntityManager } from '@mikro-orm/postgresql';
 import { randomUUID } from 'node:crypto';
 import { MembershipService } from './membership.service';
+import { PaymentNotSubmittedException } from './payment-provider';
 import type { NetopiaService } from './netopia.service';
 import type { StripeService } from './stripe.service';
 import { UserRole } from '../users/entities/user-role.enum';
@@ -699,6 +700,27 @@ describe('membership service rules', () => {
       provider: 'stripe',
       providerStatus: 'checkout.session.completed:paid',
     });
+  });
+
+  it('allows retry after a proven pre-submission failure without recording a receipt', async () => {
+    const f = await setup();
+    f.netopia.start.mockRejectedValueOnce(
+      new PaymentNotSubmittedException('Missing return origin'),
+    );
+    const body = {
+      periodId: f.period.id,
+      identifier: '36805',
+      acceptTerms: true,
+      attemptToken: 'd'.repeat(43),
+    };
+    await expect(f.service.checkout(body)).rejects.toThrow(
+      'Missing return origin',
+    );
+    expect(f.rows.find((r) => r.table === 'checkout')?.state).toBe('failed');
+    expect(f.rows.filter((r) => r.table === 'receipt')).toHaveLength(0);
+    await expect(
+      f.service.checkout({ ...body, attemptToken: 'e'.repeat(43) }),
+    ).resolves.toMatchObject({ state: 'pending' });
   });
 
   it('rejects wrong-amount notifications and holds unknown checkout outcomes', async () => {

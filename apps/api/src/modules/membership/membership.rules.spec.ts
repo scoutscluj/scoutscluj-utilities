@@ -1,4 +1,10 @@
-import { bani, date, identifier, plan } from './membership.rules';
+import {
+  bani,
+  date,
+  identifier,
+  membershipPeriodFor,
+  plan,
+} from './membership.rules';
 
 describe('membership input rules', () => {
   it('keeps numeric ORGO IDs distinct from uppercase card IDs', () => {
@@ -20,5 +26,17 @@ describe('membership input rules', () => {
     expect(() => plan('constructor')).toThrow();
     expect(() => date('2026-02-30')).toThrow();
     expect(date('2026-10-28')).toBe('2026-10-28');
+  });
+  it('changes the membership year on 1 September in Bucharest', () => {
+    expect(membershipPeriodFor(new Date('2026-08-31T20:59:59Z'))).toEqual({
+      name: 'Cotizație 2025–2026',
+      startsOn: '2025-09-01',
+      endsOn: '2026-08-31',
+    });
+    expect(membershipPeriodFor(new Date('2026-08-31T21:00:00Z'))).toEqual({
+      name: 'Cotizație 2026–2027',
+      startsOn: '2026-09-01',
+      endsOn: '2027-08-31',
+    });
   });
 });

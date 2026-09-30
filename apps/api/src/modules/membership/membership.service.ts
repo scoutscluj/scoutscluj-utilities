@@ -29,6 +29,7 @@ import {
   bani,
   date,
   identifier,
+  membershipPeriodFor,
   plan,
   record,
   text,
@@ -122,8 +123,47 @@ export class MembershipService {
     );
   }
 
-  async catalog() {
-    const period = await this.em.findOne(Period, { active: true });
+  private async ensureCurrentPeriod(now = new Date()) {
+    const expected = membershipPeriodFor(now);
+    const existing = await this.em.findOne(Period, {
+      startsOn: expected.startsOn,
+      endsOn: expected.endsOn,
+    });
+    if (existing?.active) return existing;
+
+    return this.mutate(async (em) => {
+      let period = await em.findOne(Period, {
+        startsOn: expected.startsOn,
+        endsOn: expected.endsOn,
+      });
+      if (!period) {
+        const periods = await em.find(Period, {});
+        const source = periods.sort((a, b) =>
+          b.startsOn.localeCompare(a.startsOn),
+        )[0];
+        period = em.create(Period, {
+          ...expected,
+          prices: structuredClone(source?.prices ?? BASELINE_PLANS),
+          active: false,
+        });
+        em.persist(period);
+        this.audit(em, undefined, 'period.created_automatically', period.id, {
+          startsOn: expected.startsOn,
+          endsOn: expected.endsOn,
+          pricesCopiedFromPeriodId: source?.id ?? null,
+        });
+      }
+      for (const active of await em.find(Period, { active: true }))
+        if (active.id !== period.id) active.active = false;
+      period.active = true;
+      this.audit(em, undefined, 'period.activated_automatically', period.id);
+      await em.flush();
+      return period;
+    });
+  }
+
+  async catalog(now = new Date()) {
+    const period = await this.ensureCurrentPeriod(now);
     const settings = await this.paymentSettings();
     const activeProvider = settings.activeProvider as PaymentProviderName;
     const summary = await this.providerSummary(activeProvider);
@@ -160,9 +200,7 @@ export class MembershipService {
   async guestLookup(input: unknown) {
     const body = record(input);
     const entered = identifier(body.identifier);
-    const period = await this.em.findOne(Period, { active: true });
-    if (!period)
-      throw new NotFoundException('Perioada de cotizație nu este activă.');
+    const period = await this.ensureCurrentPeriod();
     const obligation = await this.findObligationByIdentifier(
       this.em,
       period.id,
@@ -245,6 +283,7 @@ export class MembershipService {
     orgoIntegration: string;
   }> {
     this.staff(user);
+    await this.ensureCurrentPeriod();
     const [
       periods,
       obligations,
@@ -777,6 +816,7 @@ export class MembershipService {
     const token = text(body.attemptToken, 100);
     if (!/^[A-Za-z0-9_-]{43}$/.test(token))
       throw new BadRequestException('Referință de plată invalidă.');
+    await this.ensureCurrentPeriod();
     const tokenHash = hash(token);
     const selected = await this.paymentSettings();
     const providerName = selected.activeProvider as PaymentProviderName;

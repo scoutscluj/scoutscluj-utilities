@@ -67,16 +67,9 @@
 </section>
 
 <details>
-	<summary>Perioade și tarife publicate</summary>
+	<summary>Perioade și tarife</summary>
 	{#each ledger.periods as p (p.id)}<div class="row">
-			<span>{p.name} · {p.startsOn} – {p.endsOn} {p.active ? '· Activă' : ''}</span
-			>{#if !p.active}<form method="POST">
-					<input type="hidden" name="action" value="activate" /><input
-						type="hidden"
-						name="id"
-						value={p.id}
-					/><button>Publică această perioadă</button>
-				</form>{/if}
+			<span>{p.name} · {p.startsOn} – {p.endsOn} {p.active ? '· Activă' : ''}</span>
 		</div>{/each}
 	<form method="POST" class="grid">
 		<input type="hidden" name="action" value="period" />
@@ -94,8 +87,9 @@
 				/></label
 			>{/each}
 		<p>
-			Aceleași tarife pentru card și bancă. Publică doar perioada și prețurile aprobate. Tarifele
-			existente nu se rescriu.
+			Aceleași tarife se folosesc pentru card și bancă. Perioada corespunzătoare devine activă
+			automat la 1 septembrie. Dacă nu este pregătită în avans, sistemul o creează și copiază
+			tarifele celei mai recente perioade.
 		</p>
 		<button>Creează perioada</button>
 	</form>

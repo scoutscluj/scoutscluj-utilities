@@ -18,6 +18,15 @@ The system SHALL distinguish obligations, receipts, allocations, national transf
 - **WHEN** authorized staff record one bank transfer and allocate it to several obligations
 - **THEN** allocations cannot exceed the receipt, remaining money is visible, and actor/date/transfer notes are retained
 
+### Requirement: Automatic annual membership period
+The system SHALL derive the active cotizație period in the Europe/Bucharest time zone, with each period starting on 1 September and ending on 31 August of the following year.
+
+#### Scenario: Period rolls over on 1 September
+- **WHEN** the local date becomes 1 September
+- **THEN** the period named for the new September-to-August year becomes active
+- **AND** if that period does not exist, the system creates it with the latest configured plan prices, or the baseline prices when no earlier period exists
+- **AND** earlier obligations, receipts, allocations, and payment evidence remain assigned to their original period
+
 ### Requirement: Locally verified guest payments
 The system SHALL accept numeric ORGO IDs and uppercase card IDs only when they match a verified obligation in the active local-center membership register. Public lookup SHALL disclose only a minimized identity preview, local-center affiliation, payable amount, and paid status.
 

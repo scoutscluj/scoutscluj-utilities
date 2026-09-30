@@ -29,8 +29,8 @@ NETOPIA is the recommended candidate following review of Cluj's existing account
 
 ## Agreed Product Decisions
 
-- Pilot cotizație for the current Orgo membership period; do not assume a calendar year or invent a due date.
-- Orgo owns member identity, local-center affiliation, assigned fee plan, and membership period.
+- The local cotizație period runs from 1 September through 31 August and advances automatically at midnight on 1 September, using the Europe/Bucharest time zone.
+- Orgo owns member identity, local-center affiliation, and assigned fee plan. Resurse owns the local period lifecycle and keeps it aligned with the agreed September-to-August membership year.
 - National amount comes from the assigned Orgo plan. The baseline local amount equals the national amount.
 - Cluj will manually set any additional RON needed in its published total after choosing a provider. No automatic fee calculation, percentage gross-up, or card-dependent checkout adjustment.
 - Logged-in self-payment is supported. Guest payment using an exact Orgo ID supersedes the earlier self-only restriction. No guardian verification or family relationship checks are required for paying another member.
@@ -92,6 +92,8 @@ Current baseline, confirmed from the user's Orgo screenshot:
 Resolve the plan applicable to the membership period rather than infer family rank from payment order. Do not invent Fam 4 or other tiers. Missing/unrecognized plans and ambiguous periods require review before collection. If Orgo uses period-start pricing, honor that configuration instead of blindly using today's price.
 
 Proposed configuration for acceptance: authorized finance users publish a final RON total per plan and period; the unchanged national share is retained separately, and the remainder belongs to Cluj. Start with the baseline values above. No additional amount is currently approved. Apply the published total equally to card and bank payments, consistent with the reviewed NETOPIA contract; manually configuring a card-only increase would still be a payment-method surcharge. This is a pricing constraint, not a claim that Resurse authorizes the organization to change its membership fee.
+
+The current period is derived automatically from the local date: 2026-09-01 through 2027-08-31 is displayed as 2026–2027. On 1 September, Resurse activates the matching period. If it has not been prepared in advance, Resurse creates it by copying the most recently configured plan prices; if no earlier period exists, it uses the baseline values above. The rollover does not rewrite obligations, receipts, allocations, or payment evidence from earlier periods.
 
 Store money in integer bani. Snapshot plan, period, national share, local share, total, and pricing version on an obligation/payment attempt. Publishing a new price or synchronizing a changed plan must not silently rewrite a paid obligation or an already confirmed transaction. Unpaid affected records enter an explicit review/repricing flow, with stale quotes invalidated before new checkout.
 
@@ -200,7 +202,7 @@ The 25-question interview is complete. Resolve the following through evidence an
 1. Production processor selection may be changed administratively between NETOPIA and Stripe only after the selected provider is fully configured and tested.
 2. Screenshot rate versus contract and amendments: confirm 1.19%, zero fixed fee, VAT treatment, and current payout charges using an invoice/settlement statement or NETOPIA confirmation.
 3. Final published amount for every tier and period, including any Cluj addition. Until approved, baseline totals apply; no default extra amount is invented.
-4. Exact current Orgo period boundaries, active/fee-eligible member rules, public identifier mapping, and the working API contract for plan reading and national write-back. Endpoint names in generic documentation do not establish tenant permission.
+4. Active/fee-eligible member rules, public identifier mapping, and the working API contract for plan reading and national write-back. Endpoint names in generic documentation do not establish tenant permission. The local Resurse period boundary is fixed at 1 September through 31 August.
 5. Whether national approval must occur after Cluj submits the batch. Reflect the real workflow; do not request broader authority merely to bypass it.
 6. Initial reconciliation of payments already collected and national shares already forwarded, including price changes during the transition.
 7. NETOPIA channel activation, hosted checkout and authenticated callbacks, uncertain-payment reconciliation, and the operational refund owner. Proposed default: refunds remain with existing authorized NETOPIA account operators; Resurse admins/finance record the result.

@@ -47,6 +47,7 @@ import type {
   VerifiedPaymentEvent,
 } from './payment-provider';
 import { PaymentConfigurationService } from './payment-configuration.service';
+import { PaymentNotSubmittedException } from './payment-provider';
 import {
   OrgoRosterService,
   type OrgoRosterMember,
@@ -540,6 +541,7 @@ export class MembershipService {
         | 'id'
         | 'identifier'
         | 'identifierKind'
+        | 'periodId'
         | 'plan'
         | 'amountBani'
         | 'provider'
@@ -582,6 +584,7 @@ export class MembershipService {
             'id',
             'identifier',
             'identifierKind',
+            'periodId',
             'plan',
             'amountBani',
             'provider',
@@ -623,6 +626,7 @@ export class MembershipService {
         id: c.id,
         identifier: c.identifier,
         identifierKind: c.identifierKind,
+        periodId: c.periodId,
         plan: c.plan,
         amountBani: c.amountBani,
         provider: c.provider,
@@ -1276,7 +1280,23 @@ export class MembershipService {
         if (fresh.state === 'unknown') fresh.state = 'pending';
         return { state: fresh.state, paymentUrl: fresh.paymentUrl };
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof PaymentNotSubmittedException) {
+        await this.mutate(async (em) => {
+          const fresh = await em.findOneOrFail(
+            Checkout,
+            { id: checkout.id },
+            { refresh: true },
+          );
+          if (fresh.state === 'unknown' && !fresh.providerId) {
+            fresh.state = 'failed';
+            this.audit(em, user?.id, 'checkout.not_submitted', fresh.id, {
+              reason: error.message,
+            });
+          }
+        });
+        throw error;
+      }
       // A lost response may still mean a charge exists. Do not create another.
       throw new ServiceUnavailableException(
         'Inițiere neconfirmată. Nu repeta plata; responsabilul financiar trebuie să verifice tranzacția.',
@@ -1294,6 +1314,7 @@ export class MembershipService {
       state: checkout.state,
       amountBani: checkout.amountBani,
       provider: checkout.provider,
+      environment: checkout.environment,
       requiresStaffReview: !checkout.obligationId || checkout.reviewRequired,
       paymentUrl: checkout.state === 'pending' ? checkout.paymentUrl : null,
     };

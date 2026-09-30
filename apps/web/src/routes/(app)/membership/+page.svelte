@@ -7,6 +7,8 @@
 	import { money } from '$lib/membership/types';
 	let { data, form } = $props();
 	let search = $state('');
+	let periodFilter = $state('');
+	let paymentFilter = $state('all');
 	let selected = $state<string[]>([]);
 	let memberCard = $state('');
 	const ledger = $derived(data.ledger);
@@ -58,11 +60,39 @@
 			.reduce((sum, a) => sum + a.amountBani, 0);
 	const receiptAvailable = (receipt: (typeof ledger.receipts)[number]) =>
 		available(receipt.id, receipt.amountBani - receipt.refundedBani);
+	const needsReview = (o: (typeof ledger.obligations)[number]) =>
+		Boolean(o.reviewState) ||
+		ledger.checkouts.some(
+			(c) =>
+				c.periodId === o.periodId &&
+				[c.identifier].some((id) => id === String(o.orgoUserId) || id === o.cardId) &&
+				(c.state === 'unknown' || c.reviewRequired)
+		);
+	const paymentState = (o: (typeof ledger.obligations)[number]) =>
+		needsReview(o)
+			? 'review'
+			: paid(o.id) >= o.totalBani
+				? 'paid'
+				: paid(o.id) > 0
+					? 'partial'
+					: 'unpaid';
+	const periodObligations = $derived(
+		ledger.obligations.filter((o) => o.periodId === (periodFilter || activePeriod?.id))
+	);
+	const totals = $derived({
+		members: periodObligations.length,
+		paid: periodObligations.filter((o) => paid(o.id) >= o.totalBani).length,
+		due: periodObligations.reduce((sum, o) => sum + o.totalBani, 0),
+		collected: periodObligations.reduce((sum, o) => sum + paid(o.id), 0),
+		remaining: periodObligations.reduce((sum, o) => sum + Math.max(0, o.totalBani - paid(o.id)), 0)
+	});
 	const filtered = $derived(
-		ledger.obligations.filter((o) =>
-			`${o.memberName} ${o.orgoUserId} ${o.cardId ?? ''}`
-				.toUpperCase()
-				.includes(search.toUpperCase())
+		periodObligations.filter(
+			(o) =>
+				(paymentFilter === 'all' || paymentState(o) === paymentFilter) &&
+				`${o.memberName} ${o.orgoUserId} ${o.cardId ?? ''}`
+					.toUpperCase()
+					.includes(search.toUpperCase())
 		)
 	);
 	const batchTotal = $derived(
@@ -87,12 +117,12 @@
 </script>
 
 <svelte:head><title>Administrare cotizații</title></svelte:head>
-<h1>Cotizații</h1>
+<h1>Membri și cotizații</h1>
 <p><a href={resolve('/cotizatie')}>Pagina de plată →</a></p>
 <p class="notice">
-	Registrul perioadei curente încearcă temporar accesul delegat al administratorului autentificat.
-	Când primim tokenul API-to-API ORGO, acela va fi folosit automat pentru sincronizările
-	administrative.
+	Registrul folosește cheia ORGO de pe server când este configurată. Inițializează perioada din
+	previzualizarea ORGO pentru a adăuga membrii eligibili; încasările sunt urmărite separat de
+	transferurile naționale.
 </p>
 {#if form?.message}<p role="status" class="notice">{form.message}</p>{/if}
 
@@ -250,16 +280,48 @@
 
 <section>
 	<h2>Membri și transfer național</h2>
+	<div class="grid">
+		<label
+			>Perioadă<select
+				value={periodFilter || activePeriod?.id}
+				onchange={(e) => {
+					periodFilter = e.currentTarget.value;
+					selected = [];
+				}}
+				>{#each ledger.periods as p (p.id)}<option value={p.id}>{p.name}</option>{/each}</select
+			></label
+		>
+		<label
+			>Starea cotizației<select
+				bind:value={paymentFilter}
+				onchange={() => {
+					selected = [];
+				}}
+				><option value="all">Toate</option><option value="paid">Plătit</option><option
+					value="partial">Parțial</option
+				><option value="unpaid">Neplătit</option><option value="review">De verificat</option
+				></select
+			></label
+		>
+	</div>
+	<div class="grid" aria-label="Totaluri cotizații">
+		<p>
+			<strong>{totals.members}</strong> membri · <strong>{totals.paid}</strong> cu cotizația achitată
+		</p>
+		<p>Datorat: <strong>{money(totals.due)}</strong></p>
+		<p>Încasat: <strong>{money(totals.collected)}</strong></p>
+		<p>Restant: <strong>{money(totals.remaining)}</strong></p>
+	</div>
 	<label>Caută nume sau ID<input bind:value={search} type="search" /></label>
+	<p>{filtered.length} membri afișați.</p>
 	<form method="POST">
 		<input type="hidden" name="action" value="batch" />
 		<div class="scroll">
 			<table>
 				<thead
 					><tr
-						><th>Transfer</th><th>Membru</th><th>Perioadă</th><th>Datorat</th><th>Încasat</th><th
-							>Național</th
-						><th>Stare</th></tr
+						><th>Transfer</th><th>Membru</th><th>Plan / perioadă</th><th>Datorat</th><th>Încasat</th
+						><th>Restant</th><th>Național</th><th>Stare</th></tr
 					></thead
 				><tbody>
 					{#each filtered as o (o.id)}{@const item = ledger.nationalItems.find(
@@ -275,17 +337,35 @@
 									/>{/if}</td
 							>
 							<td>{o.memberName}<small>{o.orgoUserId} {o.cardId ?? ''}</small></td><td
-								>{ledger.periods.find((p) => p.id === o.periodId)?.name}</td
-							><td>{money(o.totalBani)}</td><td>{money(paid(o.id))}</td><td
+								>{plans.find((p) => p[0] === o.plan)?.[1] ?? o.plan}<small
+									>{ledger.periods.find((p) => p.id === o.periodId)?.name}</small
+								></td
+							><td>{money(o.totalBani)}</td><td
+								>{money(paid(o.id))}
+								<details>
+									<summary>Încasări</summary
+									>{#each ledger.allocations.filter((a) => a.obligationId === o.id && !a.reversed) as allocation (allocation.id)}{@const receipt =
+											ledger.receipts.find((r) => r.id === allocation.receiptId)}
+										<p>
+											{money(allocation.amountBani)} · {receipt?.method === 'card'
+												? 'Card'
+												: 'Transfer bancar'}<small
+												>{receipt?.receivedOn} · {receipt?.reference}</small
+											><small>{receipt?.note}</small>
+										</p>{:else}<small>Nu există încasări alocate.</small>{/each}
+								</details></td
+							><td>{money(Math.max(0, o.totalBani - paid(o.id)))}</td><td
 								>{money(o.nationalBani)}</td
 							><td
-								>{item
-									? (stateLabels[item.orgoState] ?? item.orgoState)
-									: paid(o.id) >= o.totalBani
-										? 'Plătit · netransferat'
-										: paid(o.id) > 0
-											? 'Parțial'
-											: 'Neplătit'}{#if o.reviewState}<small class="review"
+								>{needsReview(o)
+									? 'De verificat'
+									: item
+										? (stateLabels[item.orgoState] ?? item.orgoState)
+										: paid(o.id) >= o.totalBani
+											? 'Plătit · netransferat'
+											: paid(o.id) > 0
+												? 'Parțial'
+												: 'Neplătit'}{#if o.reviewState}<small class="review"
 										>Necesită verificare: {o.reviewReason}</small
 									>{/if}</td
 							>

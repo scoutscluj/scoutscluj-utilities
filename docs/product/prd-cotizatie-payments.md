@@ -6,6 +6,19 @@ Code baseline: main, 8669191; remote metadata refreshed during this review.
 
 ## Approved implementation amendments
 
+- The shared read-only ORGO API key is now configured server-side. The confirmed
+  local center is Vest, ID 8, in Cluj-Napoca. Read-only access enables roster
+  discovery; national fee write-back still requires separate write permissions.
+- Administration → Financial includes a Members and membership fees panel:
+  period selection, name/ORGO/card ID search, paid/partial/unpaid/review filters,
+  member counts and due/received/outstanding totals. Per-member rows show the
+  ORGO plan, receipt methods/references/notes and national transfer state. Staff
+  retain the existing audited bank allocation and reconciliation actions.
+- A proven failure before submission or explicit provider rejection allows a new
+  attempt. Lost/uncertain responses require financial review to avoid duplicate
+  charges. Existing attempts retain their original provider/environment even
+  when the administrator switches the active provider.
+
 - NETOPIA is the initial selection. Provider credentials are entered by authorized financial staff, encrypted by the API with AWS KMS and must never be committed or returned to the browser.
 - Only member-scoped ORGO login credentials are currently available. The roster adapter may try a delegated credential, but broad member reads are expected to require a scoped `Api-Token`. It automatically prefers `ORGO_API_TOKEN` when Orgo issues one. Until a credential proves the real tenant contract, every failed synchronization remains visible and no obligation is mutated.
 - Guest checkout requires a numeric ORGO ID or card ID that matches a verified obligation in the active local-center register. Show only a minimized identity preview, local-center affiliation, payable amount, and paid status before checkout; never let the payer select a fee plan.

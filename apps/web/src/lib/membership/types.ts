@@ -17,6 +17,9 @@ export type Obligation = {
 	totalBani: number;
 	nationalBani: number;
 	paidBani?: number;
+	orgoLastSyncedAt?: string;
+	reviewState?: string | null;
+	reviewReason?: string | null;
 };
 export type Receipt = {
 	id: string;
@@ -88,6 +91,32 @@ export type Dashboard = {
 		}>;
 	};
 	orgoIntegration: string;
+	rosterSync: null | {
+		id: string;
+		periodId: string;
+		mode: 'initialization' | 'manual' | 'automatic';
+		status: 'running' | 'succeeded' | 'failed';
+		summary: { added?: number; updated?: number; review?: number; unchanged?: number };
+		error?: string;
+		createdAt: string;
+		completedAt?: string;
+	};
+	rosterInitialized: boolean;
+};
+
+export type RosterPreview = {
+	period: { id: string; name: string; startsOn: string; endsOn: string };
+	members: Array<{
+		orgoUserId: number;
+		cardId?: string;
+		memberName: string;
+		plan: string;
+		totalBani: number;
+		action: 'add' | 'verify';
+	}>;
+	issues: Array<{ orgoUserId: number; memberName: string; reason?: string }>;
+	existingCount: number;
+	newCount: number;
 };
 export type PaymentStatus = {
 	state: string;

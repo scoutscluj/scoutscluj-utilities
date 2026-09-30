@@ -1,13 +1,13 @@
 # PRD: Cotizație Payments and National Settlement
 
 Status: Approved by the user for NETOPIA implementation, with the amendments below.
-Date: 2026-09-21.
+Date: 2026-09-30.
 Code baseline: main, 8669191; remote metadata refreshed during this review.
 
 ## Approved implementation amendments
 
 - NETOPIA is the initial selection. Provider credentials are entered by authorized financial staff, encrypted by the API with AWS KMS and must never be committed or returned to the browser.
-- Only member-scoped ORGO login tokens are currently available. There is no administrative server token. Background roster lookup and national write-back remain unavailable until suitable access is supplied and verified; represent this explicitly rather than reporting synchronization success.
+- Only member-scoped ORGO login credentials are currently available. The roster adapter may try a delegated credential, but broad member reads are expected to require a scoped `Api-Token`. It automatically prefers `ORGO_API_TOKEN` when Orgo issues one. Until a credential proves the real tenant contract, every failed synchronization remains visible and no obligation is mutated.
 - Guest checkout requires a numeric ORGO ID or card ID that matches a verified obligation in the active local-center register. Show only a minimized identity preview, local-center affiliation, payable amount, and paid status before checkout; never let the payer select a fee plan.
 - Normalize card IDs to uppercase in the textbox and on the server. Numeric IDs and card IDs are distinct identifier types; never derive a numeric ID by stripping a card prefix.
 - A future administrative ORGO token can refresh the local register, but checkout remains bound to the verified local obligation so historical receipts do not depend on a live lookup.
@@ -66,6 +66,10 @@ NETOPIA is the recommended candidate following review of Cluj's existing account
 20. As an admin or Responsabil financiar, I want receipts, processor fees, and bank payouts kept distinct, so that net deposits are not mistaken for underpaid cotizații.
 21. As an admin or Responsabil financiar, I want refund and dispute outcomes reflected with their national-settlement consequences, so that reversed funds are not reported as available.
 22. As a reviewer, I want an audit trail of financial changes, so that I can identify the actor, time, reason, and affected records.
+23. As an admin or Responsabil financiar, I want to preview and confirm the first ORGO roster import for a period, so that the app does not create obligations from an unreviewed result.
+24. As an admin or Responsabil financiar, I want opening the cotizație dashboard to check for new eligible members at most once every 15 minutes, so that later registrations are added without repeated manual imports.
+25. As an admin or Responsabil financiar, I want a visible summary of members added, updated, or requiring review, so that automatic synchronization is accountable.
+26. As an admin or Responsabil financiar, I want paid obligations preserved when ORGO changes a plan or removes a member, so that synchronization cannot rewrite financial history.
 
 ## Implementation Decisions
 
@@ -147,7 +151,11 @@ Only display Orgo `confirmed` after verifying the corresponding member and perio
 
 ### Orgo integration
 
-Use a dedicated server-side Api-Token with only the owning account permissions required for Cluj operations. OAuth member tokens may support member actions but the documentation caps them to member permissions; do not assume they can approve national payments. Do not treat the legacy successToken as an API credential.
+The first roster synchronization for each September-to-August period is explicit: staff request a preview, inspect eligible members, assigned plans and rejected rows, then confirm initialization. Merely opening the dashboard cannot initialize an unreviewed period. After successful initialization, opening the dashboard schedules a background reconciliation no more than once every 15 minutes; staff may also request an immediate synchronization.
+
+New eligible Cluj members receive obligations automatically. Unpaid obligations may adopt corrected name, card ID, plan and period price. A plan change after any allocation, a member that becomes inactive or unpriced, or an existing obligation absent from a valid ORGO response is retained and marked for review. The synchronization never deletes obligations or receipts. A transport, authentication, permission or response-shape failure changes no obligation and records a failed run. Successful and failed runs retain actor, mode, time and aggregate counts without storing tokens or unnecessary profile data. The dashboard shows the result through a snackbar and persistent last-run state.
+
+Use a dedicated server-side Api-Token with only the owning account permissions required for Cluj operations. OAuth member tokens may support member actions but the documentation caps them to member permissions; do not assume they can list the local roster or approve national payments. Do not treat the legacy successToken as an API credential. The temporary delegated fallback is a compatibility seam, not proof of permission; replace it operationally by setting `ORGO_API_TOKEN` without changing the synchronization domain logic.
 
 The documentation establishes member/price resources, fee records, and administrative approval workflows. It does not yet prove the exact request sequence that records every selected member's national period using Cluj's actual permission level. A generic FeePayment create response alone is insufficient evidence. Before enabling live collection, verify member-ID mapping, plan/period fields, local-center filtering, write permissions, member allocation, approval effects, and read-back reconciliation in the actual supported tenant integration. Do not use guessed status integers from generated examples.
 

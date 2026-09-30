@@ -22,6 +22,7 @@ import { AuditEntry } from '../modules/audit/entities/audit-entry.entity';
 import { Migration20260921000100 } from '../migrations/Migration20260921000100';
 import { Migration20260928000100 } from '../migrations/Migration20260928000100';
 import { Migration20260930000100 } from '../migrations/Migration20260930000100';
+import { Migration20260930000200 } from '../migrations/Migration20260930000200';
 import type { PaymentConfigurationService } from '../modules/membership/payment-configuration.service';
 import { UserRole } from '../modules/users/entities/user-role.enum';
 
@@ -80,12 +81,46 @@ async function main() {
       if (typeof sql !== 'string') throw new Error('Expected SQL migration');
       await orm.em.getConnection().execute(sql);
     }
+    await orm.em
+      .getConnection()
+      .execute(
+        `insert into membership_payment_provider_configs (id, provider, active, environment, encrypted_configuration, secret_hint, updated_by, updated_at) values ('11111111-1111-4111-8111-111111111111', 'stripe', false, 'live', 'encrypted-live', 'live', 1, '2026-09-29T10:00:00Z'), ('22222222-2222-4222-8222-222222222222', 'stripe', true, 'test', 'encrypted-test', 'test', 1, '2026-09-29T11:00:00Z')`,
+      );
+    await orm.em
+      .getConnection()
+      .execute(
+        `update membership_payment_settings set active_provider = 'stripe' where id = 'membership'`,
+      );
     const environmentMigration = new Migration20260930000100(
       orm.em.getDriver(),
       orm.config,
     );
     environmentMigration.up();
     for (const sql of environmentMigration.getQueries()) {
+      if (typeof sql !== 'string') throw new Error('Expected SQL migration');
+      await orm.em.getConnection().execute(sql);
+    }
+    const migratedTargets = await orm.em
+      .getConnection()
+      .execute<
+        Array<{ environment: string; active: boolean }>
+      >(`select environment, active from membership_payment_provider_configs where provider = 'stripe' order by environment`);
+    assert.deepEqual(migratedTargets, [
+      { environment: 'live', active: true },
+      { environment: 'test', active: true },
+    ]);
+    const migratedSelection = await orm.em
+      .getConnection()
+      .execute<
+        Array<{ active_environment: string }>
+      >(`select active_environment from membership_payment_settings where id = 'membership'`);
+    assert.equal(migratedSelection[0].active_environment, 'test');
+    const rosterMigration = new Migration20260930000200(
+      orm.em.getDriver(),
+      orm.config,
+    );
+    rosterMigration.up();
+    for (const sql of rosterMigration.getQueries()) {
       if (typeof sql !== 'string') throw new Error('Expected SQL migration');
       await orm.em.getConnection().execute(sql);
     }
@@ -105,6 +140,7 @@ async function main() {
         new NetopiaService(new ConfigService()),
         new StripeService(new ConfigService()),
         paymentConfigurations,
+        { members: () => Promise.resolve([]) } as never,
       );
     const service = makeService(),
       user = {
@@ -233,6 +269,7 @@ async function main() {
           new NetopiaService(callbackConfig),
           new StripeService(callbackConfig),
           paymentConfigurations,
+          { members: () => Promise.resolve([]) } as never,
         ).notifyNetopia(callback, jwt),
       ),
     );

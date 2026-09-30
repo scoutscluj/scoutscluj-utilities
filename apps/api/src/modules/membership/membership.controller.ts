@@ -99,8 +99,28 @@ export class MembershipController {
   @UseGuards(AuthGuard)
   @Get('admin')
   @Header('Cache-Control', 'no-store')
-  dashboard(@CurrentUser() user: AuthenticatedUser) {
-    return this.membership.dashboard(user);
+  async dashboard(@CurrentUser() user: AuthenticatedUser) {
+    const result = await this.membership.dashboard(user);
+    this.membership.scheduleAutomaticRosterSync(user);
+    return result;
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('roster/preview')
+  rosterPreview(@CurrentUser() user: AuthenticatedUser) {
+    return this.membership.rosterPreview(user);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('roster/initialize')
+  initializeRoster(@CurrentUser() user: AuthenticatedUser) {
+    return this.membership.synchronizeRoster(user, 'initialization');
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('roster/sync')
+  syncRoster(@CurrentUser() user: AuthenticatedUser) {
+    return this.membership.synchronizeRoster(user, 'manual');
   }
 
   @UseGuards(AuthGuard)

@@ -61,4 +61,34 @@ describe('ORGO member API credentials', () => {
       fetchMock.mockRestore();
     }
   });
+
+  it('prefers the server API token for administrative API calls', async () => {
+    const em = {
+      findOne: jest.fn(),
+      flush: jest.fn(),
+    };
+    const service = new OrgoTokenService(
+      em as unknown as EntityManager,
+      new ConfigService({
+        ORGO_OAUTH_BASE_URL: 'https://tenant.example.test',
+        ORGO_API_TOKEN: 'server-token',
+      }),
+    );
+    const fetchMock = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ 'hydra:member': [] }), { status: 200 }),
+      );
+    try {
+      await expect(service.apiJson(1, '/api/v1/users')).resolves.toEqual({
+        'hydra:member': [],
+      });
+      expect(em.findOne).not.toHaveBeenCalled();
+      expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({
+        'Api-Token': 'server-token',
+      });
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
 });

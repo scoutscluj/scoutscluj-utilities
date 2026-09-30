@@ -1,4 +1,5 @@
 jest.mock('@mikro-orm/postgresql', () => ({ EntityManager: class {} }));
+jest.mock('./orgo-roster.service', () => ({ OrgoRosterService: class {} }));
 jest.mock('../audit/entities/audit-entry.entity', () => ({
   AuditEntry: 'audit',
 }));
@@ -14,6 +15,7 @@ jest.mock('./entities/membership.entity', () => ({
   MembershipPayout: 'payout',
   MembershipPaymentSettings: 'settings',
   MembershipPaymentProviderConfig: 'provider-config',
+  MembershipRosterSync: 'roster-sync',
 }));
 
 import type { EntityManager } from '@mikro-orm/postgresql';
@@ -209,18 +211,50 @@ function fixture() {
         secretHint: 'test',
       }),
   };
+  const rosterMembers = jest.fn<
+    Promise<
+      Array<{
+        orgoUserId: number;
+        cardId: string;
+        memberName: string;
+        plan: 'normal' | 'fam2';
+        eligible: boolean;
+      }>
+    >,
+    []
+  >(() =>
+    Promise.resolve([
+      {
+        orgoUserId: 36805,
+        cardId: 'AT36805',
+        memberName: 'Test Member',
+        plan: 'normal' as const,
+        eligible: true,
+      },
+    ]),
+  );
   const service = new MembershipService(
     em as unknown as EntityManager,
     netopia as unknown as NetopiaService,
     stripe as unknown as StripeService,
     configurations as never,
+    { members: rosterMembers } as never,
   );
   const staff: CurrentUser = {
     id: 1,
     displayName: 'Finance',
     roles: [UserRole.FinanceManager],
   };
-  return { rows, em, netopia, stripe, configurations, service, staff };
+  return {
+    rows,
+    em,
+    netopia,
+    stripe,
+    configurations,
+    rosterMembers,
+    service,
+    staff,
+  };
 }
 
 async function setup() {
@@ -279,6 +313,158 @@ describe('membership service rules', () => {
 
     await f.service.catalog(new Date('2026-09-01T12:00:00+03:00'));
     expect(f.rows.filter((row) => row.table === 'period')).toHaveLength(2);
+  });
+
+  it('initializes the current roster and adds only new ORGO members on later syncs', async () => {
+    const f = fixture();
+    const first = await f.service.synchronizeRoster(f.staff, 'initialization');
+    expect(first).toMatchObject({ added: 1, review: 0 });
+    expect(f.rows.filter((row) => row.table === 'obligation')).toHaveLength(1);
+
+    f.rosterMembers.mockResolvedValueOnce([
+      {
+        orgoUserId: 36805,
+        cardId: 'AT36805',
+        memberName: 'Test Member',
+        plan: 'normal',
+        eligible: true,
+      },
+      {
+        orgoUserId: 40000,
+        cardId: 'AT40000',
+        memberName: 'New Member',
+        plan: 'fam2',
+        eligible: true,
+      },
+    ]);
+    const second = await f.service.synchronizeRoster(f.staff, 'manual');
+    expect(second).toMatchObject({ added: 1, unchanged: 1 });
+    expect(f.rows.filter((row) => row.table === 'obligation')).toHaveLength(2);
+  });
+
+  it('requires initialization before manual synchronization and prevents reinitialization', async () => {
+    const f = fixture();
+    await expect(
+      f.service.synchronizeRoster(f.staff, 'manual'),
+    ).rejects.toThrow('confirmă inițializarea');
+    await f.service.synchronizeRoster(f.staff, 'initialization');
+    await expect(
+      f.service.synchronizeRoster(f.staff, 'initialization'),
+    ).rejects.toThrow('deja inițializată');
+  });
+
+  it('preserves paid obligations for review when ORGO changes their plan', async () => {
+    const f = fixture();
+    await f.service.synchronizeRoster(f.staff, 'initialization');
+    const obligation = f.rows.find((row) => row.table === 'obligation')!;
+    const period = f.rows.find((row) => row.table === 'period')!;
+    const receipt = await f.service.bankReceipt(f.staff, {
+      periodId: period.id,
+      amountBani: 10000,
+      reference: 'paid-before-plan-change',
+      receivedOn: '2026-09-30',
+      note: 'Partial bank payment',
+    });
+    await f.service.allocate(f.staff, {
+      receiptId: receipt.id,
+      obligationId: obligation.id,
+      amountBani: 10000,
+      note: 'Partial allocation',
+    });
+    f.rosterMembers.mockResolvedValueOnce([
+      {
+        orgoUserId: 36805,
+        cardId: 'AT36805',
+        memberName: 'Test Member',
+        plan: 'fam2',
+        eligible: true,
+      },
+    ]);
+
+    await expect(
+      f.service.synchronizeRoster(f.staff, 'manual'),
+    ).resolves.toMatchObject({
+      review: 1,
+      updated: 0,
+    });
+    expect(obligation).toMatchObject({
+      plan: 'normal',
+      reviewState: 'plan_changed_after_payment',
+    });
+  });
+
+  it('never deletes an existing obligation when a member disappears from ORGO', async () => {
+    const f = fixture();
+    await f.service.synchronizeRoster(f.staff, 'initialization');
+    const obligation = f.rows.find((row) => row.table === 'obligation')!;
+    f.rosterMembers.mockResolvedValueOnce([
+      {
+        orgoUserId: 40000,
+        cardId: 'AT40000',
+        memberName: 'Still Active',
+        plan: 'normal',
+        eligible: true,
+      },
+    ]);
+
+    await expect(
+      f.service.synchronizeRoster(f.staff, 'manual'),
+    ).resolves.toMatchObject({
+      review: 1,
+    });
+    expect(f.rows.filter((row) => row.table === 'obligation')).toHaveLength(2);
+    expect(obligation).toMatchObject({ reviewState: 'missing_from_orgo' });
+    await expect(
+      f.service.guestLookup({ identifier: 'AT36805' }),
+    ).rejects.toThrow('necesită verificare');
+  });
+
+  it('rejects a suddenly empty ORGO roster without changing obligations', async () => {
+    const f = fixture();
+    await f.service.synchronizeRoster(f.staff, 'initialization');
+    const obligation = f.rows.find((row) => row.table === 'obligation')!;
+    f.rosterMembers.mockResolvedValueOnce([]);
+
+    await expect(
+      f.service.synchronizeRoster(f.staff, 'manual'),
+    ).rejects.toThrow('registru gol');
+    expect(obligation.reviewState).toBeNull();
+    expect(
+      f.rows.find(
+        (row) => row.table === 'roster-sync' && row.mode === 'manual',
+      ),
+    ).toMatchObject({ status: 'failed' });
+  });
+
+  it('holds a changed obligation and any open checkout for financial review', async () => {
+    const f = fixture();
+    await f.service.synchronizeRoster(f.staff, 'initialization');
+    const period = f.rows.find((row) => row.table === 'period')!;
+    await f.service.checkout({
+      periodId: period.id,
+      identifier: 'AT36805',
+      acceptTerms: true,
+      attemptToken: 'p'.repeat(43),
+    });
+    f.rosterMembers.mockResolvedValueOnce([
+      {
+        orgoUserId: 36805,
+        cardId: 'AT36805',
+        memberName: 'Test Member',
+        plan: 'fam2',
+        eligible: true,
+      },
+    ]);
+
+    await f.service.synchronizeRoster(f.staff, 'manual');
+
+    expect(f.rows.find((row) => row.table === 'obligation')).toMatchObject({
+      plan: 'normal',
+      reviewState: 'plan_changed_after_payment',
+    });
+    expect(f.rows.find((row) => row.table === 'checkout')).toMatchObject({
+      reviewRequired: true,
+    });
   });
 
   it('allocates one receipt across members without spending it twice', async () => {

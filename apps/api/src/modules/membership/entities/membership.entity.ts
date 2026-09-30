@@ -77,10 +77,30 @@ export const MembershipObligation = defineEntity({
     totalBani: p.integer(),
     nationalBani: p.integer(),
     verificationNote: p.text(),
+    orgoLastSyncedAt: p.datetime().nullable(),
+    reviewState: p.string().nullable(),
+    reviewReason: p.text().nullable(),
     createdAt: created(),
   },
 });
 export type MembershipObligation = InferEntity<typeof MembershipObligation>;
+
+export const MembershipRosterSync = defineEntity({
+  name: 'MembershipRosterSync',
+  tableName: 'membership_roster_syncs',
+  properties: {
+    id: id(),
+    periodId: p.uuid(),
+    actorId: p.integer(),
+    mode: p.string(),
+    status: p.string(),
+    summary: p.json<Record<string, unknown>>(),
+    error: p.text().nullable(),
+    createdAt: created(),
+    completedAt: p.datetime().nullable(),
+  },
+});
+export type MembershipRosterSync = InferEntity<typeof MembershipRosterSync>;
 
 export const MembershipCheckout = defineEntity({
   name: 'MembershipCheckout',
@@ -214,6 +234,7 @@ export const MEMBERSHIP_ENTITIES = [
   MembershipPaymentProviderConfig,
   MembershipPeriod,
   MembershipObligation,
+  MembershipRosterSync,
   MembershipCheckout,
   MembershipReceipt,
   MembershipAllocation,

@@ -68,6 +68,26 @@ The system SHALL record manual national transfers separately from member collect
 - **WHEN** staff confirm a national transfer
 - **THEN** the transferred amounts are recorded and ORGO remains explicitly pending until independently verified
 
+### Requirement: Reviewed ORGO roster initialization and reconciliation
+The system SHALL require an authorized staff preview and confirmation before the first ORGO roster import for each period. After initialization it SHALL reconcile the roster in the background at most once per 15 minutes when staff open the cotizație dashboard, and SHALL offer an immediate manual synchronization.
+
+#### Scenario: First initialization
+- **WHEN** authorized staff request initialization for a period that has not been initialized
+- **THEN** the system displays eligible members, assigned plans, amounts and rejected rows before creating obligations
+- **AND** obligations are created only after explicit confirmation
+
+#### Scenario: Later member or plan change
+- **WHEN** a valid ORGO response contains a new eligible Cluj member
+- **THEN** the system adds the obligation and reports the addition to staff
+- **AND** an unpaid obligation may be updated from ORGO
+- **AND** a paid or partially paid obligation with a changed plan is preserved and marked for review
+- **AND** a missing, inactive or unpriced member is preserved and marked for review
+
+#### Scenario: ORGO cannot be trusted
+- **WHEN** authentication, permission, transport, or response-shape validation fails
+- **THEN** no obligation is created, updated, or removed
+- **AND** the failed run is visible and audited without credentials or unnecessary personal data
+
 ### Requirement: Explicit access and activation
 The system SHALL allow Admin, FinanceManager and SuperAdmin financial access, keep guest results opaque, and default card processing to disabled sandbox configuration.
 

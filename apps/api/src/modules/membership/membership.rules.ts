@@ -10,6 +10,26 @@ export const BASELINE_PLANS = {
 export type PlanKey = keyof typeof BASELINE_PLANS;
 export type Prices = typeof BASELINE_PLANS;
 
+export function membershipPeriodFor(value: Date) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Europe/Bucharest',
+      year: 'numeric',
+      month: '2-digit',
+    })
+      .formatToParts(value)
+      .filter((part) => part.type === 'year' || part.type === 'month')
+      .map((part) => [part.type, part.value]),
+  );
+  const year = Number(parts.year);
+  const startYear = Number(parts.month) >= 9 ? year : year - 1;
+  return {
+    name: `Cotizație ${startYear}–${startYear + 1}`,
+    startsOn: `${startYear}-09-01`,
+    endsOn: `${startYear + 1}-08-31`,
+  };
+}
+
 export function text(value: unknown, max = 500): string {
   if (typeof value !== 'string' || !value.trim() || value.trim().length > max) {
     throw new BadRequestException('Text invalid sau lipsă.');

@@ -219,6 +219,33 @@ describe('membership service rules', () => {
     ).toHaveLength(0);
   });
 
+  it('creates and activates the new annual period automatically on 1 September', async () => {
+    const f = fixture();
+    const previous = await f.service.createPeriod(f.staff, {
+      name: 'Cotizație 2025–2026',
+      startsOn: '2025-09-01',
+      endsOn: '2026-08-31',
+      totals: { normal: 32000 },
+    });
+    await f.service.activatePeriod(f.staff, previous.id);
+
+    const catalog = await f.service.catalog(
+      new Date('2026-09-01T00:00:00+03:00'),
+    );
+
+    expect(catalog.period).toMatchObject({
+      name: 'Cotizație 2026–2027',
+      startsOn: '2026-09-01',
+      endsOn: '2027-08-31',
+      active: true,
+    });
+    expect(catalog.period.prices.normal.totalBani).toBe(32000);
+    expect(previous.active).toBe(false);
+
+    await f.service.catalog(new Date('2026-09-01T12:00:00+03:00'));
+    expect(f.rows.filter((row) => row.table === 'period')).toHaveLength(2);
+  });
+
   it('allocates one receipt across members without spending it twice', async () => {
     const f = await setup();
     const second = await f.service.createObligation(f.staff, {

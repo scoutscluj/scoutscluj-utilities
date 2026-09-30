@@ -8,7 +8,9 @@
 	const ownRemaining = $derived(own ? Math.max(0, own.totalBani - (own.paidBani ?? 0)) : 0);
 	const lookup = $derived(form?.lookup);
 	const providerName = $derived(data.activeProvider === 'stripe' ? 'Stripe' : 'NETOPIA');
-	const periodLabel = $derived(data.period?.name.replace(/^Cotizație\s*/i, '') ?? '');
+	const periodLabel = $derived(
+		data.period ? `${data.period.startsOn.slice(0, 4)}–${data.period.endsOn.slice(0, 4)}` : ''
+	);
 </script>
 
 {#snippet legalAcceptance()}

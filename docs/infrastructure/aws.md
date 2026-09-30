@@ -26,6 +26,9 @@ WEB_ORIGINS=https://resurse.scoutscluj.ro
 ORGO_OAUTH_REDIRECT_URI=https://resurse.scoutscluj.ro/api/orgo/callback
 # Empty until Orgo issues the local center's scoped server-to-server token.
 ORGO_API_TOKEN=
+# Prefer the stable ORGO local-center ID over a display-name match.
+ORGO_LOCAL_CENTER_ID=
+ORGO_LOCAL_CENTER_NAME=Centrul Local Cluj
 ```
 
 ## CDK Commands
@@ -216,6 +219,26 @@ The app secret must contain real Orgo login credentials before the first deploym
 an empty string. The roster synchronization adapter prefers this token and sends it only in the
 server-side `Api-Token` header. It falls back to a delegated credential, whose permissions may be
 insufficient for an administrative roster read:
+
+The shared ORGO adapter can use a read-only API token for member discovery and
+other API reads; it does not grant national payment write-back permissions.
+With a server API token, `ORGO_LOCAL_CENTER_ID` is required before roster reads
+to avoid retrieving members across the national tenant. Set it to the confirmed center ID and optionally
+`ORGO_LOCAL_CENTER_NAME` to its ORGO display name in the existing app secret,
+preserving the remaining fields. Deployment injects both into the API container.
+The roster requests `localCenter=<id>` and follows all `hydra:next` pages, then
+verifies each member's center ID locally. Incomplete or looping pagination fails
+before any obligation is changed. Do not assume `pagination=false` returns all
+members: the production tenant still returns 50-item pages.
+
+The web container receives `ORIGIN` from `WEB_ORIGIN`, explicitly pinning the
+public HTTPS origin behind Caddy. Membership forms use `Referrer-Policy:
+same-origin` so browser POSTs retain their origin for SvelteKit's CSRF validation
+while external payment-provider navigations receive no referrer. Using
+`no-referrer` on this form page caused browsers to submit `Origin: null` and
+receive `Cross-site POST form submissions are forbidden`; CSRF checks remain
+enabled. After rollout, verify a browser lookup form and confirm a POST with an
+unrelated Origin is still rejected with HTTP 403.
 
 ```bash
 aws secretsmanager update-secret \

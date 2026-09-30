@@ -7,7 +7,8 @@ import type { Actions, PageServerLoad } from './$types';
 
 const ATTEMPT_COOKIE = 'membership_attempt';
 export const load: PageServerLoad = async ({ cookies, locals, setHeaders }) => {
-	setHeaders({ 'cache-control': 'private, no-store', 'referrer-policy': 'no-referrer' });
+	// Keep same-origin POST origins intact while hiding the beneficiary URL from providers.
+	setHeaders({ 'cache-control': 'private, no-store', 'referrer-policy': 'same-origin' });
 	let token = cookies.get(ATTEMPT_COOKIE);
 	if (!token) {
 		token = randomBytes(32).toString('base64url');

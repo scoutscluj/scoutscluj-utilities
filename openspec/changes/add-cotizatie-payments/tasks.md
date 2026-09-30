@@ -7,6 +7,8 @@
 - [x] Implement guest ID validation against verified local-center obligations and direct payment allocation.
 - [x] Implement member payment, manual transfers and national batches.
 - [x] Add Romanian member and financial staff pages.
+- [x] Add reviewed ORGO roster initialization, throttled follow-up synchronization, review states and staff notifications.
+- [x] Add an ORGO credential adapter that prefers a scoped server `Api-Token` and keeps the temporary delegated fallback isolated.
 - [x] Verify tests, types, formatting and migration.
 - [x] Add public legal policies, merchant identity, SAL link and versioned checkout acceptance.
 - [ ] Add official NETOPIA/card and ANPC visual assets supplied by the merchant portals.

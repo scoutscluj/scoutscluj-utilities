@@ -24,6 +24,8 @@ PUBLIC_API_BASE_URL=https://resurse.scoutscluj.ro
 WEB_ORIGIN=https://resurse.scoutscluj.ro
 WEB_ORIGINS=https://resurse.scoutscluj.ro
 ORGO_OAUTH_REDIRECT_URI=https://resurse.scoutscluj.ro/api/orgo/callback
+# Empty until Orgo issues the local center's scoped server-to-server token.
+ORGO_API_TOKEN=
 ```
 
 ## CDK Commands
@@ -209,12 +211,16 @@ pnpm infra:deploy
 For a fork or a different deployment repository, override `githubRepository`
 when running `synth`, `diff`, and `deploy`.
 
-The app secret must contain real Orgo credentials before the first deployment:
+The app secret must contain real Orgo login credentials before the first deployment. Add
+`ORGO_API_TOKEN` when Orgo issues a scoped server-to-server token; until then the value may be
+an empty string. The roster synchronization adapter prefers this token and sends it only in the
+server-side `Api-Token` header. It falls back to a delegated credential, whose permissions may be
+insufficient for an administrative roster read:
 
 ```bash
 aws secretsmanager update-secret \
   --secret-id scoutscluj/production/app \
-  --secret-string '{"AUTH_SESSION_SECRET":"...","ORGO_OAUTH_BASE_URL":"https://membri.scout.ro","ORGO_OAUTH_CLIENT_ID":"...","ORGO_OAUTH_CLIENT_SECRET":"...","PUBLIC_API_BASE_URL":"https://resurse.scoutscluj.ro","PUBLIC_APP_VERSION":"0.0.0","PUBLIC_COMMIT_HASH":"unknown","WEB_ORIGIN":"https://resurse.scoutscluj.ro","WEB_ORIGINS":"https://resurse.scoutscluj.ro","ORGO_OAUTH_REDIRECT_URI":"https://resurse.scoutscluj.ro/api/orgo/callback"}'
+  --secret-string '{"AUTH_SESSION_SECRET":"...","ORGO_OAUTH_BASE_URL":"https://membri.scout.ro","ORGO_OAUTH_CLIENT_ID":"...","ORGO_OAUTH_CLIENT_SECRET":"...","ORGO_API_TOKEN":"","PUBLIC_API_BASE_URL":"https://resurse.scoutscluj.ro","PUBLIC_APP_VERSION":"0.0.0","PUBLIC_COMMIT_HASH":"unknown","WEB_ORIGIN":"https://resurse.scoutscluj.ro","WEB_ORIGINS":"https://resurse.scoutscluj.ro","ORGO_OAUTH_REDIRECT_URI":"https://resurse.scoutscluj.ro/api/orgo/callback"}'
 ```
 
 The service worker is served by the SvelteKit web container at

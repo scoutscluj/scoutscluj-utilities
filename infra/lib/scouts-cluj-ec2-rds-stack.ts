@@ -86,6 +86,7 @@ export class ScoutsClujEc2RdsStack extends Stack {
           ORGO_OAUTH_BASE_URL: "https://membri.scout.ro",
           ORGO_OAUTH_CLIENT_ID: "replace-me",
           ORGO_OAUTH_CLIENT_SECRET: "replace-me",
+          ORGO_API_TOKEN: "",
           PUBLIC_API_BASE_URL: `https://${appHostName}`,
           WEB_ORIGIN: `https://${appHostName}`,
           WEB_ORIGINS: `https://${appHostName}`,

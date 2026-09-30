@@ -9,6 +9,7 @@ import { NetopiaService } from './netopia.service';
 import { StripeService } from './stripe.service';
 import { PaymentConfigurationService } from './payment-configuration.service';
 import { PaymentSecretVault } from './payment-secret-vault.service';
+import { OrgoRosterService } from './orgo-roster.service';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { PaymentSecretVault } from './payment-secret-vault.service';
   controllers: [MembershipController],
   providers: [
     MembershipService,
+    OrgoRosterService,
     NetopiaService,
     StripeService,
     PaymentConfigurationService,

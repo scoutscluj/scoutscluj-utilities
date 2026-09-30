@@ -1,11 +1,52 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { onMount } from 'svelte';
+	import { toast } from 'svelte-sonner';
 	import { money } from '$lib/membership/types';
 	let { data, form } = $props();
 	let search = $state('');
 	let selected = $state<string[]>([]);
 	let memberCard = $state('');
 	const ledger = $derived(data.ledger);
+	const activePeriod = $derived(ledger.periods.find((period) => period.active));
+	const currentObligations = $derived(
+		activePeriod ? ledger.obligations.filter((item) => item.periodId === activePeriod.id) : []
+	);
+	let lastMessage = $state<string | undefined>();
+	let lastSyncSignature = $state('');
+	let notificationsReady = $state(false);
+	$effect(() => {
+		if (form?.message && form.message !== lastMessage) {
+			lastMessage = form.message;
+			if (form.success === false) toast.error(form.message);
+			else toast.success(form.message);
+		}
+		const sync = ledger.rosterSync;
+		const signature = sync ? `${sync.id}:${sync.status}` : '';
+		if (notificationsReady && sync && signature && signature !== lastSyncSignature) {
+			lastSyncSignature = signature;
+			if (sync.status === 'succeeded') {
+				toast.success(
+					`ORGO: ${sync.summary.added ?? 0} membri adăugați, ${sync.summary.updated ?? 0} actualizați, ${sync.summary.review ?? 0} de verificat.`
+				);
+			} else if (sync.status === 'failed') toast.error(sync.error ?? 'Sincronizarea ORGO a eșuat.');
+		}
+	});
+	onMount(() => {
+		lastSyncSignature = ledger.rosterSync
+			? `${ledger.rosterSync.id}:${ledger.rosterSync.status}`
+			: '';
+		notificationsReady = true;
+		let checks = 0;
+		const timer = window.setInterval(async () => {
+			checks++;
+			await invalidateAll();
+			if (checks >= 6) window.clearInterval(timer);
+		}, 5000);
+		return () => window.clearInterval(timer);
+	});
 	const paid = (id: string) =>
 		ledger.allocations
 			.filter((a) => a.obligationId === id && !a.reversed)
@@ -49,10 +90,78 @@
 <h1>Cotizații</h1>
 <p><a href={resolve('/cotizatie')}>Pagina de plată →</a></p>
 <p class="notice">
-	Pilot sandbox. Accesul administrativ ORGO nu este configurat. Verifică membrii și planurile în
-	ORGO înainte de a crea cotizațiile. Transferul național și confirmarea ORGO se urmăresc separat.
+	Registrul perioadei curente încearcă temporar accesul delegat al administratorului autentificat.
+	Când primim tokenul API-to-API ORGO, acela va fi folosit automat pentru sincronizările
+	administrative.
 </p>
 {#if form?.message}<p role="status" class="notice">{form.message}</p>{/if}
+
+<section>
+	<h2>Inițializare și sincronizare ORGO</h2>
+	{#if activePeriod}
+		<p>
+			Perioada activă: <strong>{activePeriod.name}</strong>. Sunt înregistrate
+			<strong>{currentObligations.length}</strong> cotizații.
+		</p>
+		{#if ledger.rosterSync}
+			<p class="sync-status">
+				Ultima sincronizare: {ledger.rosterSync.status === 'running'
+					? 'în curs'
+					: ledger.rosterSync.status === 'succeeded'
+						? 'finalizată'
+						: 'nereușită'}.
+				{#if ledger.rosterSync.error}{ledger.rosterSync.error}{/if}
+			</p>
+		{/if}
+		<div class="actions">
+			{#if !ledger.rosterInitialized}
+				<form method="POST" use:enhance>
+					<input type="hidden" name="action" value="rosterPreview" />
+					<button>Inițializează cotizațiile pentru {activePeriod.name}</button>
+				</form>
+			{:else}
+				<form method="POST" use:enhance>
+					<input type="hidden" name="action" value="rosterSync" />
+					<button>Sincronizează acum cu ORGO</button>
+				</form>
+			{/if}
+		</div>
+		{#if form?.preview}
+			<div class="preview">
+				<h3>Previzualizare înainte de inițializare</h3>
+				<p>
+					Vor fi adăugați <strong>{form.preview.newCount}</strong> membri. Există
+					<strong>{form.preview.issues.length}</strong> cazuri care necesită verificare.
+				</p>
+				<div class="scroll">
+					<table>
+						<thead><tr><th>Membru</th><th>ID ORGO</th><th>Plan</th><th>Total</th></tr></thead>
+						<tbody>
+							{#each form.preview.members as member (member.orgoUserId)}
+								<tr
+									><td>{member.memberName}</td><td>{member.orgoUserId}</td><td>{member.plan}</td><td
+										>{money(member.totalBani)}</td
+									></tr
+								>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+				{#if form.preview.issues.length > 0}
+					<ul>
+						{#each form.preview.issues as issue (issue.orgoUserId)}<li>
+								{issue.memberName} ({issue.orgoUserId}): {issue.reason}
+							</li>{/each}
+					</ul>
+				{/if}
+				<form method="POST" use:enhance>
+					<input type="hidden" name="action" value="rosterInitialize" />
+					<button>Confirmă inițializarea</button>
+				</form>
+			</div>
+		{/if}
+	{:else}<p>Perioada curentă nu este disponibilă.</p>{/if}
+</section>
 
 <section>
 	<h2>Procesator card</h2>
@@ -176,7 +285,9 @@
 										? 'Plătit · netransferat'
 										: paid(o.id) > 0
 											? 'Parțial'
-											: 'Neplătit'}</td
+											: 'Neplătit'}{#if o.reviewState}<small class="review"
+										>Necesită verificare: {o.reviewReason}</small
+									>{/if}</td
 							>
 						</tr>{/each}
 				</tbody>

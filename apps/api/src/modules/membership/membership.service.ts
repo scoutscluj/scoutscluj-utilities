@@ -18,6 +18,7 @@ import {
   MembershipNationalItem as Item,
   MembershipObligation as Obligation,
   MembershipPeriod as Period,
+  MembershipRosterSync as RosterSync,
   MembershipProviderEvent as Event,
   MembershipReceipt as Receipt,
   MembershipPayout as Payout,
@@ -46,6 +47,10 @@ import type {
   VerifiedPaymentEvent,
 } from './payment-provider';
 import { PaymentConfigurationService } from './payment-configuration.service';
+import {
+  OrgoRosterService,
+  type OrgoRosterMember,
+} from './orgo-roster.service';
 
 const MEMBERSHIP_TERMS_VERSION = '2026-09-28';
 
@@ -59,6 +64,7 @@ export class MembershipService {
     private readonly netopia: NetopiaService,
     private readonly stripe: StripeService,
     private readonly paymentConfigurations: PaymentConfigurationService,
+    private readonly orgoRoster: OrgoRosterService,
   ) {}
 
   private async paymentSettings(em = this.em) {
@@ -194,6 +200,254 @@ export class MembershipService {
     return allocations.reduce((sum, item) => sum + item.amountBani, 0);
   }
 
+  private async rosterPreviewFor(period: Period, members: OrgoRosterMember[]) {
+    const obligations = await this.em.find(Obligation, {
+      periodId: period.id,
+    });
+    const existing = new Map(
+      obligations.map((item) => [item.orgoUserId, item]),
+    );
+    const eligible = members.filter((member) => member.eligible && member.plan);
+    return {
+      period: {
+        id: period.id,
+        name: period.name,
+        startsOn: period.startsOn,
+        endsOn: period.endsOn,
+      },
+      members: eligible.map((member) => ({
+        orgoUserId: member.orgoUserId,
+        cardId: member.cardId,
+        memberName: member.memberName,
+        plan: member.plan,
+        totalBani: period.prices[member.plan!].totalBani,
+        action: existing.has(member.orgoUserId) ? 'verify' : 'add',
+      })),
+      issues: members
+        .filter((member) => !member.eligible)
+        .map((member) => ({
+          orgoUserId: member.orgoUserId,
+          memberName: member.memberName,
+          reason: member.issue,
+        })),
+      existingCount: obligations.length,
+      newCount: eligible.filter((member) => !existing.has(member.orgoUserId))
+        .length,
+    };
+  }
+
+  async rosterPreview(user: CurrentUser) {
+    this.staff(user);
+    const period = await this.ensureCurrentPeriod();
+    const members = await this.orgoRoster.members(user.id);
+    return this.rosterPreviewFor(period, members);
+  }
+
+  private async beginRosterSync(
+    user: CurrentUser,
+    period: Period,
+    mode: 'initialization' | 'manual' | 'automatic',
+  ) {
+    return this.mutate(async (em) => {
+      if (mode === 'automatic') {
+        const latest = await em.findOne(
+          RosterSync,
+          { periodId: period.id },
+          { orderBy: { createdAt: 'desc' } },
+        );
+        if (latest && Date.now() - latest.createdAt.getTime() < 15 * 60 * 1000)
+          return null;
+      }
+      const run = em.create(RosterSync, {
+        periodId: period.id,
+        actorId: user.id,
+        mode,
+        status: 'running',
+        summary: {},
+      });
+      em.persist(run);
+      await em.flush();
+      return run;
+    });
+  }
+
+  private async finishRosterSync(
+    user: CurrentUser,
+    period: Period,
+    run: RosterSync,
+    members: OrgoRosterMember[],
+  ) {
+    return this.mutate(async (em) => {
+      const obligations = await em.find(Obligation, { periodId: period.id });
+      if (obligations.length > 0 && members.length === 0)
+        throw new ServiceUnavailableException(
+          'ORGO a returnat un registru gol pentru o perioadă care are deja membri.',
+        );
+      const byId = new Map(obligations.map((item) => [item.orgoUserId, item]));
+      const openCheckouts = await em.find(Checkout, {
+        periodId: period.id,
+        state: { $in: ['starting', 'pending', 'unknown'] },
+      });
+      const checkoutByObligation = new Map(
+        openCheckouts
+          .filter((item) => item.obligationId)
+          .map((item) => [item.obligationId!, item]),
+      );
+      const seen = new Set<number>();
+      const summary = { added: 0, updated: 0, review: 0, unchanged: 0 };
+      const now = new Date();
+      for (const member of members) {
+        seen.add(member.orgoUserId);
+        const obligation = byId.get(member.orgoUserId);
+        if (!member.eligible || !member.plan) {
+          if (obligation) {
+            obligation.reviewState = 'orgo_review';
+            obligation.reviewReason = member.issue ?? 'Date ORGO neclare.';
+            obligation.orgoLastSyncedAt = now;
+            const checkout = checkoutByObligation.get(obligation.id);
+            if (checkout) checkout.reviewRequired = true;
+            summary.review++;
+          }
+          continue;
+        }
+        const price = period.prices[member.plan];
+        if (!obligation) {
+          em.persist(
+            em.create(Obligation, {
+              periodId: period.id,
+              orgoUserId: member.orgoUserId,
+              cardId: member.cardId,
+              memberName: member.memberName,
+              plan: member.plan,
+              totalBani: price.totalBani,
+              nationalBani: price.nationalBani,
+              verificationNote: 'Importat automat din registrul ORGO.',
+              orgoLastSyncedAt: now,
+              reviewState: null,
+              reviewReason: null,
+            }),
+          );
+          summary.added++;
+          continue;
+        }
+        const paidBani = await this.balance(em, obligation.id);
+        const financialChange =
+          obligation.plan !== member.plan ||
+          obligation.totalBani !== price.totalBani ||
+          obligation.nationalBani !== price.nationalBani;
+        const openCheckout = checkoutByObligation.get(obligation.id);
+        if (financialChange && (paidBani > 0 || openCheckout)) {
+          obligation.reviewState = 'plan_changed_after_payment';
+          obligation.reviewReason = openCheckout
+            ? `Plan ORGO nou: ${member.plan}. Există o plată cu suma anterioară în curs.`
+            : `Plan ORGO nou: ${member.plan}. Obligația are deja încasări.`;
+          obligation.orgoLastSyncedAt = now;
+          if (openCheckout) openCheckout.reviewRequired = true;
+          summary.review++;
+          continue;
+        }
+        const changed =
+          obligation.plan !== member.plan ||
+          obligation.memberName !== member.memberName ||
+          obligation.cardId !== member.cardId;
+        obligation.memberName = member.memberName;
+        obligation.cardId = member.cardId;
+        obligation.plan = member.plan;
+        obligation.totalBani = price.totalBani;
+        obligation.nationalBani = price.nationalBani;
+        obligation.orgoLastSyncedAt = now;
+        obligation.reviewState = null;
+        obligation.reviewReason = null;
+        if (changed) summary.updated++;
+        else summary.unchanged++;
+      }
+      for (const obligation of obligations) {
+        if (seen.has(obligation.orgoUserId)) continue;
+        obligation.reviewState = 'missing_from_orgo';
+        obligation.reviewReason =
+          'Membrul nu mai apare ca eligibil în registrul ORGO.';
+        obligation.orgoLastSyncedAt = now;
+        const checkout = checkoutByObligation.get(obligation.id);
+        if (checkout) checkout.reviewRequired = true;
+        summary.review++;
+      }
+      run.status = 'succeeded';
+      run.summary = summary;
+      run.completedAt = now;
+      this.audit(em, user.id, 'roster.synchronized', run.id, {
+        periodId: period.id,
+        mode: run.mode,
+        ...summary,
+      });
+      await em.flush();
+      return { id: run.id, status: run.status, ...summary };
+    });
+  }
+
+  private async failRosterSync(
+    user: CurrentUser,
+    period: Period,
+    run: RosterSync,
+    error: unknown,
+  ) {
+    const message =
+      error instanceof Error ? error.message : 'Sincronizarea ORGO a eșuat.';
+    await this.mutate(async (em) => {
+      const stored = await em.findOneOrFail(RosterSync, { id: run.id });
+      stored.status = 'failed';
+      stored.error = message;
+      stored.completedAt = new Date();
+      this.audit(em, user.id, 'roster.synchronization_failed', stored.id, {
+        periodId: period.id,
+        mode: stored.mode,
+      });
+      await em.flush();
+    });
+  }
+
+  async synchronizeRoster(
+    user: CurrentUser,
+    mode: 'initialization' | 'manual' | 'automatic',
+  ) {
+    this.staff(user);
+    const period = await this.ensureCurrentPeriod();
+    const initialized = await this.em.findOne(RosterSync, {
+      periodId: period.id,
+      mode: 'initialization',
+      status: 'succeeded',
+    });
+    if (mode === 'initialization' && initialized)
+      throw new ConflictException(
+        'Perioada a fost deja inițializată. Folosește sincronizarea ORGO.',
+      );
+    if (mode !== 'initialization' && !initialized)
+      throw new ConflictException(
+        'Previzualizează și confirmă inițializarea perioadei înainte de sincronizare.',
+      );
+    const run = await this.beginRosterSync(user, period, mode);
+    if (!run) return null;
+    try {
+      const members = await this.orgoRoster.members(user.id);
+      return await this.finishRosterSync(user, period, run, members);
+    } catch (error) {
+      await this.failRosterSync(user, period, run, error);
+      throw error;
+    }
+  }
+
+  scheduleAutomaticRosterSync(user: CurrentUser) {
+    void (async () => {
+      const period = await this.ensureCurrentPeriod();
+      const initialized = await this.em.findOne(RosterSync, {
+        periodId: period.id,
+        mode: 'initialization',
+        status: 'succeeded',
+      });
+      if (!initialized) return;
+      await this.synchronizeRoster(user, 'automatic');
+    })().catch(() => undefined);
+  }
+
   private findObligationByIdentifier(
     em: EntityManager,
     periodId: string,
@@ -220,6 +474,10 @@ export class MembershipService {
       throw new NotFoundException(
         'ID-ul nu corespunde unui membru eligibil din Centrul Local Cluj.',
       );
+    if (obligation.reviewState)
+      throw new NotFoundException(
+        'Cotizația acestui membru necesită verificare înainte de plată.',
+      );
     const paidBani = await this.balance(this.em, obligation.id);
     const name = obligation.memberName.trim().split(/\s+/);
     const displayName = [
@@ -245,6 +503,8 @@ export class MembershipService {
       totalBani: number;
       nationalBani: number;
       paidBani: number;
+      reviewState: string | null;
+      reviewReason: string | null;
     }>
   > {
     const orgoUserId = user.orgoConnection?.orgoUserId;
@@ -252,7 +512,7 @@ export class MembershipService {
     const obligations = await this.em.find(Obligation, { orgoUserId });
     return Promise.all(
       obligations.map(async (item) => ({
-        id: item.id,
+        id: String(item.id),
         periodId: item.periodId,
         orgoUserId: item.orgoUserId,
         memberName: item.memberName,
@@ -260,6 +520,8 @@ export class MembershipService {
         totalBani: item.totalBani,
         nationalBani: item.nationalBani,
         paidBani: await this.balance(this.em, item.id),
+        reviewState: item.reviewState ?? null,
+        reviewReason: item.reviewReason ?? null,
       })),
     );
   }
@@ -291,9 +553,11 @@ export class MembershipService {
       ReturnType<MembershipService['providerSummary']>
     >;
     orgoIntegration: string;
+    rosterSync: RosterSync | null;
+    rosterInitialized: boolean;
   }> {
     this.staff(user);
-    await this.ensureCurrentPeriod();
+    const currentPeriod = await this.ensureCurrentPeriod();
     const [
       periods,
       obligations,
@@ -302,6 +566,7 @@ export class MembershipService {
       batches,
       nationalItems,
       checkouts,
+      rosterSyncs,
     ] = await Promise.all([
       this.em.find(Period, {}, { orderBy: { createdAt: 'desc' } }),
       this.em.find(Obligation, {}, { orderBy: { memberName: 'asc' } }),
@@ -325,6 +590,11 @@ export class MembershipService {
             'createdAt',
           ],
         },
+      ),
+      this.em.find(
+        RosterSync,
+        { periodId: currentPeriod.id },
+        { orderBy: { createdAt: 'desc' }, limit: 1 },
       ),
     ]);
     const settings = await this.paymentSettings();
@@ -363,6 +633,14 @@ export class MembershipService {
       cardEnabled: Boolean(active?.ready),
       paymentConfiguration,
       orgoIntegration: 'awaiting_access',
+      rosterSync: rosterSyncs[0] ?? null,
+      rosterInitialized: Boolean(
+        await this.em.findOne(RosterSync, {
+          periodId: currentPeriod.id,
+          mode: 'initialization',
+          status: 'succeeded',
+        }),
+      ),
     };
   }
 
@@ -909,6 +1187,10 @@ export class MembershipService {
             'ID-ul nu corespunde unui membru eligibil din Centrul Local Cluj.',
           );
       }
+      if (obligation.reviewState)
+        throw new ConflictException(
+          'Cotizația necesită verificare financiară înainte de plată.',
+        );
       const pending = await em.findOne(Checkout, {
         obligationId: obligation.id,
         state: { $in: ['starting', 'pending', 'unknown'] },

@@ -110,6 +110,10 @@
 						>Îți mulțumim, {data.user.firstName ?? data.user.displayName}!</span
 					>
 				</div>
+			{:else if own?.reviewState}
+				<p class="notice">
+					Cotizația ta necesită verificare înainte de plată. Contactează responsabilul financiar.
+				</p>
 			{:else if own}
 				<div class="member-result">
 					<div class="member-avatar" aria-hidden="true">✓</div>

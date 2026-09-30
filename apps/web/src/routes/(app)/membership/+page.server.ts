@@ -1,7 +1,7 @@
 import { error, fail } from '@sveltejs/kit';
 import { apiFetch } from '$lib/server/api';
 import { SESSION_COOKIE_NAME } from '$lib/server/cookies';
-import type { Dashboard } from '$lib/membership/types';
+import type { Dashboard, RosterPreview } from '$lib/membership/types';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ cookies, locals, setHeaders }) => {
@@ -32,7 +32,25 @@ export const actions: Actions = {
 		let path: string;
 		const body: Record<string, unknown> = Object.fromEntries(form);
 		delete body.action;
-		if (action === 'period') {
+		if (action === 'rosterPreview') {
+			const response = await apiFetch('/api/membership/roster/preview', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					cookie: `${SESSION_COOKIE_NAME}=${encodeURIComponent(cookies.get(SESSION_COOKIE_NAME) ?? '')}`
+				},
+				body: '{}'
+			});
+			const result = (await response.json()) as RosterPreview & { message?: string };
+			if (!response.ok)
+				return fail(response.status, {
+					success: false,
+					message: result.message ?? 'Previzualizarea ORGO nu a putut fi încărcată.'
+				});
+			return { success: true, preview: result };
+		} else if (action === 'rosterInitialize' || action === 'rosterSync') {
+			path = action === 'rosterInitialize' ? 'roster/initialize' : 'roster/sync';
+		} else if (action === 'period') {
 			path = 'periods';
 			body.totals = Object.fromEntries(
 				['normal', 'fam1', 'fam2', 'fam3', 'social'].map((key) => [key, amount(form.get(key))])
@@ -63,7 +81,7 @@ export const actions: Actions = {
 			body.obligationIds = form.getAll('obligationIds');
 		} else if (action === 'confirm')
 			path = `national-items/${encodeURIComponent(String(form.get('id')))}/confirm`;
-		else return fail(400, { message: 'Acțiune necunoscută.' });
+		else return fail(400, { success: false, message: 'Acțiune necunoscută.' });
 		const response = await apiFetch(`/api/membership/${path}`, {
 			method: 'POST',
 			headers: {
@@ -72,11 +90,22 @@ export const actions: Actions = {
 			},
 			body: JSON.stringify(body)
 		});
-		const result = (await response.json()) as { message?: string };
+		const result = (await response.json()) as {
+			message?: string;
+			added?: number;
+			updated?: number;
+			review?: number;
+		};
 		if (!response.ok)
 			return fail(response.status, {
+				success: false,
 				message: result.message ?? 'Operațiunea nu a putut fi salvată.'
 			});
-		return { message: 'Operațiunea a fost înregistrată.' };
+		if (action === 'rosterInitialize' || action === 'rosterSync')
+			return {
+				success: true,
+				message: `Sincronizare finalizată: ${result.added ?? 0} membri adăugați, ${result.updated ?? 0} actualizați, ${result.review ?? 0} de verificat.`
+			};
+		return { success: true, message: 'Operațiunea a fost înregistrată.' };
 	}
 };

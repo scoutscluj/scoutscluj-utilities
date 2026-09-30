@@ -3,6 +3,15 @@
 
 	let { data, form } = $props();
 	const configuration = $derived(data.paymentConfiguration);
+	const environmentLabel = (environment: string) =>
+		environment === 'live' ? 'Producție' : environment === 'test' ? 'Test' : 'Sandbox';
+	const activeTarget = $derived(
+		configuration.providers.find(
+			(provider) =>
+				provider.id === configuration.activeProvider &&
+				provider.environment === configuration.activeEnvironment
+		)
+	);
 </script>
 
 <svelte:head>
@@ -26,23 +35,30 @@
 			<p class="eyebrow">Plăți noi</p>
 			<h2>Procesator activ</h2>
 		</div>
-		<span class="active-provider">{configuration.activeProvider}</span>
+		<span class="active-provider"
+			>{activeTarget?.label ?? configuration.activeProvider} ·
+			{environmentLabel(configuration.activeEnvironment)}</span
+		>
 	</div>
 
 	<form method="POST" class="provider-form">
 		<input type="hidden" name="action" value="provider" />
-		{#each configuration.providers as provider (provider.id)}
+		{#each configuration.providers as provider (provider.targetId)}
 			<label class:unavailable={!provider.ready} class="provider-option">
 				<input
 					type="radio"
-					name="provider"
-					value={provider.id}
-					checked={provider.id === configuration.activeProvider}
+					name="target"
+					value={provider.targetId}
+					checked={provider.id === configuration.activeProvider &&
+						provider.environment === configuration.activeEnvironment}
 					disabled={!provider.ready}
 				/>
 				<span>
 					<strong>{provider.label}</strong>
-					<small>{provider.environment} · {provider.ready ? 'configurat' : 'neconfigurat'}</small>
+					<small
+						>{environmentLabel(provider.environment)} ·
+						{provider.ready ? `configurat · cheie …${provider.secretHint}` : 'neconfigurat'}</small
+					>
 				</span>
 			</label>
 		{/each}
@@ -73,8 +89,10 @@
 			<input type="hidden" name="action" value="provider-configuration" />
 			<input type="hidden" name="provider" value="netopia" />
 			<h3>NETOPIA Payments</h3>
-			{#each configuration.providers.filter((item) => item.id === 'netopia') as current (current.id)}
-				<small>{current.ready ? `Configurat · cheie …${current.secretHint}` : 'Neconfigurat'}</small
+			{#each configuration.providers.filter((item) => item.id === 'netopia') as current (current.targetId)}
+				<small
+					><strong>{environmentLabel(current.environment)}:</strong>
+					{current.ready ? `configurat · cheie …${current.secretHint}` : 'neconfigurat'}</small
 				>
 			{/each}
 			<fieldset disabled={!configuration.vaultReady}>
@@ -111,8 +129,10 @@
 			<input type="hidden" name="action" value="provider-configuration" />
 			<input type="hidden" name="provider" value="stripe" />
 			<h3>Stripe</h3>
-			{#each configuration.providers.filter((item) => item.id === 'stripe') as current (current.id)}
-				<small>{current.ready ? `Configurat · cheie …${current.secretHint}` : 'Neconfigurat'}</small
+			{#each configuration.providers.filter((item) => item.id === 'stripe') as current (current.targetId)}
+				<small
+					><strong>{environmentLabel(current.environment)}:</strong>
+					{current.ready ? `configurat · cheie …${current.secretHint}` : 'neconfigurat'}</small
 				>
 			{/each}
 			<fieldset disabled={!configuration.vaultReady}>

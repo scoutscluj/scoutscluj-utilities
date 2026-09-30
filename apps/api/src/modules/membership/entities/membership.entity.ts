@@ -30,6 +30,7 @@ export const MembershipPaymentSettings = defineEntity({
   properties: {
     id: p.string().primary(),
     activeProvider: p.string().default('netopia'),
+    activeEnvironment: p.string().default('sandbox'),
     updatedBy: p.integer().nullable(),
     updatedAt: p
       .datetime()

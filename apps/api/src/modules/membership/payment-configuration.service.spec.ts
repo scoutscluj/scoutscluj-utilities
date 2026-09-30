@@ -64,11 +64,22 @@ describe('administrator-managed payment configuration', () => {
 
   it('returns only operational metadata to the administrator dashboard', async () => {
     const summary = await service.summaries();
-    expect(summary.find((item) => item.id === 'stripe')).toMatchObject({
+    expect(
+      summary.find(
+        (item) => item.id === 'stripe' && item.environment === 'test',
+      ),
+    ).toMatchObject({
       ready: true,
       environment: 'test',
       secretHint: '1234',
     });
+    expect(summary).toHaveLength(4);
+    expect(summary.map((item) => item.targetId)).toEqual([
+      'netopia:sandbox',
+      'netopia:live',
+      'stripe:test',
+      'stripe:live',
+    ]);
     expect(JSON.stringify(summary)).not.toContain('must-not-leak');
   });
 });

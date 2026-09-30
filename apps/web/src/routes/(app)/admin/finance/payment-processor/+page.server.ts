@@ -46,6 +46,12 @@ export const actions: Actions = {
 
 		const body: Record<string, unknown> = Object.fromEntries(form);
 		delete body.action;
+		if (action === 'provider') {
+			const [provider, environment] = String(body.target ?? '').split(':');
+			body.provider = provider;
+			body.environment = environment;
+			delete body.target;
+		}
 		const response = await apiFetch(`/api/membership/${path}`, {
 			method: 'POST',
 			headers: {

@@ -21,6 +21,7 @@ import { StripeService } from '../modules/membership/stripe.service';
 import { AuditEntry } from '../modules/audit/entities/audit-entry.entity';
 import { Migration20260921000100 } from '../migrations/Migration20260921000100';
 import { Migration20260928000100 } from '../migrations/Migration20260928000100';
+import { Migration20260930000100 } from '../migrations/Migration20260930000100';
 import type { PaymentConfigurationService } from '../modules/membership/payment-configuration.service';
 import { UserRole } from '../modules/users/entities/user-role.enum';
 
@@ -76,6 +77,15 @@ async function main() {
     );
     configurationMigration.up();
     for (const sql of configurationMigration.getQueries()) {
+      if (typeof sql !== 'string') throw new Error('Expected SQL migration');
+      await orm.em.getConnection().execute(sql);
+    }
+    const environmentMigration = new Migration20260930000100(
+      orm.em.getDriver(),
+      orm.config,
+    );
+    environmentMigration.up();
+    for (const sql of environmentMigration.getQueries()) {
       if (typeof sql !== 'string') throw new Error('Expected SQL migration');
       await orm.em.getConnection().execute(sql);
     }

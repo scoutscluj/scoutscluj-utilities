@@ -41,6 +41,8 @@
 		manually_confirmed: 'ORGO: verificat manual',
 		correction_required: 'Necesită corecție'
 	};
+	const environmentLabel = (environment: string) =>
+		environment === 'live' ? 'Producție' : environment === 'test' ? 'Test' : 'Sandbox';
 </script>
 
 <svelte:head><title>Administrare cotizații</title></svelte:head>
@@ -57,9 +59,12 @@
 	<p>
 		Procesator activ: <strong
 			>{ledger.paymentConfiguration.providers.find(
-				(provider) => provider.id === ledger.paymentConfiguration.activeProvider
+				(provider) =>
+					provider.id === ledger.paymentConfiguration.activeProvider &&
+					provider.environment === ledger.paymentConfiguration.activeEnvironment
 			)?.label ?? ledger.paymentConfiguration.activeProvider}</strong
-		>.
+		>
+		· {environmentLabel(ledger.paymentConfiguration.activeEnvironment)}.
 	</p>
 	<p>
 		<a href={resolve('/admin/finance/payment-processor')}>Configurează în Admin → Financiar</a>

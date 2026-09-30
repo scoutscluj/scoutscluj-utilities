@@ -67,17 +67,20 @@ export class MembershipService {
       em.create(PaymentSettings, {
         id: 'membership',
         activeProvider: 'netopia',
+        activeEnvironment: 'sandbox',
       })
     );
   }
 
   private async providerSummary(
     activeProvider: PaymentProviderName,
+    activeEnvironment: string,
     em = this.em,
   ) {
     const vaultReady = this.paymentConfigurations.vaultReady();
     return {
       activeProvider,
+      activeEnvironment,
       vaultReady,
       providers: (await this.paymentConfigurations.summaries(em)).map(
         (provider) => ({ ...provider, ready: vaultReady && provider.ready }),
@@ -166,12 +169,19 @@ export class MembershipService {
     const period = await this.ensureCurrentPeriod(now);
     const settings = await this.paymentSettings();
     const activeProvider = settings.activeProvider as PaymentProviderName;
-    const summary = await this.providerSummary(activeProvider);
-    const active = summary.providers.find((item) => item.id === activeProvider);
+    const activeEnvironment = settings.activeEnvironment;
+    const summary = await this.providerSummary(
+      activeProvider,
+      activeEnvironment,
+    );
+    const active = summary.providers.find(
+      (item) =>
+        item.id === activeProvider && item.environment === activeEnvironment,
+    );
     return {
       period,
       cardEnabled: Boolean(active?.ready),
-      environment: active?.environment ?? 'unconfigured',
+      environment: activeEnvironment,
       activeProvider,
     };
   }
@@ -320,9 +330,12 @@ export class MembershipService {
     const settings = await this.paymentSettings();
     const paymentConfiguration = await this.providerSummary(
       settings.activeProvider as PaymentProviderName,
+      settings.activeEnvironment,
     );
     const active = paymentConfiguration.providers.find(
-      (item) => item.id === paymentConfiguration.activeProvider,
+      (item) =>
+        item.id === paymentConfiguration.activeProvider &&
+        item.environment === paymentConfiguration.activeEnvironment,
     );
     return {
       payouts: await this.em.find(
@@ -355,25 +368,38 @@ export class MembershipService {
 
   async selectPaymentProvider(user: CurrentUser, input: unknown) {
     this.staff(user);
-    const value = record(input).provider;
-    if (value !== 'netopia' && value !== 'stripe')
+    const body = record(input);
+    const provider = body.provider;
+    if (provider !== 'netopia' && provider !== 'stripe')
       throw new BadRequestException('Procesator de plată invalid.');
+    let environment: 'sandbox' | 'test' | 'live';
+    if (provider === 'netopia') {
+      if (body.environment !== 'sandbox' && body.environment !== 'live')
+        throw new BadRequestException('Mediu de plată invalid.');
+      environment = body.environment;
+    } else {
+      if (body.environment !== 'test' && body.environment !== 'live')
+        throw new BadRequestException('Mediu de plată invalid.');
+      environment = body.environment;
+    }
     const configured = (await this.paymentConfigurations.summaries()).find(
-      (item) => item.id === value,
+      (item) => item.id === provider && item.environment === environment,
     )?.ready;
     if (!this.paymentConfigurations.vaultReady() || !configured)
       throw new ConflictException(
-        `${value === 'stripe' ? 'Stripe' : 'NETOPIA'} nu poate fi selectat până când toate secretele și URL-urile necesare sunt configurate.`,
+        `${provider === 'stripe' ? 'Stripe' : 'NETOPIA'} ${environment === 'live' ? 'Producție' : environment === 'test' ? 'Test' : 'Sandbox'} nu poate fi selectat până când toate secretele și URL-urile necesare sunt configurate.`,
       );
     return this.mutate(async (em) => {
       const settings = await this.paymentSettings(em);
-      settings.activeProvider = value;
+      settings.activeProvider = provider;
+      settings.activeEnvironment = environment;
       settings.updatedBy = user.id;
       em.persist(settings);
       this.audit(em, user.id, 'provider.selected', settings.id, {
-        provider: value,
+        provider,
+        environment,
       });
-      return this.providerSummary(value, em);
+      return this.providerSummary(provider, environment, em);
     });
   }
 
@@ -388,6 +414,7 @@ export class MembershipService {
     return this.mutate(async (em) => {
       const previous = await em.find(ProviderConfig, {
         provider,
+        environment: configuration.environment,
         active: true,
       });
       for (const row of previous) row.active = false;
@@ -409,6 +436,7 @@ export class MembershipService {
       await em.flush();
       return this.providerSummary(
         settings.activeProvider as PaymentProviderName,
+        settings.activeEnvironment,
         em,
       );
     });
@@ -820,8 +848,14 @@ export class MembershipService {
     const tokenHash = hash(token);
     const selected = await this.paymentSettings();
     const providerName = selected.activeProvider as PaymentProviderName;
-    const providerRevision =
-      await this.paymentConfigurations.activeRevision(providerName);
+    const providerEnvironment = selected.activeEnvironment as
+      | 'sandbox'
+      | 'test'
+      | 'live';
+    const providerRevision = await this.paymentConfigurations.activeRevision(
+      providerName,
+      providerEnvironment,
+    );
     if (!providerRevision)
       throw new ServiceUnavailableException(
         `Procesatorul ${providerName === 'stripe' ? 'Stripe' : 'NETOPIA'} nu este configurat pentru acest mediu.`,
@@ -833,9 +867,14 @@ export class MembershipService {
       const activeRevision = await em.findOne(ProviderConfig, {
         id: providerRevision.id,
         provider: providerName,
+        environment: providerEnvironment,
         active: true,
       });
-      if (settings.activeProvider !== providerName || !activeRevision)
+      if (
+        settings.activeProvider !== providerName ||
+        settings.activeEnvironment !== providerEnvironment ||
+        !activeRevision
+      )
         throw new ConflictException(
           'Configurația plăților s-a schimbat. Reîncearcă inițierea.',
         );

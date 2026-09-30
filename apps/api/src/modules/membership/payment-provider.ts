@@ -1,4 +1,5 @@
 export type PaymentProviderName = 'netopia' | 'stripe';
+export type PaymentEnvironment = 'sandbox' | 'test' | 'live';
 
 export type NetopiaConfiguration = {
   provider: 'netopia';

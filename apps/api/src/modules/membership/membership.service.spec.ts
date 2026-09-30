@@ -110,17 +110,23 @@ function fixture() {
       secretHint: 'test',
     },
   );
-  const runtimeConfiguration = (provider: 'netopia' | 'stripe') =>
+  const runtimeConfiguration = (
+    provider: 'netopia' | 'stripe',
+    environment: 'sandbox' | 'test' | 'live' = provider === 'stripe'
+      ? 'test'
+      : 'sandbox',
+  ) =>
     provider === 'stripe'
       ? {
           provider,
-          environment: 'test' as const,
-          secretKey: 'sk_test_secret',
+          environment: environment as 'test' | 'live',
+          secretKey:
+            environment === 'live' ? 'sk_live_secret' : 'sk_test_secret',
           webhookSecret: 'whsec_test',
         }
       : {
           provider,
-          environment: 'sandbox' as const,
+          environment: environment as 'sandbox' | 'live',
           apiKey: 'api-key',
           posSignature: 'pos',
           publicKey: 'certificate',
@@ -129,29 +135,46 @@ function fixture() {
     vaultReady: () => true,
     summaries: () =>
       Promise.resolve(
-        rows
-          .filter((row) => row.table === 'provider-config' && row.active)
-          .map((row) => ({
-            id: row.provider,
-            label: row.provider === 'stripe' ? 'Stripe' : 'NETOPIA Payments',
-            ready: true,
-            environment: row.environment,
-            secretHint: row.secretHint,
+        [
+          ['netopia', 'sandbox'],
+          ['netopia', 'live'],
+          ['stripe', 'test'],
+          ['stripe', 'live'],
+        ].map(([provider, environment]) => {
+          const row = rows.find(
+            (item) =>
+              item.table === 'provider-config' &&
+              item.provider === provider &&
+              item.environment === environment &&
+              item.active,
+          );
+          return {
+            id: provider,
+            targetId: `${provider}:${environment}`,
+            label: provider === 'stripe' ? 'Stripe' : 'NETOPIA Payments',
+            ready: Boolean(row),
+            environment,
+            secretHint: row?.secretHint ?? null,
             updatedAt: null,
-          })),
+          };
+        }),
       ),
-    activeRevision: (provider: 'netopia' | 'stripe') => {
+    activeRevision: (
+      provider: 'netopia' | 'stripe',
+      environment: 'sandbox' | 'test' | 'live',
+    ) => {
       const row = rows.find(
         (item) =>
           item.table === 'provider-config' &&
           item.provider === provider &&
+          item.environment === environment &&
           item.active,
       );
       return Promise.resolve(
         row
           ? {
               id: row.id,
-              configuration: runtimeConfiguration(provider),
+              configuration: runtimeConfiguration(provider, environment),
             }
           : null,
       );
@@ -164,13 +187,25 @@ function fixture() {
             row.id === id &&
             row.provider === provider,
         )
-          ? runtimeConfiguration(provider)
+          ? runtimeConfiguration(
+              provider,
+              rows.find((row) => row.id === id)?.environment as
+                | 'sandbox'
+                | 'test'
+                | 'live',
+            )
           : null,
       ),
-    parse: (provider: 'netopia' | 'stripe') => runtimeConfiguration(provider),
-    encrypt: (configuration: { provider: 'netopia' | 'stripe' }) =>
+    parse: (
+      provider: 'netopia' | 'stripe',
+      input: { environment?: 'sandbox' | 'test' | 'live' },
+    ) => runtimeConfiguration(provider, input.environment),
+    encrypt: (configuration: {
+      provider: 'netopia' | 'stripe';
+      environment: string;
+    }) =>
       Promise.resolve({
-        ciphertext: `encrypted-${configuration.provider}`,
+        ciphertext: `encrypted-${configuration.provider}-${configuration.environment}`,
         secretHint: 'test',
       }),
   };
@@ -353,7 +388,10 @@ describe('membership service rules', () => {
 
   it('uses the administrator-selected provider only for new checkouts', async () => {
     const f = await setup();
-    await f.service.selectPaymentProvider(f.staff, { provider: 'stripe' });
+    await f.service.selectPaymentProvider(f.staff, {
+      provider: 'stripe',
+      environment: 'test',
+    });
     await f.service.checkout({
       periodId: f.period.id,
       identifier: 'AT36805',
@@ -369,6 +407,7 @@ describe('membership service rules', () => {
     );
     await expect(f.service.catalog()).resolves.toMatchObject({
       activeProvider: 'stripe',
+      environment: 'test',
       cardEnabled: true,
     });
   });
@@ -406,9 +445,39 @@ describe('membership service rules', () => {
     expect(JSON.stringify(f.rows)).not.toContain('ultra-secret-new-key');
   });
 
+  it('keeps provider configurations active independently by environment', async () => {
+    const f = fixture();
+    const sandbox = f.rows.find(
+      (row) =>
+        row.table === 'provider-config' &&
+        row.provider === 'netopia' &&
+        row.environment === 'sandbox',
+    )!;
+    await f.service.configurePaymentProvider(f.staff, {
+      provider: 'netopia',
+      environment: 'live',
+      apiKey: 'live-key',
+      posSignature: 'live-pos',
+      publicKey: 'live-certificate',
+    });
+    expect(sandbox.active).toBe(true);
+    expect(
+      f.rows.find(
+        (row) =>
+          row.table === 'provider-config' &&
+          row.provider === 'netopia' &&
+          row.environment === 'live' &&
+          row.active,
+      ),
+    ).toBeDefined();
+  });
+
   it('deduplicates signed Stripe success events and keeps provider attribution', async () => {
     const f = await setup();
-    await f.service.selectPaymentProvider(f.staff, { provider: 'stripe' });
+    await f.service.selectPaymentProvider(f.staff, {
+      provider: 'stripe',
+      environment: 'test',
+    });
     await f.service.checkout({
       periodId: f.period.id,
       identifier: 'AT36805',

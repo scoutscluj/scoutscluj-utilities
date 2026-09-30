@@ -5,6 +5,7 @@ import { PaymentSecretVault } from './payment-secret-vault.service';
 import type {
   NetopiaConfiguration,
   PaymentProviderConfiguration,
+  PaymentEnvironment,
   PaymentProviderName,
   StripeConfiguration,
 } from './payment-provider';
@@ -30,14 +31,23 @@ export class PaymentConfigurationService {
 
   async summaries(em = this.em) {
     const rows = await em.find(ProviderConfig, { active: true });
-    return (['netopia', 'stripe'] as const).map((provider) => {
-      const row = rows.find((item) => item.provider === provider);
+    const targets = [
+      { provider: 'netopia', environment: 'sandbox' },
+      { provider: 'netopia', environment: 'live' },
+      { provider: 'stripe', environment: 'test' },
+      { provider: 'stripe', environment: 'live' },
+    ] as const;
+    return targets.map(({ provider, environment }) => {
+      const row = rows.find(
+        (item) =>
+          item.provider === provider && item.environment === environment,
+      );
       return {
         id: provider,
+        targetId: `${provider}:${environment}`,
         label: provider === 'netopia' ? 'NETOPIA Payments' : 'Stripe',
         ready: Boolean(row),
-        environment:
-          row?.environment ?? (provider === 'netopia' ? 'sandbox' : 'test'),
+        environment,
         secretHint: row?.secretHint ?? null,
         updatedAt: row?.updatedAt ?? null,
       };
@@ -46,18 +56,28 @@ export class PaymentConfigurationService {
 
   async getActive<T extends PaymentProviderConfiguration>(
     provider: T['provider'],
+    environment: PaymentEnvironment,
     em = this.em,
   ): Promise<T | null> {
-    const row = await em.findOne(ProviderConfig, { provider, active: true });
+    const row = await em.findOne(ProviderConfig, {
+      provider,
+      environment,
+      active: true,
+    });
     if (!row) return null;
     return this.vault.decrypt<T>(provider, row.encryptedConfiguration);
   }
 
   async activeRevision<T extends PaymentProviderConfiguration>(
     provider: T['provider'],
+    environment: PaymentEnvironment,
     em = this.em,
   ): Promise<{ id: string; configuration: T } | null> {
-    const row = await em.findOne(ProviderConfig, { provider, active: true });
+    const row = await em.findOne(ProviderConfig, {
+      provider,
+      environment,
+      active: true,
+    });
     if (!row) return null;
     return {
       id: row.id,

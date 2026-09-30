@@ -75,9 +75,11 @@ export type Dashboard = {
 	cardEnabled: boolean;
 	paymentConfiguration: {
 		activeProvider: 'netopia' | 'stripe';
+		activeEnvironment: 'sandbox' | 'test' | 'live';
 		vaultReady: boolean;
 		providers: Array<{
 			id: 'netopia' | 'stripe';
+			targetId: string;
 			label: string;
 			ready: boolean;
 			environment: string;

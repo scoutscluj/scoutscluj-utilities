@@ -8,7 +8,48 @@ export const BASELINE_PLANS = {
   social: { label: 'Socială', nationalBani: 5000, totalBani: 10000 },
 };
 export type PlanKey = keyof typeof BASELINE_PLANS;
-export type Prices = typeof BASELINE_PLANS;
+export type Prices = Record<
+  PlanKey,
+  { label: string; totalBani: number; nationalBani: number; baseBani?: number }
+>;
+
+export type ProcessingFee = {
+  percentageBasisPoints: number;
+  fixedBani: number;
+};
+export const DEFAULT_PROCESSING_FEES = {
+  // Published standard card pricing, checked 2026-10-01. Contract rates can be overridden.
+  netopia: { percentageBasisPoints: 119, fixedBani: 30 },
+  stripe: { percentageBasisPoints: 150, fixedBani: 100 },
+};
+
+// The processor retains a percentage of the gross charge plus a fixed fee.
+// Use integer bani and basis points so rounding cannot underfund the contribution.
+export function cardPaymentAmount(
+  contributionBani: number,
+  percentageBasisPoints: number,
+  fixedBani: number,
+) {
+  if (
+    !Number.isSafeInteger(contributionBani) ||
+    contributionBani < 0 ||
+    contributionBani > 100000000 ||
+    !Number.isSafeInteger(percentageBasisPoints) ||
+    percentageBasisPoints < 0 ||
+    percentageBasisPoints >= 10000 ||
+    !Number.isSafeInteger(fixedBani) ||
+    fixedBani < 0 ||
+    fixedBani > 100000000
+  )
+    throw new BadRequestException('Cotizație sau comision invalid.');
+  if (contributionBani === 0) return 0;
+  const amountBani =
+    Math.ceil(
+      ((contributionBani + fixedBani) * 10000) /
+        ((10000 - percentageBasisPoints) * 500),
+    ) * 500;
+  return bani(amountBani);
+}
 
 export function membershipPeriodFor(value: Date) {
   const parts = Object.fromEntries(

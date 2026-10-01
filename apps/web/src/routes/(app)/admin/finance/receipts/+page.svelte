@@ -152,7 +152,7 @@
 			</form>
 		</details>
 
-		<details>
+		<details id="decontari">
 			<summary>Reconciliază decontul procesatorului în bancă</summary>
 			<form method="POST" class="grid">
 				<input type="hidden" name="action" value="payout" />

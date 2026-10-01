@@ -39,13 +39,35 @@ export const actions: Actions = {
 				? 'payment-provider'
 				: action === 'provider-configuration'
 					? 'payment-provider/configuration'
-					: null;
+					: action === 'processing-fee'
+						? 'payment-provider/processing-fee'
+						: null;
 		if (!path) {
 			return fail(400, { message: 'Acțiune necunoscută.' });
 		}
 
 		const body: Record<string, unknown> = Object.fromEntries(form);
 		delete body.action;
+		if (action === 'processing-fee') {
+			const percent = Number(String(body.percentage ?? '').replace(',', '.'));
+			const fixed = Number(String(body.fixedRON ?? '').replace(',', '.'));
+			if (
+				!String(body.percentage ?? '').trim() ||
+				!String(body.fixedRON ?? '').trim() ||
+				!Number.isFinite(percent) ||
+				!Number.isFinite(fixed) ||
+				percent < 0 ||
+				percent >= 100 ||
+				fixed < 0 ||
+				Math.abs(percent * 100 - Math.round(percent * 100)) > 1e-8 ||
+				Math.abs(fixed * 100 - Math.round(fixed * 100)) > 1e-8
+			)
+				return fail(400, { message: 'Introdu comisioane valide, cu maximum două zecimale.' });
+			body.percentageBasisPoints = Math.round(percent * 100);
+			body.fixedBani = Math.round(fixed * 100);
+			delete body.percentage;
+			delete body.fixedRON;
+		}
 		if (action === 'provider') {
 			const [provider, environment] = String(body.target ?? '').split(':');
 			body.provider = provider;
@@ -71,7 +93,9 @@ export const actions: Actions = {
 			message:
 				action === 'provider'
 					? 'Procesatorul activ a fost actualizat.'
-					: 'Configurația securizată a fost salvată.'
+					: action === 'processing-fee'
+						? 'Comisionul a fost salvat. Tarifele active și cotizațiile fără istoric de plată au fost recalculate.'
+						: 'Configurația securizată a fost salvată.'
 		};
 	}
 };

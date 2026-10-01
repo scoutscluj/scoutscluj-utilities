@@ -27,6 +27,8 @@ import {
 } from './entities/membership.entity';
 import {
   BASELINE_PLANS,
+  DEFAULT_PROCESSING_FEES,
+  cardPaymentAmount,
   bani,
   date,
   identifier,
@@ -53,7 +55,7 @@ import {
   type OrgoRosterMember,
 } from './orgo-roster.service';
 
-const MEMBERSHIP_TERMS_VERSION = '2026-09-28';
+const MEMBERSHIP_TERMS_VERSION = '2026-10-01';
 
 const hash = (value: string | Buffer) =>
   createHash('sha256').update(value).digest('hex');
@@ -85,14 +87,88 @@ export class MembershipService {
     em = this.em,
   ) {
     const vaultReady = this.paymentConfigurations.vaultReady();
+    const settings = await this.paymentSettings(em);
     return {
       activeProvider,
       activeEnvironment,
       vaultReady,
       providers: (await this.paymentConfigurations.summaries(em)).map(
-        (provider) => ({ ...provider, ready: vaultReady && provider.ready }),
+        (provider) => ({
+          ...provider,
+          ready: vaultReady && provider.ready,
+          processingFee: this.processingFee(settings, provider.id),
+        }),
       ),
     };
+  }
+
+  private processingFee(
+    settings: PaymentSettings,
+    provider: PaymentProviderName,
+  ) {
+    return (
+      settings.processingFees?.[provider] ?? DEFAULT_PROCESSING_FEES[provider]
+    );
+  }
+
+  private adjustedAmount(contributionBani: number, settings: PaymentSettings) {
+    const fee = this.processingFee(
+      settings,
+      settings.activeProvider as PaymentProviderName,
+    );
+    return cardPaymentAmount(
+      contributionBani,
+      fee.percentageBasisPoints,
+      fee.fixedBani,
+    );
+  }
+
+  private adjustPrices(prices: Prices, settings: PaymentSettings): Prices {
+    return Object.fromEntries(
+      Object.entries(prices).map(([key, price]) => {
+        const baseBani = price.baseBani ?? price.totalBani;
+        return [
+          key,
+          {
+            ...price,
+            baseBani,
+            totalBani: this.adjustedAmount(baseBani, settings),
+          },
+        ];
+      }),
+    ) as Prices;
+  }
+
+  private async publishCurrentPrices(
+    em: EntityManager,
+    settings: PaymentSettings,
+  ) {
+    const period = await em.findOne(Period, { active: true });
+    if (!period) return;
+    period.prices = this.adjustPrices(period.prices, settings);
+    for (const obligation of await em.find(Obligation, {
+      periodId: period.id,
+    })) {
+      if (await em.findOne(Allocation, { obligationId: obligation.id }))
+        continue;
+      if (
+        await em.findOne(Checkout, {
+          obligationId: obligation.id,
+          state: { $in: ['starting', 'pending', 'unknown'] },
+        })
+      )
+        continue;
+      if (await em.findOne(Item, { obligationId: obligation.id })) continue;
+      if (obligation.reviewState) continue;
+      obligation.totalBani = period.prices[plan(obligation.plan)].totalBani;
+    }
+    this.audit(
+      em,
+      settings.updatedBy ?? undefined,
+      'prices.adjusted',
+      period.id,
+      { provider: settings.activeProvider, prices: period.prices },
+    );
   }
 
   private staff(user: CurrentUser) {
@@ -153,7 +229,10 @@ export class MembershipService {
         )[0];
         period = em.create(Period, {
           ...expected,
-          prices: structuredClone(source?.prices ?? BASELINE_PLANS),
+          prices: this.adjustPrices(
+            structuredClone(source?.prices ?? BASELINE_PLANS),
+            await this.paymentSettings(em),
+          ),
           active: false,
         });
         em.persist(period);
@@ -166,6 +245,7 @@ export class MembershipService {
       for (const active of await em.find(Period, { active: true }))
         if (active.id !== period.id) active.active = false;
       period.active = true;
+      await this.publishCurrentPrices(em, await this.paymentSettings(em));
       this.audit(em, undefined, 'period.activated_automatically', period.id);
       await em.flush();
       return period;
@@ -334,10 +414,16 @@ export class MembershipService {
         const paidBani = await this.balance(em, obligation.id);
         const financialChange =
           obligation.plan !== member.plan ||
-          obligation.totalBani !== price.totalBani ||
           obligation.nationalBani !== price.nationalBani;
         const openCheckout = checkoutByObligation.get(obligation.id);
-        if (financialChange && (paidBani > 0 || openCheckout)) {
+        const protectedTotal =
+          paidBani > 0 ||
+          Boolean(openCheckout) ||
+          Boolean(
+            await em.findOne(Allocation, { obligationId: obligation.id }),
+          ) ||
+          Boolean(await em.findOne(Item, { obligationId: obligation.id }));
+        if (financialChange && protectedTotal) {
           obligation.reviewState = 'plan_changed_after_payment';
           obligation.reviewReason = openCheckout
             ? `Plan ORGO nou: ${member.plan}. Există o plată cu suma anterioară în curs.`
@@ -354,7 +440,7 @@ export class MembershipService {
         obligation.memberName = member.memberName;
         obligation.cardId = member.cardId;
         obligation.plan = member.plan;
-        obligation.totalBani = price.totalBani;
+        if (!protectedTotal) obligation.totalBani = price.totalBani;
         obligation.nationalBani = price.nationalBani;
         obligation.orgoLastSyncedAt = now;
         obligation.reviewState = null;
@@ -480,6 +566,7 @@ export class MembershipService {
         'Cotizația acestui membru necesită verificare înainte de plată.',
       );
     const paidBani = await this.balance(this.em, obligation.id);
+    const contributionBani = Math.max(0, obligation.totalBani - paidBani);
     const name = obligation.memberName.trim().split(/\s+/);
     const displayName = [
       name[0],
@@ -489,7 +576,7 @@ export class MembershipService {
       identifier: entered.value,
       displayName,
       affiliation: 'Centrul Local Cluj',
-      amountBani: Math.max(0, obligation.totalBani - paidBani),
+      amountBani: contributionBani,
       paid: paidBani >= obligation.totalBani,
     };
   }
@@ -512,18 +599,21 @@ export class MembershipService {
     if (!orgoUserId) return [];
     const obligations = await this.em.find(Obligation, { orgoUserId });
     return Promise.all(
-      obligations.map(async (item) => ({
-        id: String(item.id),
-        periodId: item.periodId,
-        orgoUserId: item.orgoUserId,
-        memberName: item.memberName,
-        plan: item.plan,
-        totalBani: item.totalBani,
-        nationalBani: item.nationalBani,
-        paidBani: await this.balance(this.em, item.id),
-        reviewState: item.reviewState ?? null,
-        reviewReason: item.reviewReason ?? null,
-      })),
+      obligations.map(async (item) => {
+        const paidBani = await this.balance(this.em, item.id);
+        return {
+          id: String(item.id),
+          periodId: item.periodId,
+          orgoUserId: item.orgoUserId,
+          memberName: item.memberName,
+          plan: item.plan,
+          totalBani: item.totalBani,
+          nationalBani: item.nationalBani,
+          paidBani,
+          reviewState: item.reviewState ?? null,
+          reviewReason: item.reviewReason ?? null,
+        };
+      }),
     );
   }
 
@@ -636,7 +726,9 @@ export class MembershipService {
       })),
       cardEnabled: Boolean(active?.ready),
       paymentConfiguration,
-      orgoIntegration: 'awaiting_access',
+      orgoIntegration: (await this.orgoRoster.nationalReady(user.id))
+        ? 'configured'
+        : 'awaiting_access',
       rosterSync: rosterSyncs[0] ?? null,
       rosterInitialized: Boolean(
         await this.em.findOne(RosterSync, {
@@ -681,6 +773,7 @@ export class MembershipService {
         provider,
         environment,
       });
+      await this.publishCurrentPrices(em, settings);
       return this.providerSummary(provider, environment, em);
     });
   }
@@ -724,6 +817,43 @@ export class MembershipService {
     });
   }
 
+  async configureProcessingFee(user: CurrentUser, input: unknown) {
+    this.staff(user);
+    const body = record(input);
+    const provider = body.provider;
+    if (provider !== 'netopia' && provider !== 'stripe')
+      throw new BadRequestException('Procesator de plată invalid.');
+    const percentageBasisPoints = body.percentageBasisPoints;
+    const fixedBani = body.fixedBani;
+    cardPaymentAmount(1, Number(percentageBasisPoints), Number(fixedBani));
+    if (
+      typeof percentageBasisPoints !== 'number' ||
+      typeof fixedBani !== 'number'
+    )
+      throw new BadRequestException('Comision invalid.');
+    return this.mutate(async (em) => {
+      const settings = await this.paymentSettings(em);
+      settings.processingFees = {
+        ...settings.processingFees,
+        [provider]: { percentageBasisPoints, fixedBani },
+      };
+      settings.updatedBy = user.id;
+      em.persist(settings);
+      this.audit(em, user.id, 'processing_fee.configured', settings.id, {
+        provider,
+        percentageBasisPoints,
+        fixedBani,
+      });
+      await this.publishCurrentPrices(em, settings);
+      await em.flush();
+      return this.providerSummary(
+        settings.activeProvider as PaymentProviderName,
+        settings.activeEnvironment,
+        em,
+      );
+    });
+  }
+
   async createPeriod(user: CurrentUser, input: unknown) {
     this.staff(user);
     const body = record(input);
@@ -740,11 +870,15 @@ export class MembershipService {
         );
     }
     return this.mutate(async (em) => {
+      const adjustedPrices = this.adjustPrices(
+        prices,
+        await this.paymentSettings(em),
+      );
       const period = em.create(Period, {
         name: text(body.name, 100),
         startsOn,
         endsOn,
-        prices,
+        prices: adjustedPrices,
         active: false,
       });
       em.persist(period);
@@ -763,6 +897,7 @@ export class MembershipService {
         active.active = false;
       await em.flush();
       period.active = true;
+      await this.publishCurrentPrices(em, await this.paymentSettings(em));
       this.audit(em, user.id, 'period.published', id);
       return period;
     });
@@ -1051,6 +1186,10 @@ export class MembershipService {
       if (obligations.length !== ids.length)
         throw new BadRequestException('Cotizație inexistentă.');
       for (const obligation of obligations) {
+        if (obligation.reviewState)
+          throw new ConflictException(
+            'Rezolvă verificarea cotizației înainte de transfer.',
+          );
         const allocations = await em.find(Allocation, {
           obligationId: obligation.id,
           reversed: false,
@@ -1089,7 +1228,8 @@ export class MembershipService {
             batchId: batch.id,
             obligationId: obligation.id,
             amountBani: obligation.nationalBani,
-            orgoState: 'awaiting_access',
+            orgoState: 'queued',
+            orgoActorId: user.id,
           }),
         );
       this.audit(em, user.id, 'national.transferred', batch.id, {
@@ -1109,9 +1249,52 @@ export class MembershipService {
         throw new ConflictException(
           'Rezolvă corecția financiară înainte de confirmare.',
         );
+      if (['synced', 'manually_confirmed'].includes(item.orgoState))
+        throw new ConflictException('Cotizația este deja confirmată.');
+      if (item.orgoState === 'syncing')
+        throw new ConflictException(
+          'Sincronizarea ORGO este în curs. Așteaptă rezultatul.',
+        );
       item.orgoState = 'manually_confirmed';
       item.evidence = evidence;
+      item.orgoError = null;
       this.audit(em, user.id, 'orgo.manually_confirmed', id);
+      return item;
+    });
+  }
+
+  async retryOrgo(user: CurrentUser, id: string, input: unknown) {
+    this.staff(user);
+    uuid(id);
+    const body = record(input);
+    return this.mutate(async (em) => {
+      const item = await em.findOneOrFail(Item, { id });
+      if (item.orgoState === 'correction_required')
+        throw new ConflictException(
+          'Rezolvă corecția financiară înainte de sincronizare.',
+        );
+      if (
+        ['synced', 'manually_confirmed', 'queued', 'syncing'].includes(
+          item.orgoState,
+        )
+      )
+        throw new ConflictException(
+          'Cotizația este deja confirmată sau în curs.',
+        );
+      if (item.orgoState === 'unknown') {
+        if (body.verifiedNotRecorded !== true) {
+          item.orgoState = 'pending_approval';
+        } else {
+          item.evidence = text(body.evidence, 2000);
+          item.orgoState = 'queued';
+        }
+      } else item.orgoState = 'queued';
+      item.orgoError = null;
+      item.orgoActorId = user.id;
+      this.audit(em, user.id, 'orgo.retry_requested', id, {
+        verifiedNotRecorded: body.verifiedNotRecorded === true,
+        evidence: item.evidence,
+      });
       return item;
     });
   }
@@ -1204,10 +1387,15 @@ export class MembershipService {
           'Există o plată în curs. Reia pagina inițială sau contactează responsabilul financiar.',
         );
       const planKey = plan(obligation.plan);
-      const amountBani =
+      const contributionBani =
         obligation.totalBani - (await this.balance(em, obligation.id));
-      if (amountBani <= 0)
+      if (contributionBani <= 0)
         throw new ConflictException('Cotizație deja plătită.');
+      const amountBani = contributionBani;
+      if (body.amountBani !== undefined && body.amountBani !== amountBani)
+        throw new ConflictException(
+          'Suma de plată s-a schimbat. Verifică noul total înainte de a continua.',
+        );
       const attempt = em.create(Checkout, {
         id: randomUUID(),
         tokenHash,

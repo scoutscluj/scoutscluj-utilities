@@ -110,6 +110,29 @@
 		{:else}<p>Perioada curentă nu este disponibilă.</p>{/if}
 	</section>
 
+	{#if activePeriod}
+		<section>
+			<h2>Tarifele publicate pentru {activePeriod.name}</h2>
+			<p>
+				Același total pentru plata cu cardul și transferul bancar. Cotizațiile cu istoric de plată
+				își păstrează suma deja stabilită.
+			</p>
+			<div class="scroll">
+				<table>
+					<thead
+						><tr><th>Plan</th><th>Bază</th><th>Total de plată</th><th>Parte națională</th></tr
+						></thead
+					><tbody>
+						{#each Object.entries(activePeriod.prices) as [key, price] (key)}<tr
+								><td>{price.label}</td><td>{money(price.baseBani ?? price.totalBani)}</td><td
+									><strong>{money(price.totalBani)}</strong></td
+								><td>{money(price.nationalBani)}</td></tr
+							>{/each}
+					</tbody>
+				</table>
+			</div>
+		</section>
+	{/if}
 	<details>
 		<summary>Perioade și tarife</summary>
 		{#each ledger.periods as p (p.id)}<div class="row">
@@ -131,9 +154,11 @@
 					/></label
 				>{/each}
 			<p>
-				Aceleași tarife se folosesc pentru card și bancă. Perioada corespunzătoare devine activă
-				automat la 1 septembrie. Dacă nu este pregătită în avans, sistemul o creează și copiază
-				tarifele celei mai recente perioade.
+				Sumele introduse sunt baza cotizației. Sistemul adaugă acoperirea comisionului
+				procesatorului activ și rotunjește în sus la un multiplu de 5 lei. Totalul publicat este
+				același pentru card și bancă. Perioada corespunzătoare devine activă automat la 1
+				septembrie. Dacă nu este pregătită în avans, sistemul o creează și copiază tarifele celei
+				mai recente perioade.
 			</p>
 			<button>Creează perioada</button>
 		</form>

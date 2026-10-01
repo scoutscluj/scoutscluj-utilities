@@ -11,6 +11,7 @@ export type AppHref =
 	| '/admin/finance/transfers'
 	| '/admin/finance/membership-settings'
 	| '/admin/finance/payment-processor'
+	| '/admin/finance/guide'
 	| '/admin/users'
 	| '/admin/notifications'
 	| '/admin/parental-consent'

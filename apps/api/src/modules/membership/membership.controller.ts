@@ -142,6 +142,22 @@ export class MembershipController {
   }
 
   @UseGuards(AuthGuard)
+  @Post('payment-provider/processing-fee')
+  processingFee(@CurrentUser() user: AuthenticatedUser, @Body() body: unknown) {
+    return this.membership.configureProcessingFee(user, body);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('national-items/:id/retry')
+  retryOrgo(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.membership.retryOrgo(user, id, body);
+  }
+
+  @UseGuards(AuthGuard)
   @Post('periods')
   period(@CurrentUser() user: AuthenticatedUser, @Body() body: unknown) {
     return this.membership.createPeriod(user, body);

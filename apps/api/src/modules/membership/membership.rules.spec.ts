@@ -1,5 +1,6 @@
 import {
   bani,
+  cardPaymentAmount,
   date,
   identifier,
   membershipPeriodFor,
@@ -38,5 +39,43 @@ describe('membership input rules', () => {
       startsOn: '2026-09-01',
       endsOn: '2027-08-31',
     });
+  });
+});
+
+describe('card payment amount', () => {
+  it.each([
+    [30000, 100, 0, 30500],
+    [30000, 200, 0, 31000],
+    [30000, 150, 100, 31000],
+    [29700, 100, 0, 30000],
+    [29701, 100, 0, 30500],
+    [30000, 0, 0, 30000],
+    [1, 100, 100, 500],
+    [0, 100, 100, 0],
+  ])(
+    'charges the smallest multiple of 5 lei for %i bani',
+    (due, percent, fixed, expected) => {
+      const gross = cardPaymentAmount(due, percent, fixed);
+      expect(gross).toBe(expected);
+      if (due > 0) {
+        const net = (charge: number) =>
+          charge - Math.ceil((charge * percent) / 10000) - fixed;
+        expect(net(gross)).toBeGreaterThanOrEqual(due);
+        expect(net(gross - 500)).toBeLessThan(due);
+      }
+    },
+  );
+
+  it.each([
+    [-1, 100, 0],
+    [30000, 10000, 0],
+    [30000, -1, 0],
+    [30000, 1.5, 0],
+    [30000, 100, -1],
+    [30000, 100, 1.5],
+    [30000, NaN, 0],
+    [100000000, 9999, 0],
+  ])('rejects invalid or excessive amounts', (due, percent, fixed) => {
+    expect(() => cardPaymentAmount(due, percent, fixed)).toThrow();
   });
 });

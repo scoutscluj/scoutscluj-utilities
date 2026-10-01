@@ -28,7 +28,9 @@
 {:else}
 	<div class="public-layout">
 		<div class="public-content">{@render children()}</div>
-		<SiteFooter />
+		{#if !data.user}
+			<SiteFooter />
+		{/if}
 	</div>
 {/if}
 <Toaster />

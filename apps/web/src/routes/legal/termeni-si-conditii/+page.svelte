@@ -26,7 +26,8 @@
 	</p>
 	<p>
 		Pentru o plată fără autentificare, plătitorul introduce ID-ul ORGO sau ID Card al beneficiarului
-		și alege planul. Centrul verifică manual beneficiarul și planul înainte de a credita cotizația.
+		Aplicația verifică beneficiarul în registrul centrului și afișează planul și suma înainte de
+		plată.
 	</p>
 
 	<h2>3. Prețuri, monedă și planuri</h2>
@@ -34,7 +35,9 @@
 		Prețul aplicabil, planul și moneda sunt afișate înainte de inițierea plății. Toate plățile se
 		efectuează în lei (RON). Planurile de familie și planul social pot avea valori reduse conform
 		deciziei publicate pentru perioada de cotizație. Totalul afișat înainte de plată este suma
-		încasată; nu adăugăm automat un comision separat pentru plata cu cardul.
+		încasată. Cotizația publicată include costul estimat de procesare și rotunjirea în sus la primul
+		multiplu de 5 lei. Același total se aplică plății cu cardul și transferului bancar. Plățile
+		parțiale și plățile deja inițiate păstrează totalul înregistrat anterior.
 	</p>
 
 	<h2>4. Metode de plată</h2>

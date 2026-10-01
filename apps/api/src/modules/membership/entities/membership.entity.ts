@@ -1,6 +1,6 @@
 import { defineEntity, p, type InferEntity } from '@mikro-orm/core';
 import { randomUUID } from 'node:crypto';
-import type { Prices } from '../membership.rules';
+import type { Prices, ProcessingFee } from '../membership.rules';
 
 const id = () =>
   p
@@ -31,6 +31,7 @@ export const MembershipPaymentSettings = defineEntity({
     id: p.string().primary(),
     activeProvider: p.string().default('netopia'),
     activeEnvironment: p.string().default('sandbox'),
+    processingFees: p.json<Record<string, ProcessingFee>>().nullable(),
     updatedBy: p.integer().nullable(),
     updatedAt: p
       .datetime()
@@ -209,6 +210,9 @@ export const MembershipNationalItem = defineEntity({
     obligationId: p.uuid().unique(),
     amountBani: p.integer(),
     orgoState: p.string().default('awaiting_access'),
+    orgoActorId: p.integer().nullable(),
+    orgoError: p.text().nullable(),
+    orgoLastAttemptAt: p.datetime().nullable(),
     evidence: p.text().nullable(),
   },
 });

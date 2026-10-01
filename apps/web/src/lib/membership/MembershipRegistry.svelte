@@ -26,6 +26,12 @@
 	};
 	const nationalLabels: Record<string, string> = {
 		awaiting_access: 'ORGO: acces API indisponibil',
+		queued: 'ORGO: programat',
+		syncing: 'ORGO: sincronizare în curs',
+		synced: 'ORGO: cotizație confirmată',
+		pending_approval: 'ORGO: așteaptă confirmarea',
+		failed: 'ORGO: sincronizare nereușită',
+		unknown: 'ORGO: rezultat de verificat',
 		manually_confirmed: 'ORGO: verificat manual',
 		correction_required: 'Necesită corecție'
 	};
@@ -174,8 +180,9 @@
 					>
 				</div>
 				<p>
-					Confirmă numai după efectuarea transferului bancar. Această acțiune nu trimite bani și nu
-					marchează automat cotizațiile în ORGO.
+					Confirmă numai după efectuarea transferului bancar. Această acțiune nu trimite bani. După
+					înregistrare, aplicația verifică și marchează cotizațiile în ORGO folosind tokenul tău,
+					dacă ai drepturile financiare necesare.
 				</p>
 				<button disabled={selected.length === 0}>Confirmă transferul național</button>
 			</div>

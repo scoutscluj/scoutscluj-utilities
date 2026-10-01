@@ -114,6 +114,10 @@ export class OrgoRosterService {
     private readonly config: ConfigService,
   ) {}
 
+  nationalReady(actorId: number) {
+    return this.tokens.administrativeReady(actorId);
+  }
+
   async members(actorId: number) {
     const configuredId = this.config
       .get<string>('ORGO_LOCAL_CENTER_ID')

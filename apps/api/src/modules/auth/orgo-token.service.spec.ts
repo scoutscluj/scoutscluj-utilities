@@ -8,6 +8,89 @@ import { ConfigService } from '@nestjs/config';
 import { OrgoTokenService, safeOrgoProfile } from './orgo-token.service';
 
 describe('ORGO member API credentials', () => {
+  it('captures delegated credentials securely using a separate key derived from the production session secret', async () => {
+    const connection = { apiTokenEncrypted: null as string | null };
+    const em = {
+      findOne: () => Promise.resolve(connection),
+      flush: () => Promise.resolve(),
+    };
+    const config = new ConfigService({
+      AUTH_SESSION_SECRET: 'session-secret-'.repeat(5),
+      ORGO_OAUTH_BASE_URL: 'https://tenant.example.test',
+    });
+    const service = new OrgoTokenService(
+      em as unknown as EntityManager,
+      config,
+    );
+    await service.capture(1, { access_token: 'delegated-token' });
+    expect(connection.apiTokenEncrypted).not.toContain('delegated-token');
+    await expect(service.administrativeReady(1)).resolves.toBe(true);
+    const fetchMock = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('{}', { status: 200 }));
+    try {
+      await service.administrativeJson(1, '/api/v1/users/123');
+      expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({
+        Authorization: 'Bearer delegated-token',
+      });
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('uses only the financial actor OAuth token for national operations, even when a server token exists', async () => {
+    const connection = { apiTokenEncrypted: null as string | null };
+    const em = {
+      findOne: jest.fn((_entity: unknown, where: { user: number }) =>
+        Promise.resolve(where.user === 1 ? connection : null),
+      ),
+      flush: jest.fn(() => Promise.resolve()),
+    };
+    const service = new OrgoTokenService(
+      em as unknown as EntityManager,
+      new ConfigService({
+        ORGO_TOKEN_ENCRYPTION_KEY: 'ab'.repeat(32),
+        ORGO_OAUTH_BASE_URL: 'https://tenant.example.test',
+        ORGO_API_TOKEN: 'server-token',
+      }),
+    );
+    await service.capture(1, { access_token: 'financial-user-token' });
+    await expect(service.administrativeReady(1)).resolves.toBe(true);
+    const fetchMock = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+      .mockResolvedValueOnce(new Response('', { status: 401 }));
+    try {
+      await expect(
+        service.administrativeJson(2, '/api/v1/fee_payments', {}),
+      ).rejects.toThrow();
+      for (const path of [
+        'https://foreign.example/api/v1/fee_payments',
+        '/other',
+        'http://tenant.example.test/api/v1/users',
+      ])
+        await expect(service.administrativeJson(1, path, {})).rejects.toThrow(
+          'invalidă',
+        );
+      expect(fetchMock).not.toHaveBeenCalled();
+      await service.administrativeJson(1, '/api/v1/fee_payments', {
+        markAsPaid: true,
+      });
+      expect(fetchMock.mock.calls[0][1]).toMatchObject({
+        method: 'POST',
+        headers: { Authorization: 'Bearer financial-user-token' },
+        redirect: 'error',
+      });
+      await expect(
+        service.administrativeJson(1, '/api/v1/users/123'),
+      ).rejects.toThrow('refuzat');
+      expect(connection.apiTokenEncrypted).toBeNull();
+      await expect(service.administrativeReady(1)).resolves.toBe(false);
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
   it('keeps credentials and unknown fields out of persisted/returned profiles', () => {
     const raw = {
       id: 36805,

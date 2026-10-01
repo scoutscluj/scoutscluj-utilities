@@ -22,6 +22,8 @@ import { AuditEntry } from '../modules/audit/entities/audit-entry.entity';
 import { Migration20260921000100 } from '../migrations/Migration20260921000100';
 import { Migration20260928000100 } from '../migrations/Migration20260928000100';
 import { Migration20260930000100 } from '../migrations/Migration20260930000100';
+import { Migration20261001000100 } from '../migrations/Migration20261001000100';
+import { Migration20261001000200 } from '../migrations/Migration20261001000200';
 import { Migration20260930000200 } from '../migrations/Migration20260930000200';
 import type { PaymentConfigurationService } from '../modules/membership/payment-configuration.service';
 import { UserRole } from '../modules/users/entities/user-role.enum';
@@ -124,6 +126,24 @@ async function main() {
       if (typeof sql !== 'string') throw new Error('Expected SQL migration');
       await orm.em.getConnection().execute(sql);
     }
+    for (const Migration of [
+      Migration20261001000100,
+      Migration20261001000200,
+    ]) {
+      const migration = new Migration(orm.em.getDriver(), orm.config);
+      migration.up();
+      for (const sql of migration.getQueries()) {
+        if (typeof sql !== 'string') throw new Error('Expected SQL migration');
+        await orm.em.getConnection().execute(sql);
+      }
+    }
+    // This runner verifies legacy fixed-value concurrency scenarios; pricing rollout
+    // is checked separately against populated paid/pending/review cases.
+    await orm.em
+      .getConnection()
+      .execute(
+        `update membership_payment_settings set processing_fees='{"netopia":{"percentageBasisPoints":0,"fixedBani":0},"stripe":{"percentageBasisPoints":0,"fixedBani":0}}'::jsonb where id='membership'`,
+      );
     const netopiaConfiguration = {
       provider: 'netopia' as const,
       environment: 'sandbox' as const,

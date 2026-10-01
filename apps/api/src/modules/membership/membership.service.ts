@@ -60,6 +60,14 @@ const MEMBERSHIP_TERMS_VERSION = '2026-10-01';
 const hash = (value: string | Buffer) =>
   createHash('sha256').update(value).digest('hex');
 
+const beneficiaryDisplayName = (memberName: string) => {
+  const name = memberName.trim().split(/\s+/);
+  return [
+    name[0],
+    ...name.slice(1).map((part) => `${part.charAt(0).toUpperCase()}.`),
+  ].join(' ');
+};
+
 @Injectable()
 export class MembershipService {
   constructor(
@@ -567,11 +575,7 @@ export class MembershipService {
       );
     const paidBani = await this.balance(this.em, obligation.id);
     const contributionBani = Math.max(0, obligation.totalBani - paidBani);
-    const name = obligation.memberName.trim().split(/\s+/);
-    const displayName = [
-      name[0],
-      ...name.slice(1).map((part) => `${part.charAt(0).toUpperCase()}.`),
-    ].join(' ');
+    const displayName = beneficiaryDisplayName(obligation.memberName);
     return {
       identifier: entered.value,
       displayName,
@@ -1327,7 +1331,17 @@ export class MembershipService {
       );
     const checkout = await this.mutate(async (em) => {
       const previous = await em.findOne(Checkout, { tokenHash });
-      if (previous) return previous;
+      if (previous) {
+        if (
+          previous.periodId !== periodId ||
+          (body.amountBani !== undefined &&
+            body.amountBani !== previous.amountBani)
+        )
+          throw new ConflictException(
+            'Suma încercării existente diferă de totalul afișat. Verifică plata anterioară înainte de a continua.',
+          );
+        return previous;
+      }
       const settings = await this.paymentSettings(em);
       const activeRevision = await em.findOne(ProviderConfig, {
         id: providerRevision.id,
@@ -1446,10 +1460,20 @@ export class MembershipService {
         throw new ServiceUnavailableException(
           'Configurația inițială a plății nu mai este disponibilă.',
         );
+      const beneficiary = checkout.obligationId
+        ? await this.em.findOneOrFail(Obligation, { id: checkout.obligationId })
+        : null;
+      const checkoutPeriod = await this.em.findOneOrFail(Period, {
+        id: checkout.periodId,
+      });
       const startInput = {
         id: checkout.id,
         amountBani: checkout.amountBani,
         description: 'Cotizație Centrul Local Cluj',
+        beneficiaryName: beneficiary
+          ? beneficiaryDisplayName(beneficiary.memberName)
+          : undefined,
+        periodName: checkoutPeriod.name,
       };
       const started =
         startConfiguration.provider === 'stripe'

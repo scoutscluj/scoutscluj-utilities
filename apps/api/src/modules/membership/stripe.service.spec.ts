@@ -80,6 +80,8 @@ describe('Stripe payment boundary', () => {
         Promise.resolve({
           id: 'cs_test_123',
           url: 'https://checkout.stripe.com/c/pay/test',
+          amount_total: 31000,
+          currency: 'ron',
         }),
     } as Response);
     global.fetch = fetchMock;
@@ -97,8 +99,10 @@ describe('Stripe payment boundary', () => {
         service.start(
           {
             id: '11111111-1111-4111-8111-111111111111',
-            amountBani: 30000,
+            amountBani: 31000,
             description: 'Cotizație Centrul Local Cluj',
+            beneficiaryName: 'Test M.',
+            periodName: '2026–2027',
           },
           {
             provider: 'stripe',
@@ -116,7 +120,16 @@ describe('Stripe payment boundary', () => {
       const form = request.body as URLSearchParams;
       expect(form.get('line_items[0][price_data][currency]')).toBe('ron');
       expect(form.has('customer_email')).toBe(false);
-      expect(form.get('line_items[0][price_data][unit_amount]')).toBe('30000');
+      expect(form.get('line_items[0][price_data][unit_amount]')).toBe('31000');
+      expect(
+        form.get('line_items[0][price_data][product_data][description]'),
+      ).toContain('Beneficiar: Test M. · Perioada: 2026–2027');
+      expect(form.get('custom_text[submit][message]')).toContain(
+        'revino în aplicație',
+      );
+      expect(form.get('custom_text[after_submit][message]')).toContain(
+        'confirmarea Stripe',
+      );
       expect(form.get('metadata[checkout_id]')).toBe(
         '11111111-1111-4111-8111-111111111111',
       );
@@ -124,4 +137,45 @@ describe('Stripe payment boundary', () => {
       global.fetch = originalFetch;
     }
   });
+
+  it.each([
+    { amount_total: 30000, currency: 'ron' },
+    { amount_total: 31000, currency: 'eur' },
+  ])(
+    'refuses a redirect when Stripe returns a different total or currency: %j',
+    async (values) => {
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            id: 'cs_test_123',
+            url: 'https://checkout.stripe.com/c/pay/test',
+            ...values,
+          }),
+      });
+      try {
+        const service = new StripeService(
+          new ConfigService({ WEB_ORIGIN: 'https://resurse.example.test' }),
+        );
+        await expect(
+          service.start(
+            {
+              id: '11111111-1111-4111-8111-111111111111',
+              amountBani: 31000,
+              description: 'Cotizație Centrul Local Cluj',
+            },
+            {
+              provider: 'stripe',
+              environment: 'test',
+              secretKey: 'sk_test_secret',
+              webhookSecret: secret,
+            },
+          ),
+        ).rejects.toThrow('Suma sau moneda sesiunii Stripe diferă');
+      } finally {
+        global.fetch = originalFetch;
+      }
+    },
+  );
 });

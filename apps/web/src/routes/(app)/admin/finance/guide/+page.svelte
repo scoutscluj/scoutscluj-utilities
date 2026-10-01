@@ -113,6 +113,13 @@
 		<h2>Plata cu cardul și transferul bancar</h2>
 		<h3>Card</h3>
 		<p>
+			În Stripe, pagina de plată arată beneficiarul cu numele prescurtat și perioada cotizației.
+			Suma trebuie să coincidă cu totalul confirmat în aplicație. O sesiune începută anterior
+			păstrează suma inițială; schimbarea tarifului nu modifică pagina Stripe deja deschisă. Dacă
+			sumele diferă, verifică încercarea existentă și confirmă în procesator că nu există încasare
+			înainte de închiderea ei și inițierea unei plăți noi.
+		</p>
+		<p>
 			Membrul autentificat își vede cotizația și suma rămasă. Poate plăti și pentru alt membru,
 			folosind ID-ul ORGO sau ID-ul cardului. Aplicația verifică apartenența la centrul local și
 			afișează suma înainte de trimiterea la procesator. Nu se alege arbitrar un plan pentru alt

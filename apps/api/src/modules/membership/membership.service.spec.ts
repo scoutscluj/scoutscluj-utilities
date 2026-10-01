@@ -86,6 +86,7 @@ function fixture() {
   };
   const stripe = {
     verify: jest.fn(),
+    expireUnpaid: jest.fn(() => Promise.resolve()),
     start: jest.fn(() =>
       Promise.resolve({
         providerId: 'cs_test_123',
@@ -288,6 +289,179 @@ async function setup() {
 }
 
 describe('membership service rules', () => {
+  it('expires an abandoned unpaid Stripe link before repricing and creating another checkout', async () => {
+    const f = await setup();
+    await f.service.selectPaymentProvider(f.staff, {
+      provider: 'stripe',
+      environment: 'test',
+    });
+    const body = {
+      periodId: f.period.id,
+      identifier: 'AT36805',
+      acceptTerms: true,
+      attemptToken: 'r'.repeat(43),
+      amountBani: 30000,
+    };
+    await f.service.checkout(body);
+    await f.service.configureProcessingFee(f.staff, {
+      provider: 'stripe',
+      percentageBasisPoints: 150,
+      fixedBani: 100,
+    });
+    expect(f.obligation.totalBani).toBe(30000);
+    await f.service.restart(body.attemptToken);
+    expect(f.stripe.expireUnpaid).toHaveBeenCalledWith(
+      'cs_test_123',
+      expect.any(String),
+      30000,
+      expect.objectContaining({ environment: 'test' }),
+    );
+    expect(f.obligation.totalBani).toBe(31000);
+    expect(await f.service.status(body.attemptToken)).toMatchObject({
+      state: 'failed',
+      paymentUrl: null,
+    });
+    await f.service.checkout({
+      ...body,
+      attemptToken: 's'.repeat(43),
+      amountBani: 31000,
+    });
+    expect(f.stripe.start).toHaveBeenCalledTimes(2);
+    expect(f.stripe.start).toHaveBeenLastCalledWith(
+      expect.objectContaining({ amountBani: 31000 }),
+      expect.anything(),
+    );
+  });
+
+  it('keeps a submitted or unconfirmed Stripe payment protected when expiration cannot be confirmed', async () => {
+    const f = await setup();
+    await f.service.selectPaymentProvider(f.staff, {
+      provider: 'stripe',
+      environment: 'test',
+    });
+    const body = {
+      periodId: f.period.id,
+      identifier: 'AT36805',
+      acceptTerms: true,
+      attemptToken: 'r'.repeat(43),
+      amountBani: 30000,
+    };
+    await f.service.checkout(body);
+    f.stripe.expireUnpaid.mockRejectedValueOnce(new Error('already submitted'));
+    await expect(f.service.restart(body.attemptToken)).rejects.toThrow(
+      'already submitted',
+    );
+    expect(await f.service.status(body.attemptToken)).toMatchObject({
+      state: 'pending',
+    });
+    expect(f.stripe.start).toHaveBeenCalledTimes(1);
+    const checkout = f.rows.find((row) => row.table === 'checkout')!;
+    checkout.state = 'unknown';
+    await expect(f.service.restart(body.attemptToken)).rejects.toThrow(
+      'verificată',
+    );
+    expect(f.stripe.expireUnpaid).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not overwrite a success callback racing the restart request', async () => {
+    const f = await setup();
+    await f.service.selectPaymentProvider(f.staff, {
+      provider: 'stripe',
+      environment: 'test',
+    });
+    const body = {
+      periodId: f.period.id,
+      identifier: 'AT36805',
+      acceptTerms: true,
+      attemptToken: 'r'.repeat(43),
+      amountBani: 30000,
+    };
+    await f.service.checkout(body);
+    const checkout = f.rows.find((row) => row.table === 'checkout')!;
+    f.stripe.expireUnpaid.mockImplementationOnce(() => {
+      checkout.state = 'succeeded';
+      return Promise.resolve();
+    });
+    await expect(f.service.restart(body.attemptToken)).rejects.toThrow(
+      'confirmată între timp',
+    );
+    expect(await f.service.status(body.attemptToken)).toMatchObject({
+      state: 'succeeded',
+    });
+    expect(f.stripe.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('reopens an existing payment when the browser has lost its original attempt token', async () => {
+    const f = await setup();
+    await f.service.selectPaymentProvider(f.staff, {
+      provider: 'stripe',
+      environment: 'test',
+    });
+    const user = { ...f.staff, orgoConnection: { orgoUserId: 36805 } };
+    const body = {
+      periodId: f.period.id,
+      obligationId: f.obligation.id,
+      identifier: 'AT36805',
+      acceptTerms: true,
+      attemptToken: 'r'.repeat(43),
+      amountBani: 30000,
+    };
+    const first = await f.service.checkout(body, user);
+    // Knowing a public member ID is insufficient to take over another payer's attempt.
+    await expect(
+      f.service.checkout({ ...body, attemptToken: 's'.repeat(43) }),
+    ).rejects.toThrow('Există o plată în curs');
+    expect(
+      await f.service.checkout({ ...body, attemptToken: 's'.repeat(43) }, user),
+    ).toEqual(first);
+    expect(f.stripe.start).toHaveBeenCalledTimes(1);
+    expect(await f.service.status('s'.repeat(43))).toMatchObject({
+      state: 'pending',
+      paymentUrl: first.paymentUrl,
+    });
+    await f.service.restart('s'.repeat(43));
+    expect(await f.service.status('s'.repeat(43))).toMatchObject({
+      state: 'failed',
+    });
+  });
+
+  it('updates a cancelled test allocation to the current Stripe tariff and repairs already reversed allocations on reload', async () => {
+    const f = await setup();
+    const receipt = await f.service.bankReceipt(f.staff, {
+      periodId: f.period.id,
+      amountBani: 30000,
+      reference: 'test-payment',
+      receivedOn: '2026-10-01',
+      note: 'Test',
+    });
+    const allocation = await f.service.allocate(f.staff, {
+      receiptId: receipt.id,
+      obligationId: f.obligation.id,
+      amountBani: 30000,
+      note: 'Test',
+    });
+    await f.service.configureProcessingFee(f.staff, {
+      provider: 'stripe',
+      percentageBasisPoints: 150,
+      fixedBani: 100,
+    });
+    await f.service.selectPaymentProvider(f.staff, {
+      provider: 'stripe',
+      environment: 'test',
+    });
+    expect(f.obligation.totalBani).toBe(30000);
+    await f.service.reverse(f.staff, allocation.id, { note: 'Cancel test' });
+    expect(f.obligation.totalBani).toBe(31000);
+    f.obligation.totalBani = 30000;
+    expect(
+      await f.service.guestLookup({ identifier: 'AT36805' }),
+    ).toMatchObject({ amountBani: 31000, paid: false });
+    expect(f.rows.find((row) => row.id === allocation.id)).toMatchObject({
+      reversed: true,
+      amountBani: 30000,
+    });
+    expect(receipt.amountBani).toBe(30000);
+  });
   it('does not reuse a 300 RON session when the submitted total is 310 RON', async () => {
     const f = await setup();
     await f.service.selectPaymentProvider(f.staff, {

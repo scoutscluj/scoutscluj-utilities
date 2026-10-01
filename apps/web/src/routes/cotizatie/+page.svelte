@@ -217,7 +217,10 @@
 				<p class="success-message">{providerName} a confirmat primirea plății.</p>
 			{:else if ['starting', 'pending'].includes(data.status.state)}
 				<p class="notice">
-					Plata nu este încă confirmată. Verifică starea înainte de a plăti din nou.
+					Plata nu este încă confirmată. Poți redeschide linkul de plată.
+					{#if data.status.provider === 'stripe' && data.status.state === 'pending'}
+						Pentru o plată nouă, închidem mai întâi linkul vechi neplătit.
+					{/if}
 				</p>
 			{/if}
 			{#if data.status.requiresStaffReview}
@@ -240,12 +243,13 @@
 						>Continuă plata pe {providerName}</a
 					>
 				</p>{/if}
-			{#if ['succeeded', 'failed'].includes(data.status.state)}<form
+			{#if ['succeeded', 'failed'].includes(data.status.state) || (data.status.provider === 'stripe' && data.status.state === 'pending' && !data.status.requiresStaffReview)}<form
 					method="POST"
 					action="?/another"
 				>
 					<button>Începe o altă plată</button>
 				</form>{/if}
+			{#if form?.message}<p role="alert" class="error-message">{form.message}</p>{/if}
 		</section>
 	{:else if !data.period}<p class="notice">
 			Perioada de cotizație nu a fost încă publicată. Contactează responsabilul financiar.

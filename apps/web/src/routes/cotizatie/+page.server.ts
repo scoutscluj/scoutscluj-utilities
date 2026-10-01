@@ -127,10 +127,19 @@ export const actions: Actions = {
 			const response = await apiFetch(`/api/membership/status/${encodeURIComponent(token)}`);
 			if (!response.ok) return fail(409, { message: 'Verifică mai întâi starea plății.' });
 			const status = (await response.json()) as PaymentStatus;
-			if (!['succeeded', 'failed'].includes(status.state))
-				return fail(409, {
-					message: 'Plata existentă trebuie verificată înainte de o nouă încercare.'
+			if (!['succeeded', 'failed'].includes(status.state)) {
+				const restart = await apiFetch('/api/membership/restart', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ attemptToken: token })
 				});
+				if (!restart.ok) {
+					const result = (await restart.json()) as { message?: string };
+					return fail(restart.status, {
+						message: result.message ?? 'Linkul vechi nu a putut fi închis. Reîncearcă verificarea.'
+					});
+				}
+			}
 		}
 		cookies.delete(ATTEMPT_COOKIE, { path: '/cotizatie' });
 		redirect(303, '/cotizatie');

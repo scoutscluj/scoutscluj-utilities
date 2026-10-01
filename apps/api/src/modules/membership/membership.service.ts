@@ -153,23 +153,42 @@ export class MembershipService {
   ) {
     const period = await em.findOne(Period, { active: true });
     if (!period) return;
+    const previousPrices = JSON.stringify(period.prices);
+    let changed = false;
     period.prices = this.adjustPrices(period.prices, settings);
-    for (const obligation of await em.find(Obligation, {
-      periodId: period.id,
-    })) {
-      if (await em.findOne(Allocation, { obligationId: obligation.id }))
-        continue;
-      if (
-        await em.findOne(Checkout, {
-          obligationId: obligation.id,
-          state: { $in: ['starting', 'pending', 'unknown'] },
-        })
-      )
-        continue;
-      if (await em.findOne(Item, { obligationId: obligation.id })) continue;
-      if (obligation.reviewState) continue;
-      obligation.totalBani = period.prices[plan(obligation.plan)].totalBani;
+    const candidates = (
+      await em.find(Obligation, {
+        periodId: period.id,
+      })
+    ).filter(
+      (obligation) =>
+        !obligation.reviewState &&
+        obligation.totalBani !== period.prices[plan(obligation.plan)].totalBani,
+    );
+    const protectedIds = new Set<string>();
+    if (candidates.length) {
+      const obligationId = { $in: candidates.map((item) => item.id) };
+      const allocations = await em.find(Allocation, {
+        obligationId,
+        reversed: false,
+      });
+      const checkouts = await em.find(Checkout, {
+        obligationId,
+        state: { $in: ['starting', 'pending', 'unknown'] },
+      });
+      const items = await em.find(Item, { obligationId });
+      for (const entry of [...allocations, ...checkouts, ...items])
+        if (entry.obligationId) protectedIds.add(entry.obligationId);
     }
+    for (const obligation of candidates) {
+      if (protectedIds.has(obligation.id)) continue;
+      const total = period.prices[plan(obligation.plan)].totalBani;
+      if (obligation.totalBani !== total) {
+        obligation.totalBani = total;
+        changed = true;
+      }
+    }
+    if (!changed && previousPrices === JSON.stringify(period.prices)) return;
     this.audit(
       em,
       settings.updatedBy ?? undefined,
@@ -223,7 +242,12 @@ export class MembershipService {
       startsOn: expected.startsOn,
       endsOn: expected.endsOn,
     });
-    if (existing?.active) return existing;
+    if (existing?.active) {
+      return this.mutate(async (em) => {
+        await this.publishCurrentPrices(em, await this.paymentSettings(em));
+        return em.findOneOrFail(Period, { id: existing.id });
+      });
+    }
 
     return this.mutate(async (em) => {
       let period = await em.findOne(Period, {
@@ -601,6 +625,7 @@ export class MembershipService {
   > {
     const orgoUserId = user.orgoConnection?.orgoUserId;
     if (!orgoUserId) return [];
+    await this.ensureCurrentPeriod();
     const obligations = await this.em.find(Obligation, { orgoUserId });
     return Promise.all(
       obligations.map(async (item) => {
@@ -1050,6 +1075,8 @@ export class MembershipService {
       });
       if (item) item.orgoState = 'correction_required';
       this.audit(em, user.id, 'allocation.reversed', id, { reason: note });
+      await em.flush();
+      await this.publishCurrentPrices(em, await this.paymentSettings(em));
       return { success: true };
     });
   }
@@ -1330,18 +1357,6 @@ export class MembershipService {
         `Procesatorul ${providerName === 'stripe' ? 'Stripe' : 'NETOPIA'} nu este configurat pentru acest mediu.`,
       );
     const checkout = await this.mutate(async (em) => {
-      const previous = await em.findOne(Checkout, { tokenHash });
-      if (previous) {
-        if (
-          previous.periodId !== periodId ||
-          (body.amountBani !== undefined &&
-            body.amountBani !== previous.amountBani)
-        )
-          throw new ConflictException(
-            'Suma încercării existente diferă de totalul afișat. Verifică plata anterioară înainte de a continua.',
-          );
-        return previous;
-      }
       const settings = await this.paymentSettings(em);
       const activeRevision = await em.findOne(ProviderConfig, {
         id: providerRevision.id,
@@ -1392,10 +1407,37 @@ export class MembershipService {
         throw new ConflictException(
           'Cotizația necesită verificare financiară înainte de plată.',
         );
+      const previous = await em.findOne(Checkout, { tokenHash });
+      if (previous) {
+        if (
+          previous.obligationId !== obligation.id ||
+          previous.periodId !== periodId ||
+          (body.amountBani !== undefined &&
+            body.amountBani !== previous.amountBani)
+        )
+          throw new ConflictException(
+            'Suma încercării existente diferă de totalul afișat sau beneficiarul s-a schimbat. Verifică plata anterioară înainte de a continua.',
+          );
+        return previous;
+      }
       const pending = await em.findOne(Checkout, {
         obligationId: obligation.id,
         state: { $in: ['starting', 'pending', 'unknown'] },
       });
+      if (
+        pending?.state === 'pending' &&
+        user &&
+        pending.paymentUrl &&
+        !pending.reviewRequired &&
+        (body.amountBani === undefined ||
+          body.amountBani === pending.amountBani)
+      ) {
+        // Reattach the existing attempt to this browser, keeping its session,
+        // provider reference and financial history intact. Never submit again.
+        pending.tokenHash = tokenHash;
+        this.audit(em, user?.id, 'checkout.resumed', pending.id);
+        return pending;
+      }
       if (pending)
         throw new ConflictException(
           'Există o plată în curs. Reia pagina inițială sau contactează responsabilul financiar.',
@@ -1530,6 +1572,53 @@ export class MembershipService {
       requiresStaffReview: !checkout.obligationId || checkout.reviewRequired,
       paymentUrl: checkout.state === 'pending' ? checkout.paymentUrl : null,
     };
+  }
+
+  async restart(token: string) {
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw new NotFoundException();
+    const checkout = await this.em.findOne(Checkout, {
+      tokenHash: hash(token),
+    });
+    if (!checkout) throw new NotFoundException();
+    if (['succeeded', 'failed'].includes(checkout.state))
+      return { success: true };
+    if (
+      checkout.provider !== 'stripe' ||
+      checkout.state !== 'pending' ||
+      !checkout.providerId ||
+      checkout.reviewRequired
+    )
+      throw new ConflictException(
+        'Această încercare trebuie verificată înainte de o nouă plată.',
+      );
+    const configuration = await this.configurationForCheckout(
+      'stripe',
+      checkout.id,
+    );
+    if (configuration.provider !== 'stripe') throw new ConflictException();
+    await this.stripe.expireUnpaid(
+      checkout.providerId,
+      checkout.id,
+      checkout.amountBani,
+      configuration,
+    );
+    await this.mutate(async (em) => {
+      const fresh = await em.findOneOrFail(
+        Checkout,
+        { id: checkout.id },
+        { refresh: true },
+      );
+      if (fresh.state === 'succeeded' || fresh.reviewRequired)
+        throw new ConflictException(
+          'Plata a fost confirmată între timp. Actualizează situația cotizației.',
+        );
+      fresh.state = 'failed';
+      fresh.paymentUrl = null;
+      this.audit(em, undefined, 'checkout.expired_by_payer', fresh.id);
+      await em.flush();
+      await this.publishCurrentPrices(em, await this.paymentSettings(em));
+    });
+    return { success: true };
   }
 
   private untrustedNotificationBody(raw: Buffer) {

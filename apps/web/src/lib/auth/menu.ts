@@ -40,9 +40,9 @@ export const menuItems: MenuItem[] = [
 			{ label: 'Administrare', href: '/admin', minRole: 'moderator' },
 			{
 				label: 'Financiar',
+				href: '/admin/finance',
 				anyRole: ['admin', 'finance_manager', 'super_admin'],
 				children: [
-					{ label: 'Prezentare', href: '/admin/finance' },
 					{ label: 'Membri și cotizații', href: '/admin/finance/membership' },
 					{ label: 'Încasări și alocări', href: '/admin/finance/receipts' },
 					{ label: 'Transferuri naționale', href: '/admin/finance/transfers' },

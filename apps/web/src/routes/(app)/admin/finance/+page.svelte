@@ -3,6 +3,7 @@
 	import Users from '@lucide/svelte/icons/users';
 	import CreditCard from '@lucide/svelte/icons/credit-card';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
+	import BookOpen from '@lucide/svelte/icons/book-open';
 </script>
 
 <svelte:head><title>Administrare financiară · Scouts Cluj</title></svelte:head>
@@ -13,6 +14,15 @@
 	<p>Gestionează cotizațiile membrilor și configurarea plăților online.</p>
 </header>
 <div class="modules">
+	<a class="module-card" href={resolve('/admin/finance/guide')}>
+		<span class="icon"><BookOpen size={24} /></span>
+		<h2>Ghid financiar</h2>
+		<p>
+			Cum funcționează cotizațiile, încasările, procesatorii de plăți și transferurile naționale,
+			explicat pas cu pas.
+		</p>
+		<span class="action">Citește ghidul <ArrowRight size={18} /></span>
+	</a>
 	<a class="module-card" href={resolve('/admin/finance/membership')}>
 		<span class="icon"><Users size={24} /></span>
 		<h2>Membri și cotizații</h2>

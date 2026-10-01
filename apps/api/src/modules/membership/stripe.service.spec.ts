@@ -10,6 +10,122 @@ const signed = (raw: Buffer, secret: string, timestamp: number) => {
 };
 
 describe('Stripe payment boundary', () => {
+  const configuration = {
+    provider: 'stripe' as const,
+    environment: 'test' as const,
+    secretKey: 'sk_test_secret',
+    webhookSecret: 'whsec_test',
+  };
+  const session = {
+    id: 'cs_test_123',
+    client_reference_id: '11111111-1111-4111-8111-111111111111',
+    amount_total: 31000,
+    currency: 'ron',
+    livemode: false,
+    status: 'open',
+    payment_status: 'unpaid',
+  };
+
+  it('expires only the matching open unpaid session, and accepts an already expired link', async () => {
+    const originalFetch = global.fetch;
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(session) })
+      .mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ ...session, status: 'expired' }),
+      });
+    global.fetch = fetchMock;
+    try {
+      const service = new StripeService(new ConfigService());
+      await service.expireUnpaid(
+        session.id,
+        session.client_reference_id,
+        31000,
+        configuration,
+      );
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining('/cs_test_123/expire'),
+        expect.objectContaining({ method: 'POST' }),
+      );
+      await service.expireUnpaid(
+        session.id,
+        session.client_reference_id,
+        31000,
+        configuration,
+      );
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it.each([
+    { status: 'complete', payment_status: 'paid' },
+    { status: 'complete', payment_status: 'unpaid' },
+    { status: 'expired', payment_status: 'paid' },
+    { livemode: true },
+    { amount_total: 30000 },
+    { client_reference_id: 'another-checkout' },
+    { currency: 'eur' },
+    { id: 'another-session' },
+  ])(
+    'never expires or releases a completed or mismatched session: %j',
+    async (values) => {
+      const originalFetch = global.fetch;
+      const fetchMock = jest.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ ...session, ...values }),
+      });
+      global.fetch = fetchMock;
+      try {
+        await expect(
+          new StripeService(new ConfigService()).expireUnpaid(
+            session.id,
+            session.client_reference_id,
+            31000,
+            configuration,
+          ),
+        ).rejects.toThrow();
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+      } finally {
+        global.fetch = originalFetch;
+      }
+    },
+  );
+
+  it('keeps the attempt protected if payment wins the expiration race or the response is lost', async () => {
+    const originalFetch = global.fetch;
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(session) })
+      .mockResolvedValueOnce({ ok: false })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(session) })
+      .mockRejectedValueOnce(new Error('timeout'));
+    global.fetch = fetchMock;
+    try {
+      const service = new StripeService(new ConfigService());
+      await expect(
+        service.expireUnpaid(
+          session.id,
+          session.client_reference_id,
+          31000,
+          configuration,
+        ),
+      ).rejects.toThrow('Stripe nu a confirmat');
+      await expect(
+        service.expireUnpaid(
+          session.id,
+          session.client_reference_id,
+          31000,
+          configuration,
+        ),
+      ).rejects.toThrow('timeout');
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
   const secret = 'whsec_test';
   const now = Date.UTC(2026, 8, 28, 8, 0, 0);
   const raw = Buffer.from(

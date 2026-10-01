@@ -24,7 +24,12 @@
 				>Procesator: {provider}</span
 			>
 		</div>
-		{#if data.status.state === 'succeeded'}<p>{provider} a confirmat primirea plății.</p>{:else}<p>
+		{#if data.status.state === 'succeeded'}<p>
+				{provider} a confirmat primirea plății.
+			</p>{:else if data.status.provider === 'stripe' && data.status.state === 'pending'}<p>
+				Poți redeschide linkul sau poți începe o altă plată din pagina de cotizație. Aplicația
+				închide mai întâi linkul vechi neplătit.
+			</p>{:else}<p>
 				Revenirea de la {provider} nu confirmă singură plata. Nu repeta plata cât timp este în curs sau
 				necesită verificare.
 			</p>{/if}

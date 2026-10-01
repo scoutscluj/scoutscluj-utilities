@@ -120,6 +120,19 @@
 			înainte de închiderea ei și inițierea unei plăți noi.
 		</p>
 		<p>
+			Închiderea ferestrei Stripe nu înseamnă plată efectuată. Membrul poate redeschide linkul prin
+			„Continuă plata pe Stripe” sau poate alege „Începe o altă plată”. Aplicația cere Stripe să
+			expire linkul vechi și permite o nouă încercare numai după confirmarea că acesta este expirat
+			și neplătit. Dacă plata a fost deja trimisă, așteaptă rezultatul. Încercările cu rezultat
+			necunoscut necesită în continuare verificare financiară.
+		</p>
+		<p>
+			După anularea tuturor alocărilor unei cotizații, suma neachitată revine la tariful actual,
+			inclusiv ajustarea și rotunjirea. Recalcularea se aplică doar perioadei curente, fără plăți
+			deschise, transferuri naționale sau verificări financiare în curs. Istoricul încasărilor și al
+			anulărilor rămâne păstrat.
+		</p>
+		<p>
 			Membrul autentificat își vede cotizația și suma rămasă. Poate plăti și pentru alt membru,
 			folosind ID-ul ORGO sau ID-ul cardului. Aplicația verifică apartenența la centrul local și
 			afișează suma înainte de trimiterea la procesator. Nu se alege arbitrar un plan pentru alt

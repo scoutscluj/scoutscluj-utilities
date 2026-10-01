@@ -64,6 +64,12 @@ export class MembershipController {
     return this.membership.status(token);
   }
 
+  @Post('restart')
+  restart(@Body() body: { attemptToken?: string }, @Req() request: Request) {
+    this.rateLimit(request);
+    return this.membership.restart(body?.attemptToken ?? '');
+  }
+
   @Post('netopia/notify')
   @HttpCode(200)
   notify(@Body() body: unknown, @Headers('verification-token') token: string) {

@@ -111,6 +111,48 @@ export class StripeService implements PaymentProvider<StripeConfiguration> {
     );
   }
 
+  async expireUnpaid(
+    providerId: string,
+    checkoutId: string,
+    amountBani: number,
+    configuration: StripeConfiguration,
+  ) {
+    const endpoint = `https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(providerId)}`;
+    const request = async (expire: boolean) => {
+      const response = await fetch(expire ? `${endpoint}/expire` : endpoint, {
+        method: expire ? 'POST' : 'GET',
+        redirect: 'error',
+        signal: AbortSignal.timeout(20000),
+        headers: { Authorization: `Bearer ${configuration.secretKey}` },
+      });
+      if (!response.ok)
+        throw new BadGatewayException(
+          'Stripe nu a confirmat închiderea linkului. Reîncearcă verificarea.',
+        );
+      const session = record(await response.json());
+      if (
+        session.id !== providerId ||
+        session.client_reference_id !== checkoutId ||
+        session.amount_total !== amountBani ||
+        session.currency !== 'ron' ||
+        session.livemode !== (configuration.environment === 'live')
+      )
+        throw new BadGatewayException(
+          'Sesiunea Stripe nu corespunde încercării de plată.',
+        );
+      return session;
+    };
+    let session = await request(false);
+    if (session.status === 'open' && session.payment_status === 'unpaid')
+      session = await request(true);
+    // A completed session may still be processing. Only an expired, unpaid
+    // session proves that this link cannot collect money anymore.
+    if (session.status !== 'expired' || session.payment_status !== 'unpaid')
+      throw new BadGatewayException(
+        'Plata a fost deja trimisă către Stripe. Așteaptă confirmarea înainte de o nouă plată.',
+      );
+  }
+
   async start(input: StartPaymentInput, configuration: StripeConfiguration) {
     const origin = paymentOrigin(this.config, 'web');
     const body = new URLSearchParams({

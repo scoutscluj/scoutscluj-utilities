@@ -33,6 +33,7 @@
 		<div class="flow-icon" aria-hidden="true">ID</div>
 		<p class="eyebrow">Plată pentru alt cercetaș</p>
 		<h2 id="guest-title">Introdu ID-ul beneficiarului</h2>
+		{#if data.period}<p class="period-caption">Perioada: {data.period.name}</p>{/if}
 		<p class="section-intro">
 			Verificăm că ID-ul aparține unui membru eligibil din Centrul Local Cluj înainte de plată.
 		</p>
@@ -104,36 +105,54 @@
 	<section class="flow-card" aria-labelledby="own-title">
 		<div class="flow-icon account" aria-hidden="true">O</div>
 		<p class="eyebrow">Contul meu ORGO</p>
-		<h2 id="own-title">Plătește cotizația ta</h2>
+		<h2 id="own-title">Cotizația ta</h2>
+		{#if own}
+			<dl class="account-summary">
+				<div>
+					<dt>Membru</dt>
+					<dd>{own.memberName}</dd>
+				</div>
+				<div>
+					<dt>Perioada</dt>
+					<dd>{data.period?.name}</dd>
+				</div>
+				<div>
+					<dt>Cotizație totală</dt>
+					<dd>{money(own.totalBani)}</dd>
+				</div>
+				<div>
+					<dt>Achitat și alocat</dt>
+					<dd>{money(own.paidBani ?? 0)}</dd>
+				</div>
+				<div class="balance">
+					<dt>Rămas de plată</dt>
+					<dd>{money(ownRemaining)}</dd>
+				</div>
+			</dl>
+		{/if}
 		{#if data.user}
-			{#if own && ownRemaining === 0}
+			{#if own?.reviewState}
+				<p class="notice">
+					Cotizația ta necesită verificare. Contactează responsabilul financiar înainte de o nouă
+					plată.
+				</p>
+			{:else if own && ownRemaining === 0}
 				<div class="success-panel">
 					<strong>Cotizația pentru această perioadă a fost achitată.</strong><span
 						>Îți mulțumim, {data.user.firstName ?? data.user.displayName}!</span
 					>
 				</div>
-			{:else if own?.reviewState}
-				<p class="notice">
-					Cotizația ta necesită verificare înainte de plată. Contactează responsabilul financiar.
-				</p>
 			{:else if own}
-				<div class="member-result">
-					<div class="member-avatar" aria-hidden="true">✓</div>
-					<div>
-						<strong>{own.memberName}</strong><span>Identitate confirmată prin contul ORGO</span>
-					</div>
-					<strong class="result-amount">{money(ownRemaining)}</strong>
-				</div>
 				<form method="POST" action="?/pay" class="payment-form">
 					<input type="hidden" name="mode" value="own" /><input
 						type="hidden"
 						name="periodId"
 						value={data.period?.id}
 					/><input type="hidden" name="obligationId" value={own.id} />
-					<div class="payment-summary">
-						<div><span>Total de plată</span><strong>{money(ownRemaining)}</strong></div>
-						<p>Datele cardului se introduc pe pagina securizată {providerName}.</p>
-					</div>
+					<p class="section-intro">
+						Datele cardului se introduc pe pagina securizată {providerName}. După plată, revino aici
+						pentru confirmare.
+					</p>
 					{@render legalAcceptance()}
 					{#if form?.intent === 'pay' && form?.message}<p role="alert" class="error-message">
 							{form.message}
@@ -179,14 +198,30 @@
 	<div class="page-heading">
 		<p class="eyebrow">Centrul Local Cluj</p>
 		<h1>Plată cotizație{periodLabel ? ` (${periodLabel})` : ''}</h1>
+		<p class="section-intro">Situația cotizației și plata cu cardul, într-un singur loc.</p>
 	</div>
 	{#if (data.status?.environment ?? data.environment) !== 'live'}<p class="environment-notice">
 			Mediu de test · {providerName}. Nu folosi datele unui card real.
 		</p>{/if}
 	{#if data.status}
 		<section class="status-card">
+			<p class="eyebrow">Ultima încercare de plată în acest browser</p>
 			<h2>{paymentLabels[data.status.state] ?? 'În curs de verificare'}</h2>
 			<p class="status-amount">{money(data.status.amountBani)}</p>
+			<p>Procesator: <strong>{providerName}</strong></p>
+			{#if data.status.state === 'succeeded'}
+				<p class="success-message">{providerName} a confirmat primirea plății.</p>
+			{:else if ['starting', 'pending'].includes(data.status.state)}
+				<p class="notice">
+					Plata nu este încă confirmată. Verifică starea înainte de a plăti din nou.
+				</p>
+			{/if}
+			{#if data.status.requiresStaffReview}
+				<p class="notice">
+					Plata necesită verificarea responsabilului financiar înainte de alocarea la cotizația
+					beneficiarului.
+				</p>
+			{/if}
 			{#if data.status.state === 'unknown'}<p>
 					Nu avem confirmarea rezultatului acestei încercări pe {providerName}. Acest mesaj nu
 					înseamnă că ai plătit. Responsabilul financiar poate verifica și debloca încercarea din
@@ -212,11 +247,12 @@
 			Perioada de cotizație nu a fost încă publicată. Contactează responsabilul financiar.
 		</p>
 	{:else}
+		{#if !data.cardEnabled}<p class="notice">
+				Plata cu cardul este momentan indisponibilă. Contactează responsabilul financiar.
+			</p>{/if}
 		<div class="flows">
 			{#if data.user}{@render ownFlow()}
-				<div class="flow-divider" aria-hidden="true"></div>
 				{@render guestFlow()}{:else}{@render guestFlow()}
-				<div class="flow-divider" aria-hidden="true"></div>
 				{@render ownFlow()}{/if}
 		</div>
 	{/if}
@@ -263,8 +299,9 @@
 		font-weight: 800;
 	}
 	.payment-page {
-		width: min(100% - 32px, 880px);
-		margin: 42px auto 64px;
+		width: min(100%, 1120px);
+		margin: 16px auto 40px;
+		padding: 0 16px;
 	}
 	.page-heading {
 		max-width: 700px;
@@ -301,7 +338,9 @@
 	}
 	.flows {
 		display: grid;
-		justify-items: center;
+		grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+		gap: 24px;
+		align-items: start;
 	}
 	.flow-card,
 	.status-card {
@@ -310,8 +349,8 @@
 		border: 1px solid #d8dee6;
 		border-radius: 12px;
 		background: #fff;
-		padding: clamp(22px, 5vw, 38px);
-		box-shadow: 0 14px 36px rgb(15 23 42/0.06);
+		padding: clamp(20px, 3vw, 28px);
+		box-shadow: 0 4px 16px rgb(15 23 42/0.03);
 	}
 	.flow-icon {
 		width: 42px;
@@ -335,11 +374,50 @@
 		margin: 7px 0 0;
 		font-size: 1.55rem;
 	}
-	.flow-divider {
-		width: calc(100% - 48px);
-		height: 1px;
-		margin: 32px 0;
-		background: #b8c2cc;
+	.account-summary {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 18px;
+		margin: 24px 0;
+		padding: 20px;
+		border-radius: 12px;
+		background: #f8fafc;
+	}
+	.account-summary dt,
+	.period-caption {
+		color: #64748b;
+		font-size: 0.86rem;
+	}
+	.account-summary dd {
+		margin: 5px 0 0;
+		font-weight: 700;
+		overflow-wrap: anywhere;
+	}
+	.account-summary .balance {
+		grid-column: 1 / -1;
+		padding-top: 14px;
+		border-top: 1px solid #e2e8f0;
+	}
+	.balance dd {
+		font-size: 1.6rem;
+	}
+	@media (max-width: 1100px) {
+		.flows {
+			grid-template-columns: 1fr;
+		}
+	}
+	input {
+		min-width: 0;
+		width: 100%;
+	}
+	.check input {
+		width: auto;
+	}
+	button:focus-visible,
+	a:focus-visible,
+	input:focus-visible {
+		outline: 3px solid #fca5a5;
+		outline-offset: 3px;
 	}
 	.lookup-form,
 	.payment-form {
@@ -469,6 +547,10 @@
 	}
 	.check input {
 		min-height: auto;
+		flex: 0 0 16px;
+		width: 16px;
+		height: 16px;
+		accent-color: #c81e1e;
 		margin-top: 4px;
 	}
 	.error-message {

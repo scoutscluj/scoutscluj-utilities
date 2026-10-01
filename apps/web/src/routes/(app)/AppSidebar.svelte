@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { menuItems } from '$lib/auth/menu';
-	import type { CurrentUser } from '$lib/auth/types';
+	import type { CurrentUser, MenuItem } from '$lib/auth/types';
 	import ActivityMenuGroup from './ActivityMenuGroup.svelte';
 	import type { SidebarActivity } from '$lib/activities/sidebar-activity';
 	import {
@@ -36,6 +36,39 @@
 		openGroups[label] = !(openGroups[label] ?? defaultOpen);
 	};
 </script>
+
+{#snippet menuChildren(items: MenuItem[], parentKey: string)}
+	{#each items as child (child.label)}
+		{#if child.children}
+			{@const key = `${parentKey}/${child.label}`}
+			{@const active = groupHasActiveChild(child, user, pathname)}
+			<section class="menu-group">
+				<button
+					type="button"
+					class="group-button"
+					class:active
+					onclick={() => toggleGroup(key, active)}
+					aria-expanded={isGroupOpen(key, active)}
+				>
+					<span>{child.label}</span>
+					<span aria-hidden="true">{isGroupOpen(key, active) ? '-' : '+'}</span>
+				</button>
+				{#if isGroupOpen(key, active)}
+					<div class="group-items">{@render menuChildren(visibleChildren(child, user), key)}</div>
+				{/if}
+			</section>
+		{:else if child.href && !child.disabled}
+			{@const href = menuHref(child.href)}
+			{@const active =
+				child.href === '/admin/finance' ? pathname === href : isPathActive(href, pathname)}
+			<a {href} class:active onclick={closeMobile} aria-current={active ? 'page' : undefined}
+				>{child.label}</a
+			>
+		{:else}
+			<span class="disabled">{child.label}</span>
+		{/if}
+	{/each}
+{/snippet}
 
 <aside class:open={mobileOpen} class="sidebar" aria-label="Meniu principal">
 	<div class="brand">
@@ -73,20 +106,7 @@
 					</button>
 					{#if isGroupOpen(item.label, groupActive)}
 						<div class="group-items">
-							{#each visibleChildren(item, user) as child (child.label)}
-								{#if child.href && !child.disabled}
-									<a
-										href={menuHref(child.href)}
-										class:active={isPathActive(menuHref(child.href), pathname)}
-										onclick={closeMobile}
-										aria-current={isPathActive(menuHref(child.href), pathname) ? 'page' : undefined}
-									>
-										{child.label}
-									</a>
-								{:else}
-									<span class="disabled">{child.label}</span>
-								{/if}
-							{/each}
+							{@render menuChildren(visibleChildren(item, user), item.label)}
 						</div>
 					{/if}
 				</section>

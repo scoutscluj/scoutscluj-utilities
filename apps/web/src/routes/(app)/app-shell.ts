@@ -48,6 +48,16 @@ export const menuHref = (href: AppHref) => {
 			return resolve('/profile');
 		case '/admin':
 			return resolve('/admin');
+		case '/admin/finance':
+			return resolve('/admin/finance');
+		case '/admin/finance/membership':
+			return resolve('/admin/finance/membership');
+		case '/admin/finance/receipts':
+			return resolve('/admin/finance/receipts');
+		case '/admin/finance/transfers':
+			return resolve('/admin/finance/transfers');
+		case '/admin/finance/membership-settings':
+			return resolve('/admin/finance/membership-settings');
 		case '/admin/finance/payment-processor':
 			return resolve('/admin/finance/payment-processor');
 		case '/admin/users':
@@ -86,11 +96,15 @@ export const auditHref = (activityId: number) => resolve(`/activities/${activity
 export const settingsHref = (activityId: number) => resolve(`/activities/${activityId}/settings`);
 
 export const isPathActive = (href: string, pathname: string) =>
-	href === '/' ? pathname === '/' : pathname.startsWith(href);
+	href === '/' || href === menuHref('/admin')
+		? pathname === href
+		: pathname === href || pathname.startsWith(`${href}/`);
 
-export const groupHasActiveChild = (item: MenuItem, user: CurrentUser, pathname: string) =>
+export const groupHasActiveChild = (item: MenuItem, user: CurrentUser, pathname: string): boolean =>
 	visibleChildren(item, user).some(
-		(child) => child.href && isPathActive(menuHref(child.href), pathname)
+		(child) =>
+			Boolean(child.href && isPathActive(menuHref(child.href), pathname)) ||
+			Boolean(child.children && groupHasActiveChild(child, user, pathname))
 	);
 
 export const parseCurrentActivityId = (pathname: string) => {
@@ -161,7 +175,12 @@ export const routeTitle = (pathname: string) => {
 	if (pathname.startsWith('/admin/notifications')) return 'Notificări';
 	if (pathname.startsWith('/admin/parental-consent')) return 'Acorduri parentale';
 	if (pathname.startsWith('/admin/users')) return 'Utilizatori';
-	if (pathname.startsWith('/admin/finance/payment-processor')) return 'Procesator plăți';
+	if (pathname.startsWith('/admin/finance/payment-processor')) return 'Procesatori de plăți';
+	if (pathname.startsWith('/admin/finance/membership-settings')) return 'Configurare cotizații';
+	if (pathname.startsWith('/admin/finance/receipts')) return 'Încasări și alocări';
+	if (pathname.startsWith('/admin/finance/transfers')) return 'Transferuri naționale';
+	if (pathname.startsWith('/admin/finance/membership')) return 'Membri și cotizații';
+	if (pathname.startsWith('/admin/finance')) return 'Administrare financiară';
 	if (pathname.startsWith('/admin')) return 'Administrare';
 	if (pathname.startsWith('/profile')) return 'Profil';
 	if (pathname.startsWith('/info/statut')) return 'Statut ONCR';

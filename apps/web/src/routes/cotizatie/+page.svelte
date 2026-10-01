@@ -69,9 +69,10 @@
 				<div>
 					<strong>{lookup.displayName}</strong><span>{lookup.affiliation} · ID verificat</span>
 				</div>
-				<strong class="result-amount"
-					>{lookup.paid ? 'Cotizație achitată' : money(lookup.amountBani)}</strong
-				>
+				<div class="result-amount">
+					{#if !lookup.paid}<span>Total de plată</span>{/if}
+					<strong>{lookup.paid ? 'Cotizație achitată' : money(lookup.amountBani)}</strong>
+				</div>
 			</div>
 			{#if lookup.paid}
 				<p class="success-message">
@@ -85,14 +86,6 @@
 						value={data.period?.id}
 					/><input type="hidden" name="identifier" value={lookup.identifier} />
 					<input type="hidden" name="amountBani" value={lookup.amountBani} />
-					<div class="payment-summary">
-						<div><span>Total de plată</span><strong>{money(lookup.amountBani)}</strong></div>
-						<p>
-							Cotizația include costul procesării și rotunjirea în sus la un multiplu de 5 lei.
-							Totalul este același pentru card și transfer bancar.
-						</p>
-						<p>Datele cardului se introduc pe pagina securizată {providerName}.</p>
-					</div>
 					{@render legalAcceptance()}
 					{#if form?.intent === 'pay' && form?.message}<p role="alert" class="error-message">
 							{form.message}
@@ -108,7 +101,7 @@
 
 {#snippet ownFlow()}
 	<section class="flow-card" aria-labelledby="own-title">
-		<div class="flow-icon account" aria-hidden="true">O</div>
+		<img class="flow-icon account" src="/branding/orgo.png" alt="ORGO" width="90" height="38" />
 		<p class="eyebrow">Contul meu ORGO</p>
 		<h2 id="own-title">Cotizația ta</h2>
 		{#if own}
@@ -130,7 +123,7 @@
 					<dd>{money(own.paidBani ?? 0)}</dd>
 				</div>
 				<div class="balance">
-					<dt>Rămas de plată</dt>
+					<dt>Total de plată</dt>
 					<dd>{money(ownRemaining)}</dd>
 				</div>
 			</dl>
@@ -155,17 +148,6 @@
 						value={data.period?.id}
 					/><input type="hidden" name="obligationId" value={own.id} />
 					<input type="hidden" name="amountBani" value={ownRemaining} />
-					<div class="payment-summary">
-						<div><span>Total de plată</span><strong>{money(ownRemaining)}</strong></div>
-						<p>
-							Cotizația include costul procesării și rotunjirea în sus la un multiplu de 5 lei.
-							Totalul este același pentru card și transfer bancar.
-						</p>
-					</div>
-					<p class="section-intro">
-						Datele cardului se introduc pe pagina securizată {providerName}. După plată, revino aici
-						pentru confirmare.
-					</p>
 					{@render legalAcceptance()}
 					{#if form?.intent === 'pay' && form?.message}<p role="alert" class="error-message">
 							{form.message}
@@ -183,7 +165,7 @@
 				Autentifică-te cu ORGO pentru ca aplicația să identifice automat cotizația și suma ta.
 			</p>
 			<a class="primary-button login-button" href={resolve('/login?redirectTo=%2Fcotizatie')}
-				><span aria-hidden="true">O</span> Autentifică-te cu ORGO</a
+				><img src="/branding/orgo.png" alt="" width="72" height="30" /> Autentifică-te cu ORGO</a
 			>
 		{/if}
 	</section>
@@ -199,9 +181,13 @@
 {#if !data.user}
 	<header class="public-topbar">
 		<a class="brand" href={resolve('/')}
-			><span class="brand-mark" aria-hidden="true">SC</span><span
-				><strong>Scouts Cluj</strong><small>Resurse</small></span
-			></a
+			><img
+				class="brand-mark"
+				src="/branding/scouts-cluj.png"
+				alt="Centrul Local Scouts Cluj"
+				width="40"
+				height="43"
+			/><span><strong>Scouts Cluj</strong><small>Resurse</small></span></a
 		>
 		<a class="topbar-link" href={resolve('/login?redirectTo=%2Fcotizatie')}>Autentificare</a>
 	</header>
@@ -299,13 +285,8 @@
 	}
 	.brand-mark {
 		width: 40px;
-		height: 40px;
-		display: grid;
-		place-items: center;
-		border-radius: 999px;
-		background: #c81e1e;
-		color: #fff;
-		font-weight: 900;
+		height: auto;
+		object-fit: contain;
 	}
 	.topbar-link {
 		color: #991b1b;
@@ -378,10 +359,10 @@
 		font-weight: 900;
 	}
 	.flow-icon.account {
-		border-radius: 999px;
-		background: #c81e1e;
-		color: #fff;
-		font-size: 1rem;
+		width: 90px;
+		height: 38px;
+		object-fit: contain;
+		background: #fff;
 	}
 	.flow-card h2 {
 		margin: 7px 0 0;
@@ -478,15 +459,13 @@
 		width: fit-content;
 		margin-top: 10px;
 	}
-	.login-button span {
-		width: 24px;
-		height: 24px;
-		display: grid;
-		place-items: center;
-		border-radius: 999px;
+	.login-button img {
+		width: 72px;
+		height: 30px;
+		object-fit: contain;
+		padding: 3px;
+		border-radius: 4px;
 		background: #fff;
-		color: #c81e1e;
-		font-size: 0.78rem;
 	}
 	button:disabled {
 		cursor: not-allowed;
@@ -522,33 +501,13 @@
 		font-weight: 900;
 	}
 	.result-amount {
+		display: grid;
+		gap: 4px;
 		color: #166534;
 		text-align: right;
 	}
-	.payment-summary {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 20px;
-		border-radius: 10px;
-		background: #f8fafc;
-		padding: 16px;
-	}
-	.payment-summary > div {
-		display: grid;
-		gap: 4px;
-		white-space: nowrap;
-	}
-	.payment-summary strong,
 	.status-amount {
 		font-size: 1.5rem;
-	}
-	.payment-summary p {
-		max-width: 360px;
-		margin: 0;
-		color: #64748b;
-		font-size: 0.86rem;
-		text-align: right;
 	}
 	.check {
 		display: flex;
@@ -597,13 +556,6 @@
 		}
 		.result-amount {
 			grid-column: 2;
-			text-align: left;
-		}
-		.payment-summary {
-			align-items: flex-start;
-			flex-direction: column;
-		}
-		.payment-summary p {
 			text-align: left;
 		}
 	}

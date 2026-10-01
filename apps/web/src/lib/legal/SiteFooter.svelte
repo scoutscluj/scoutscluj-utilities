@@ -5,6 +5,16 @@
 
 <footer>
 	<div class="identity">
+		<div class="organization-logos">
+			<img src="/branding/scouts-cluj.png" alt="Centrul Local Scouts Cluj" width="48" height="51" />
+			<img
+				class="oncr-logo"
+				src="/branding/oncr.png"
+				alt="Organizația Națională Cercetașii României"
+				width="180"
+				height="58"
+			/>
+		</div>
 		<strong>{organization.legalName}</strong>
 		<span
 			>CIF {organization.taxId} · Registrul asociațiilor și fundațiilor {organization.registryNumber}</span
@@ -47,8 +57,9 @@
 <style>
 	footer {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-		gap: 24px 48px;
+		grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.1fr) minmax(0, 1fr);
+		gap: 24px 32px;
+		align-items: start;
 		border-top: 1px solid #d8dee6;
 		background: #fff;
 		padding: 28px clamp(16px, 3vw, 40px);
@@ -65,6 +76,19 @@
 	strong {
 		color: #17202a;
 	}
+	.organization-logos {
+		display: flex;
+		align-items: center;
+		gap: 18px;
+		margin-bottom: 5px;
+	}
+	.organization-logos img {
+		object-fit: contain;
+		max-width: 100%;
+	}
+	.oncr-logo {
+		min-width: 0;
+	}
 	nav {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
@@ -74,13 +98,11 @@
 	}
 	.payments {
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
+		flex-direction: column;
 		justify-content: space-between;
-		gap: 20px;
-		grid-column: 1 / -1;
+		gap: 12px;
 		margin: 0;
-		border-top: 1px solid #e2e8f0;
-		padding-top: 16px;
 		font-weight: 700;
 	}
 	.payments p {
@@ -89,7 +111,6 @@
 	}
 	.netopia-logo {
 		display: block;
-		flex: 0 0 150px;
 		border-radius: 6px;
 		background: #fff;
 	}
@@ -102,7 +123,7 @@
 		outline: 3px solid #fca5a5;
 		outline-offset: 4px;
 	}
-	@media (max-width: 680px) {
+	@media (max-width: 900px) {
 		.payments {
 			align-items: flex-start;
 			flex-direction: column;

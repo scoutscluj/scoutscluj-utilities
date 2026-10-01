@@ -2,6 +2,7 @@
 	import MembershipAdminPage from '$lib/membership/MembershipAdminPage.svelte';
 	import { money } from '$lib/membership/types';
 	import { enhance } from '$app/forms';
+	import type { SubmitFunction } from '@sveltejs/kit';
 	import { invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
@@ -15,6 +16,25 @@
 	);
 	let lastSyncSignature = $state('');
 	let ready = $state(false);
+	let syncing = $state(false);
+	const syncToastId = 'orgo-roster-sync-progress';
+	const syncRoster: SubmitFunction = () => {
+		syncing = true;
+		toast.loading('Sincronizare cu ORGO în curs…', {
+			id: syncToastId,
+			duration: Infinity,
+			style: 'background: #eff6ff; color: #1d4ed8; border-color: #93c5fd;'
+		});
+		return async ({ result, update }) => {
+			try {
+				toast.dismiss(syncToastId);
+				if (result.type === 'error') toast.error('Sincronizarea ORGO a eșuat. Încearcă din nou.');
+				await update();
+			} finally {
+				syncing = false;
+			}
+		};
+	};
 	$effect(() => {
 		const sync = ledger.rosterSync;
 		const signature = sync ? sync.id + ':' + sync.status : '';
@@ -35,7 +55,10 @@
 			await invalidateAll();
 			if (checks >= 6) window.clearInterval(timer);
 		}, 5000);
-		return () => window.clearInterval(timer);
+		return () => {
+			window.clearInterval(timer);
+			toast.dismiss(syncToastId);
+		};
 	});
 </script>
 
@@ -68,9 +91,9 @@
 						<button>Inițializează cotizațiile pentru {activePeriod.name}</button>
 					</form>
 				{:else}
-					<form method="POST" use:enhance>
+					<form method="POST" use:enhance={syncRoster} aria-busy={syncing}>
 						<input type="hidden" name="action" value="rosterSync" />
-						<button>Sincronizează acum cu ORGO</button>
+						<button disabled={syncing}>Sincronizează acum cu ORGO</button>
 					</form>
 				{/if}
 			</div>

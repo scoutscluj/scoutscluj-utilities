@@ -90,6 +90,7 @@ export const actions: Actions = {
 				body: JSON.stringify({
 					periodId: fields.get('periodId'),
 					obligationId: fields.get('obligationId'),
+					amountBani: Number(fields.get('amountBani')),
 					identifier: guestIdentifier,
 					acceptTerms: fields.get('acceptTerms') === 'on',
 					attemptToken: cookies.get(ATTEMPT_COOKIE)

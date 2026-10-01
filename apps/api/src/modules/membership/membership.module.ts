@@ -10,6 +10,8 @@ import { StripeService } from './stripe.service';
 import { PaymentConfigurationService } from './payment-configuration.service';
 import { PaymentSecretVault } from './payment-secret-vault.service';
 import { OrgoRosterService } from './orgo-roster.service';
+import { OrgoNationalService } from './orgo-national.service';
+import { OrgoNationalWorker } from './orgo-national-worker.service';
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { OrgoRosterService } from './orgo-roster.service';
   providers: [
     MembershipService,
     OrgoRosterService,
+    OrgoNationalService,
+    OrgoNationalWorker,
     NetopiaService,
     StripeService,
     PaymentConfigurationService,

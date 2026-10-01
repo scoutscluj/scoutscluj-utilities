@@ -63,11 +63,66 @@
 			</label>
 		{/each}
 		<p class="help-text">
-			Schimbarea se aplică plăților inițiate după salvare. O plată deja pornită rămâne la
-			procesatorul și în mediul înregistrate pentru ea.
+			Schimbarea recalculează totalurile publicate și cotizațiile fără istoric de plată. O plată
+			deja pornită rămâne la procesatorul și în mediul înregistrate pentru ea.
 		</p>
 		<button>Folosește procesatorul selectat</button>
 	</form>
+</section>
+
+<section>
+	<p class="eyebrow">Calculul cotizației publicate</p>
+	<h2>Comisioane de procesare</h2>
+	<p class="help-text">
+		Cotizația publicată acoperă suma de bază după reținerea comisionului, apoi este rotunjită în sus
+		la un multiplu de 5 lei. Același total se folosește pentru card și bancă. Completează costul
+		efectiv din contract, inclusiv eventualele taxe. Valorile inițiale folosesc tarifele publice
+		pentru carduri obișnuite; alte categorii de carduri pot avea costuri diferite.
+	</p>
+	<div class="provider-configurations">
+		{#each configuration.providers.filter((item) => item.environment === 'sandbox' || item.environment === 'test') as provider (provider.id)}
+			<form method="POST" class="provider-form provider-card">
+				<input type="hidden" name="action" value="processing-fee" />
+				<input type="hidden" name="provider" value={provider.id} />
+				<h3>{provider.label}</h3>
+				<label
+					>Comision procentual (%)<input
+						name="percentage"
+						type="number"
+						min="0"
+						max="99.99"
+						step="0.01"
+						required
+						value={provider.processingFee.percentageBasisPoints / 100}
+					/></label
+				>
+				<label
+					>Comision fix (lei/tranzacție)<input
+						name="fixedRON"
+						type="number"
+						min="0"
+						max="1000000"
+						step="0.01"
+						required
+						value={provider.processingFee.fixedBani / 100}
+					/></label
+				>
+				<a
+					href={provider.id === 'netopia'
+						? 'https://netopia-payments.com/servicii/plati-online-cu-cardul/'
+						: 'https://stripe.com/en-ro/pricing'}
+					target="_blank"
+					rel="noreferrer">Tarife publice {provider.label}</a
+				>
+				<button>Salvează comisionul</button>
+			</form>
+		{/each}
+	</div>
+	<p class="help-text">
+		Selectarea procesatorului sau schimbarea comisionului recalculează tarifele perioadei active și
+		cotizațiile fără plăți înregistrate. Cotizațiile cu plăți sau încercări în curs își păstrează
+		totalul.
+	</p>
 </section>
 
 <section>

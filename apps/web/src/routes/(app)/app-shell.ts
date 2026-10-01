@@ -60,6 +60,8 @@ export const menuHref = (href: AppHref) => {
 			return resolve('/admin/finance/membership-settings');
 		case '/admin/finance/payment-processor':
 			return resolve('/admin/finance/payment-processor');
+		case '/admin/finance/guide':
+			return resolve('/admin/finance/guide');
 		case '/admin/users':
 			return resolve('/admin/users');
 		case '/admin/notifications':
@@ -176,6 +178,7 @@ export const routeTitle = (pathname: string) => {
 	if (pathname.startsWith('/admin/parental-consent')) return 'Acorduri parentale';
 	if (pathname.startsWith('/admin/users')) return 'Utilizatori';
 	if (pathname.startsWith('/admin/finance/payment-processor')) return 'Procesatori de plăți';
+	if (pathname.startsWith('/admin/finance/guide')) return 'Ghid financiar';
 	if (pathname.startsWith('/admin/finance/membership-settings')) return 'Configurare cotizații';
 	if (pathname.startsWith('/admin/finance/receipts')) return 'Încasări și alocări';
 	if (pathname.startsWith('/admin/finance/transfers')) return 'Transferuri naționale';

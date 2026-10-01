@@ -79,6 +79,9 @@ export const membershipAdminActions: Actions = {
 		else if (action === 'batch') {
 			path = 'national-batches';
 			body.obligationIds = form.getAll('obligationIds');
+		} else if (action === 'retryOrgo') {
+			path = `national-items/${encodeURIComponent(String(form.get('id')))}/retry`;
+			body.verifiedNotRecorded = form.get('verifiedNotRecorded') === 'on';
 		} else if (action === 'confirm')
 			path = `national-items/${encodeURIComponent(String(form.get('id')))}/confirm`;
 		else return fail(400, { success: false, message: 'Acțiune necunoscută.' });
@@ -105,6 +108,17 @@ export const membershipAdminActions: Actions = {
 			return {
 				success: true,
 				message: `Sincronizare finalizată: ${result.added ?? 0} membri adăugați, ${result.updated ?? 0} actualizați, ${result.review ?? 0} de verificat.`
+			};
+		if (action === 'batch')
+			return {
+				success: true,
+				message:
+					'Transferul a fost înregistrat. Verificarea și marcarea cotizațiilor în ORGO sunt programate automat. Urmărește rezultatul pentru fiecare membru.'
+			};
+		if (action === 'retryOrgo')
+			return {
+				success: true,
+				message: 'Verificarea ORGO a fost programată. Actualizează pagina pentru rezultat.'
 			};
 		return { success: true, message: 'Operațiunea a fost înregistrată.' };
 	}

@@ -84,8 +84,13 @@
 						name="periodId"
 						value={data.period?.id}
 					/><input type="hidden" name="identifier" value={lookup.identifier} />
+					<input type="hidden" name="amountBani" value={lookup.amountBani} />
 					<div class="payment-summary">
 						<div><span>Total de plată</span><strong>{money(lookup.amountBani)}</strong></div>
+						<p>
+							Cotizația include costul procesării și rotunjirea în sus la un multiplu de 5 lei.
+							Totalul este același pentru card și transfer bancar.
+						</p>
 						<p>Datele cardului se introduc pe pagina securizată {providerName}.</p>
 					</div>
 					{@render legalAcceptance()}
@@ -149,6 +154,14 @@
 						name="periodId"
 						value={data.period?.id}
 					/><input type="hidden" name="obligationId" value={own.id} />
+					<input type="hidden" name="amountBani" value={ownRemaining} />
+					<div class="payment-summary">
+						<div><span>Total de plată</span><strong>{money(ownRemaining)}</strong></div>
+						<p>
+							Cotizația include costul procesării și rotunjirea în sus la un multiplu de 5 lei.
+							Totalul este același pentru card și transfer bancar.
+						</p>
+					</div>
 					<p class="section-intro">
 						Datele cardului se introduc pe pagina securizată {providerName}. După plată, revino aici
 						pentru confirmare.

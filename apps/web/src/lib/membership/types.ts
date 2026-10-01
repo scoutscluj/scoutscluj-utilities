@@ -1,4 +1,4 @@
-export type FeePlan = { label: string; totalBani: number; nationalBani: number };
+export type FeePlan = { label: string; totalBani: number; nationalBani: number; baseBani?: number };
 export type Period = {
 	id: string;
 	name: string;
@@ -48,6 +48,8 @@ export type NationalItem = {
 	obligationId: string;
 	amountBani: number;
 	orgoState: string;
+	orgoError?: string | null;
+	orgoLastAttemptAt?: string | null;
 	evidence?: string;
 };
 export type Dashboard = {
@@ -86,6 +88,7 @@ export type Dashboard = {
 			targetId: string;
 			label: string;
 			ready: boolean;
+			processingFee: { percentageBasisPoints: number; fixedBani: number };
 			environment: string;
 			secretHint: string | null;
 			updatedAt: string | null;

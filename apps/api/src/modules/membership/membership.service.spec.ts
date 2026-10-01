@@ -239,7 +239,7 @@ function fixture() {
     netopia as unknown as NetopiaService,
     stripe as unknown as StripeService,
     configurations as never,
-    { members: rosterMembers } as never,
+    { members: rosterMembers, nationalReady: () => false } as never,
   );
   const staff: CurrentUser = {
     id: 1,
@@ -260,6 +260,16 @@ function fixture() {
 
 async function setup() {
   const f = fixture();
+  await f.service.configureProcessingFee(f.staff, {
+    provider: 'netopia',
+    percentageBasisPoints: 0,
+    fixedBani: 0,
+  });
+  await f.service.configureProcessingFee(f.staff, {
+    provider: 'stripe',
+    percentageBasisPoints: 0,
+    fixedBani: 0,
+  });
   const period = await f.service.createPeriod(f.staff, {
     name: 'ORGO test period',
     startsOn: '2026-09-01',
@@ -278,6 +288,164 @@ async function setup() {
 }
 
 describe('membership service rules', () => {
+  it('publishes one adjusted price for bank and card, with provider-specific fees and stable base', async () => {
+    const f = await setup();
+    await f.service.configureProcessingFee(f.staff, {
+      provider: 'netopia',
+      percentageBasisPoints: 119,
+      fixedBani: 30,
+    });
+    expect(f.obligation.totalBani).toBe(30500);
+    expect(f.period.prices.normal).toMatchObject({
+      baseBani: 30000,
+      totalBani: 30500,
+      nationalBani: 15000,
+    });
+    await expect(
+      f.service.guestLookup({ identifier: 'AT36805' }),
+    ).resolves.toMatchObject({ amountBani: 30500 });
+    await f.service.configureProcessingFee(f.staff, {
+      provider: 'stripe',
+      percentageBasisPoints: 150,
+      fixedBani: 100,
+    });
+    await f.service.selectPaymentProvider(f.staff, {
+      provider: 'stripe',
+      environment: 'test',
+    });
+    expect(f.obligation.totalBani).toBe(31000);
+    const body = {
+      periodId: f.period.id,
+      identifier: 'AT36805',
+      acceptTerms: true,
+      attemptToken: 'q'.repeat(43),
+      amountBani: 30500,
+    };
+    await expect(f.service.checkout(body)).rejects.toThrow(
+      'Suma de plată s-a schimbat',
+    );
+    expect(f.stripe.start).not.toHaveBeenCalled();
+    await f.service.checkout({ ...body, amountBani: 31000 });
+    await f.service.configureProcessingFee(f.staff, {
+      provider: 'stripe',
+      percentageBasisPoints: 900,
+      fixedBani: 100,
+    });
+    expect(f.obligation.totalBani).toBe(31000);
+    await expect(f.service.status(body.attemptToken)).resolves.toMatchObject({
+      amountBani: 31000,
+    });
+  });
+
+  it('preserves a partially paid published total when fees change', async () => {
+    const f = await setup();
+    const receipt = await f.service.bankReceipt(f.staff, {
+      periodId: f.period.id,
+      amountBani: 15000,
+      reference: 'partial',
+      receivedOn: '2026-10-01',
+      note: 'Partial payment',
+    });
+    await f.service.allocate(f.staff, {
+      receiptId: receipt.id,
+      obligationId: f.obligation.id,
+      amountBani: 15000,
+      note: 'Partial allocation',
+    });
+    await f.service.configureProcessingFee(f.staff, {
+      provider: 'netopia',
+      percentageBasisPoints: 500,
+      fixedBani: 100,
+    });
+    expect(f.obligation.totalBani).toBe(30000);
+    await expect(
+      f.service.guestLookup({ identifier: 'AT36805' }),
+    ).resolves.toMatchObject({ amountBani: 15000 });
+    await f.service.synchronizeRoster(f.staff, 'initialization');
+    expect(f.obligation.totalBani).toBe(30000);
+    expect(f.obligation.reviewState).toBeNull();
+  });
+
+  it('uses the requesting financial actor for retry and requires evidence before uncertain resubmission', async () => {
+    const f = await setup();
+    const item = f.em.create('item', {
+      orgoState: 'unknown',
+      obligationId: f.obligation.id,
+    });
+    f.em.persist(item);
+    await expect(
+      f.service.retryOrgo(
+        { id: 9, displayName: 'Member', roles: [] },
+        item.id,
+        {},
+      ),
+    ).rejects.toThrow();
+    await f.service.retryOrgo(f.staff, item.id, {});
+    expect(item.orgoState).toBe('pending_approval');
+    expect(item.orgoActorId).toBe(f.staff.id);
+    item.orgoState = 'unknown';
+    await expect(
+      f.service.retryOrgo(f.staff, item.id, { verifiedNotRecorded: true }),
+    ).rejects.toThrow();
+    item.orgoState = 'unknown';
+    await f.service.retryOrgo({ ...f.staff, id: 2 }, item.id, {
+      verifiedNotRecorded: true,
+      evidence: 'Checked exact ORGO period: no record exists.',
+    });
+    expect(item.orgoState).toBe('queued');
+    expect(item.orgoActorId).toBe(2);
+    item.orgoState = 'correction_required';
+    await expect(f.service.retryOrgo(f.staff, item.id, {})).rejects.toThrow(
+      'corecția',
+    );
+  });
+
+  it('rejects unauthorized or malformed processing fees', async () => {
+    const f = fixture();
+    await expect(
+      f.service.configureProcessingFee(
+        { id: 2, displayName: 'Member', roles: [] },
+        {},
+      ),
+    ).rejects.toThrow();
+    for (const body of [
+      { provider: 'invalid', percentageBasisPoints: 100, fixedBani: 0 },
+      { provider: 'netopia', percentageBasisPoints: 10000, fixedBani: 0 },
+      { provider: 'netopia', percentageBasisPoints: '119', fixedBani: 30 },
+    ])
+      await expect(
+        f.service.configureProcessingFee(f.staff, body),
+      ).rejects.toThrow();
+  });
+
+  it('preserves checkouts created before a fee configuration change', async () => {
+    const f = await setup();
+    await f.service.checkout({
+      periodId: f.period.id,
+      identifier: 'AT36805',
+      acceptTerms: true,
+      attemptToken: 'l'.repeat(43),
+    });
+    const checkout = f.rows.find((r) => r.table === 'checkout')!;
+    await f.service.configureProcessingFee(f.staff, {
+      provider: 'netopia',
+      percentageBasisPoints: 119,
+      fixedBani: 30,
+    });
+    checkout.amountBani = 30000;
+    const raw = Buffer.from(
+      JSON.stringify({
+        order: { orderID: checkout.id },
+        payment: { ntpID: 'ntp-test', amount: 300, currency: 'RON', status: 3 },
+      }),
+    );
+    await f.service.notifyNetopia(raw, 'verified');
+    expect(f.rows.find((r) => r.table === 'receipt')).toMatchObject({
+      amountBani: 30000,
+      reviewRequired: false,
+    });
+  });
+
   it('rejects administrative work from an ordinary member', async () => {
     const f = fixture(),
       user: CurrentUser = { id: 2, displayName: 'Member', roles: [] };
@@ -309,7 +477,7 @@ describe('membership service rules', () => {
       endsOn: '2027-08-31',
       active: true,
     });
-    expect(catalog.period.prices.normal.totalBani).toBe(32000);
+    expect(catalog.period.prices.normal.totalBani).toBe(32500);
     expect(previous.active).toBe(false);
 
     await f.service.catalog(new Date('2026-09-01T12:00:00+03:00'));
@@ -514,7 +682,7 @@ describe('membership service rules', () => {
     expect(
       f.rows
         .filter((r) => r.table === 'item')
-        .every((r) => r.orgoState === 'awaiting_access'),
+        .every((r) => r.orgoState === 'queued'),
     ).toBe(true);
     await expect(
       f.service.nationalBatch(f.staff, {
@@ -554,7 +722,12 @@ describe('membership service rules', () => {
     const callback = Buffer.from(
       JSON.stringify({
         order: { orderID: checkout.id },
-        payment: { ntpID: 'ntp-test', amount: 300, currency: 'RON', status: 3 },
+        payment: {
+          ntpID: 'ntp-test',
+          amount: Number(checkout.amountBani) / 100,
+          currency: 'RON',
+          status: 3,
+        },
       }),
     );
     await f.service.notifyNetopia(callback, 'verified');
@@ -563,6 +736,12 @@ describe('membership service rules', () => {
     expect(f.rows.filter((r) => r.table === 'allocation')).toHaveLength(1);
     const receipt = f.rows.find((r) => r.table === 'receipt')!;
     expect(receipt.reviewRequired).toBe(false);
+    expect(receipt).toMatchObject({
+      amountBani: 30000,
+    });
+    expect(f.rows.find((r) => r.table === 'allocation')).toMatchObject({
+      amountBani: 30000,
+    });
   });
 
   it('requires explicit acceptance of the current legal policies', async () => {
@@ -623,7 +802,12 @@ describe('membership service rules', () => {
     const callback = Buffer.from(
       JSON.stringify({
         order: { orderID: checkout.id },
-        payment: { ntpID: 'ntp-test', amount: 300, currency: 'RON', status: 3 },
+        payment: {
+          ntpID: 'ntp-test',
+          amount: Number(checkout.amountBani) / 100,
+          currency: 'RON',
+          status: 3,
+        },
       }),
     );
     await expect(
@@ -678,7 +862,7 @@ describe('membership service rules', () => {
       checkoutId: checkout.id,
       providerId: 'cs_test_123',
       providerStatus: 'checkout.session.completed:paid',
-      amountBani: 30000,
+      amountBani: checkout.amountBani,
       currency: 'RON',
       outcome: 'succeeded',
     });

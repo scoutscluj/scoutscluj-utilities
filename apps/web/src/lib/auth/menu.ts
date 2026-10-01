@@ -47,7 +47,8 @@ export const menuItems: MenuItem[] = [
 					{ label: 'Încasări și alocări', href: '/admin/finance/receipts' },
 					{ label: 'Transferuri naționale', href: '/admin/finance/transfers' },
 					{ label: 'Configurare cotizații', href: '/admin/finance/membership-settings' },
-					{ label: 'Procesatori de plăți', href: '/admin/finance/payment-processor' }
+					{ label: 'Procesatori de plăți', href: '/admin/finance/payment-processor' },
+					{ label: 'Ghid financiar', href: '/admin/finance/guide' }
 				]
 			},
 			{ label: 'Acorduri parentale', href: '/admin/parental-consent', minRole: 'admin' },

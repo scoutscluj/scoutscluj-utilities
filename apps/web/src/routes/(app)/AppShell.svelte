@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import AppSidebar from './AppSidebar.svelte';
 	import AppTopbar from './AppTopbar.svelte';
+	import SiteFooter from '$lib/legal/SiteFooter.svelte';
 	import type { CurrentUser } from '$lib/auth/types';
 	import type { SidebarActivity } from '$lib/activities/sidebar-activity';
 
@@ -40,6 +41,7 @@
 		<main class="content">
 			{@render children()}
 		</main>
+		<SiteFooter />
 	</div>
 </div>
 
@@ -58,11 +60,14 @@
 	}
 
 	.workspace {
+		display: flex;
+		flex-direction: column;
 		width: 100%;
 		min-width: 0;
 	}
 
 	.content {
+		flex: 1;
 		padding: 24px;
 	}
 

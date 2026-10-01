@@ -11,6 +11,12 @@
 		fundațiilor sub nr. {organization.registryNumber}. Asociația încasează cotizații statutare de la
 		membrii săi. Nu acționăm ca marketplace, intermediar sau distribuitor pentru un alt comerciant.
 	</p>
+	<p>
+		Beneficiarul plăților de cotizație este {organization.legalName}, cu sediul în
+		{organization.address}. Ne poți contacta la
+		<a href={`mailto:${organization.email}`}>{organization.email}</a> sau la
+		<a href={`tel:${organization.phoneHref}`}>{organization.phoneDisplay}</a>.
+	</p>
 
 	<h2>2. Serviciul oferit</h2>
 	<p>

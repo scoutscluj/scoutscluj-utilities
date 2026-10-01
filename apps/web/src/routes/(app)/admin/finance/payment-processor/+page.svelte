@@ -15,14 +15,14 @@
 </script>
 
 <svelte:head>
-	<title>Procesator plăți | Scouts Cluj Utilities</title>
+	<title>Procesatori de plăți | Scouts Cluj Utilities</title>
 </svelte:head>
 
 <div class="page-heading">
 	<p class="eyebrow">Admin · Financiar</p>
-	<h1>Procesator plăți</h1>
+	<h1>Procesatori de plăți</h1>
 	<p>Alege procesatorul folosit pentru plățile noi și gestionează datele de conectare.</p>
-	<a href={resolve('/admin')}>← Înapoi la administrare</a>
+	<a href={resolve('/admin/finance')}>← Înapoi la administrarea financiară</a>
 </div>
 
 {#if form?.message}
@@ -41,7 +41,7 @@
 		>
 	</div>
 
-	<form method="POST" class="provider-form">
+	<form method="POST" class="provider-form target-selection">
 		<input type="hidden" name="action" value="provider" />
 		{#each configuration.providers as provider (provider.targetId)}
 			<label class:unavailable={!provider.ready} class="provider-option">
@@ -232,6 +232,43 @@
 		border-radius: 8px;
 		padding: 14px;
 	}
+	.target-selection {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+	.target-selection .help-text,
+	.target-selection button {
+		grid-column: 1 / -1;
+	}
+	.provider-option:has(input:checked) {
+		background: #f0fdf4;
+		border-color: #16a34a;
+		box-shadow: 0 0 0 1px #16a34a;
+	}
+	.provider-option input {
+		accent-color: #166534;
+	}
+	.provider-card {
+		background: #f8fafc;
+		align-content: start;
+	}
+	.provider-card input,
+	.provider-card textarea,
+	.provider-card select {
+		width: 100%;
+		min-width: 0;
+		background: white;
+	}
+	.provider-card fieldset {
+		gap: 16px;
+	}
+	input:focus-visible,
+	textarea:focus-visible,
+	select:focus-visible,
+	button:focus-visible,
+	a:focus-visible {
+		outline: 3px solid #86efac;
+		outline-offset: 3px;
+	}
 
 	.provider-option.unavailable {
 		opacity: 0.65;
@@ -294,6 +331,10 @@
 	}
 
 	@media (max-width: 620px) {
+		.target-selection,
+		.provider-configurations {
+			grid-template-columns: minmax(0, 1fr);
+		}
 		.section-heading {
 			align-items: flex-start;
 			flex-direction: column;

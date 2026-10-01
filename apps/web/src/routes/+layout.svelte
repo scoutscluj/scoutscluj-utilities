@@ -23,14 +23,26 @@
 
 {#if data.user && usesAuthenticatedShell(page.url.pathname, true)}
 	<AppShell user={data.user} sidebarActivities={data.sidebarActivities} {children} />
-{:else}
+{:else if page.route.id?.startsWith('/(app)')}
 	{@render children()}
+{:else}
+	<div class="public-layout">
+		<div class="public-content">{@render children()}</div>
+		<SiteFooter />
+	</div>
 {/if}
-<SiteFooter />
 <Toaster />
 <PWAStatusToasts />
 
 <style>
+	.public-layout {
+		min-height: 100vh;
+		display: flex;
+		flex-direction: column;
+	}
+	.public-content {
+		flex: 1;
+	}
 	:global(*) {
 		box-sizing: border-box;
 	}

@@ -39,14 +39,16 @@ export const menuItems: MenuItem[] = [
 		children: [
 			{ label: 'Administrare', href: '/admin', minRole: 'moderator' },
 			{
-				label: 'Membri și cotizații',
-				href: '/membership',
-				anyRole: ['admin', 'finance_manager', 'super_admin']
-			},
-			{
 				label: 'Financiar',
-				href: '/admin/finance/payment-processor',
-				anyRole: ['admin', 'finance_manager', 'super_admin']
+				anyRole: ['admin', 'finance_manager', 'super_admin'],
+				children: [
+					{ label: 'Prezentare', href: '/admin/finance' },
+					{ label: 'Membri și cotizații', href: '/admin/finance/membership' },
+					{ label: 'Încasări și alocări', href: '/admin/finance/receipts' },
+					{ label: 'Transferuri naționale', href: '/admin/finance/transfers' },
+					{ label: 'Configurare cotizații', href: '/admin/finance/membership-settings' },
+					{ label: 'Procesatori de plăți', href: '/admin/finance/payment-processor' }
+				]
 			},
 			{ label: 'Acorduri parentale', href: '/admin/parental-consent', minRole: 'admin' },
 			{ label: 'Utilizatori', href: '/admin/users', minRole: 'super_admin' },

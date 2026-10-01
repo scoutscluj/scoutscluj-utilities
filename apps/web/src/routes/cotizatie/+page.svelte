@@ -69,9 +69,10 @@
 				<div>
 					<strong>{lookup.displayName}</strong><span>{lookup.affiliation} · ID verificat</span>
 				</div>
-				<strong class="result-amount"
-					>{lookup.paid ? 'Cotizație achitată' : money(lookup.amountBani)}</strong
-				>
+				<div class="result-amount">
+					{#if !lookup.paid}<span>Total de plată</span>{/if}
+					<strong>{lookup.paid ? 'Cotizație achitată' : money(lookup.amountBani)}</strong>
+				</div>
 			</div>
 			{#if lookup.paid}
 				<p class="success-message">
@@ -85,14 +86,6 @@
 						value={data.period?.id}
 					/><input type="hidden" name="identifier" value={lookup.identifier} />
 					<input type="hidden" name="amountBani" value={lookup.amountBani} />
-					<div class="payment-summary">
-						<div><span>Total de plată</span><strong>{money(lookup.amountBani)}</strong></div>
-						<p>
-							Cotizația include costul procesării și rotunjirea în sus la un multiplu de 5 lei.
-							Totalul este același pentru card și transfer bancar.
-						</p>
-						<p>Datele cardului se introduc pe pagina securizată {providerName}.</p>
-					</div>
 					{@render legalAcceptance()}
 					{#if form?.intent === 'pay' && form?.message}<p role="alert" class="error-message">
 							{form.message}
@@ -130,7 +123,7 @@
 					<dd>{money(own.paidBani ?? 0)}</dd>
 				</div>
 				<div class="balance">
-					<dt>Rămas de plată</dt>
+					<dt>Total de plată</dt>
 					<dd>{money(ownRemaining)}</dd>
 				</div>
 			</dl>
@@ -155,17 +148,6 @@
 						value={data.period?.id}
 					/><input type="hidden" name="obligationId" value={own.id} />
 					<input type="hidden" name="amountBani" value={ownRemaining} />
-					<div class="payment-summary">
-						<div><span>Total de plată</span><strong>{money(ownRemaining)}</strong></div>
-						<p>
-							Cotizația include costul procesării și rotunjirea în sus la un multiplu de 5 lei.
-							Totalul este același pentru card și transfer bancar.
-						</p>
-					</div>
-					<p class="section-intro">
-						Datele cardului se introduc pe pagina securizată {providerName}. După plată, revino aici
-						pentru confirmare.
-					</p>
 					{@render legalAcceptance()}
 					{#if form?.intent === 'pay' && form?.message}<p role="alert" class="error-message">
 							{form.message}
@@ -522,33 +504,13 @@
 		font-weight: 900;
 	}
 	.result-amount {
+		display: grid;
+		gap: 4px;
 		color: #166534;
 		text-align: right;
 	}
-	.payment-summary {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 20px;
-		border-radius: 10px;
-		background: #f8fafc;
-		padding: 16px;
-	}
-	.payment-summary > div {
-		display: grid;
-		gap: 4px;
-		white-space: nowrap;
-	}
-	.payment-summary strong,
 	.status-amount {
 		font-size: 1.5rem;
-	}
-	.payment-summary p {
-		max-width: 360px;
-		margin: 0;
-		color: #64748b;
-		font-size: 0.86rem;
-		text-align: right;
 	}
 	.check {
 		display: flex;
@@ -597,13 +559,6 @@
 		}
 		.result-amount {
 			grid-column: 2;
-			text-align: left;
-		}
-		.payment-summary {
-			align-items: flex-start;
-			flex-direction: column;
-		}
-		.payment-summary p {
 			text-align: left;
 		}
 	}

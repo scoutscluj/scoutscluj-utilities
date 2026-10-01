@@ -47,8 +47,9 @@
 <style>
 	footer {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-		gap: 24px 48px;
+		grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.1fr) minmax(0, 1fr);
+		gap: 24px 32px;
+		align-items: start;
 		border-top: 1px solid #d8dee6;
 		background: #fff;
 		padding: 28px clamp(16px, 3vw, 40px);
@@ -74,13 +75,11 @@
 	}
 	.payments {
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
+		flex-direction: column;
 		justify-content: space-between;
-		gap: 20px;
-		grid-column: 1 / -1;
+		gap: 12px;
 		margin: 0;
-		border-top: 1px solid #e2e8f0;
-		padding-top: 16px;
 		font-weight: 700;
 	}
 	.payments p {
@@ -89,7 +88,6 @@
 	}
 	.netopia-logo {
 		display: block;
-		flex: 0 0 150px;
 		border-radius: 6px;
 		background: #fff;
 	}
@@ -102,7 +100,7 @@
 		outline: 3px solid #fca5a5;
 		outline-offset: 4px;
 	}
-	@media (max-width: 680px) {
+	@media (max-width: 900px) {
 		.payments {
 			align-items: flex-start;
 			flex-direction: column;

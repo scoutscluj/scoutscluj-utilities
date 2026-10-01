@@ -41,18 +41,39 @@
 	{#each items as child (child.label)}
 		{#if child.children}
 			{@const key = `${parentKey}/${child.label}`}
-			{@const active = groupHasActiveChild(child, user, pathname)}
+			{@const active =
+				Boolean(child.href && isPathActive(menuHref(child.href), pathname)) ||
+				groupHasActiveChild(child, user, pathname)}
 			<section class="menu-group">
-				<button
-					type="button"
-					class="group-button"
-					class:active
-					onclick={() => toggleGroup(key, active)}
-					aria-expanded={isGroupOpen(key, active)}
-				>
-					<span>{child.label}</span>
-					<span aria-hidden="true">{isGroupOpen(key, active) ? '-' : '+'}</span>
-				</button>
+				{#if child.href}
+					<div class="group-heading" class:active>
+						<a
+							href={menuHref(child.href)}
+							onclick={closeMobile}
+							aria-current={pathname === menuHref(child.href) ? 'page' : undefined}>{child.label}</a
+						>
+						<button
+							type="button"
+							class="group-button group-toggle"
+							onclick={() => toggleGroup(key, active)}
+							aria-label={`Submeniul ${child.label}`}
+							aria-expanded={isGroupOpen(key, active)}
+						>
+							<span aria-hidden="true">{isGroupOpen(key, active) ? '-' : '+'}</span>
+						</button>
+					</div>
+				{:else}
+					<button
+						type="button"
+						class="group-button"
+						class:active
+						onclick={() => toggleGroup(key, active)}
+						aria-expanded={isGroupOpen(key, active)}
+					>
+						<span>{child.label}</span>
+						<span aria-hidden="true">{isGroupOpen(key, active) ? '-' : '+'}</span>
+					</button>
+				{/if}
 				{#if isGroupOpen(key, active)}
 					<div class="group-items">{@render menuChildren(visibleChildren(child, user), key)}</div>
 				{/if}
@@ -227,6 +248,17 @@
 		background: transparent;
 		cursor: pointer;
 		text-align: left;
+	}
+	.group-heading {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 38px;
+		border-radius: 8px;
+	}
+	.group-heading a {
+		color: inherit;
+	}
+	.group-toggle {
+		justify-content: center;
 	}
 
 	.nav-link:hover,

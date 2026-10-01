@@ -35,7 +35,7 @@
 		<p class="summary">Accesul in aplicatie se face prin contul tau Orgo.</p>
 
 		<button type="button" class="orgo-button" disabled={isStarting} onclick={startLogin}>
-			<img class="button-mark" src="/branding/orgo.png" alt="ORGO" width="80" height="34" />
+			<img class="button-mark" src="/branding/orgo-symbol.png" alt="ORGO" width="34" height="34" />
 			{isStarting ? 'Se deschide Orgo...' : 'Connect with Orgo'}
 		</button>
 
@@ -114,7 +114,7 @@
 	}
 
 	.button-mark {
-		width: 80px;
+		width: 34px;
 		height: 34px;
 		object-fit: contain;
 		padding: 4px;

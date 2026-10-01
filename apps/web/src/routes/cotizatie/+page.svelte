@@ -101,7 +101,13 @@
 
 {#snippet ownFlow()}
 	<section class="flow-card" aria-labelledby="own-title">
-		<img class="flow-icon account" src="/branding/orgo.png" alt="ORGO" width="90" height="38" />
+		<img
+			class="flow-icon account"
+			src="/branding/orgo-symbol.png"
+			alt="ORGO"
+			width="42"
+			height="42"
+		/>
 		<p class="eyebrow">Contul meu ORGO</p>
 		<h2 id="own-title">Cotizația ta</h2>
 		{#if own}
@@ -165,7 +171,7 @@
 				Autentifică-te cu ORGO pentru ca aplicația să identifice automat cotizația și suma ta.
 			</p>
 			<a class="primary-button login-button" href={resolve('/login?redirectTo=%2Fcotizatie')}
-				><img src="/branding/orgo.png" alt="" width="72" height="30" /> Autentifică-te cu ORGO</a
+				><img src="/branding/orgo-symbol.png" alt="" width="30" height="30" /> Autentifică-te cu ORGO</a
 			>
 		{/if}
 	</section>
@@ -195,7 +201,6 @@
 
 <main class="payment-page">
 	<div class="page-heading">
-		<p class="eyebrow">Centrul Local Cluj</p>
 		<h1>Plată cotizație{periodLabel ? ` (${periodLabel})` : ''}</h1>
 		<p class="section-intro">Situația cotizației și plata cu cardul, într-un singur loc.</p>
 	</div>
@@ -359,8 +364,8 @@
 		font-weight: 900;
 	}
 	.flow-icon.account {
-		width: 90px;
-		height: 38px;
+		width: 42px;
+		height: 42px;
 		object-fit: contain;
 		background: #fff;
 	}
@@ -460,7 +465,7 @@
 		margin-top: 10px;
 	}
 	.login-button img {
-		width: 72px;
+		width: 30px;
 		height: 30px;
 		object-fit: contain;
 		padding: 3px;

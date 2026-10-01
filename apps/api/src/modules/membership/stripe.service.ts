@@ -126,7 +126,25 @@ export class StripeService implements PaymentProvider<StripeConfiguration> {
       'line_items[0][price_data][product_data][name]': input.description,
       'line_items[0][quantity]': '1',
       locale: 'ro',
+      'custom_text[submit][message]':
+        'Cotizație pentru Centrul Local Cluj. După plată, revino în aplicație pentru confirmare și situația cotizației. Pentru ajutor: cluj.napoca@scout.ro.',
     });
+    const details = [
+      input.beneficiaryName ? `Beneficiar: ${input.beneficiaryName}` : '',
+      input.periodName ? `Perioada: ${input.periodName}` : '',
+      'Plată unică a cotizației pentru Centrul Local Cluj.',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    body.set('line_items[0][price_data][product_data][description]', details);
+    body.set(
+      'payment_intent_data[description]',
+      `${input.description} · ${details}`,
+    );
+    body.set(
+      'custom_text[after_submit][message]',
+      'Plata este înregistrată pentru beneficiarul și perioada indicate. Confirmarea și alocarea la cotizație se afișează în aplicație după confirmarea Stripe.',
+    );
     const response = await fetch(
       'https://api.stripe.com/v1/checkout/sessions',
       {
@@ -148,6 +166,10 @@ export class StripeService implements PaymentProvider<StripeConfiguration> {
     if (!response.ok)
       throw new BadGatewayException('Stripe nu a confirmat inițierea plății.');
     const payload = record(await response.json());
+    if (payload.amount_total !== input.amountBani || payload.currency !== 'ron')
+      throw new BadGatewayException(
+        'Suma sau moneda sesiunii Stripe diferă de cotizația confirmată. Plata necesită verificare înainte de continuare.',
+      );
     const paymentUrl = new URL(text(payload.url, 4000));
     if (
       paymentUrl.protocol !== 'https:' ||

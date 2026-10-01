@@ -288,6 +288,56 @@ async function setup() {
 }
 
 describe('membership service rules', () => {
+  it('does not reuse a 300 RON session when the submitted total is 310 RON', async () => {
+    const f = await setup();
+    await f.service.selectPaymentProvider(f.staff, {
+      provider: 'stripe',
+      environment: 'test',
+    });
+    const body = {
+      periodId: f.period.id,
+      identifier: 'AT36805',
+      acceptTerms: true,
+      attemptToken: 'w'.repeat(43),
+      amountBani: 30000,
+    };
+    await f.service.checkout(body);
+    f.obligation.totalBani = 31000;
+    await expect(
+      f.service.checkout({ ...body, amountBani: 31000 }),
+    ).rejects.toThrow('Suma încercării existente');
+    expect(f.stripe.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends the published Stripe total and beneficiary/period details for a fresh checkout', async () => {
+    const f = await setup();
+    await f.service.configureProcessingFee(f.staff, {
+      provider: 'stripe',
+      percentageBasisPoints: 150,
+      fixedBani: 100,
+    });
+    await f.service.selectPaymentProvider(f.staff, {
+      provider: 'stripe',
+      environment: 'test',
+    });
+    const lookup = await f.service.guestLookup({ identifier: 'AT36805' });
+    await f.service.checkout({
+      periodId: f.period.id,
+      identifier: 'AT36805',
+      acceptTerms: true,
+      attemptToken: 'v'.repeat(43),
+      amountBani: lookup.amountBani,
+    });
+    expect(lookup.amountBani).toBe(31000);
+    expect(f.stripe.start).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amountBani: 31000,
+        beneficiaryName: 'Test M.',
+        periodName: 'ORGO test period',
+      }),
+      expect.objectContaining({ provider: 'stripe' }),
+    );
+  });
   it('publishes one adjusted price for bank and card, with provider-specific fees and stable base', async () => {
     const f = await setup();
     await f.service.configureProcessingFee(f.staff, {

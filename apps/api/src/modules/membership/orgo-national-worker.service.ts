@@ -43,7 +43,9 @@ export class OrgoNationalWorker implements OnModuleInit, OnModuleDestroy {
         orgoState: { $in: ['queued', 'syncing', 'pending_approval'] },
       });
       for (const row of items) {
-        const job = await em.transactional(async (tx) => {
+        // A fresh identity map per claim prevents cached role/receipt data
+        // from preceding members from bypassing concurrent financial changes.
+        const job = await em.fork().transactional(async (tx) => {
           await tx.execute('select pg_advisory_xact_lock(9212026)');
           const item = await tx.findOneOrFail(
             Item,
@@ -121,7 +123,7 @@ export class OrgoNationalWorker implements OnModuleInit, OnModuleDestroy {
         const result = await RequestContext.create(em, () =>
           this.orgo.synchronize(job.actorId, job.target, job.allowCreate),
         );
-        await em.transactional(async (tx) => {
+        await em.fork().transactional(async (tx) => {
           await tx.execute('select pg_advisory_xact_lock(9212026)');
           const item = await tx.findOneOrFail(
             Item,

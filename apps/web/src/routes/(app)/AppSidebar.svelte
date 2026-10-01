@@ -72,7 +72,13 @@
 
 <aside class:open={mobileOpen} class="sidebar" aria-label="Meniu principal">
 	<div class="brand">
-		<div class="brand-mark" aria-hidden="true">SC</div>
+		<img
+			class="brand-mark"
+			src="/branding/scouts-cluj.png"
+			alt="Centrul Local Scouts Cluj"
+			width="40"
+			height="43"
+		/>
 		<div>
 			<p>Scouts Cluj</p>
 			<span>Utilities</span>
@@ -125,6 +131,13 @@
 			{/if}
 		{/each}
 	</nav>
+	<img
+		class="oncr-logo"
+		src="/branding/oncr.png"
+		alt="Organizația Națională Cercetașii României"
+		width="190"
+		height="61"
+	/>
 </aside>
 
 <style>
@@ -158,18 +171,22 @@
 
 	.brand-mark {
 		width: 40px;
-		height: 40px;
-		display: grid;
-		place-items: center;
-		border-radius: 999px;
-		background: #c81e1e;
-		color: #ffffff;
-		font-weight: 900;
+		height: auto;
+		object-fit: contain;
+		flex-shrink: 0;
 	}
 
 	.brand p,
 	.brand span {
 		margin: 0;
+	}
+	.oncr-logo {
+		width: 190px;
+		height: auto;
+		object-fit: contain;
+		align-self: center;
+		margin-top: auto;
+		padding-top: 12px;
 	}
 
 	.brand p {

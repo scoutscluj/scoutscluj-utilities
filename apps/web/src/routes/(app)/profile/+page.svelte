@@ -237,6 +237,7 @@
 	</article>
 
 	<article>
+		<img src="/branding/orgo.png" alt="ORGO" width="90" height="38" />
 		<h2>Conexiune Orgo</h2>
 		<dl>
 			<div>

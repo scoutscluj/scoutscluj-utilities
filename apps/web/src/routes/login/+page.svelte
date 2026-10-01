@@ -23,12 +23,19 @@
 
 <main class="login-page">
 	<section class="login-panel" aria-labelledby="login-title">
+		<img
+			class="center-logo"
+			src="/branding/scouts-cluj-wide.png"
+			alt="Scouts Cluj — Cercetașii României"
+			width="320"
+			height="167"
+		/>
 		<p class="eyebrow">Scouts Cluj Utilities</p>
 		<h1 id="login-title">Autentificare</h1>
 		<p class="summary">Accesul in aplicatie se face prin contul tau Orgo.</p>
 
 		<button type="button" class="orgo-button" disabled={isStarting} onclick={startLogin}>
-			<span aria-hidden="true" class="button-mark">O</span>
+			<img class="button-mark" src="/branding/orgo.png" alt="ORGO" width="80" height="34" />
 			{isStarting ? 'Se deschide Orgo...' : 'Connect with Orgo'}
 		</button>
 
@@ -62,6 +69,12 @@
 		font-weight: 800;
 		letter-spacing: 0;
 		text-transform: uppercase;
+	}
+	.center-logo {
+		display: block;
+		width: 100%;
+		height: auto;
+		margin-bottom: 20px;
 	}
 
 	h1 {
@@ -101,15 +114,12 @@
 	}
 
 	.button-mark {
-		display: grid;
-		place-items: center;
-		width: 24px;
-		height: 24px;
-		border-radius: 999px;
+		width: 80px;
+		height: 34px;
+		object-fit: contain;
+		padding: 4px;
+		border-radius: 4px;
 		background: #ffffff;
-		color: #c81e1e;
-		font-size: 0.8rem;
-		font-weight: 900;
 	}
 
 	.error {

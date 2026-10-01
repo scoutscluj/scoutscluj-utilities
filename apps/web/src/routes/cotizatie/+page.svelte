@@ -101,7 +101,7 @@
 
 {#snippet ownFlow()}
 	<section class="flow-card" aria-labelledby="own-title">
-		<div class="flow-icon account" aria-hidden="true">O</div>
+		<img class="flow-icon account" src="/branding/orgo.png" alt="ORGO" width="90" height="38" />
 		<p class="eyebrow">Contul meu ORGO</p>
 		<h2 id="own-title">Cotizația ta</h2>
 		{#if own}
@@ -165,7 +165,7 @@
 				Autentifică-te cu ORGO pentru ca aplicația să identifice automat cotizația și suma ta.
 			</p>
 			<a class="primary-button login-button" href={resolve('/login?redirectTo=%2Fcotizatie')}
-				><span aria-hidden="true">O</span> Autentifică-te cu ORGO</a
+				><img src="/branding/orgo.png" alt="" width="72" height="30" /> Autentifică-te cu ORGO</a
 			>
 		{/if}
 	</section>
@@ -181,9 +181,13 @@
 {#if !data.user}
 	<header class="public-topbar">
 		<a class="brand" href={resolve('/')}
-			><span class="brand-mark" aria-hidden="true">SC</span><span
-				><strong>Scouts Cluj</strong><small>Resurse</small></span
-			></a
+			><img
+				class="brand-mark"
+				src="/branding/scouts-cluj.png"
+				alt="Centrul Local Scouts Cluj"
+				width="40"
+				height="43"
+			/><span><strong>Scouts Cluj</strong><small>Resurse</small></span></a
 		>
 		<a class="topbar-link" href={resolve('/login?redirectTo=%2Fcotizatie')}>Autentificare</a>
 	</header>
@@ -281,13 +285,8 @@
 	}
 	.brand-mark {
 		width: 40px;
-		height: 40px;
-		display: grid;
-		place-items: center;
-		border-radius: 999px;
-		background: #c81e1e;
-		color: #fff;
-		font-weight: 900;
+		height: auto;
+		object-fit: contain;
 	}
 	.topbar-link {
 		color: #991b1b;
@@ -360,10 +359,10 @@
 		font-weight: 900;
 	}
 	.flow-icon.account {
-		border-radius: 999px;
-		background: #c81e1e;
-		color: #fff;
-		font-size: 1rem;
+		width: 90px;
+		height: 38px;
+		object-fit: contain;
+		background: #fff;
 	}
 	.flow-card h2 {
 		margin: 7px 0 0;
@@ -460,15 +459,13 @@
 		width: fit-content;
 		margin-top: 10px;
 	}
-	.login-button span {
-		width: 24px;
-		height: 24px;
-		display: grid;
-		place-items: center;
-		border-radius: 999px;
+	.login-button img {
+		width: 72px;
+		height: 30px;
+		object-fit: contain;
+		padding: 3px;
+		border-radius: 4px;
 		background: #fff;
-		color: #c81e1e;
-		font-size: 0.78rem;
 	}
 	button:disabled {
 		cursor: not-allowed;

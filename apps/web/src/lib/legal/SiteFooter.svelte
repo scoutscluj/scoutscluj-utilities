@@ -5,6 +5,16 @@
 
 <footer>
 	<div class="identity">
+		<div class="organization-logos">
+			<img src="/branding/scouts-cluj.png" alt="Centrul Local Scouts Cluj" width="48" height="51" />
+			<img
+				class="oncr-logo"
+				src="/branding/oncr.png"
+				alt="Organizația Națională Cercetașii României"
+				width="180"
+				height="58"
+			/>
+		</div>
 		<strong>{organization.legalName}</strong>
 		<span
 			>CIF {organization.taxId} · Registrul asociațiilor și fundațiilor {organization.registryNumber}</span
@@ -65,6 +75,19 @@
 	}
 	strong {
 		color: #17202a;
+	}
+	.organization-logos {
+		display: flex;
+		align-items: center;
+		gap: 18px;
+		margin-bottom: 5px;
+	}
+	.organization-logos img {
+		object-fit: contain;
+		max-width: 100%;
+	}
+	.oncr-logo {
+		min-width: 0;
 	}
 	nav {
 		grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -667,6 +667,9 @@ export class MembershipService {
         | 'state'
         | 'reviewRequired'
         | 'createdAt'
+        | 'obligationId'
+        | 'providerId'
+        | 'environment'
       >
     >;
     cardEnabled: boolean;
@@ -701,6 +704,9 @@ export class MembershipService {
         {
           fields: [
             'id',
+            'obligationId',
+            'providerId',
+            'environment',
             'identifier',
             'identifierKind',
             'periodId',
@@ -743,6 +749,9 @@ export class MembershipService {
       nationalItems,
       checkouts: checkouts.map((c) => ({
         id: c.id,
+        obligationId: c.obligationId,
+        providerId: c.providerId,
+        environment: c.environment,
         identifier: c.identifier,
         identifierKind: c.identifierKind,
         periodId: c.periodId,
@@ -1188,16 +1197,49 @@ export class MembershipService {
     this.staff(user);
     uuid(id);
     const evidence = text(record(input).evidence, 2000);
+    const initial = await this.em.findOneOrFail(Checkout, { id });
+    if (!['pending', 'unknown'].includes(initial.state))
+      throw new ConflictException(
+        'Plata nu poate fi anulată în această stare. Actualizează pagina.',
+      );
+    if (await this.em.findOne(Receipt, { checkoutId: id }))
+      throw new ConflictException('Încasare deja confirmată.');
+    // The submission claim sets unknown before sending the external request.
+    // Do not allow manual closure while that request can still be running.
+    if (Date.now() - initial.createdAt.getTime() < 120000)
+      throw new ConflictException(
+        'Inițiere recentă: așteaptă două minute și actualizează starea înainte de anulare.',
+      );
+    if (initial.provider === 'stripe' && initial.providerId) {
+      const configuration = await this.configurationForCheckout('stripe', id);
+      await this.stripe.expireUnpaid(
+        initial.providerId,
+        id,
+        initial.amountBani,
+        configuration,
+      );
+    }
     return this.mutate(async (em) => {
-      const checkout = await em.findOneOrFail(Checkout, { id });
-      if (!['starting', 'pending', 'unknown'].includes(checkout.state))
+      const checkout = await em.findOneOrFail(
+        Checkout,
+        { id },
+        { refresh: true },
+      );
+      if (!['pending', 'unknown'].includes(checkout.state))
         throw new ConflictException('Încercarea nu este în așteptare.');
       if (await em.findOne(Receipt, { checkoutId: id }))
         throw new ConflictException('Încasare deja confirmată.');
       checkout.state = 'failed';
+      checkout.paymentUrl = null;
       this.audit(em, user.id, 'checkout.manually_closed', id, {
         reason: evidence,
+        provider: checkout.provider,
+        providerId: checkout.providerId,
+        stripeExpirationVerified:
+          initial.provider === 'stripe' && Boolean(initial.providerId),
       });
+      await em.flush();
+      await this.publishCurrentPrices(em, await this.paymentSettings(em));
       return { success: true };
     });
   }

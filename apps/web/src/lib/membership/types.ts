@@ -70,6 +70,10 @@ export type Dashboard = {
 	nationalItems: NationalItem[];
 	checkouts: Array<{
 		id: string;
+		obligationId?: string | null;
+		providerId?: string | null;
+		environment?: string;
+		createdAt?: string;
 		periodId: string;
 		identifier: string;
 		plan: string;

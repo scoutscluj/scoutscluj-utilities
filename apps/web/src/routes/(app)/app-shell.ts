@@ -54,6 +54,8 @@ export const menuHref = (href: AppHref) => {
 			return resolve('/admin/finance/membership');
 		case '/admin/finance/receipts':
 			return resolve('/admin/finance/receipts');
+		case '/admin/finance/payments':
+			return resolve('/admin/finance/payments');
 		case '/admin/finance/transfers':
 			return resolve('/admin/finance/transfers');
 		case '/admin/finance/membership-settings':
@@ -181,6 +183,7 @@ export const routeTitle = (pathname: string) => {
 	if (pathname.startsWith('/admin/finance/guide')) return 'Ghid financiar';
 	if (pathname.startsWith('/admin/finance/membership-settings')) return 'Configurare cotizații';
 	if (pathname.startsWith('/admin/finance/receipts')) return 'Încasări și alocări';
+	if (pathname.startsWith('/admin/finance/payments')) return 'Plăți în curs';
 	if (pathname.startsWith('/admin/finance/transfers')) return 'Transferuri naționale';
 	if (pathname.startsWith('/admin/finance/membership')) return 'Membri și cotizații';
 	if (pathname.startsWith('/admin/finance')) return 'Administrare financiară';

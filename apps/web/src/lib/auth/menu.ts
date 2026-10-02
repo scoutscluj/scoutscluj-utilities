@@ -45,6 +45,7 @@ export const menuItems: MenuItem[] = [
 				children: [
 					{ label: 'Membri și cotizații', href: '/admin/finance/membership' },
 					{ label: 'Încasări și alocări', href: '/admin/finance/receipts' },
+					{ label: 'Plăți în curs', href: '/admin/finance/payments' },
 					{ label: 'Transferuri naționale', href: '/admin/finance/transfers' },
 					{ label: 'Configurare cotizații', href: '/admin/finance/membership-settings' },
 					{ label: 'Procesatori de plăți', href: '/admin/finance/payment-processor' },

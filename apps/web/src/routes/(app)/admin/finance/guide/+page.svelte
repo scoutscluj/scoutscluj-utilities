@@ -250,6 +250,21 @@
 	<section id="corectii">
 		<h2>Verificări, corecții și rambursări</h2>
 		<p>
+			În Admin → Financiar → <a href={resolve('/admin/finance/payments')}>Plăți în curs</a> găsești încercările
+			deschise pentru toți membrii. Caută după nume, ID sau referință și verifică beneficiarul, perioada,
+			suma și mediul înainte de anulare. Deschide „Anulează această încercare”, scrie motivul și confirmă.
+			Pentru Stripe, aplicația expiră linkul neplătit folosind configurația cu care a fost creat. Dacă
+			plata a fost deja trimisă sau încasată, anularea este refuzată. O inițiere recentă se verifică după
+			cel puțin două minute.
+		</p>
+		<p>
+			Pentru NETOPIA sau o încercare fără referință confirmată, verifică tranzacția în contul
+			procesatorului și închide orice link încă activ înainte de anularea locală. Consemnează dovada
+			verificării în formular. Anularea păstrează istoricul și actorul care a făcut-o; cotizația
+			neachitată se recalculează dacă nu mai există alte înregistrări care o protejează. Această
+			acțiune nu restituie bani. Încasările confirmate se corectează prin alocare sau rambursare.
+		</p>
+		<p>
 			Rezolvă întâi situațiile marcate pentru verificare. Caută dovada bancară sau tranzacția la
 			procesator și compară membrul, perioada, suma și moneda. Pentru o plată cu rezultat
 			necunoscut, închiderea manuală cere dovadă că tranzacția nu a fost încasată. Nu presupune că o

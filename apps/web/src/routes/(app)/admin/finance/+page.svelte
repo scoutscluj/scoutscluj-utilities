@@ -14,6 +14,12 @@
 	<p>Gestionează cotizațiile membrilor și configurarea plăților online.</p>
 </header>
 <div class="modules">
+	<a class="module-card" href={resolve('/admin/finance/payments')}>
+		<span class="icon"><CreditCard size={24} /></span>
+		<h2>Plăți în curs</h2>
+		<p>Linkuri abandonate, încercări neconfirmate și anularea plăților neîncasate.</p>
+		<span class="action">Verifică plățile <ArrowRight size={18} /></span>
+	</a>
 	<a class="module-card" href={resolve('/admin/finance/guide')}>
 		<span class="icon"><BookOpen size={24} /></span>
 		<h2>Ghid financiar</h2>

@@ -120,6 +120,11 @@ export const membershipAdminActions: Actions = {
 				success: true,
 				message: 'Verificarea ORGO a fost programată. Actualizează pagina pentru rezultat.'
 			};
+		if (action === 'close')
+			return {
+				success: true,
+				message: 'Încercarea a fost anulată. Membrul poate începe o plată nouă.'
+			};
 		return { success: true, message: 'Operațiunea a fost înregistrată.' };
 	}
 };

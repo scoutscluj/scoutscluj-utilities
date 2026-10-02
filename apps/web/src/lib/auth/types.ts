@@ -8,6 +8,7 @@ export type AppHref =
 	| '/admin/finance'
 	| '/admin/finance/membership'
 	| '/admin/finance/receipts'
+	| '/admin/finance/payments'
 	| '/admin/finance/transfers'
 	| '/admin/finance/membership-settings'
 	| '/admin/finance/payment-processor'

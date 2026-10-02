@@ -1229,6 +1229,7 @@ describe('membership service rules', () => {
     const checkout = f.em.create('checkout', {
       periodId: f.period.id,
       tokenHash: 'unknown-test',
+      createdAt: new Date(Date.now() - 300000),
       identifier: '36805',
       identifierKind: 'orgo_id',
       plan: 'normal',
@@ -1244,5 +1245,110 @@ describe('membership service rules', () => {
       }),
     ).resolves.toEqual({ success: true });
     expect(checkout.state).toBe('failed');
+  });
+
+  it('staff expires abandoned Stripe sessions, audits the actor and restores the current unpaid tariff', async () => {
+    const f = await setup();
+    await f.service.selectPaymentProvider(f.staff, {
+      provider: 'stripe',
+      environment: 'test',
+    });
+    const body = {
+      periodId: f.period.id,
+      identifier: 'AT36805',
+      acceptTerms: true,
+      attemptToken: 'a'.repeat(43),
+      amountBani: 30000,
+    };
+    await f.service.checkout(body);
+    const checkout = f.rows.find((row) => row.table === 'checkout')!;
+    checkout.createdAt = new Date(Date.now() - 300000);
+    await f.service.configureProcessingFee(f.staff, {
+      provider: 'stripe',
+      percentageBasisPoints: 150,
+      fixedBani: 100,
+    });
+    await f.service.closeAttempt(f.staff, checkout.id, {
+      evidence: 'Member abandoned the link',
+    });
+    expect(f.stripe.expireUnpaid).toHaveBeenCalledWith(
+      'cs_test_123',
+      checkout.id,
+      30000,
+      expect.objectContaining({ environment: 'test' }),
+    );
+    expect(checkout).toMatchObject({ state: 'failed', paymentUrl: null });
+    expect(f.obligation.totalBani).toBe(31000);
+    const audit = f.rows.find(
+      (row) =>
+        row.table === 'audit' &&
+        row.action === 'membership.checkout.manually_closed',
+    );
+    expect(audit?.actorId).toBe(f.staff.id);
+    expect(audit?.metadata).toMatchObject({ stripeExpirationVerified: true });
+  });
+
+  it('staff cancellation refuses non-staff, recent submissions, confirmed receipts and expiration failures', async () => {
+    const f = await setup();
+    await f.service.selectPaymentProvider(f.staff, {
+      provider: 'stripe',
+      environment: 'test',
+    });
+    await f.service.checkout({
+      periodId: f.period.id,
+      identifier: 'AT36805',
+      acceptTerms: true,
+      attemptToken: 'a'.repeat(43),
+      amountBani: 30000,
+    });
+    const checkout = f.rows.find((row) => row.table === 'checkout')!;
+    const evidence = { evidence: 'Cancel abandoned payment' };
+    await expect(
+      f.service.closeAttempt({ ...f.staff, roles: [] }, checkout.id, evidence),
+    ).rejects.toThrow();
+    await expect(
+      f.service.closeAttempt(f.staff, checkout.id, evidence),
+    ).rejects.toThrow('Inițiere recentă');
+    expect(f.stripe.expireUnpaid).not.toHaveBeenCalled();
+    checkout.createdAt = new Date(Date.now() - 300000);
+    f.stripe.expireUnpaid.mockRejectedValueOnce(
+      new Error('Stripe payment already submitted'),
+    );
+    await expect(
+      f.service.closeAttempt(f.staff, checkout.id, evidence),
+    ).rejects.toThrow('already submitted');
+    expect(checkout.state).toBe('pending');
+    f.em.persist(f.em.create('receipt', { checkoutId: checkout.id }));
+    await expect(
+      f.service.closeAttempt(f.staff, checkout.id, evidence),
+    ).rejects.toThrow('Încasare deja confirmată');
+    expect(f.stripe.expireUnpaid).toHaveBeenCalledTimes(1);
+  });
+
+  it('staff cancellation preserves a success that arrives during Stripe expiration', async () => {
+    const f = await setup();
+    await f.service.selectPaymentProvider(f.staff, {
+      provider: 'stripe',
+      environment: 'test',
+    });
+    await f.service.checkout({
+      periodId: f.period.id,
+      identifier: 'AT36805',
+      acceptTerms: true,
+      attemptToken: 'a'.repeat(43),
+      amountBani: 30000,
+    });
+    const checkout = f.rows.find((row) => row.table === 'checkout')!;
+    checkout.createdAt = new Date(Date.now() - 300000);
+    f.stripe.expireUnpaid.mockImplementationOnce(() => {
+      checkout.state = 'succeeded';
+      return Promise.resolve();
+    });
+    await expect(
+      f.service.closeAttempt(f.staff, checkout.id, {
+        evidence: 'Cancel abandoned link',
+      }),
+    ).rejects.toThrow('nu este în așteptare');
+    expect(checkout.state).toBe('succeeded');
   });
 });

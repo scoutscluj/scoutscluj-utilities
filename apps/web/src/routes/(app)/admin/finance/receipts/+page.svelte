@@ -1,5 +1,6 @@
 <script lang="ts">
 	import MembershipAdminPage from '$lib/membership/MembershipAdminPage.svelte';
+	import { resolve } from '$app/paths';
 	import { money } from '$lib/membership/types';
 	import { unallocatedAmount } from '$lib/membership/admin-ledger';
 	let { data, form } = $props();
@@ -205,20 +206,8 @@
 		<summary>Încercări de plată care necesită verificare</summary
 		>{#each ledger.checkouts.filter((c) => c.state === 'unknown' || c.reviewRequired) as c (c.id)}
 			<p>{c.id} · {c.identifier} · {money(c.amountBani)} · {c.provider} · {c.state}</p>
-			{#if c.state === 'unknown'}<form method="POST" class="grid">
-					<input type="hidden" name="action" value="close" /><input
-						type="hidden"
-						name="id"
-						value={c.id}
-					/><label
-						>Dovadă că nu există încasare la procesator<textarea
-							name="evidence"
-							required
-							maxlength="2000"
-						></textarea></label
-					><button>Închide încercarea fără plată</button>
-				</form>{/if}
 		{/each}
+		<a href={resolve('/admin/finance/payments')}>Verifică și anulează plățile în curs</a>
 		<p>
 			Verifică aceste tranzacții la procesatorul indicat înainte de a cere o nouă plată. Nu se
 			reîncearcă automat o inițiere cu rezultat necunoscut.

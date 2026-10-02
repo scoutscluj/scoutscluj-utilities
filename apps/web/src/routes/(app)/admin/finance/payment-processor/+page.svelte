@@ -173,9 +173,19 @@
 					/></label
 				>
 				<label
-					>Certificatul public<textarea name="publicKey" required rows="8" spellcheck="false"
+					>Cheia publică de verificare NETOPIA<textarea
+						name="publicKey"
+						required
+						rows="8"
+						spellcheck="false"
 					></textarea></label
 				>
+				<p class="help-text">
+					Introdu cheia publică RSA furnizată de NETOPIA pentru verificarea notificărilor, cu
+					liniile BEGIN PUBLIC KEY și END PUBLIC KEY. Este acceptat și un certificat RSA. Folosește
+					datele corespunzătoare mediului selectat. După salvare, pornește o plată nouă pentru
+					retestare; plățile deja pornite folosesc configurația lor inițială.
+				</p>
 				<button>Salvează o revizie NETOPIA</button>
 			</fieldset>
 		</form>

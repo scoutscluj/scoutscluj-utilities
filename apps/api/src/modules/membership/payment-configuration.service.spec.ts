@@ -4,6 +4,7 @@ jest.mock('./entities/membership.entity', () => ({
 }));
 
 import type { EntityManager } from '@mikro-orm/postgresql';
+import { generateKeyPairSync } from 'node:crypto';
 import { PaymentConfigurationService } from './payment-configuration.service';
 import type { PaymentSecretVault } from './payment-secret-vault.service';
 
@@ -51,7 +52,7 @@ describe('administrator-managed payment configuration', () => {
     expect(vault.encrypt).toHaveBeenCalledWith('stripe', configuration);
   });
 
-  it('requires a NETOPIA verification certificate', () => {
+  it('requires a valid NETOPIA verification public key', () => {
     expect(() =>
       service.parse('netopia', {
         environment: 'sandbox',
@@ -59,7 +60,50 @@ describe('administrator-managed payment configuration', () => {
         posSignature: 'pos',
         publicKey: 'not a certificate',
       }),
-    ).toThrow('Certificatul public NETOPIA este invalid');
+    ).toThrow('Cheia publică NETOPIA este invalidă');
+  });
+
+  it('accepts actual RSA verification public keys in SPKI and PKCS1 formats', () => {
+    const keys = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    for (const type of ['spki', 'pkcs1'] as const) {
+      const publicKey = keys.publicKey
+        .export({ format: 'pem', type })
+        .toString();
+      expect(
+        service.parse('netopia', {
+          environment: 'sandbox',
+          apiKey: 'api-key',
+          posSignature: 'pos',
+          publicKey,
+        }),
+      ).toMatchObject({ publicKey: publicKey.trim() });
+      expect(
+        service.parse('netopia', {
+          environment: 'live',
+          apiKey: 'api-key',
+          posSignature: 'pos',
+          publicKey: publicKey.replace(/\n/g, '\\n'),
+        }),
+      ).toMatchObject({ publicKey: publicKey.trim() });
+    }
+  });
+
+  it('rejects private keys, broken PEM and non-RSA keys before saving', () => {
+    const keys = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const ec = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+    for (const publicKey of [
+      keys.privateKey.export({ format: 'pem', type: 'pkcs8' }).toString(),
+      '-----BEGIN CERTIFICATE-----\nbroken\n-----END CERTIFICATE-----',
+      ec.publicKey.export({ format: 'pem', type: 'spki' }).toString(),
+    ])
+      expect(() =>
+        service.parse('netopia', {
+          environment: 'sandbox',
+          apiKey: 'api-key',
+          posSignature: 'pos',
+          publicKey,
+        }),
+      ).toThrow('Cheia publică NETOPIA este invalidă');
   });
 
   it('returns only operational metadata to the administrator dashboard', async () => {

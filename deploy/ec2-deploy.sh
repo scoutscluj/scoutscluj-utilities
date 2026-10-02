@@ -263,6 +263,11 @@ REGISTRY="${API_IMAGE%%/*}"
 aws ecr get-login-password --region "${AWS_REGION}" |
   docker login --username AWS --password-stdin "${REGISTRY}"
 
+# Retain images referenced by any container, including the running production
+# version. Old, unused releases remain available in ECR for rollback.
+# Do this before pulling: accumulated releases can otherwise fill the disk.
+docker image prune --all --force
+
 docker pull "${API_IMAGE}"
 docker pull "${WEB_IMAGE}"
 

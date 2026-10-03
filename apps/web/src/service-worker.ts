@@ -149,6 +149,10 @@ worker.addEventListener('fetch', (event) => {
 });
 
 worker.addEventListener('message', (event) => {
+	if (event.data?.type === 'GET_VERSION') {
+		event.ports[0]?.postMessage({ version });
+		return;
+	}
 	if (event.data?.type === 'SKIP_WAITING') {
 		worker.skipWaiting();
 	}

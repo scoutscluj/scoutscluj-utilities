@@ -1,4 +1,4 @@
-import { browser, dev } from '$app/environment';
+import { browser, dev, version as buildVersion } from '$app/environment';
 import { env } from '$env/dynamic/public';
 
 type InstallMode = 'native' | 'manual' | null;
@@ -12,6 +12,8 @@ const LAST_VERSION_KEY = 'pwa-last-version';
 const DISMISSED_VERSION_KEY = 'pwa-dismissed-version';
 const LAST_COMMIT_HASH_KEY = 'pwa-last-commit-hash';
 const DISMISSED_COMMIT_HASH_KEY = 'pwa-dismissed-commit-hash';
+const DISMISSED_INSTALL_KEY = 'pwa-install-dismissed';
+const DISMISSED_WORKER_KEY = 'pwa-dismissed-worker-build';
 
 const getVersion = () => env.PUBLIC_APP_VERSION || '0.0.0-dev';
 const getCommitHash = () => env.PUBLIC_COMMIT_HASH || 'local';
@@ -33,6 +35,10 @@ class PwaState {
 	private initialized = false;
 	private installPromptEvent: BeforeInstallPromptEvent | null = null;
 	private waitingWorker: ServiceWorker | null = null;
+	private waitingWorkerVersion: string | null = null;
+	private dismissedWaitingWorker: ServiceWorker | null = null;
+	private installDismissed = false;
+	private workerCleanup: (() => void) | null = null;
 
 	init() {
 		if (!browser || this.initialized) {
@@ -40,6 +46,7 @@ class PwaState {
 		}
 
 		this.initialized = true;
+		this.installDismissed = localStorage.getItem(DISMISSED_INSTALL_KEY) === 'true';
 		this.isOffline = !navigator.onLine;
 		this.syncStandaloneState();
 		this.syncInstallAvailability();
@@ -62,7 +69,7 @@ class PwaState {
 			this.installPromptEvent = event as BeforeInstallPromptEvent;
 			this.canInstall = true;
 			this.installMode = 'native';
-			this.showInstallPrompt = true;
+			this.showInstallPrompt = !this.installDismissed && !this.isStandalone;
 		};
 		const onAppInstalled = () => {
 			this.installPromptEvent = null;
@@ -84,6 +91,9 @@ class PwaState {
 		}
 
 		return () => {
+			this.initialized = false;
+			this.workerCleanup?.();
+			this.workerCleanup = null;
 			window.removeEventListener('online', onOnline);
 			window.removeEventListener('offline', onOffline);
 			window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
@@ -112,16 +122,16 @@ class PwaState {
 		this.canInstall = false;
 		this.installMode = null;
 		this.showInstallPrompt = false;
+		if (outcome === 'dismissed') {
+			this.dismissInstallPrompt();
+		}
 		return outcome === 'accepted';
 	}
 
 	dismissInstallPrompt() {
-		this.installPromptEvent = null;
-		if (this.installMode !== 'manual') {
-			this.canInstall = false;
-			this.installMode = null;
-		}
+		this.installDismissed = true;
 		this.showInstallPrompt = false;
+		if (browser) localStorage.setItem(DISMISSED_INSTALL_KEY, 'true');
 	}
 
 	openInstallPrompt() {
@@ -142,6 +152,7 @@ class PwaState {
 
 	dismissUpdate() {
 		this.updateAvailable = false;
+		this.dismissedWaitingWorker = this.waitingWorker;
 
 		if (!browser) {
 			return;
@@ -149,6 +160,9 @@ class PwaState {
 
 		localStorage.setItem(DISMISSED_VERSION_KEY, this.currentVersion);
 		localStorage.setItem(DISMISSED_COMMIT_HASH_KEY, this.currentCommitHash);
+		if (this.waitingWorkerVersion) {
+			localStorage.setItem(DISMISSED_WORKER_KEY, this.waitingWorkerVersion);
+		}
 	}
 
 	reloadForUpdate() {
@@ -192,7 +206,7 @@ class PwaState {
 		if (isIosDevice()) {
 			this.canInstall = true;
 			this.installMode = 'manual';
-			this.showInstallPrompt = true;
+			this.showInstallPrompt = !this.installDismissed;
 		}
 	}
 
@@ -230,6 +244,41 @@ class PwaState {
 		}
 	}
 
+	private getWorkerVersion(worker: ServiceWorker): Promise<string> {
+		// Older workers do not answer this message. Use the page's build ID as a fallback.
+		return new Promise((resolve) => {
+			const channel = new MessageChannel();
+			const finish = (value: string) => {
+				clearTimeout(timeout);
+				channel.port1.close();
+				channel.port2.close();
+				resolve(value);
+			};
+			const timeout = setTimeout(() => finish(buildVersion), 1000);
+			channel.port1.onmessage = (event) => {
+				const value = event.data?.version;
+				finish(typeof value === 'string' && value ? value : buildVersion);
+			};
+			try {
+				worker.postMessage({ type: 'GET_VERSION' }, [channel.port2]);
+			} catch {
+				finish(buildVersion);
+			}
+		});
+	}
+
+	private async setWaitingWorker(worker: ServiceWorker) {
+		if (this.waitingWorker !== worker) this.waitingWorkerVersion = null;
+		this.waitingWorker = worker;
+		const version = await this.getWorkerVersion(worker);
+		if (!this.initialized || this.waitingWorker !== worker || this.isReloading) return;
+		this.waitingWorkerVersion = version;
+		if (this.dismissedWaitingWorker === worker) {
+			localStorage.setItem(DISMISSED_WORKER_KEY, version);
+		}
+		this.updateAvailable = localStorage.getItem(DISMISSED_WORKER_KEY) !== version;
+	}
+
 	private async registerServiceWorker() {
 		if (!('serviceWorker' in navigator)) {
 			return;
@@ -243,32 +292,41 @@ class PwaState {
 			const registration = await navigator.serviceWorker.register('/service-worker.js', {
 				type: dev ? 'module' : 'classic'
 			});
+			if (!this.initialized) return;
 
-			if (registration.waiting) {
-				this.waitingWorker = registration.waiting;
-				this.updateAvailable = true;
-			}
-
-			registration.addEventListener('updatefound', () => {
+			const workerListeners: (() => void)[] = [];
+			const onUpdateFound = () => {
 				const worker = registration.installing;
 				if (!worker) {
 					return;
 				}
 
-				worker.addEventListener('statechange', () => {
+				const onStateChange = () => {
 					if (worker.state === 'installed' && navigator.serviceWorker.controller) {
-						this.waitingWorker = registration.waiting ?? worker;
-						this.updateAvailable = true;
+						void this.setWaitingWorker(registration.waiting ?? worker);
 					}
-				});
-			});
+				};
+				worker.addEventListener('statechange', onStateChange);
+				workerListeners.push(() => worker.removeEventListener('statechange', onStateChange));
+			};
+			registration.addEventListener('updatefound', onUpdateFound);
 
-			navigator.serviceWorker.addEventListener('controllerchange', () => {
+			const onControllerChange = () => {
 				if (this.isReloading) {
 					window.location.reload();
 				}
-			});
+			};
+			navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+			this.workerCleanup = () => {
+				registration.removeEventListener('updatefound', onUpdateFound);
+				navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+				for (const cleanup of workerListeners) cleanup();
+			};
 
+			if (registration.waiting) {
+				await this.setWaitingWorker(registration.waiting);
+			}
+			if (!this.initialized) return;
 			await registration.update();
 		} catch (error) {
 			console.error('[PWA] Service worker registration failed', error);

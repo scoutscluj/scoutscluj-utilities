@@ -172,19 +172,10 @@
 						autocomplete="new-password"
 					/></label
 				>
-				<label
-					>Cheia publică de verificare NETOPIA<textarea
-						name="publicKey"
-						required
-						rows="8"
-						spellcheck="false"
-					></textarea></label
-				>
 				<p class="help-text">
-					Introdu cheia publică RSA furnizată de NETOPIA pentru verificarea notificărilor, cu
-					liniile BEGIN PUBLIC KEY și END PUBLIC KEY. Este acceptat și un certificat RSA. Folosește
-					datele corespunzătoare mediului selectat. După salvare, pornește o plată nouă pentru
-					retestare; plățile deja pornite folosesc configurația lor inițială.
+					Folosește API key și semnătura POS corespunzătoare mediului selectat. Cheia publică comună
+					pentru notificările NETOPIA este configurată separat pe server. Plățile deja pornite
+					păstrează API key și semnătura POS din revizia lor inițială.
 				</p>
 				<button>Salvează o revizie NETOPIA</button>
 			</fieldset>
@@ -317,7 +308,6 @@
 		align-content: start;
 	}
 	.provider-card input,
-	.provider-card textarea,
 	.provider-card select {
 		width: 100%;
 		min-width: 0;
@@ -327,7 +317,6 @@
 		gap: 16px;
 	}
 	input:focus-visible,
-	textarea:focus-visible,
 	select:focus-visible,
 	button:focus-visible,
 	a:focus-visible {
@@ -365,7 +354,6 @@
 	}
 
 	input,
-	textarea,
 	select,
 	button {
 		max-width: 100%;

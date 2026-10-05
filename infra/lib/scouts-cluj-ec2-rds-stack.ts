@@ -384,6 +384,7 @@ ${appHostName} {
 					delete token
 				}
 				request>headers>Authorization delete
+				request>headers>Verification-Token delete
 				request>headers>Cookie delete
 				request>headers>Proxy-Authorization delete
 				request>headers>Set-Cookie delete

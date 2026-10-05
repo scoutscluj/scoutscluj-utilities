@@ -1,3 +1,10 @@
+jest.mock('../auth/guards/auth.guard', () => ({
+  AuthGuard: class {
+    canActivate() {
+      throw new Error('User login must not be required for IPN');
+    }
+  },
+}));
 jest.mock('@mikro-orm/postgresql', () => ({ EntityManager: class {} }));
 jest.mock('./orgo-roster.service', () => ({ OrgoRosterService: class {} }));
 jest.mock('../audit/entities/audit-entry.entity', () => ({
@@ -19,13 +26,216 @@ jest.mock('./entities/membership.entity', () => ({
 }));
 
 import type { EntityManager } from '@mikro-orm/postgresql';
-import { randomUUID } from 'node:crypto';
+import { createHash, generateKeyPairSync, randomUUID, sign } from 'node:crypto';
+import { ConfigService } from '@nestjs/config';
+import { Logger, UnauthorizedException } from '@nestjs/common';
+import type { INestApplication } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import { raw } from 'express';
+import request from 'supertest';
+import type { Server } from 'node:http';
+import { MembershipController } from './membership.controller';
+import type { NetopiaConfiguration } from './payment-provider';
 import { MembershipService } from './membership.service';
 import { PaymentNotSubmittedException } from './payment-provider';
-import type { NetopiaService } from './netopia.service';
+import { NetopiaService } from './netopia.service';
 import type { StripeService } from './stripe.service';
 import { UserRole } from '../users/entities/user-role.enum';
 import type { CurrentUser } from '../users/users.types';
+
+describe('NETOPIA signed IPN processing and HTTP response', () => {
+  const keys = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const publicKey = keys.publicKey
+    .export({ type: 'spki', format: 'pem' })
+    .toString();
+  const verifier = new NetopiaService(
+    new ConfigService({ NETOPIA_IPN_PUBLIC_KEY: publicKey }),
+  );
+  const jwt = (
+    body: Buffer,
+    overrides: Record<string, unknown> = {},
+    key = keys.privateKey,
+  ) => {
+    const header = Buffer.from(JSON.stringify({ alg: 'RS512' })).toString(
+      'base64url',
+    );
+    const claims = Buffer.from(
+      JSON.stringify({
+        iss: 'NETOPIA Payments',
+        aud: 'pos',
+        sub: createHash('sha512').update(body).digest('base64'),
+        exp: Date.now() / 1000 + 60,
+        ...overrides,
+      }),
+    ).toString('base64url');
+    return `${header}.${claims}.${sign('RSA-SHA512', Buffer.from(`${header}.${claims}`), key).toString('base64url')}`;
+  };
+  const payment = async () => {
+    const f = await setup();
+    await f.service.checkout({
+      periodId: f.period.id,
+      identifier: 'AT36805',
+      acceptTerms: true,
+      attemptToken: 'i'.repeat(43),
+    });
+    jest
+      .spyOn(f.netopia, 'verify')
+      .mockImplementation((body, token, configuration) =>
+        verifier.verify(body, token, configuration),
+      );
+    const checkout = f.rows.find((row) => row.table === 'checkout')!;
+    const body = (
+      overrides: Record<string, unknown> = {},
+      orderID = checkout.id,
+    ) =>
+      Buffer.from(
+        JSON.stringify({
+          order: { orderID },
+          payment: {
+            ntpID: 'ntp-test',
+            amount: Number(checkout.amountBani) / 100,
+            currency: 'RON',
+            status: 3,
+            ...overrides,
+          },
+        }),
+      );
+    return { ...f, checkout, body };
+  };
+
+  it('creates one receipt/allocation for repeated cryptographically verified callbacks', async () => {
+    const f = await payment();
+    const body = f.body();
+    await expect(f.service.notifyNetopia(body, jwt(body))).resolves.toEqual({
+      errorCode: 0,
+    });
+    await expect(f.service.notifyNetopia(body, jwt(body))).resolves.toEqual({
+      errorCode: 0,
+    });
+    // A different signed status/body must also avoid a second receipt.
+    const confirmed = f.body({ status: 5 });
+    await f.service.notifyNetopia(confirmed, jwt(confirmed));
+    expect(f.checkout.state).toBe('succeeded');
+    expect(f.rows.filter((r) => r.table === 'receipt')).toHaveLength(1);
+    expect(f.rows.filter((r) => r.table === 'allocation')).toHaveLength(1);
+  });
+
+  it.each([
+    { amount: 1 },
+    { amount: 300.001 },
+    { currency: 'EUR' },
+    { ntpID: 'wrong-id' },
+    { ntpID: '' },
+    { status: 0 },
+  ])(
+    'rejects signed transaction mismatches %j without creating payment records',
+    async (overrides) => {
+      const f = await payment();
+      const body = f.body(overrides);
+      await expect(f.service.notifyNetopia(body, jwt(body))).rejects.toThrow();
+      expect(f.checkout.state).not.toBe('succeeded');
+      expect(
+        f.rows.filter((r) =>
+          ['receipt', 'allocation', 'event'].includes(r.table),
+        ),
+      ).toHaveLength(0);
+    },
+  );
+
+  it('rejects a valid signed notification for an unknown checkout', async () => {
+    const f = await payment();
+    const body = f.body({}, randomUUID());
+    await expect(f.service.notifyNetopia(body, jwt(body))).rejects.toThrow(
+      'Plata notificată nu există',
+    );
+    expect(f.rows.filter((r) => r.table === 'receipt')).toHaveLength(0);
+  });
+
+  it('returns HTTP 200 without login, preserves raw bytes, and refuses invalid JWTs', async () => {
+    const f = await payment();
+    const module = await Test.createTestingModule({
+      controllers: [MembershipController],
+      providers: [{ provide: MembershipService, useValue: f.service }],
+    }).compile();
+    const app: INestApplication<Server> = module.createNestApplication({
+      bodyParser: false,
+      logger: false,
+    });
+    app.use(
+      '/api/membership/netopia/notify',
+      raw({ type: 'application/json', limit: '64kb' }),
+    );
+    app.setGlobalPrefix('api');
+    await app.init();
+    const body = f.body();
+    const endpoint = '/api/membership/netopia/notify';
+    try {
+      await request(app.getHttpServer())
+        .post(endpoint)
+        .set('Content-Type', 'application/json')
+        .send(body.toString())
+        .expect(400);
+      await request(app.getHttpServer())
+        .post(endpoint)
+        .set('Content-Type', 'application/json')
+        .set('verification-token', jwt(body, { exp: 1 }))
+        .send(body.toString())
+        .expect(401);
+      const wrongKey = generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+      }).privateKey;
+      await request(app.getHttpServer())
+        .post(endpoint)
+        .set('Content-Type', 'application/json')
+        .set('verification-token', jwt(body, {}, wrongKey))
+        .send(body.toString())
+        .expect(401);
+      await request(app.getHttpServer())
+        .post(endpoint)
+        .set('Content-Type', 'application/json')
+        .set('Authorization', `Bearer ${jwt(body)}`)
+        .send(body.toString())
+        .expect(400);
+      expect(f.rows.filter((r) => r.table === 'receipt')).toHaveLength(0);
+      await request(app.getHttpServer())
+        .post(endpoint)
+        .set('Content-Type', 'application/json')
+        .set('verification-token', `Bearer ${jwt(body)}`)
+        .send(body.toString())
+        .expect(200, { errorCode: 0 });
+      await request(app.getHttpServer())
+        .post(endpoint)
+        .set('Content-Type', 'application/json')
+        .set('verification-token', jwt(body))
+        .send(body.toString())
+        .expect(200, { errorCode: 0 });
+      expect(f.rows.filter((r) => r.table === 'receipt')).toHaveLength(1);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('logs verification failures without tokens or credentials', async () => {
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+    const f = await payment();
+    const body = f.body();
+    const expired = jwt(body, { exp: 1 });
+    try {
+      await expect(
+        f.service.notifyNetopia(body, expired),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      const logs = JSON.stringify(warn.mock.calls);
+      expect(logs).toContain('expired_or_not_yet_valid');
+      expect(logs).toContain(f.checkout.id);
+      expect(logs).not.toContain(expired);
+      expect(logs).not.toContain('api-key');
+    } finally {
+      warn.mockRestore();
+    }
+  });
+});
 
 type Row = Record<string, unknown> & { id: string; table: string };
 
@@ -75,8 +285,15 @@ function fixture() {
     },
   };
   const netopia = {
-    verify: (raw: Buffer) =>
-      JSON.parse(raw.toString()) as Record<string, unknown>,
+    verify: (
+      raw: Buffer,
+      _token: string,
+      _configuration: NetopiaConfiguration,
+    ) => {
+      void _token;
+      void _configuration;
+      return JSON.parse(raw.toString()) as Record<string, unknown>;
+    },
     start: jest.fn(() =>
       Promise.resolve({
         providerId: 'ntp-test',

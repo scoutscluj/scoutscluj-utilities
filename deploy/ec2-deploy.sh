@@ -81,6 +81,7 @@ ${app_host_name} {
 					delete token
 				}
 				request>headers>Authorization delete
+				request>headers>Verification-Token delete
 				request>headers>Cookie delete
 				request>headers>Proxy-Authorization delete
 				request>headers>Set-Cookie delete
@@ -175,6 +176,12 @@ ORGO_API_TOKEN="$(secret_value "${APP_SECRET_JSON}" ORGO_API_TOKEN)"
 ORGO_LOCAL_CENTER_ID="$(secret_value "${APP_SECRET_JSON}" ORGO_LOCAL_CENTER_ID)"
 ORGO_LOCAL_CENTER_NAME="$(secret_value "${APP_SECRET_JSON}" ORGO_LOCAL_CENTER_NAME)"
 PUBLIC_API_BASE_URL="$(secret_value "${APP_SECRET_JSON}" PUBLIC_API_BASE_URL)"
+# Docker env-files require one physical line; the API reconstructs literal \n.
+NETOPIA_IPN_PUBLIC_KEY="$(jq -r '.NETOPIA_IPN_PUBLIC_KEY // "" | gsub("\r\n"; "\n") | gsub("\n"; "\\n")' <<<"${APP_SECRET_JSON}")"
+if [[ -z "${NETOPIA_IPN_PUBLIC_KEY}" ]]; then
+  echo "Application secret must contain NETOPIA_IPN_PUBLIC_KEY." >&2
+  exit 1
+fi
 PUBLIC_APP_VERSION="$(secret_value "${APP_SECRET_JSON}" PUBLIC_APP_VERSION)"
 PUBLIC_COMMIT_HASH="$(secret_value "${APP_SECRET_JSON}" PUBLIC_COMMIT_HASH)"
 WEB_ORIGIN="$(secret_value "${APP_SECRET_JSON}" WEB_ORIGIN)"
@@ -233,6 +240,7 @@ write_env_value "${API_ENV_FILE}" ORGO_API_TOKEN "${ORGO_API_TOKEN}"
 write_env_value "${API_ENV_FILE}" ORGO_LOCAL_CENTER_ID "${ORGO_LOCAL_CENTER_ID}"
 write_env_value "${API_ENV_FILE}" ORGO_LOCAL_CENTER_NAME "${ORGO_LOCAL_CENTER_NAME:-Centrul Local Cluj}"
 write_env_value "${API_ENV_FILE}" PUBLIC_API_BASE_URL "${PUBLIC_API_BASE_URL}"
+write_env_value "${API_ENV_FILE}" NETOPIA_IPN_PUBLIC_KEY "${NETOPIA_IPN_PUBLIC_KEY}"
 write_env_value "${API_ENV_FILE}" WEB_ORIGIN "${WEB_ORIGIN}"
 write_env_value "${API_ENV_FILE}" WEB_ORIGINS "${WEB_ORIGINS}"
 write_env_value "${API_ENV_FILE}" MEMBERSHIP_WEB_ORIGIN "${WEB_ORIGIN}"

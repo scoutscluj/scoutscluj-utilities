@@ -1,5 +1,4 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { createPublicKey } from 'node:crypto';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { MembershipPaymentProviderConfig as ProviderConfig } from './entities/membership.entity';
 import { PaymentSecretVault } from './payment-secret-vault.service';
@@ -125,28 +124,11 @@ export class PaymentConfigurationService {
     const environment = body.environment;
     if (environment !== 'sandbox' && environment !== 'live')
       throw new BadRequestException('Mediu NETOPIA invalid.');
-    const publicKey = secret(body.publicKey, 10000)
-      .replace(/\\n/g, '\n')
-      .trim();
-    try {
-      if (
-        !/^-----BEGIN (PUBLIC KEY|RSA PUBLIC KEY|CERTIFICATE)-----/.test(
-          publicKey,
-        ) ||
-        createPublicKey(publicKey).asymmetricKeyType !== 'rsa'
-      )
-        throw new Error();
-    } catch {
-      throw new BadRequestException(
-        'Cheia publică NETOPIA este invalidă. Folosește cheia RSA sau certificatul furnizat de NETOPIA pentru verificarea notificărilor.',
-      );
-    }
     return {
       provider,
       environment,
       apiKey: secret(body.apiKey),
       posSignature: secret(body.posSignature),
-      publicKey,
     } satisfies NetopiaConfiguration;
   }
 

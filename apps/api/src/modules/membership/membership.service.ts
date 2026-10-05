@@ -4,6 +4,8 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
+  HttpException,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
@@ -70,6 +72,7 @@ const beneficiaryDisplayName = (memberName: string) => {
 
 @Injectable()
 export class MembershipService {
+  private readonly logger = new Logger(MembershipService.name);
   constructor(
     private readonly em: EntityManager,
     private readonly netopia: NetopiaService,
@@ -1672,38 +1675,77 @@ export class MembershipService {
   }
 
   async notifyNetopia(raw: Buffer, token: string) {
-    const unsigned = this.untrustedNotificationBody(raw);
-    const id = uuid(record(unsigned.order).orderID);
-    const configuration = await this.configurationForCheckout('netopia', id);
-    const body = this.netopia.verify(raw, token, configuration),
-      payment = record(body.payment),
-      order = record(body.order);
-    if (uuid(order.orderID) !== id) throw new BadRequestException();
-    const providerId = text(payment.ntpID, 100);
-    if (!Number.isInteger(payment.status)) throw new BadRequestException();
-    if (
-      payment.currency !== 'RON' ||
-      typeof payment.amount !== 'number' ||
-      !Number.isFinite(payment.amount)
-    )
-      throw new BadRequestException('Notificare NETOPIA invalidă.');
-    const providerStatus = Number(payment.status);
-    const reviewEvent = [8, 9, 10, 13, 16, 17].includes(providerStatus);
-    await this.applyPaymentEvent('netopia', raw, {
-      checkoutId: id,
-      providerId,
-      providerStatus: String(providerStatus),
-      amountBani: Math.round(payment.amount * 100),
-      currency: 'RON',
-      outcome: reviewEvent
-        ? 'review'
-        : [3, 5].includes(providerStatus)
-          ? 'succeeded'
-          : [4, 11, 12, 23].includes(providerStatus)
-            ? 'failed'
-            : 'pending',
-    });
-    return { errorCode: 0 };
+    let orderId: string | undefined;
+    let jwtValid = false;
+    let status: number | undefined;
+    let phase = 'payload_format';
+    try {
+      const unsigned = this.untrustedNotificationBody(raw);
+      const id = uuid(record(unsigned.order).orderID);
+      orderId = id;
+      phase = 'checkout_configuration';
+      const configuration = await this.configurationForCheckout('netopia', id);
+      phase = 'jwt_verification';
+      const body = this.netopia.verify(raw, token, configuration),
+        payment = record(body.payment),
+        order = record(body.order);
+      jwtValid = true;
+      phase = 'transaction_validation';
+      if (uuid(order.orderID) !== id) throw new BadRequestException();
+      const providerId = text(payment.ntpID, 100);
+      if (!providerId)
+        throw new BadRequestException('Identificator NETOPIA lipsă.');
+      if (!Number.isInteger(payment.status)) throw new BadRequestException();
+      if (
+        payment.currency !== 'RON' ||
+        typeof payment.amount !== 'number' ||
+        !Number.isFinite(payment.amount) ||
+        payment.amount <= 0 ||
+        !Number.isSafeInteger(Math.round(payment.amount * 100)) ||
+        Math.abs(payment.amount * 100 - Math.round(payment.amount * 100)) > 1e-8
+      )
+        throw new BadRequestException('Notificare NETOPIA invalidă.');
+      const providerStatus = Number(payment.status);
+      status = providerStatus;
+      if (providerStatus < 1 || providerStatus > 23)
+        throw new BadRequestException('Status NETOPIA invalid.');
+      const reviewEvent = [8, 9, 10, 13, 16, 17].includes(providerStatus);
+      const result = await this.applyPaymentEvent('netopia', raw, {
+        checkoutId: id,
+        providerId,
+        providerStatus: String(providerStatus),
+        amountBani: Math.round(payment.amount * 100),
+        currency: 'RON',
+        outcome: reviewEvent
+          ? 'review'
+          : [3, 5].includes(providerStatus)
+            ? 'succeeded'
+            : [4, 11, 12, 23].includes(providerStatus)
+              ? 'failed'
+              : 'pending',
+      });
+      this.logger.log({
+        event: 'netopia.ipn.processing',
+        timestamp: new Date().toISOString(),
+        orderId,
+        jwtValid,
+        status,
+        result,
+      });
+      return { errorCode: 0 };
+    } catch (error) {
+      this.logger.warn({
+        event: 'netopia.ipn.processing',
+        timestamp: new Date().toISOString(),
+        orderId,
+        jwtValid,
+        status,
+        result: 'rejected',
+        phase,
+        httpStatus: error instanceof HttpException ? error.getStatus() : 500,
+      });
+      throw error;
+    }
   }
 
   async notifyStripe(raw: Buffer, signature: string) {
@@ -1734,7 +1776,8 @@ export class MembershipService {
     id: string,
   ): Promise<PaymentProviderConfiguration> {
     const checkout = await this.em.findOne(Checkout, { id, provider });
-    if (!checkout?.providerConfigId)
+    if (!checkout) throw new BadRequestException('Plata notificată nu există.');
+    if (!checkout.providerConfigId)
       throw new ServiceUnavailableException(
         'Revizia configurației pentru această plată nu este disponibilă.',
       );
@@ -1768,7 +1811,7 @@ export class MembershipService {
         (checkout.providerId && checkout.providerId !== event.providerId)
       )
         throw new BadRequestException('Notificarea nu corespunde plății.');
-      if (await em.findOne(Event, { hash: eventHash })) return;
+      if (await em.findOne(Event, { hash: eventHash })) return 'duplicate';
       checkout.providerId = event.providerId;
       em.persist(
         em.create(Event, {
@@ -1835,6 +1878,7 @@ export class MembershipService {
         }
       } else if (event.outcome === 'failed' && checkout.state !== 'succeeded')
         checkout.state = 'failed';
+      return 'processed';
     });
   }
 }

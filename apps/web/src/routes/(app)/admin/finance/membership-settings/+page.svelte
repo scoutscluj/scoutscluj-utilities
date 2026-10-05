@@ -7,6 +7,11 @@
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { feePlans as plans } from '$lib/membership/admin-ledger';
+	import FinanceStatus from '$lib/membership/FinanceStatus.svelte';
+	import Users from '@lucide/svelte/icons/users';
+	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
+	import CalendarDays from '@lucide/svelte/icons/calendar-days';
+	import BadgeCheck from '@lucide/svelte/icons/badge-check';
 	let { data, form } = $props();
 	const ledger = $derived(data.ledger);
 	let memberCard = $state('');
@@ -67,8 +72,35 @@
 	description="Pregătește perioadele, tarifele și sincronizarea membrilor cu ORGO."
 	{form}
 >
-	<section>
-		<h2>Inițializare și sincronizare ORGO</h2>
+	<div class="setup-overview">
+		<div>
+			<span class="setup-icon"><CalendarDays size={22} /></span>
+			<div>
+				<small>Perioada activă</small><strong>{activePeriod?.name ?? 'Nedisponibilă'}</strong>
+			</div>
+		</div>
+		<div>
+			<span class="setup-icon"><Users size={22} /></span>
+			<div><small>Membri înregistrați</small><strong>{currentObligations.length}</strong></div>
+		</div>
+		<div>
+			<span class="setup-icon"><BadgeCheck size={22} /></span>
+			<div>
+				<small>Registrul ORGO</small><FinanceStatus
+					state={ledger.rosterInitialized ? 'active' : 'pending'}
+					label={ledger.rosterInitialized ? 'Inițializat' : 'De inițializat'}
+				/>
+			</div>
+		</div>
+	</div>
+	<section class="sync-panel">
+		<div class="panel-heading">
+			<div>
+				<h2>Ține registrul la zi</h2>
+				<p>Importă și actualizează cotizațiile din ORGO pentru perioada curentă.</p>
+			</div>
+			<RefreshCw size={24} color="#15803d" />
+		</div>
 		{#if activePeriod}
 			<p>
 				Perioada activă: <strong>{activePeriod.name}</strong>. Sunt înregistrate
@@ -76,11 +108,20 @@
 			</p>
 			{#if ledger.rosterSync}
 				<p class="sync-status">
-					Ultima sincronizare: {ledger.rosterSync.status === 'running'
-						? 'în curs'
-						: ledger.rosterSync.status === 'succeeded'
-							? 'finalizată'
-							: 'nereușită'}.
+					<FinanceStatus
+						state={ledger.rosterSync.status === 'running' ? 'syncing' : ledger.rosterSync.status}
+						label={ledger.rosterSync.status === 'running'
+							? 'Sincronizare în curs'
+							: ledger.rosterSync.status === 'succeeded'
+								? 'Sincronizare finalizată'
+								: 'Sincronizare nereușită'}
+					/>
+					<span class="muted"
+						>{new Date(ledger.rosterSync.completedAt ?? ledger.rosterSync.createdAt).toLocaleString(
+							'ro-RO',
+							{ timeZone: 'Europe/Bucharest' }
+						)}</span
+					>
 					{#if ledger.rosterSync.error}{ledger.rosterSync.error}{/if}
 				</p>
 			{/if}
@@ -140,19 +181,12 @@
 				Același total pentru plata cu cardul și transferul bancar. Cotizațiile cu istoric de plată
 				își păstrează suma deja stabilită.
 			</p>
-			<div class="scroll">
-				<table>
-					<thead
-						><tr><th>Plan</th><th>Bază</th><th>Total de plată</th><th>Parte națională</th></tr
-						></thead
-					><tbody>
-						{#each Object.entries(activePeriod.prices) as [key, price] (key)}<tr
-								><td>{price.label}</td><td>{money(price.baseBani ?? price.totalBani)}</td><td
-									><strong>{money(price.totalBani)}</strong></td
-								><td>{money(price.nationalBani)}</td></tr
-							>{/each}
-					</tbody>
-				</table>
+			<div class="price-plans">
+				{#each Object.entries(activePeriod.prices) as [key, price] (key)}<div class="price-plan">
+						<span>{price.label}</span><strong>{money(price.totalBani)}</strong><small
+							>Bază {money(price.baseBani ?? price.totalBani)}</small
+						><small>Parte națională {money(price.nationalBani)}</small>
+					</div>{/each}
 			</div>
 		</section>
 	{/if}
@@ -231,3 +265,81 @@
 		</form>
 	</details>
 </MembershipAdminPage>
+
+<style>
+	.setup-overview {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 16px;
+	}
+	.setup-overview > div {
+		display: flex;
+		gap: 14px;
+		align-items: center;
+		padding: 20px;
+		background: white;
+		border: 1px solid #e1e8e4;
+		border-radius: 14px;
+	}
+	.setup-overview strong {
+		display: block;
+		font-size: 1.2rem;
+		margin-top: 4px;
+	}
+	.setup-overview small {
+		margin: 0 0 6px;
+	}
+	.setup-icon {
+		display: grid;
+		place-items: center;
+		flex-shrink: 0;
+		width: 44px;
+		height: 44px;
+		border-radius: 12px;
+		background: #f0fdf4;
+		color: #15803d;
+	}
+	.sync-panel {
+		background: linear-gradient(120deg, #f0fdf4, white) !important;
+		border-color: #cee7d5 !important;
+	}
+	.sync-status {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		flex-wrap: wrap;
+	}
+	.price-plans {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+		gap: 14px;
+		margin-top: 22px;
+	}
+	.price-plan {
+		padding: 20px;
+		background: #f8faf9;
+		border: 1px solid #e1e8e4;
+		border-radius: 12px;
+	}
+	.price-plan > span {
+		font-size: 0.85rem;
+		font-weight: 600;
+		color: #475569;
+	}
+	.price-plan strong {
+		display: block;
+		font-size: 1.5rem;
+		color: #166534;
+		margin: 12px 0;
+	}
+	.preview {
+		margin-top: 22px;
+		padding-top: 20px;
+		border-top: 1px solid #dce5df;
+	}
+	@media (max-width: 850px) {
+		.setup-overview {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

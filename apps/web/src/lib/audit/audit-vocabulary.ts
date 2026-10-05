@@ -1,4 +1,7 @@
 export const actionTitles: Record<string, string> = {
+	'membership.bank.received': 'Încasare bancară înregistrată',
+	'membership.cash.received': 'Încasare în numerar înregistrată',
+	'membership.receipt.allocated': 'Plată alocată unui membru',
 	'activity.settings_updated': 'Setări activitate actualizate',
 	'financial_document.created': 'Document financiar încărcat',
 	'financial_document.status_updated': 'Status document financiar schimbat',

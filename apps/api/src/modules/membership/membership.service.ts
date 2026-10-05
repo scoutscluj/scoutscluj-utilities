@@ -993,24 +993,67 @@ export class MembershipService {
     this.staff(user);
     const body = record(input),
       periodId = uuid(body.periodId),
-      reference = text(body.reference, 200);
+      reference = text(body.reference, 200),
+      amountBani = bani(body.amountBani),
+      receivedOn = date(body.receivedOn),
+      note = text(body.note, 2000),
+      method = body.method ?? 'bank';
+    if (method !== 'bank' && method !== 'cash')
+      throw new BadRequestException('Alege transfer bancar sau numerar.');
+    const obligationId = body.obligationId ? uuid(body.obligationId) : null;
     return this.mutate(async (em) => {
       await em.findOneOrFail(Period, { id: periodId });
-      if (await em.findOne(Receipt, { method: 'bank', reference }))
-        throw new ConflictException('Referință bancară deja înregistrată.');
+      if (await em.findOne(Receipt, { method, reference }))
+        throw new ConflictException('Referință de încasare deja înregistrată.');
+      if (obligationId) {
+        const obligation = await em.findOneOrFail(Obligation, {
+          id: obligationId,
+        });
+        if (obligation.periodId !== periodId)
+          throw new BadRequestException('Perioade diferite.');
+        if (
+          (await this.balance(em, obligationId)) + amountBani >
+          obligation.totalBani
+        )
+          throw new BadRequestException(
+            'Suma depășește restul de plată al membrului.',
+          );
+      }
       const receipt = em.create(Receipt, {
         periodId,
-        amountBani: bani(body.amountBani),
-        method: 'bank',
-        receivedOn: date(body.receivedOn),
-        note: text(body.note, 2000),
+        amountBani,
+        method,
+        receivedOn,
+        note,
         reference,
         actorId: user.id,
         reviewRequired: false,
       });
       em.persist(receipt);
       await em.flush();
-      this.audit(em, user.id, 'bank.received', receipt.id);
+      this.audit(
+        em,
+        user.id,
+        method === 'cash' ? 'cash.received' : 'bank.received',
+        receipt.id,
+        { amountBani, method },
+      );
+      if (obligationId) {
+        const allocation = em.create(Allocation, {
+          receiptId: receipt.id,
+          obligationId,
+          amountBani,
+          actorId: user.id,
+          note,
+        });
+        em.persist(allocation);
+        await em.flush();
+        this.audit(em, user.id, 'receipt.allocated', allocation.id, {
+          receiptId: receipt.id,
+          obligationId,
+          amountBani,
+        });
+      }
       return receipt;
     });
   }

@@ -125,6 +125,12 @@ export const membershipAdminActions: Actions = {
 				success: true,
 				message: 'Încercarea a fost anulată. Membrul poate începe o plată nouă.'
 			};
-		return { success: true, message: 'Operațiunea a fost înregistrată.' };
+		return {
+			success: true,
+			message:
+				action === 'bank' && body.obligationId
+					? 'Plata a fost înregistrată și alocată membrului.'
+					: 'Operațiunea a fost înregistrată.'
+		};
 	}
 };

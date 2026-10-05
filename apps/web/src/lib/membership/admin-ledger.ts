@@ -35,3 +35,23 @@ export type MembershipAdminForm = {
 	success?: boolean;
 	preview?: import('./types').RosterPreview;
 };
+
+export function membershipProgress(ledger: Dashboard, periodId?: string) {
+	const obligations = ledger.obligations.filter((o) => o.periodId === periodId);
+	const totalBani = obligations.reduce((sum, o) => sum + o.totalBani, 0);
+	const collectedBani = obligations.reduce(
+		(sum, o) => sum + Math.min(o.totalBani, Math.max(0, allocatedAmount(ledger, o.id))),
+		0
+	);
+	const paidMembers = obligations.filter(
+		(o) => !needsPaymentReview(ledger, o) && allocatedAmount(ledger, o.id) >= o.totalBani
+	).length;
+	return {
+		members: obligations.length,
+		paidMembers,
+		totalBani,
+		collectedBani,
+		remainingBani: Math.max(0, totalBani - collectedBani),
+		percent: totalBani > 0 ? Math.round((collectedBani / totalBani) * 100) : 0
+	};
+}

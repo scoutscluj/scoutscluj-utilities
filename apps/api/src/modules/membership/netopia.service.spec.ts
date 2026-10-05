@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import { Logger } from '@nestjs/common';
 import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import { NetopiaService, verifyNotification } from './netopia.service';
 
@@ -157,18 +158,20 @@ describe('NETOPIA notification boundary', () => {
     ).toThrow();
   });
 
-  it.each(['sandbox', 'live'] as const)(
-    'starts %s payments with only environment-specific credentials',
-    async (environment) => {
+  it.each([
+    ['sandbox', 'secure-sandbox.netopia-payments.com'],
+    ['live', 'secure.mobilpay.ro'],
+    ['live', 'secure.netopia-payments.com'],
+  ] as const)(
+    'starts %s payments on %s with environment-specific credentials',
+    async (environment, paymentHost) => {
       const mock = jest.spyOn(global, 'fetch').mockResolvedValue(
         new Response(
           JSON.stringify({
+            error: { code: '101', message: 'Redirect user to payment page' },
             payment: {
               ntpID: '123',
-              paymentURL:
-                environment === 'live'
-                  ? 'https://secure.mobilpay.ro/checkout/123'
-                  : 'https://secure-sandbox.netopia-payments.com/checkout/123',
+              paymentURL: `https://${paymentHost}/checkout/123`,
             },
           }),
           { status: 200 },
@@ -231,4 +234,82 @@ describe('NETOPIA notification boundary', () => {
       }
     },
   );
+});
+
+describe('NETOPIA LIVE hosted page validation', () => {
+  const service = new NetopiaService(
+    new ConfigService({
+      PUBLIC_API_BASE_URL: 'https://api.example.test',
+      WEB_ORIGIN: 'https://example.test',
+    }),
+  );
+  const input = { id: 'order-id', amountBani: 30500, description: 'Cotizație' };
+  const configuration = {
+    provider: 'netopia',
+    environment: 'live',
+    apiKey: 'secret-api-key',
+    posSignature: 'live-pos',
+  } as const;
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it.each([
+    'https://secure.netopia-payments.com.attacker.test/checkout/secret-token',
+    'https://secure-sandbox.netopia-payments.com/checkout/secret-token',
+    'http://secure.netopia-payments.com/checkout/secret-token',
+    'https://user:secret-password@secure.netopia-payments.com/checkout/secret-token',
+  ])(
+    'rejects unsafe LIVE redirects and logs only diagnostics: %s',
+    async (url) => {
+      jest.spyOn(global, 'fetch').mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: { code: '101', message: 'secret-provider-message' },
+            payment: { ntpID: '123', paymentURL: url },
+          }),
+        ),
+      );
+      const log = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => {});
+      await expect(service.start(input, configuration)).rejects.toThrow(
+        'NETOPIA nu a returnat o pagină de plată validă',
+      );
+      expect(log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'netopia.start',
+          orderId: input.id,
+          httpStatus: 200,
+          errorCode: '101',
+          providerId: '123',
+          reason: 'invalid_payment_url',
+        }),
+      );
+      const logged = JSON.stringify(log.mock.calls);
+      for (const secret of [
+        'secret-token',
+        'secret-password',
+        'secret-api-key',
+        'secret-provider-message',
+      ])
+        expect(logged).not.toContain(secret);
+    },
+  );
+
+  it('logs transport failures without credentials or the raw exception', async () => {
+    jest.spyOn(global, 'fetch').mockRejectedValue(new Error('secret-api-key'));
+    const log = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => {});
+    await expect(service.start(input, configuration)).rejects.toThrow(
+      'secret-api-key',
+    );
+    expect(log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'netopia.start',
+        reason: 'request_failed',
+      }),
+    );
+    expect(JSON.stringify(log.mock.calls)).not.toContain('secret-api-key');
+  });
 });

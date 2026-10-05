@@ -1,5 +1,25 @@
 # Verificarea notificărilor NETOPIA
 
+## Inițiere LIVE: domeniul paginii de plată
+
+O cerere tehnică LIVE fără date de card a confirmat că endpoint-ul
+`https://secure.mobilpay.ro/pay/payment/card/start` răspunde HTTP 200,
+`error.code = "101"` și o pagină găzduită pe `secure.netopia-payments.com`.
+Codul 101 cere redirecționarea utilizatorului; nu indică o plată efectuată.
+Lista anterioară permitea doar `secure.mobilpay.ro`, astfel că aplicația
+respingea pagina validă și păstra încercarea în starea `unknown`.
+
+Acum sunt permise exact aceste două domenii LIVE, prin HTTPS, fără
+credentiale în URL. Domeniile Sandbox rămân separate. Endpoint-ul și
+credentialele de inițiere rămân aceleași. Testele acoperă răspunsul LIVE
+observat, domeniul istoric și respingerea adreselor nesigure.
+
+Evenimentele `netopia.start` înregistrează ID-ul comenzii, mediul, statusul
+HTTP, codul numeric NETOPIA, domeniul paginii, ID-ul numeric NETOPIA și
+etapa erorii. Nu includ URL-ul complet, tokenuri, credentiale sau corpul
+răspunsului. Încercările deja `unknown` necesită verificare financiară
+înainte de închidere; această corecție nu le declară plătite sau eșuate.
+
 Configurația plății și cheia de verificare IPN au surse separate. API key,
 semnătura POS și mediul plății sunt păstrate în reviziile criptate existente,
 configurate în Administrare financiară → Procesator de plăți. Nu este nevoie

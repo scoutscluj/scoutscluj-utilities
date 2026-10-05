@@ -202,75 +202,123 @@ export class NetopiaService implements PaymentProvider<NetopiaConfiguration> {
   }
 
   async start(input: StartPaymentInput, configuration: NetopiaConfiguration) {
-    const endpoint =
-      configuration.environment === 'live'
-        ? 'https://secure.mobilpay.ro/pay/payment/card/start'
-        : 'https://secure.sandbox.netopia-payments.com/payment/card/start';
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      redirect: 'error',
-      signal: AbortSignal.timeout(20000),
-      headers: {
-        Authorization: configuration.apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        config: {
-          notifyUrl: new URL(
-            '/api/membership/netopia/notify',
-            paymentOrigin(this.config, 'api'),
-          ).href,
-          redirectUrl: new URL(
-            '/cotizatie/rezultat',
-            paymentOrigin(this.config, 'web'),
-          ).href,
-          language: 'ro',
-          emailTemplate: '',
+    let reason = 'request_failed';
+    let httpStatus: number | undefined;
+    let errorCode: string | undefined;
+    let paymentHost: string | undefined;
+    let providerId: string | undefined;
+    try {
+      const endpoint =
+        configuration.environment === 'live'
+          ? 'https://secure.mobilpay.ro/pay/payment/card/start'
+          : 'https://secure.sandbox.netopia-payments.com/payment/card/start';
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        redirect: 'error',
+        signal: AbortSignal.timeout(20000),
+        headers: {
+          Authorization: configuration.apiKey,
+          'Content-Type': 'application/json',
         },
-        payment: {
-          options: { installments: 0, bonus: 0 },
-          instrument: { type: 'card' },
-        },
-        order: {
-          orderID: input.id,
-          posSignature: configuration.posSignature,
-          dateTime: new Date().toISOString(),
-          description: input.description,
-          amount: input.amountBani / 100,
-          currency: 'RON',
-          billing: CHECKOUT_CONTACT,
-          shipping: CHECKOUT_CONTACT,
-        },
-      }),
-    });
-    if ([400, 401, 403, 404, 422].includes(response.status))
-      throw new PaymentNotSubmittedException(
-        'NETOPIA a respins inițierea plății. Verifică configurația procesatorului.',
-      );
-    if (!response.ok)
-      throw new BadGatewayException('NETOPIA nu a confirmat inițierea plății.');
-    const payload = record(await response.json());
-    const payment = record(payload.payment);
-    const paymentUrl = new URL(text(payment.paymentURL, 4000));
-    if (
-      paymentUrl.protocol !== 'https:' ||
-      paymentUrl.username ||
-      paymentUrl.password ||
-      !(configuration.environment === 'live'
-        ? ['secure.mobilpay.ro'].includes(paymentUrl.hostname)
-        : [
-            'secure.sandbox.netopia-payments.com',
-            'sandbox.netopia-payments.com',
-            'secure-sandbox.netopia-payments.com',
-          ].includes(paymentUrl.hostname))
-    ) {
-      throw new BadGatewayException(
-        'NETOPIA nu a returnat o pagină de plată validă.',
-      );
+        body: JSON.stringify({
+          config: {
+            notifyUrl: new URL(
+              '/api/membership/netopia/notify',
+              paymentOrigin(this.config, 'api'),
+            ).href,
+            redirectUrl: new URL(
+              '/cotizatie/rezultat',
+              paymentOrigin(this.config, 'web'),
+            ).href,
+            language: 'ro',
+            emailTemplate: '',
+          },
+          payment: {
+            options: { installments: 0, bonus: 0 },
+            instrument: { type: 'card' },
+          },
+          order: {
+            orderID: input.id,
+            posSignature: configuration.posSignature,
+            dateTime: new Date().toISOString(),
+            description: input.description,
+            amount: input.amountBani / 100,
+            currency: 'RON',
+            billing: CHECKOUT_CONTACT,
+            shipping: CHECKOUT_CONTACT,
+          },
+        }),
+      });
+      httpStatus = response.status;
+      reason = 'http_error';
+      if ([400, 401, 403, 404, 422].includes(response.status))
+        throw new PaymentNotSubmittedException(
+          'NETOPIA a respins inițierea plății. Verifică configurația procesatorului.',
+        );
+      if (!response.ok)
+        throw new BadGatewayException(
+          'NETOPIA nu a confirmat inițierea plății.',
+        );
+      reason = 'invalid_response';
+      const payload = record(await response.json());
+      const code = record(payload.error ?? {}).code;
+      if (typeof code === 'string' && /^\d{1,10}$/.test(code)) errorCode = code;
+      const payment = record(payload.payment);
+      if (
+        typeof payment.ntpID === 'string' &&
+        /^\d{1,100}$/.test(payment.ntpID)
+      )
+        providerId = payment.ntpID;
+      reason = 'invalid_payment_url';
+      const paymentUrl = new URL(text(payment.paymentURL, 4000));
+      if (/^[a-z0-9.-]{1,253}$/i.test(paymentUrl.hostname))
+        paymentHost = paymentUrl.hostname;
+      if (
+        paymentUrl.protocol !== 'https:' ||
+        paymentUrl.username ||
+        paymentUrl.password ||
+        !(configuration.environment === 'live'
+          ? ['secure.mobilpay.ro', 'secure.netopia-payments.com'].includes(
+              paymentUrl.hostname,
+            )
+          : [
+              'secure.sandbox.netopia-payments.com',
+              'sandbox.netopia-payments.com',
+              'secure-sandbox.netopia-payments.com',
+            ].includes(paymentUrl.hostname))
+      ) {
+        throw new BadGatewayException(
+          'NETOPIA nu a returnat o pagină de plată validă.',
+        );
+      }
+      reason = 'invalid_provider_id';
+      const result = {
+        providerId: text(payment.ntpID, 100),
+        paymentUrl: paymentUrl.href,
+      };
+      this.logger.log({
+        event: 'netopia.start',
+        orderId: input.id,
+        environment: configuration.environment,
+        httpStatus,
+        errorCode,
+        paymentHost,
+        providerId,
+        reason: 'started',
+      });
+      return result;
+    } catch (error) {
+      this.logger.error({
+        event: 'netopia.start',
+        orderId: input.id,
+        environment: configuration.environment,
+        httpStatus,
+        errorCode,
+        paymentHost,
+        providerId,
+        reason,
+      });
+      throw error;
     }
-    return {
-      providerId: text(payment.ntpID, 100),
-      paymentUrl: paymentUrl.href,
-    };
   }
 }

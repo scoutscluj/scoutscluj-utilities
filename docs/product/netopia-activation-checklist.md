@@ -24,7 +24,7 @@ Status: implementation ready for legal review; external merchant checks remain.
 - [ ] Confirm that the production domain is owned or controlled by the contracted association.
 - [ ] Deploy the site exclusively through HTTPS and verify the full certificate chain.
 - [ ] Add the production website, return URL and notification URL in the NETOPIA point of sale.
-- [ ] Enter the API key, POS signature and production verification certificate in the financial administration page.
+- [ ] Enter the environment-specific API key and POS signature in the financial administration page; configure the common `NETOPIA_IPN_PUBLIC_KEY` separately on the API service.
 - [ ] Run a sandbox payment, failed payment, callback replay and refund/reconciliation exercise.
 - [ ] Ask NETOPIA to review and activate the point of sale before enabling live card payments.
 

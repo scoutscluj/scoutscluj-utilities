@@ -6,7 +6,8 @@ export type NetopiaConfiguration = {
   environment: 'sandbox' | 'live';
   apiKey: string;
   posSignature: string;
-  publicKey: string;
+  /** Legacy encrypted revisions may contain this field; IPN uses NETOPIA_IPN_PUBLIC_KEY. */
+  publicKey?: string;
 };
 
 export type StripeConfiguration = {

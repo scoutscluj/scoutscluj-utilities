@@ -6,6 +6,7 @@ import {
   Headers,
   HttpCode,
   HttpException,
+  Logger,
   Param,
   Post,
   Req,
@@ -19,6 +20,7 @@ import { MembershipService } from './membership.service';
 
 @Controller('membership')
 export class MembershipController {
+  private readonly logger = new Logger(MembershipController.name);
   private readonly attempts = new Map<
     string,
     { count: number; until: number }
@@ -73,8 +75,16 @@ export class MembershipController {
   @Post('netopia/notify')
   @HttpCode(200)
   notify(@Body() body: unknown, @Headers('verification-token') token: string) {
-    if (!Buffer.isBuffer(body) || !token)
+    if (!Buffer.isBuffer(body) || !token) {
+      this.logger.warn({
+        event: 'netopia.ipn',
+        timestamp: new Date().toISOString(),
+        jwtValid: false,
+        result: 'rejected',
+        reason: !token ? 'missing_token' : 'missing_raw_body',
+      });
       throw new HttpException('Notificare invalidă.', 400);
+    }
     return this.membership.notifyNetopia(body, token);
   }
 

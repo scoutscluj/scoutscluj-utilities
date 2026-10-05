@@ -1,6 +1,8 @@
 import {
   BadGatewayException,
   Injectable,
+  Logger,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -35,9 +37,17 @@ export function verifyNotification(
   pos: string,
   now = Date.now(),
 ) {
+  let reason = 'invalid_format';
   try {
-    const parts = token.split('.');
-    if (parts.length !== 3) throw new Error();
+    const parts = token
+      .trim()
+      .replace(/^Bearer\s+/i, '')
+      .split('.');
+    if (
+      parts.length !== 3 ||
+      parts.some((part) => !/^[A-Za-z0-9_-]+$/.test(part))
+    )
+      throw new Error();
     const header = record(
       JSON.parse(Buffer.from(parts[0], 'base64url').toString()),
     );
@@ -48,12 +58,16 @@ export function verifyNotification(
     };
     const algorithm =
       typeof header.alg === 'string' ? algorithms[header.alg] : undefined;
+    reason = 'invalid_signature_or_algorithm';
+    const key = createPublicKey(publicKey);
     if (
       !algorithm ||
+      key.asymmetricKeyType !== 'rsa' ||
+      header.crit !== undefined ||
       !verify(
         algorithm,
         Buffer.from(`${parts[0]}.${parts[1]}`),
-        createPublicKey(publicKey),
+        key,
         Buffer.from(parts[2], 'base64url'),
       )
     )
@@ -62,6 +76,7 @@ export function verifyNotification(
       JSON.parse(Buffer.from(parts[1], 'base64url').toString()),
     );
     const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+    reason = 'issuer_audience_or_body_mismatch';
     if (
       claims.iss !== 'NETOPIA Payments' ||
       !audiences.includes(pos) ||
@@ -69,9 +84,14 @@ export function verifyNotification(
     )
       throw new Error();
     for (const field of ['exp', 'nbf', 'iat']) {
-      if (claims[field] !== undefined && typeof claims[field] !== 'number')
+      reason = 'invalid_time_claim';
+      if (
+        claims[field] !== undefined &&
+        (typeof claims[field] !== 'number' || !Number.isFinite(claims[field]))
+      )
         throw new Error();
     }
+    reason = 'expired_or_not_yet_valid';
     if (typeof claims.exp === 'number' && claims.exp <= now / 1000)
       throw new Error();
     if (typeof claims.nbf === 'number' && claims.nbf > now / 1000)
@@ -80,21 +100,105 @@ export function verifyNotification(
       throw new Error();
     return record(JSON.parse(raw.toString('utf8')));
   } catch {
-    throw new UnauthorizedException('Notificare NETOPIA invalidă.');
+    throw new UnauthorizedException({
+      message: 'Notificare NETOPIA invalidă.',
+      reason,
+    });
   }
 }
 
 @Injectable()
 export class NetopiaService implements PaymentProvider<NetopiaConfiguration> {
+  private readonly logger = new Logger(NetopiaService.name);
   constructor(private readonly config: ConfigService) {}
 
   verify(raw: Buffer, token: string, configuration: NetopiaConfiguration) {
-    return verifyNotification(
-      raw,
-      token,
-      configuration.publicKey,
-      configuration.posSignature,
-    );
+    // These fields are diagnostic only until verification succeeds. Limit logged values.
+    let orderId: string | undefined;
+    let algorithm = 'unknown';
+    try {
+      const id = record(record(JSON.parse(raw.toString('utf8'))).order).orderID;
+      if (typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id)) orderId = id;
+      const normalized = token.trim().replace(/^Bearer\s+/i, '');
+      const alg = record(
+        JSON.parse(
+          Buffer.from(normalized.split('.')[0], 'base64url').toString(),
+        ),
+      ).alg;
+      algorithm =
+        typeof alg === 'string' && ['RS256', 'RS384', 'RS512'].includes(alg)
+          ? alg
+          : 'unsupported';
+    } catch {
+      // Malformed input is rejected by verifyNotification below.
+    }
+    const publicKey = this.config
+      .get<string>('NETOPIA_IPN_PUBLIC_KEY')
+      ?.replace(/\\n/g, '\n')
+      .trim();
+    if (!publicKey) {
+      this.logger.error({
+        event: 'netopia.ipn',
+        timestamp: new Date().toISOString(),
+        jwtValid: false,
+        orderId,
+        algorithm,
+        reason: 'missing_ipn_public_key',
+      });
+      throw new ServiceUnavailableException(
+        'NETOPIA_IPN_PUBLIC_KEY nu este configurată.',
+      );
+    }
+    try {
+      if (
+        !/^-----BEGIN (PUBLIC KEY|RSA PUBLIC KEY|CERTIFICATE)-----/.test(
+          publicKey,
+        ) ||
+        createPublicKey(publicKey).asymmetricKeyType !== 'rsa'
+      )
+        throw new Error();
+    } catch {
+      this.logger.error({
+        event: 'netopia.ipn',
+        timestamp: new Date().toISOString(),
+        jwtValid: false,
+        orderId,
+        algorithm,
+        reason: 'invalid_ipn_public_key',
+      });
+      throw new ServiceUnavailableException(
+        'NETOPIA_IPN_PUBLIC_KEY trebuie să fie o cheie publică RSA validă.',
+      );
+    }
+    try {
+      const body = verifyNotification(
+        raw,
+        token,
+        publicKey,
+        configuration.posSignature,
+      );
+      this.logger.log({
+        event: 'netopia.ipn.jwt',
+        timestamp: new Date().toISOString(),
+        jwtValid: true,
+        orderId,
+        algorithm,
+      });
+      return body;
+    } catch (error) {
+      this.logger.warn({
+        event: 'netopia.ipn.jwt',
+        timestamp: new Date().toISOString(),
+        jwtValid: false,
+        orderId,
+        algorithm,
+        reason:
+          error instanceof UnauthorizedException
+            ? error.getResponse()
+            : 'verification_failed',
+      });
+      throw error;
+    }
   }
 
   async start(input: StartPaymentInput, configuration: NetopiaConfiguration) {

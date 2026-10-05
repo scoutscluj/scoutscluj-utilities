@@ -171,6 +171,18 @@ The workflow:
 
 ## Runtime Logs
 
+### NETOPIA IPN verification
+
+The application secret `scoutscluj/production/app` must contain
+`NETOPIA_IPN_PUBLIC_KEY`, the public RSA PEM confirmed by NETOPIA for both
+SANDBOX and LIVE. Update only this field, preserving the existing secret values.
+The deploy script converts multiline PEM to literal `\n` before writing the
+Docker API env-file; the API reconstructs newlines. The key is not passed to the
+web container or used to initiate payments. API keys and POS signatures remain
+in the existing encrypted payment configurations. Caddy removes the
+`Verification-Token` header from access logs without removing it from requests
+forwarded to the API.
+
 ### Membership checkout origins
 
 The deployment writes `MEMBERSHIP_WEB_ORIGIN=WEB_ORIGIN` and

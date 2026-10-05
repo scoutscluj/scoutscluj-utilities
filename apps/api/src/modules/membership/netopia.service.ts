@@ -241,7 +241,18 @@ export class NetopiaService implements PaymentProvider<NetopiaConfiguration> {
             orderID: input.id,
             posSignature: configuration.posSignature,
             dateTime: new Date().toISOString(),
-            description: input.description,
+            description: [
+              input.description,
+              input.beneficiaryName
+                ? `Beneficiar: ${input.beneficiaryName}`
+                : '',
+              input.beneficiaryOrgoId
+                ? `ID Orgo: ${input.beneficiaryOrgoId}`
+                : '',
+              input.periodName ? `Perioada: ${input.periodName}` : '',
+            ]
+              .filter(Boolean)
+              .join(' · '),
             amount: input.amountBani / 100,
             currency: 'RON',
             billing: CHECKOUT_CONTACT,

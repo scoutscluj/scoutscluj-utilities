@@ -192,6 +192,9 @@ describe('NETOPIA notification boundary', () => {
               id: 'order-id',
               amountBani: 7500,
               description: 'Cotizație',
+              beneficiaryName: 'Test M.',
+              beneficiaryOrgoId: 36805,
+              periodName: '2026–2027',
             },
             {
               provider: 'netopia',
@@ -216,6 +219,8 @@ describe('NETOPIA notification boundary', () => {
           amount: 75,
           currency: 'RON',
           posSignature: `${environment}-pos`,
+          description:
+            'Cotizație · Beneficiar: Test M. · ID Orgo: 36805 · Perioada: 2026–2027',
         });
         expect(body.order.billing.email).toBe('cluj.napoca@scout.ro');
         expect(body.payment.instrument).toEqual({ type: 'card' });

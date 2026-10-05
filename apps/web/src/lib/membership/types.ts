@@ -150,3 +150,9 @@ export const paymentLabels: Record<string, string> = {
 	succeeded: 'Plată primită',
 	failed: 'Plată nereușită'
 };
+
+export const receiptMethodLabels: Record<string, string> = {
+	bank: 'Transfer bancar',
+	cash: 'Numerar',
+	card: 'Card'
+};

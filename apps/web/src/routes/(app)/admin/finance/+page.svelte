@@ -14,21 +14,6 @@
 	<p>Gestionează cotizațiile membrilor și configurarea plăților online.</p>
 </header>
 <div class="modules">
-	<a class="module-card" href={resolve('/admin/finance/payments')}>
-		<span class="icon"><CreditCard size={24} /></span>
-		<h2>Plăți în curs</h2>
-		<p>Linkuri abandonate, încercări neconfirmate și anularea plăților neîncasate.</p>
-		<span class="action">Verifică plățile <ArrowRight size={18} /></span>
-	</a>
-	<a class="module-card" href={resolve('/admin/finance/guide')}>
-		<span class="icon"><BookOpen size={24} /></span>
-		<h2>Ghid financiar</h2>
-		<p>
-			Cum funcționează cotizațiile, încasările, procesatorii de plăți și transferurile naționale,
-			explicat pas cu pas.
-		</p>
-		<span class="action">Citește ghidul <ArrowRight size={18} /></span>
-	</a>
 	<a class="module-card" href={resolve('/admin/finance/membership')}>
 		<span class="icon"><Users size={24} /></span>
 		<h2>Membri și cotizații</h2>
@@ -38,7 +23,9 @@
 	<a class="module-card" href={resolve('/admin/finance/receipts')}>
 		<span class="icon"><CreditCard size={24} /></span>
 		<h2>Încasări și alocări</h2>
-		<p>Plățile primite, încasările bancare și alocarea sumelor la cotizațiile membrilor.</p>
+		<p>
+			Plățile primite prin card, transfer bancar sau numerar și alocarea la cotizațiile membrilor.
+		</p>
 		<span class="action">Gestionează încasările <ArrowRight size={18} /></span>
 	</a>
 	<a class="module-card" href={resolve('/admin/finance/transfers')}>
@@ -61,6 +48,18 @@
 			producție.
 		</p>
 		<span class="action">Configurează plățile <ArrowRight size={18} /></span>
+	</a>
+	<a class="module-card" href={resolve('/admin/finance/payments')}>
+		<span class="icon"><CreditCard size={24} /></span>
+		<h2>Plăți în curs</h2>
+		<p>Linkuri abandonate, încercări neconfirmate și anularea plăților neîncasate.</p>
+		<span class="action">Verifică plățile <ArrowRight size={18} /></span>
+	</a>
+	<a class="module-card" href={resolve('/admin/finance/guide')}>
+		<span class="icon"><BookOpen size={24} /></span>
+		<h2>Ghid financiar</h2>
+		<p>Cum funcționează cotizațiile, încasările și transferurile naționale, explicat pas cu pas.</p>
+		<span class="action">Citește ghidul <ArrowRight size={18} /></span>
 	</a>
 </div>
 

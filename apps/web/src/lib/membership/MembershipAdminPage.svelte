@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { toast } from 'svelte-sonner';
+	import WalletCards from '@lucide/svelte/icons/wallet-cards';
 	import type { MembershipAdminForm } from './admin-ledger';
 	let {
 		title,
@@ -26,6 +27,7 @@
 <svelte:head><title>{title} · Admin financiar · Scouts Cluj</title></svelte:head>
 <div class="membership-admin">
 	<header>
+		<span class="page-eyebrow"><WalletCards size={15} aria-hidden="true" /> Admin financiar</span>
 		<h1>{title}</h1>
 		<p>{description}</p>
 	</header>
@@ -41,6 +43,17 @@
 	header {
 		margin-bottom: 24px;
 	}
+	.page-eyebrow {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		color: #15803d;
+		font-size: 0.72rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.09em;
+		margin-bottom: 12px;
+	}
 	header p {
 		margin: 0;
 		color: #64748b;
@@ -49,10 +62,11 @@
 	.membership-admin :global(section),
 	.membership-admin :global(details) {
 		margin: 20px 0;
-		border: 1px solid #d8dee6;
-		border-radius: 12px;
-		padding: 20px;
+		border: 1px solid #e1e8e4;
+		border-radius: 16px;
+		padding: 24px;
 		background: white;
+		box-shadow: 0 3px 14px #163a2410;
 	}
 	.membership-admin :global(h2) {
 		margin: 0 0 16px;
@@ -114,11 +128,55 @@
 		opacity: 0.5;
 		cursor: not-allowed;
 	}
+	.membership-admin :global(button:hover:not(:disabled)) {
+		filter: brightness(0.96);
+	}
+	.membership-admin :global(.panel-heading) {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 16px;
+		flex-wrap: wrap;
+	}
+	.membership-admin :global(.panel-heading h2) {
+		margin-bottom: 6px;
+	}
+	.membership-admin :global(.panel-heading p) {
+		margin: 0;
+		color: #64748b;
+		font-size: 0.85rem;
+	}
+	.membership-admin :global(.panel-heading button) {
+		margin-top: 0;
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		padding: 11px 16px;
+		font-weight: 600;
+	}
+	.membership-admin :global(.empty-state) {
+		padding: 36px 20px;
+		text-align: center;
+		color: #64748b;
+	}
+	.membership-admin :global(.empty-state svg) {
+		color: #15803d;
+		margin: 0 auto 12px;
+	}
+	.membership-admin :global(.empty-state h2) {
+		color: #334155;
+		margin-bottom: 8px;
+	}
+	.membership-admin :global(.muted) {
+		color: #64748b;
+		font-size: 0.85rem;
+	}
 	.membership-admin :global(summary) {
 		cursor: pointer;
 		font-weight: 600;
 		list-style-position: outside;
 		margin-left: 16px;
+		color: #334155;
 	}
 	.membership-admin :global(.scroll) {
 		overflow: auto;
@@ -138,9 +196,11 @@
 		background: #f8fafc;
 		color: #475569;
 		font-size: 0.8rem;
+		font-weight: 600;
+		white-space: nowrap;
 	}
 	.membership-admin :global(td) {
-		vertical-align: top;
+		vertical-align: middle;
 		font-size: 0.9rem;
 	}
 	.membership-admin :global(tbody tr:hover) {
@@ -169,10 +229,11 @@
 		margin-bottom: 20px;
 	}
 	.membership-admin :global(.stat) {
-		padding: 16px;
+		padding: 20px;
 		border: 1px solid #e2e8f0;
-		border-radius: 12px;
+		border-radius: 14px;
 		background: white;
+		box-shadow: 0 3px 12px #163a2408;
 	}
 	.membership-admin :global(.stat span) {
 		display: block;
@@ -217,6 +278,10 @@
 		}
 	}
 	@media (max-width: 480px) {
+		.membership-admin :global(section),
+		.membership-admin :global(details) {
+			padding: 18px;
+		}
 		.membership-admin :global(.grid) {
 			grid-template-columns: minmax(0, 1fr);
 		}

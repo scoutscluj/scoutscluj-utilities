@@ -506,6 +506,106 @@ async function setup() {
 }
 
 describe('membership service rules', () => {
+  it.each(['bank', 'cash'])(
+    'records a partial %s payment and allocates it to the selected member',
+    async (method) => {
+      const f = await setup();
+      const body = {
+        periodId: f.period.id,
+        obligationId: f.obligation.id,
+        method,
+        amountBani: 10000,
+        receivedOn: '2026-10-05',
+        reference: 'DOC-42',
+        note: 'Document verificat pentru membru',
+      };
+      const receipt = await f.service.bankReceipt(f.staff, body);
+      expect(receipt).toMatchObject({
+        method,
+        amountBani: 10000,
+        actorId: f.staff.id,
+      });
+      expect(f.rows.filter((r) => r.table === 'allocation')).toEqual([
+        expect.objectContaining({
+          receiptId: receipt.id,
+          obligationId: f.obligation.id,
+          amountBani: 10000,
+          actorId: f.staff.id,
+        }),
+      ]);
+      expect(f.rows.filter((r) => r.table === 'audit')).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ action: `membership.${method}.received` }),
+          expect.objectContaining({ action: 'membership.receipt.allocated' }),
+        ]),
+      );
+      await expect(f.service.bankReceipt(f.staff, body)).rejects.toThrow(
+        'deja înregistrată',
+      );
+      await expect(
+        f.service.bankReceipt(f.staff, {
+          ...body,
+          reference: 'DOC-43',
+          amountBani: 20001,
+        }),
+      ).rejects.toThrow('restul de plată');
+      expect(f.rows.filter((r) => r.table === 'receipt')).toHaveLength(1);
+      expect(f.rows.filter((r) => r.table === 'allocation')).toHaveLength(1);
+    },
+  );
+
+  it('rejects mismatched periods, unknown methods, invalid amounts and unauthorized manual payments before writing', async () => {
+    const f = await setup();
+    const other = await f.service.createPeriod(f.staff, {
+      name: 'Altă perioadă',
+      startsOn: '2027-09-01',
+      endsOn: '2028-08-31',
+    });
+    const body = {
+      periodId: f.period.id,
+      obligationId: f.obligation.id,
+      method: 'cash',
+      amountBani: 10000,
+      receivedOn: '2026-10-05',
+      reference: 'CH-1',
+      note: 'Chitanță verificată',
+    };
+    await expect(
+      f.service.bankReceipt(f.staff, { ...body, periodId: other.id }),
+    ).rejects.toThrow('Perioade diferite');
+    await expect(
+      f.service.bankReceipt(f.staff, { ...body, method: 'card' }),
+    ).rejects.toThrow('transfer bancar sau numerar');
+    await expect(
+      f.service.bankReceipt(f.staff, { ...body, amountBani: 0 }),
+    ).rejects.toThrow();
+    await expect(
+      f.service.bankReceipt({ ...f.staff, roles: [] }, body),
+    ).rejects.toThrow();
+    expect(
+      f.rows.filter((r) => ['receipt', 'allocation'].includes(r.table)),
+    ).toHaveLength(0);
+  });
+
+  it('records unallocated cash receipts for later allocation and keeps historical bank requests compatible', async () => {
+    const f = await setup();
+    const body = {
+      periodId: f.period.id,
+      amountBani: 10000,
+      receivedOn: '2026-10-05',
+      reference: 'DOC-1',
+      note: 'Încasare verificată',
+    };
+    expect(await f.service.bankReceipt(f.staff, body)).toMatchObject({
+      method: 'bank',
+    });
+    expect(
+      await f.service.bankReceipt(f.staff, { ...body, method: 'cash' }),
+    ).toMatchObject({ method: 'cash' });
+    expect(f.rows.filter((r) => r.table === 'receipt')).toHaveLength(2);
+    expect(f.rows.filter((r) => r.table === 'allocation')).toHaveLength(0);
+  });
+
   it.each(['36805', 'AT36805'])(
     'sends the verified beneficiary Orgo ID to NETOPIA when paying with %s',
     async (identifier) => {

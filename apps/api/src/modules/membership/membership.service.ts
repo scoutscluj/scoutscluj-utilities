@@ -1560,6 +1560,7 @@ export class MembershipService {
         beneficiaryName: beneficiary
           ? beneficiaryDisplayName(beneficiary.memberName)
           : undefined,
+        beneficiaryOrgoId: beneficiary?.orgoUserId,
         periodName: checkoutPeriod.name,
       };
       const started =

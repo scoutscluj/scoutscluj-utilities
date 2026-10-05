@@ -26,6 +26,7 @@ export type StartPaymentInput = {
   amountBani: number;
   description: string;
   beneficiaryName?: string;
+  beneficiaryOrgoId?: number;
   periodName?: string;
 };
 

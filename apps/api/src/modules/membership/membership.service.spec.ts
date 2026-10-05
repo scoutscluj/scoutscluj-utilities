@@ -506,6 +506,24 @@ async function setup() {
 }
 
 describe('membership service rules', () => {
+  it.each(['36805', 'AT36805'])(
+    'sends the verified beneficiary Orgo ID to NETOPIA when paying with %s',
+    async (identifier) => {
+      const f = await setup();
+      await f.service.checkout({
+        periodId: f.period.id,
+        identifier,
+        acceptTerms: true,
+        attemptToken: 'r'.repeat(43),
+        amountBani: 30000,
+      });
+      expect(f.netopia.start).toHaveBeenCalledWith(
+        expect.objectContaining({ beneficiaryOrgoId: 36805 }),
+        expect.objectContaining({ provider: 'netopia' }),
+      );
+    },
+  );
+
   it('expires an abandoned unpaid Stripe link before repricing and creating another checkout', async () => {
     const f = await setup();
     await f.service.selectPaymentProvider(f.staff, {

@@ -1,143 +1,149 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { formatRole } from '$lib/auth/roles';
+	import { IframeEmbed } from '$lib';
+	import { eventsCalendarUrl, headquartersCalendarUrl } from '$lib/calendars';
 
-	let { data } = $props();
-
-	const connection = $derived(data.user.orgoConnection);
-	const roles = $derived(data.user.roles);
+	const eventsAgendaUrl = `${eventsCalendarUrl}&mode=AGENDA&showTitle=0&showPrint=0&showCalendars=0&hl=ro`;
+	const headquartersWidgetUrl = `${headquartersCalendarUrl}&showTitle=0&showPrint=0&showCalendars=0&hl=ro`;
 </script>
 
 <svelte:head>
 	<title>Dashboard | Scouts Cluj Utilities</title>
 </svelte:head>
 
-<section class="page-header">
-	<p class="eyebrow">Dashboard</p>
-	<h1>Bun venit, {data.user.displayName}</h1>
-	<p>Ai acces la noua platforma Scouts Cluj Utilities.</p>
-</section>
+<details class="calendars" open>
+	<summary>Calendare</summary>
+	<div class="calendar-grid">
+		<section class="calendar-widget" aria-labelledby="events-heading">
+			<header>
+				<h2 id="events-heading">Următoarele evenimente</h2>
+				<a href={resolve('/info/calendar')} aria-label="Deschide calendarul complet de evenimente">
+					Calendar complet
+				</a>
+			</header>
+			<div class="calendar-frame">
+				<IframeEmbed
+					url={eventsAgendaUrl}
+					title="Următoarele evenimente"
+					height="100%"
+					loading="eager"
+				/>
+			</div>
+		</section>
 
-<section class="status-grid" aria-label="Status cont">
-	<article>
-		<p class="label">Sesiune</p>
-		<strong>Autentificat prin Orgo</strong>
-		<span>{data.user.email ?? 'Email indisponibil'}</span>
-	</article>
-	<article>
-		<p class="label">Roluri</p>
-		<strong>{roles.length ? roles.map(formatRole).join(', ') : 'Membru'}</strong>
-		<span>Accesul administrativ este controlat din API.</span>
-	</article>
-	<article>
-		<p class="label">Orgo</p>
-		<strong>{connection?.cardId ?? connection?.orgoUserId ?? 'Conectat'}</strong>
-		<span
-			>{connection?.lastLoginAt
-				? `Ultimul login: ${connection.lastLoginAt}`
-				: 'Conexiune activa'}</span
-		>
-	</article>
-</section>
-
-<section class="module-list" aria-label="Module">
-	<h2>Module disponibile</h2>
-	<div>
-		<a href={resolve('/profile')}>Profil utilizator</a>
-		{#if roles.length}
-			<a href={resolve('/admin')}>Administrare</a>
-		{/if}
+		<section class="calendar-widget headquarters-widget" aria-labelledby="headquarters-heading">
+			<header>
+				<h2 id="headquarters-heading">Calendar Sediu</h2>
+				<a href={resolve('/sediu/orar')} aria-label="Deschide calendarul complet al sediului">
+					Calendar complet
+				</a>
+			</header>
+			<div class="calendar-frame">
+				<IframeEmbed url={headquartersWidgetUrl} title="Calendar Sediu" height="100%" />
+			</div>
+		</section>
 	</div>
-</section>
+</details>
 
 <style>
-	.page-header {
-		max-width: 760px;
-	}
-
-	.eyebrow,
-	.label {
-		margin: 0;
-		color: #64748b;
-		font-size: 0.78rem;
-		font-weight: 900;
-		letter-spacing: 0;
-		text-transform: uppercase;
-	}
-
-	h1 {
-		margin: 8px 0 0;
-		font-size: 2.2rem;
-		line-height: 1.1;
-	}
-
-	.page-header p:not(.eyebrow) {
-		margin: 12px 0 0;
-		color: #52616f;
-	}
-
-	.status-grid {
-		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 14px;
-		margin-top: 28px;
-	}
-
-	article,
-	.module-list {
+	.calendars > summary {
+		min-height: 44px;
 		border: 1px solid #d8dee6;
 		border-radius: 8px;
 		background: #ffffff;
-		padding: 18px;
+		padding: 12px 16px;
+		color: #0f172a;
+		font-weight: 800;
+		cursor: pointer;
 	}
 
-	article strong,
-	article span {
-		display: block;
+	.calendars > summary:hover {
+		background: #f8fafc;
 	}
 
-	article strong {
-		margin-top: 10px;
-		font-size: 1.1rem;
+	.calendars > summary:focus-visible {
+		outline: 2px solid #991b1b;
+		outline-offset: 4px;
 	}
 
-	article span {
-		margin-top: 6px;
-		color: #64748b;
-		overflow-wrap: anywhere;
+	.calendars[open] > summary {
+		margin-bottom: 16px;
 	}
 
-	.module-list {
-		margin-top: 18px;
+	.calendar-grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 16px;
 	}
 
-	.module-list h2 {
-		margin: 0;
-		font-size: 1.1rem;
+	.calendar-widget {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+		height: max(360px, calc(100svh - 176px));
+		border: 1px solid #d8dee6;
+		border-radius: 8px;
+		background: #ffffff;
+		overflow: hidden;
 	}
 
-	.module-list div {
+	.headquarters-widget {
+		display: none;
+	}
+
+	header {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 10px;
-		margin-top: 14px;
+		align-items: center;
+		justify-content: space-between;
+		gap: 4px 12px;
+		border-bottom: 1px solid #d8dee6;
+		padding: 12px 16px;
 	}
 
-	.module-list a {
-		display: inline-flex;
-		align-items: center;
-		min-height: 38px;
-		border-radius: 8px;
-		background: #17202a;
-		color: #ffffff;
-		padding: 0 14px;
-		text-decoration: none;
+	h2 {
+		margin: 0;
+		color: #0f172a;
+		font-size: 1rem;
 		font-weight: 800;
 	}
 
-	@media (max-width: 860px) {
-		.status-grid {
-			grid-template-columns: 1fr;
+	a {
+		display: inline-flex;
+		align-items: center;
+		min-height: 44px;
+		color: #991b1b;
+		font-size: 0.85rem;
+		font-weight: 700;
+		text-underline-offset: 3px;
+	}
+
+	a:hover {
+		color: #7f1d1d;
+	}
+
+	a:focus-visible {
+		outline: 2px solid #991b1b;
+		outline-offset: 4px;
+		border-radius: 2px;
+	}
+
+	.calendar-frame {
+		flex: 1;
+		min-height: 0;
+	}
+
+	@media (min-width: 900px) {
+		.calendar-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.calendar-widget {
+			height: max(560px, calc(100svh - 176px));
+		}
+
+		.headquarters-widget {
+			display: flex;
 		}
 	}
 </style>

@@ -5,6 +5,7 @@ export const menuItems: MenuItem[] = [
 	{
 		label: 'Info',
 		children: [
+			{ label: 'Calendar Eventos', href: '/info/calendar' },
 			{ label: 'Anunțuri', disabled: true },
 			{ label: 'Național', disabled: true },
 			{ label: 'Statut ONCR', href: '/info/statut' },

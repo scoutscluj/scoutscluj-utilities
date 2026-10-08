@@ -20,6 +20,7 @@ export type AppHref =
 	| '/activities'
 	| '/finance'
 	| '/finance/documents'
+	| '/info/calendar'
 	| '/info/statut'
 	| '/programe/regulamente'
 	| '/sediu/inventar'

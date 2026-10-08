@@ -5559,6 +5559,54 @@
           "collation": null,
           "enumItems": []
         },
+        "orgo_actor_id": {
+          "name": "orgo_actor_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": 32,
+          "scale": 0,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": []
+        },
+        "orgo_error": {
+          "name": "orgo_error",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": []
+        },
+        "orgo_last_attempt_at": {
+          "name": "orgo_last_attempt_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": []
+        },
         "orgo_state": {
           "name": "orgo_state",
           "type": "varchar(255)",
@@ -5717,6 +5765,22 @@
           "collation": null,
           "enumItems": []
         },
+        "orgo_last_synced_at": {
+          "name": "orgo_last_synced_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": []
+        },
         "orgo_user_id": {
           "name": "orgo_user_id",
           "type": "int",
@@ -5756,6 +5820,38 @@
           "autoincrement": false,
           "primary": false,
           "nullable": false,
+          "unique": false,
+          "length": 255,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": []
+        },
+        "review_reason": {
+          "name": "review_reason",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": []
+        },
+        "review_state": {
+          "name": "review_state",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
           "unique": false,
           "length": 255,
           "precision": null,
@@ -5998,11 +6094,12 @@
       "indexes": [
         {
           "columnNames": [
-            "provider"
+            "provider",
+            "environment"
           ],
-          "composite": false,
+          "composite": true,
           "constraint": false,
-          "keyName": "membership_one_active_provider_config",
+          "keyName": "membership_one_active_provider_environment_config",
           "primary": false,
           "unique": true,
           "where": "active = true"
@@ -6027,6 +6124,22 @@
       "name": "membership_payment_settings",
       "schema": "public",
       "columns": {
+        "active_environment": {
+          "name": "active_environment",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 255,
+          "precision": null,
+          "scale": null,
+          "default": "'sandbox'",
+          "comment": null,
+          "collation": null,
+          "enumItems": []
+        },
         "active_provider": {
           "name": "active_provider",
           "type": "varchar(255)",
@@ -6052,6 +6165,22 @@
           "nullable": false,
           "unique": false,
           "length": 255,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": []
+        },
+        "processing_fees": {
+          "name": "processing_fees",
+          "type": "jsonb",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
           "precision": null,
           "scale": null,
           "default": null,
@@ -6917,6 +7046,204 @@
           ],
           "constraintName": "membership_receipts_period_id_fkey",
           "localTableName": "public.membership_receipts",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.membership_periods"
+        }
+      },
+      "comment": null
+    },
+    {
+      "name": "membership_roster_syncs",
+      "schema": "public",
+      "columns": {
+        "actor_id": {
+          "name": "actor_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": 32,
+          "scale": 0,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": []
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": []
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": []
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": []
+        },
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": []
+        },
+        "mode": {
+          "name": "mode",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 255,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": []
+        },
+        "period_id": {
+          "name": "period_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": []
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 255,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": []
+        },
+        "summary": {
+          "name": "summary",
+          "type": "jsonb",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": "'{}'",
+          "comment": null,
+          "collation": null,
+          "enumItems": []
+        }
+      },
+      "indexes": [
+        {
+          "columnNames": [
+            "period_id",
+            "created_at"
+          ],
+          "composite": true,
+          "constraint": false,
+          "keyName": "membership_roster_sync_period_created",
+          "primary": false,
+          "unique": false,
+          "columns": [
+            {
+              "name": "period_id"
+            },
+            {
+              "name": "created_at",
+              "sort": "DESC"
+            }
+          ]
+        },
+        {
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "membership_roster_syncs_pkey",
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "triggers": [],
+      "foreignKeys": {
+        "membership_roster_syncs_period_id_fkey": {
+          "columnNames": [
+            "period_id"
+          ],
+          "constraintName": "membership_roster_syncs_period_id_fkey",
+          "localTableName": "public.membership_roster_syncs",
           "referencedColumnNames": [
             "id"
           ],

@@ -78,6 +78,8 @@ export const menuHref = (href: AppHref) => {
 			return resolve('/finance');
 		case '/finance/documents':
 			return resolve('/finance/documents');
+		case '/info/calendar':
+			return resolve('/info/calendar');
 		case '/info/statut':
 			return resolve('/info/statut');
 		case '/programe/regulamente':
@@ -189,6 +191,7 @@ export const routeTitle = (pathname: string) => {
 	if (pathname.startsWith('/admin/finance')) return 'Administrare financiară';
 	if (pathname.startsWith('/admin')) return 'Administrare';
 	if (pathname.startsWith('/profile')) return 'Profil';
+	if (pathname.startsWith('/info/calendar')) return 'Calendar Eventos';
 	if (pathname.startsWith('/info/statut')) return 'Statut ONCR';
 	if (pathname.startsWith('/programe/regulamente')) return 'Regulament ONCR';
 	if (pathname.startsWith('/sediu/inventar')) return 'Inventar sediu';

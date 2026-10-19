@@ -6,6 +6,9 @@ jest.mock('../auth/guards/auth.guard', () => ({
   },
 }));
 jest.mock('@mikro-orm/postgresql', () => ({ EntityManager: class {} }));
+jest.mock('../members/member-collection', () => ({
+  collectionAllowed: jest.fn().mockResolvedValue(true),
+}));
 jest.mock('./orgo-roster.service', () => ({ OrgoRosterService: class {} }));
 jest.mock('../audit/entities/audit-entry.entity', () => ({
   AuditEntry: 'audit',

@@ -91,12 +91,17 @@ export class OrgoNationalWorker implements OnModuleInit, OnModuleDestroy {
             ? await tx.findOne(User, { id: item.orgoActorId })
             : null;
           if (
-            !actor?.roles.some((role) =>
-              [
-                UserRole.Admin,
-                UserRole.FinanceManager,
-                UserRole.SuperAdmin,
-              ].includes(role),
+            !actor ||
+            actor.memberAccessDisabled ||
+            !(
+              actor.councilAdmin ||
+              actor.roles.some((role) =>
+                [
+                  UserRole.Admin,
+                  UserRole.FinanceManager,
+                  UserRole.SuperAdmin,
+                ].includes(role),
+              )
             )
           ) {
             item.orgoState = 'failed';

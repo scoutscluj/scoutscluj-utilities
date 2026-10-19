@@ -8,6 +8,7 @@ describe('membership payment page privacy', () => {
 	it('keeps browser form origins while preventing external referrer disclosure', async () => {
 		const setHeaders = vi.fn();
 		await load({
+			url: new URL('https://resurse.example.test/cotizatie'),
 			cookies: { get: () => 'existing-attempt' },
 			locals: { user: null },
 			setHeaders

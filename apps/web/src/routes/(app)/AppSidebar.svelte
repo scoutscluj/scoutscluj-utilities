@@ -17,10 +17,11 @@
 		sidebarActivities: SidebarActivity[];
 		pathname: string;
 		mobileOpen: boolean;
+		desktop: boolean;
 		closeMobile: () => void;
 	};
 
-	let { user, sidebarActivities, pathname, mobileOpen, closeMobile }: Props = $props();
+	let { user, sidebarActivities, pathname, mobileOpen, desktop, closeMobile }: Props = $props();
 	let openGroups = $state<Record<string, boolean | undefined>>({});
 
 	const visibleItems = $derived(
@@ -91,7 +92,13 @@
 	{/each}
 {/snippet}
 
-<aside class:open={mobileOpen} class="sidebar" aria-label="Meniu principal">
+<aside
+	id="app-navigation"
+	class:open={mobileOpen}
+	class="sidebar"
+	aria-label="Meniu principal"
+	inert={!desktop && !mobileOpen}
+>
 	<div class="brand">
 		<img
 			class="brand-mark"
@@ -104,6 +111,13 @@
 			<p>Scouts Cluj</p>
 			<span>Utilities</span>
 		</div>
+		<button
+			type="button"
+			class="close-menu"
+			data-menu-close
+			onclick={closeMobile}
+			aria-label="Închide meniul">Închide <span aria-hidden="true">×</span></button
+		>
 	</div>
 
 	<nav>
@@ -166,14 +180,16 @@
 		position: fixed;
 		inset: 0 auto 0 0;
 		z-index: 20;
-		width: 260px;
+		width: min(300px, calc(100vw - 48px));
+		height: 100vh;
+		height: 100dvh;
 		display: flex;
 		flex-direction: column;
 		gap: 18px;
 		border-right: 1px solid #d8dee6;
 		background: #ffffff;
 		padding: 18px 14px;
-		overflow-y: auto;
+		overflow: hidden;
 		transform: translateX(-100%);
 		transition: transform 160ms ease;
 	}
@@ -183,6 +199,7 @@
 	}
 
 	.brand {
+		flex-shrink: 0;
 		display: flex;
 		align-items: center;
 		gap: 12px;
@@ -202,6 +219,7 @@
 		margin: 0;
 	}
 	.oncr-logo {
+		flex-shrink: 0;
 		width: 190px;
 		height: auto;
 		object-fit: contain;
@@ -224,6 +242,32 @@
 	.group-items {
 		display: grid;
 		gap: 4px;
+	}
+	nav {
+		flex: 1;
+		min-height: 0;
+		align-content: start;
+		overflow-y: auto;
+		overflow-x: hidden;
+		overscroll-behavior-y: contain;
+		scrollbar-gutter: stable;
+	}
+	.close-menu {
+		margin-left: auto;
+		min-height: 44px;
+		border: 1px solid #d8dee6;
+		border-radius: 8px;
+		padding: 8px;
+		background: #fff;
+		cursor: pointer;
+		font-size: 0.8rem;
+	}
+	.brand > div {
+		min-width: 0;
+	}
+	:is(a, button):focus-visible {
+		outline: 3px solid #991b1b;
+		outline-offset: -3px;
 	}
 
 	.nav-link,
@@ -282,8 +326,11 @@
 
 	@media (min-width: 900px) {
 		.sidebar {
-			position: sticky;
+			width: 260px;
 			transform: none;
+		}
+		.close-menu {
+			display: none;
 		}
 	}
 </style>

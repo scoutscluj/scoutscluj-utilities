@@ -1,4 +1,5 @@
 import { EntityManager } from '@mikro-orm/postgresql';
+import { collectionAllowed } from '../members/member-collection';
 import {
   BadRequestException,
   ConflictException,
@@ -416,6 +417,8 @@ export class MembershipService {
       const now = new Date();
       for (const member of members) {
         seen.add(member.orgoUserId);
+        if (!(await collectionAllowed(em, member.orgoUserId, period.startsOn)))
+          continue;
         const obligation = byId.get(member.orgoUserId);
         if (obligation) obligation.orgoCreatedAt = member.orgoCreatedAt ?? null;
         if (!member.eligible || !member.plan) {
@@ -489,6 +492,10 @@ export class MembershipService {
       }
       for (const obligation of obligations) {
         if (seen.has(obligation.orgoUserId)) continue;
+        if (
+          !(await collectionAllowed(em, obligation.orgoUserId, period.startsOn))
+        )
+          continue;
         obligation.reviewState = 'missing_from_orgo';
         obligation.reviewReason =
           'Membrul nu mai apare ca eligibil în registrul ORGO.';
@@ -919,6 +926,16 @@ export class MembershipService {
       throw new NotFoundException(
         'ID-ul nu corespunde unui membru eligibil din Centrul Local Cluj.',
       );
+    if (
+      !(await collectionAllowed(
+        this.em,
+        obligation.orgoUserId,
+        period.startsOn,
+      ))
+    )
+      throw new NotFoundException(
+        'Membrul nu este eligibil pentru plată în această perioadă.',
+      );
     if (obligation.reviewState)
       throw new NotFoundException(
         'Cotizația acestui membru necesită verificare înainte de plată.',
@@ -966,8 +983,17 @@ export class MembershipService {
     if (!orgoUserId) return [];
     await this.ensureCurrentPeriod();
     const obligations = await this.em.find(Obligation, { orgoUserId });
+    const eligible: Obligation[] = [];
+    for (const obligation of obligations) {
+      const period = await this.em.findOne(Period, { id: obligation.periodId });
+      if (
+        period &&
+        (await collectionAllowed(this.em, orgoUserId, period.startsOn))
+      )
+        eligible.push(obligation);
+    }
     return Promise.all(
-      obligations.map(async (item) => {
+      eligible.map(async (item) => {
         const paidBani = await this.balance(this.em, item.id);
         const admission = await this.admissionState(this.em, item.orgoUserId);
         return {
@@ -993,7 +1019,7 @@ export class MembershipService {
   async dashboard(user: CurrentUser): Promise<{
     periods: Period[];
     payouts: Payout[];
-    obligations: Obligation[];
+    obligations: Array<Obligation & { collectionEnabled?: boolean }>;
     receipts: Receipt[];
     allocations: Allocation[];
     batches: Batch[];
@@ -1088,7 +1114,16 @@ export class MembershipService {
         { orderBy: { createdAt: 'desc' } },
       ),
       periods,
-      obligations,
+      obligations: await Promise.all(
+        obligations.map(async (o) => ({
+          ...o,
+          collectionEnabled: await collectionAllowed(
+            this.em,
+            o.orgoUserId,
+            periods.find((p) => p.id === o.periodId)?.startsOn ?? '',
+          ),
+        })),
+      ),
       receipts,
       allocations,
       batches,
@@ -1847,6 +1882,17 @@ export class MembershipService {
       if (obligation.reviewState)
         throw new ConflictException(
           'Cotizația necesită verificare financiară înainte de plată.',
+        );
+      const payablePeriod = await em.findOneOrFail(Period, { id: periodId });
+      if (
+        !(await collectionAllowed(
+          em,
+          obligation.orgoUserId,
+          payablePeriod.startsOn,
+        ))
+      )
+        throw new ConflictException(
+          'Membrul nu este eligibil pentru plată în această perioadă.',
         );
       const previous = await em.findOne(Checkout, { tokenHash });
       if (previous) {

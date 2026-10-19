@@ -17,6 +17,11 @@ export const User = defineEntity({
       .array()
       .default([])
       .nativeEnumName('user_role'),
+    councilAdmin: p.boolean().default(false).fieldName('council_admin'),
+    memberAccessDisabled: p
+      .boolean()
+      .default(false)
+      .fieldName('member_access_disabled'),
     orgoConnection: () =>
       p.oneToOne(OrgoConnection).mappedBy('user').nullable(),
     lastLoginAt: p.datetime().nullable().fieldName('last_login_at'),

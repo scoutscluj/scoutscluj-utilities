@@ -78,6 +78,16 @@ const ledger: Dashboard = {
 };
 
 describe('membership collection progress', () => {
+	it('excludes withdrawn member balances from arrears totals without deleting payment history', () => {
+		const copy = structuredClone(ledger);
+		copy.obligations = copy.obligations.map((o) => ({ ...o, collectionEnabled: false }));
+		expect(membershipProgress(copy, 'current')).toMatchObject({
+			members: 0,
+			totalBani: 0,
+			remainingBani: 0
+		});
+		expect(copy.allocations).toEqual(ledger.allocations);
+	});
 	it('counts selected-period allocations, includes partial payments, and excludes reversed history', () => {
 		expect(membershipProgress(ledger, 'current')).toEqual({
 			members: 2,

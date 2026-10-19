@@ -49,7 +49,9 @@ export type MembershipAdminForm = {
 };
 
 export function membershipProgress(ledger: Dashboard, periodId?: string) {
-	const obligations = ledger.obligations.filter((o) => o.periodId === periodId);
+	const obligations = ledger.obligations.filter(
+		(o) => o.periodId === periodId && o.collectionEnabled !== false
+	);
 	const totalBani = obligations.reduce((sum, o) => sum + o.totalBani, 0);
 	const collectedBani = obligations.reduce(
 		(sum, o) => sum + Math.min(o.totalBani, Math.max(0, allocatedAmount(ledger, o.id))),

@@ -1,11 +1,11 @@
 import type { MenuItem } from './types';
 
 export const menuItems: MenuItem[] = [
-	{ label: 'Dashboard', href: '/' },
+	{ label: 'Acasă', href: '/' },
 	{
-		label: 'Info',
+		label: 'Informații',
 		children: [
-			{ label: 'Calendar Eventos', href: '/info/calendar' },
+			{ label: 'Calendar', href: '/info/calendar' },
 			{ label: 'Anunțuri', disabled: true },
 			{ label: 'Național', disabled: true },
 			{ label: 'Statut ONCR', href: '/info/statut' },
@@ -31,6 +31,7 @@ export const menuItems: MenuItem[] = [
 		]
 	},
 	{ label: 'Activități', href: '/activities' },
+	{ label: 'Unități și membri', href: '/units' },
 	{ label: 'Micro-stagii', disabled: true },
 	{ label: 'Parteneri', disabled: true },
 	{ label: 'Profil', href: '/profile' },

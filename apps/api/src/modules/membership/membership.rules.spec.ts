@@ -5,6 +5,7 @@ import {
   identifier,
   membershipPeriodFor,
   isNewOrgoMember,
+  admissionFeeBani,
   plan,
 } from './membership.rules';
 
@@ -106,4 +107,19 @@ describe('new ORGO member eligibility', () => {
     expect(isNewOrgoMember(null, now)).toBe(false);
     expect(isNewOrgoMember(undefined, now)).toBe(false);
   });
+});
+
+describe('admission tariff by verified ORGO name', () => {
+  it.each([
+    'Pop Freya-Floresti',
+    'Sofia Anastasia Floresti',
+    'Tamas Floresti Alexandru Bogdan',
+    'Ana FLOREȘTI',
+    'Ana Floreşti',
+  ])('charges 105 lei for %s', (name) =>
+    expect(admissionFeeBani(name)).toBe(10500),
+  );
+  it.each(['Ana Popescu', 'Test Member', ''])('charges 55 lei for %s', (name) =>
+    expect(admissionFeeBani(name)).toBe(5500),
+  );
 });

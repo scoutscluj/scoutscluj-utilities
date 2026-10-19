@@ -10,7 +10,7 @@
 			? data.admission
 				? own.admissionPaid
 					? 0
-					: 5500
+					: (own.admissionAmountBani ?? 5500)
 				: Math.max(0, own.totalBani - (own.paidBani ?? 0))
 			: 0
 	);
@@ -146,11 +146,19 @@
 				</div>
 				<div>
 					<dt>{feeName} totală</dt>
-					<dd>{money(data.admission ? 5500 : own.totalBani)}</dd>
+					<dd>{money(data.admission ? (own.admissionAmountBani ?? 5500) : own.totalBani)}</dd>
 				</div>
 				<div>
 					<dt>Achitat și alocat</dt>
-					<dd>{money(data.admission ? (own.admissionPaid ? 5500 : 0) : (own.paidBani ?? 0))}</dd>
+					<dd>
+						{money(
+							data.admission
+								? own.admissionPaid
+									? (own.admissionAmountBani ?? 5500)
+									: 0
+								: (own.paidBani ?? 0)
+						)}
+					</dd>
 				</div>
 				<div class="balance">
 					<dt>Total de plată</dt>
@@ -253,14 +261,14 @@
 		</h1>
 		<p class="section-intro">
 			{data.admission
-				? 'Taxa de adeziune este de 55 lei și se plătește o singură dată, la alăturarea în organizație. Plata online este disponibilă pentru conturile ORGO create în ultimele 6 luni.'
+				? 'Taxa de adeziune este de 55 lei, respectiv 105 lei pentru membrii care au Florești în numele din ORGO. Se plătește o singură dată, la alăturarea în organizație. Plata online este disponibilă pentru conturile ORGO create în ultimele 6 luni.'
 				: 'Situația cotizației și plata cu cardul, într-un singur loc.'}
 		</p>
 		{#if data.admission}<p class="admission-link">
 				<a href={resolve('/cotizatie')}>Înapoi la plata cotizației</a>
 			</p>{:else}<p class="admission-link">
 				Ești membru nou? <a href={resolve('/cotizatie?tip=adeziune')}>Plătește adeziunea aici</a> · 55
-				lei, o singură dată.
+				lei / 105 lei pentru Florești, o singură dată.
 			</p>{/if}
 	</div>
 	{#if (data.status?.environment ?? data.environment) !== 'live'}<p class="environment-notice">

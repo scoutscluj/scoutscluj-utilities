@@ -2231,3 +2231,140 @@ describe('extended admission eligibility', () => {
     );
   });
 });
+
+describe('Floresti admission tariff', () => {
+  async function member() {
+    const f = await setup();
+    f.obligation.memberName = 'Pop Freya-Floresti';
+    f.obligation.orgoCreatedAt = new Date(Date.now() - 86400000);
+    return f;
+  }
+  it('quotes and charges 105 lei from the verified name and rejects a forged 55 lei quote', async () => {
+    const f = await member();
+    expect(
+      await f.service.guestLookup({
+        identifier: '36805',
+        purpose: 'admission',
+      }),
+    ).toMatchObject({ amountBani: 10500, paid: false });
+    const input = {
+      periodId: f.period.id,
+      identifier: '36805',
+      purpose: 'admission',
+      amountBani: 5500,
+      acceptTerms: true,
+      attemptToken: 'f'.repeat(43),
+      memberName: 'Ana Popescu',
+    };
+    await expect(f.service.checkout(input)).rejects.toThrow(
+      'Suma de plată s-a schimbat',
+    );
+    expect(f.netopia.start).not.toHaveBeenCalled();
+    await expect(
+      f.service.checkout({ ...input, amountBani: 10500 }),
+    ).resolves.toMatchObject({ state: 'pending' });
+    expect(f.netopia.start).toHaveBeenCalledWith(
+      expect.objectContaining({ amountBani: 10500 }),
+      expect.anything(),
+    );
+    const [own] = await f.service.mine({
+      ...f.staff,
+      orgoConnection: { orgoUserId: 36805 },
+    });
+    expect(own).toMatchObject({
+      admissionAmountBani: 10500,
+      admissionPaid: false,
+    });
+  });
+  it('requires the full recorded 105 lei payment and does not credit annual dues', async () => {
+    const f = await member();
+    await f.service.checkout({
+      periodId: f.period.id,
+      identifier: '36805',
+      purpose: 'admission',
+      amountBani: 10500,
+      acceptTerms: true,
+      attemptToken: 'g'.repeat(43),
+    });
+    const checkout = f.rows.find((r) => r.table === 'checkout')!;
+    await f.service.notifyNetopia(
+      Buffer.from(
+        JSON.stringify({
+          order: { orderID: checkout.id },
+          payment: {
+            ntpID: 'ntp-test',
+            amount: 105,
+            currency: 'RON',
+            status: 3,
+          },
+        }),
+      ),
+      'fixture',
+    );
+    expect(
+      await f.service.guestLookup({
+        identifier: '36805',
+        purpose: 'admission',
+      }),
+    ).toMatchObject({ paid: true });
+    expect(f.rows.filter((r) => r.table === 'allocation')).toHaveLength(0);
+    const receipt = f.rows.find((r) => r.table === 'receipt')!;
+    receipt.refundedBani = 5000;
+    expect(
+      await f.service.guestLookup({
+        identifier: '36805',
+        purpose: 'admission',
+      }),
+    ).toMatchObject({ paid: false, amountBani: 10500 });
+  });
+  it('honors a historic confirmed 55 lei admission after the name changes to Floresti', async () => {
+    const f = await member();
+    f.obligation.memberName = 'Ana Popescu';
+    const input = {
+      periodId: f.period.id,
+      identifier: '36805',
+      purpose: 'admission',
+      amountBani: 5500,
+      acceptTerms: true,
+      attemptToken: 'h'.repeat(43),
+    };
+    await f.service.checkout(input);
+    const checkout = f.rows.find((r) => r.table === 'checkout')!;
+    await f.service.notifyNetopia(
+      Buffer.from(
+        JSON.stringify({
+          order: { orderID: checkout.id },
+          payment: {
+            ntpID: 'ntp-test',
+            amount: 55,
+            currency: 'RON',
+            status: 3,
+          },
+        }),
+      ),
+      'fixture',
+    );
+    f.obligation.memberName = 'Ana Popescu-Floresti';
+    expect(
+      await f.service.guestLookup({
+        identifier: '36805',
+        purpose: 'admission',
+      }),
+    ).toMatchObject({ paid: true });
+    const [own] = await f.service.mine({
+      ...f.staff,
+      orgoConnection: { orgoUserId: 36805 },
+    });
+    expect(own).toMatchObject({
+      admissionAmountBani: 5500,
+      admissionPaid: true,
+    });
+    await expect(
+      f.service.checkout({
+        ...input,
+        amountBani: 10500,
+        attemptToken: 'j'.repeat(43),
+      }),
+    ).rejects.toThrow('deja achitată');
+  });
+});

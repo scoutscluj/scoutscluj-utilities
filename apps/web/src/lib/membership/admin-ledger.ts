@@ -81,7 +81,7 @@ export function admissionPaidInPeriod(ledger: Dashboard, obligation: Obligation)
 				(receipt) =>
 					receipt.checkoutId === checkout.id &&
 					!receipt.reviewRequired &&
-					receipt.amountBani - receipt.refundedBani >= 5500
+					receipt.amountBani - receipt.refundedBani >= checkout.amountBani
 			)
 	);
 }

@@ -36,6 +36,7 @@ import {
   identifier,
   membershipPeriodFor,
   isNewOrgoMember,
+  admissionFeeBani,
   plan,
   record,
   text,
@@ -57,8 +58,6 @@ import {
   OrgoRosterService,
   type OrgoRosterMember,
 } from './orgo-roster.service';
-
-const ADMISSION_FEE_BANI = 5500;
 
 const MEMBERSHIP_TERMS_VERSION = '2026-10-01';
 
@@ -864,6 +863,7 @@ export class MembershipService {
       purpose: 'admission',
     });
     let paid = false;
+    let paidAmountBani: number | null = null;
     for (const attempt of attempts) {
       const receipt = await em.findOne(Receipt, { checkoutId: attempt.id });
       if (
@@ -871,12 +871,15 @@ export class MembershipService {
         !attempt.reviewRequired &&
         receipt &&
         !receipt.reviewRequired &&
-        receipt.amountBani - receipt.refundedBani >= ADMISSION_FEE_BANI
-      )
+        receipt.amountBani - receipt.refundedBani >= attempt.amountBani
+      ) {
         paid = true;
+        paidAmountBani = attempt.amountBani;
+      }
     }
     return {
       paid,
+      paidAmountBani,
       blocked: attempts.some(
         (attempt) =>
           ['starting', 'pending', 'unknown'].includes(attempt.state) ||
@@ -928,7 +931,7 @@ export class MembershipService {
     const contributionBani = admission
       ? admission.paid
         ? 0
-        : ADMISSION_FEE_BANI
+        : admissionFeeBani(obligation.memberName)
       : Math.max(0, obligation.totalBani - paidBani);
     if (purpose === 'admission' && !admission?.paid)
       this.requireNewMember(obligation);
@@ -953,6 +956,7 @@ export class MembershipService {
       nationalBani: number;
       paidBani: number;
       admissionPaid: boolean;
+      admissionAmountBani: number;
       admissionEligible: boolean;
       reviewState: string | null;
       reviewReason: string | null;
@@ -965,6 +969,7 @@ export class MembershipService {
     return Promise.all(
       obligations.map(async (item) => {
         const paidBani = await this.balance(this.em, item.id);
+        const admission = await this.admissionState(this.em, item.orgoUserId);
         return {
           id: String(item.id),
           periodId: item.periodId,
@@ -975,8 +980,9 @@ export class MembershipService {
           nationalBani: item.nationalBani,
           paidBani,
           admissionEligible: isNewOrgoMember(item.orgoCreatedAt),
-          admissionPaid: (await this.admissionState(this.em, item.orgoUserId))
-            .paid,
+          admissionPaid: admission.paid,
+          admissionAmountBani:
+            admission.paidAmountBani ?? admissionFeeBani(item.memberName),
           reviewState: item.reviewState ?? null,
           reviewReason: item.reviewReason ?? null,
         };
@@ -1894,7 +1900,7 @@ export class MembershipService {
       const planKey = plan(obligation.plan);
       const contributionBani =
         purpose === 'admission'
-          ? ADMISSION_FEE_BANI
+          ? admissionFeeBani(obligation.memberName)
           : obligation.totalBani - (await this.balance(em, obligation.id));
       if (contributionBani <= 0)
         throw new ConflictException('Cotizație deja plătită.');

@@ -116,7 +116,12 @@ Aplicați `Migration20261019000200` prin mecanismul existent de migrare înainte
 de pornirea noii versiuni. Migrarea este aditivă și nu importă sau modifică
 membri reali automat. Activați progresia numai după verificarea manuală a
 claselor și grupelor importate. Configurația locală examinată nu conține tokenul
-server-to-server sau ID-ul centrului; nu s-au efectuat scrieri în Orgo.
+server-to-server sau ID-ul centrului. La pregătirea lansării au fost confirmate
+în Secrets Manager configurația de producție și citirea registrelor `/users` și
+`/units` cu tokenul server-to-server. Câmpurile `dateBirth`, `phoneNumber`,
+`localCenter` și structura paginată corespund adapterului. Statusurile observate
+includ `ACTIVE`, `INACTIVE` și `SUSPENDED`; semnificația retragerii trebuie încă
+confirmată înainte de mapare. Nu s-au efectuat importuri sau scrieri în Orgo.
 
 Testele acoperă politicile, rutele HTTP, confidențialitatea, transferurile,
 retragerile, revenirea fără dublarea obligațiilor, tranzițiile anuale și

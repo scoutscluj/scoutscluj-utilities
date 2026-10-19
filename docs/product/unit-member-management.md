@@ -131,6 +131,9 @@ memorie; nu înlocuiesc testarea migrării și a tranzacțiilor pe PostgreSQL.
 Verificări efectuate la 19 octombrie 2026: 338 teste API și 28 teste web trecute;
 build API și web reușite; verificările TypeScript/Svelte, lintul și formatarea
 fișierelor modificate trecute; propunerea OpenSpec validată strict. Generarea
-schemei ORM a fost verificată fără conectare la bază. PostgreSQL local nu a fost
-disponibil și Docker nu rula, deci migrarea nu a fost executată și nu există
-validare de tranzacții pe o bază reală pentru această schimbare.
+schemei ORM a fost verificată și fără conectare la bază. Workflow-ul
+`Verify member management` a aplicat toate migrările pe o bază PostgreSQL 16
+temporară și a verificat adăugarea, actualizarea cu controlul versiunii,
+transferul, retragerea și reactivarea unui membru cu păstrarea datelor medicale.
+Acest test a identificat și prevenit o inserare a outboxului înaintea fișei noi;
+identitatea se salvează acum înaintea rândurilor dependente, în aceeași tranzacție.

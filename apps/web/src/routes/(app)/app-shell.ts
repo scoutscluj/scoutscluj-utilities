@@ -30,6 +30,7 @@ const activityTypeLabels: Record<SidebarActivity['type'], string> = {
 };
 
 export const canSee = (item: MenuItem, user: CurrentUser) =>
+	!item.disabled &&
 	(!item.minRole || hasRole(user, item.minRole)) &&
 	(!item.anyRole || item.anyRole.some((role) => hasRole(user, role)));
 
@@ -38,6 +39,8 @@ export const visibleChildren = (item: MenuItem, user: CurrentUser) =>
 
 export const menuHref = (href: AppHref) => {
 	switch (href) {
+		case '/units':
+			return resolve('/units');
 		case '/cotizatie':
 			return resolve('/cotizatie');
 		case '/membership':
@@ -172,7 +175,7 @@ export const activitySubtitle = (activity: SidebarActivity, pathname: string) =>
 };
 
 export const routeTitle = (pathname: string) => {
-	if (pathname === '/') return 'Dashboard';
+	if (pathname === '/') return 'Acasă';
 	if (pathname.startsWith('/cotizatie')) return 'Cotizație';
 	if (pathname === '/activities') return 'Activități';
 	if (pathname.startsWith('/finance/documents')) return 'Documente financiare';
@@ -191,7 +194,8 @@ export const routeTitle = (pathname: string) => {
 	if (pathname.startsWith('/admin/finance')) return 'Administrare financiară';
 	if (pathname.startsWith('/admin')) return 'Administrare';
 	if (pathname.startsWith('/profile')) return 'Profil';
-	if (pathname.startsWith('/info/calendar')) return 'Calendar Eventos';
+	if (pathname.startsWith('/units')) return 'Unități și membri';
+	if (pathname.startsWith('/info/calendar')) return 'Calendar';
 	if (pathname.startsWith('/info/statut')) return 'Statut ONCR';
 	if (pathname.startsWith('/programe/regulamente')) return 'Regulament ONCR';
 	if (pathname.startsWith('/sediu/inventar')) return 'Inventar sediu';

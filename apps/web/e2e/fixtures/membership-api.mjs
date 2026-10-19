@@ -185,6 +185,63 @@ createServer(async (req, res) => {
 	if (req.url === '/api/auth/me')
 		return respond(res, { id: 1, displayName: 'Responsabil financiar', roles: ['super_admin'] });
 	if (req.url === '/api/activities') return respond(res, []);
+	if (req.url === '/api/members')
+		return respond(res, {
+			admin: true,
+			canManage: true,
+			chiefUnitIds: [],
+			ownMemberId: null,
+			progressionEnabled: false,
+			sync: [],
+			transitions: [],
+			notices: [],
+			units: [
+				{
+					id: 'u1',
+					name: 'Temerari',
+					branch: 'temerari',
+					parentId: null,
+					archived: false,
+					grades: []
+				},
+				{
+					id: 'u2',
+					name: 'Lupișori',
+					branch: 'lupisori',
+					parentId: null,
+					archived: false,
+					grades: []
+				},
+				{
+					id: 'g1',
+					name: 'Grupa temerari',
+					branch: 'temerari',
+					parentId: 'u1',
+					archived: false,
+					grades: [5]
+				},
+				{
+					id: 'g2',
+					name: 'Grupa lupișori',
+					branch: 'lupisori',
+					parentId: 'u2',
+					archived: false,
+					grades: [3]
+				}
+			],
+			members: [
+				{
+					id: 'm1',
+					name: 'Ana Popescu',
+					orgoId: 36801,
+					unitId: 'u1',
+					groupId: 'g1',
+					grade: 5,
+					status: 'active',
+					adultKind: null
+				}
+			]
+		});
 
 	if (req.url === '/api/membership/catalog')
 		return respond(res, {

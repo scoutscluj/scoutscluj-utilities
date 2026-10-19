@@ -27,6 +27,7 @@
 		class="menu-button"
 		aria-label="Deschide meniul"
 		aria-expanded={mobileOpen}
+		aria-controls="app-navigation"
 		onclick={openMobile}
 	>
 		<span></span>

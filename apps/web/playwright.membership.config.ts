@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
 	testDir: './e2e',
-	testMatch: 'membership-finance.spec.ts',
+	testMatch: ['membership-finance.spec.ts', 'app-navigation.spec.ts'],
 	workers: 1,
 	timeout: 120000,
 	use: {

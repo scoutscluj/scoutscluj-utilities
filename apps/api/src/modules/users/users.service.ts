@@ -182,7 +182,14 @@ export class UsersService {
       firstName: user.firstName ?? undefined,
       lastName: user.lastName ?? undefined,
       avatarUrl: user.avatarUrl ?? undefined,
-      roles: user.roles,
+      roles: user.memberAccessDisabled
+        ? []
+        : [
+            ...new Set([
+              ...user.roles,
+              ...(user.councilAdmin ? [UserRole.Admin] : []),
+            ]),
+          ],
       orgoConnection: connection
         ? {
             orgoUserId: connection.orgoUserId ?? undefined,

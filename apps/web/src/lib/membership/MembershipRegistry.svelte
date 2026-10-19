@@ -35,14 +35,17 @@
 	const paid = (id: string) => allocatedAmount(ledger, id);
 	const needsReview = (o: Dashboard['obligations'][number]) => needsPaymentReview(ledger, o);
 	const paymentState = (o: Dashboard['obligations'][number]) =>
-		needsReview(o)
-			? 'review'
-			: paid(o.id) >= o.totalBani
-				? 'paid'
-				: paid(o.id) > 0
-					? 'partial'
-					: 'unpaid';
+		o.collectionEnabled === false
+			? 'inactive'
+			: needsReview(o)
+				? 'review'
+				: paid(o.id) >= o.totalBani
+					? 'paid'
+					: paid(o.id) > 0
+						? 'partial'
+						: 'unpaid';
 	const labels: Record<string, string> = {
+		inactive: 'În afara urmăririi',
 		review: 'De verificat',
 		paid: 'Plătit',
 		partial: 'Parțial',
@@ -189,7 +192,11 @@
 								>{money(paid(o.id))}
 								{#if !transfers}<PaymentDetailsTooltip {ledger} obligation={o} />{/if}
 							</td>
-							<td>{money(Math.max(0, o.totalBani - paid(o.id)))}</td>
+							<td
+								>{o.collectionEnabled === false
+									? '—'
+									: money(Math.max(0, o.totalBani - paid(o.id)))}</td
+							>
 							{#if transfers}<td>{money(o.nationalBani)}</td>{/if}
 							<td
 								><FinanceStatus
@@ -216,7 +223,7 @@
 									><button
 										type="button"
 										class="add-payment"
-										disabled={!ready || paid(o.id) >= o.totalBani}
+										disabled={!ready || o.collectionEnabled === false || paid(o.id) >= o.totalBani}
 										aria-label={`Adaugă plată pentru ${o.memberName}`}
 										onclick={() => {
 											receiptMember = o;

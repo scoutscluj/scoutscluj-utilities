@@ -2,6 +2,16 @@
 
 Scouts Cluj Utilities is the internal utilities platform for Centrul Local Cluj. User-facing app content is Romanian with Romanian special characters.
 
+## User Experience
+
+Users may have little technical experience. Keep everyday tasks prominent, use
+plain Romanian labels and action-specific confirmations, and reveal occasional
+administrative settings only when needed. Hide unavailable navigation entries.
+Keep the sidebar fixed to the viewport with independently scrollable navigation;
+on mobile, provide a clear close action and keyboard access without scrolling
+the background page. Filter dependent choices so users cannot accidentally
+select a subgroup from another unit.
+
 ## Language
 
 **Responsabil financiar**:
@@ -201,7 +211,7 @@ An adult who assists the organization broadly without being the trained leader r
 _Avoid_: Lider
 
 **Lider**:
-A trained adult who works with beneficiaries and is attached to one or more units.
+An adult who has taken the leader promise, works with beneficiaries, and is attached to one or more units. A member enrolled as a Senior beneficiary can help as an adult volunteer but cannot simultaneously hold leader status.
 _Avoid_: Scouter
 
 **Unitate**:
@@ -211,6 +221,18 @@ _Avoid_: Patrolă, branch
 **Șef de unitate**:
 The adult representative responsible for a unit.
 _Avoid_: Unit leader
+
+**Subgrupă de unitate**:
+A configurable stable group within a unit, with one or more responsible adults. A Temerari cohort retains its identity and responsible adults as its school grade advances. A beneficiary has at most one current subgroup. Units can also work as one common collective.
+_Avoid_: Treating the school grade as the group's identity
+
+**Retras din activitate**:
+A global member status ending all current involvement in the local center, with history preserved. Return requires explicit assignment and current-year fee eligibility; old responsibilities and administrator privileges do not automatically resume.
+_Avoid_: Leaving only one subgroup or unit
+
+**Fișa membrului**:
+The versioned reusable personal, contact, emergency and medical information maintained for operational member management and future activity-registration prefill. Internal leader notes have separate restricted visibility. Activity registration and the generated/signed parental-consent PDF remain distinct workflows.
+_Avoid_: Treating profile confirmation as a signed parental consent
 
 **Consiliu**:
 The local leadership council of Centrul Local Cluj.

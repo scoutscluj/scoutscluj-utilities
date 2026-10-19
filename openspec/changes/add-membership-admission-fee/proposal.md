@@ -1,11 +1,11 @@
 # One-time membership admission fee
 
 ## Why
-New members pay a one-time 55 RON admission fee, independently of annual membership dues. Staff need to identify admission payments made in the selected collection period.
+New members pay a one-time admission fee of 55 RON, or 105 RON for members whose verified ORGO name contains Floresti, independently of annual membership dues. Staff need to identify admission payments made in the selected collection period.
 
 ## What changes
 - Small Romanian link on the dues page opens the admission flow using the existing hosted payment providers.
-- Verify the existing ORGO/card ID; charge exactly 5500 bani and preserve terms acceptance, callback verification and receipt history.
+- Verify the existing ORGO/card ID; charge 5500 bani or 10500 bani based on the verified ORGO name and preserve terms acceptance, callback verification and receipt history.
 - Prevent repeated collection across periods for the same canonical ORGO identity and block uncertain attempts.
 - Display an admission badge only for a confirmed, unreversed payment in the selected period. Admission receipts never reduce dues or national settlement balances.
 

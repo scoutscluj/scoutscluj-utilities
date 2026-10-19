@@ -6,3 +6,5 @@
 - [x] Validate service behavior, registry calculations, types and formatting.
 - [x] Cache ORGO dateCreated and enforce the selected six-month eligibility rule.
 - [x] Verify lookup, rejected checkout and registry marker in a browser.
+
+- [x] Calculate the 105 RON Floresti tariff from the verified ORGO name; preserve historical checkout amounts and payment evidence.

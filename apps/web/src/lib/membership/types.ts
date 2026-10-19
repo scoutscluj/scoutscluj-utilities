@@ -18,6 +18,7 @@ export type Obligation = {
 	nationalBani: number;
 	paidBani?: number;
 	admissionPaid?: boolean;
+	admissionAmountBani?: number;
 	admissionEligible?: boolean;
 	orgoLastSyncedAt?: string;
 	reviewState?: string | null;

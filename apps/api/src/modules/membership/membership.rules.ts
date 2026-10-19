@@ -158,3 +158,11 @@ export function isNewOrgoMember(
     createdAt.getTime() <= now.getTime()
   );
 }
+
+export function admissionFeeBani(memberName: string): number {
+  const normalized = memberName
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase();
+  return normalized.includes('floresti') ? 10500 : 5500;
+}

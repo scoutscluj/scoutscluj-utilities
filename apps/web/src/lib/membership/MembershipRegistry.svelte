@@ -179,7 +179,7 @@
 							<td
 								><strong>{o.memberName}</strong>{#if admissionPaidInPeriod(ledger, o)}<span
 										class="admission-badge"
-										title="Taxa unică de adeziune de 55 lei a fost achitată în această perioadă"
+										title="Taxa unică de adeziune a fost achitată în această perioadă"
 										>Adeziune achitată</span
 									>{/if}<small>ID Orgo {o.orgoUserId} {o.cardId ? `· ${o.cardId}` : ''}</small></td
 							>

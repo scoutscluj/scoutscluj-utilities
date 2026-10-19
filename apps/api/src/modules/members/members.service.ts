@@ -521,6 +521,9 @@ export class MembersService {
         adultKind: adult ? 'volunteer' : null,
         lastProgressionYear: targetYear(new Date()),
       });
+      // Scalar foreign keys do not give the ORM an insert dependency graph.
+      // Persist the identity before its assignments and outbox, in this same transaction.
+      await tx.flush();
       if (unitId)
         tx.create(ScoutAssignment, {
           memberId: m.id,

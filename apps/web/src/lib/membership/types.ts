@@ -23,6 +23,25 @@ export type Obligation = {
 	reviewState?: string | null;
 	reviewReason?: string | null;
 };
+export type ObligationReview = {
+	obligationId: string;
+	periodName: string;
+	reviewState: string | null;
+	reviewReason: string | null;
+	currentPlan: string;
+	currentTotalBani: number;
+	currentNationalBani: number;
+	orgoPlan: string | null;
+	proposedTotalBani: number | null;
+	proposedNationalBani: number | null;
+	paidBani: number;
+	remainingBani: number | null;
+	resultingState: 'paid' | 'partial' | 'unpaid';
+	canResolve: boolean;
+	resumesNationalReview: boolean;
+	blockers: Array<{ target: 'orgo' | 'payments' | 'receipts' | 'transfers'; message: string }>;
+	version: string;
+};
 export type Receipt = {
 	id: string;
 	periodId: string;

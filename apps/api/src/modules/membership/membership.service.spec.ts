@@ -436,7 +436,7 @@ function fixture() {
         orgoUserId: number;
         cardId: string;
         memberName: string;
-        plan: 'normal' | 'fam2';
+        plan: 'normal' | 'fam1' | 'fam2';
         eligible: boolean;
       }>
     >,
@@ -504,6 +504,343 @@ async function setup() {
   });
   return { ...f, period, obligation };
 }
+
+describe('membership review resolution', () => {
+  const reviewed = async (paidBani = 30000) => {
+    const f = await setup();
+    await f.service.synchronizeRoster(f.staff, 'initialization');
+    if (paidBani)
+      await f.service.bankReceipt(f.staff, {
+        periodId: f.period.id,
+        obligationId: f.obligation.id,
+        amountBani: paidBani,
+        reference: 'review-payment',
+        receivedOn: '2026-10-19',
+        note: 'Verified payment',
+      });
+    f.rosterMembers.mockResolvedValue([
+      {
+        orgoUserId: 36805,
+        cardId: 'AT36805',
+        memberName: 'Test Member',
+        plan: 'fam1',
+        eligible: true,
+      },
+    ]);
+    await f.service.synchronizeRoster(f.staff, 'manual');
+    return f;
+  };
+  const confirm = async (f: Awaited<ReturnType<typeof reviewed>>) => {
+    const preview = await f.service.previewObligationReview(
+      f.staff,
+      f.obligation.id,
+    );
+    return f.service.resolveObligationReview(f.staff, f.obligation.id, {
+      version: preview.version,
+      note: 'Plan and received amount verified.',
+    });
+  };
+
+  it('accepts Fam 1, preserves payments, restores paid lookup and national transfer eligibility', async () => {
+    const f = await reviewed();
+    expect(f.obligation.reviewState).toBe('plan_changed_after_payment');
+    const payments = f.rows.filter((row) =>
+      ['receipt', 'allocation'].includes(row.table),
+    );
+    const before = JSON.stringify(payments);
+    const preview = await f.service.previewObligationReview(
+      f.staff,
+      f.obligation.id,
+    );
+    expect(preview).toMatchObject({
+      currentPlan: 'normal',
+      orgoPlan: 'fam1',
+      paidBani: 30000,
+      proposedTotalBani: 30000,
+      remainingBani: 0,
+      canResolve: true,
+      resultingState: 'paid',
+    });
+    await expect(confirm(f)).resolves.toMatchObject({
+      state: 'paid',
+      remainingBani: 0,
+    });
+    expect(f.obligation).toMatchObject({
+      plan: 'fam1',
+      totalBani: 30000,
+      nationalBani: 15000,
+      reviewState: null,
+      reviewReason: null,
+    });
+    expect(JSON.stringify(payments)).toBe(before);
+    await expect(
+      f.service.guestLookup({ identifier: 'AT36805' }),
+    ).resolves.toMatchObject({ paid: true, amountBani: 0 });
+    await expect(
+      f.service.nationalBatch(f.staff, {
+        obligationIds: [f.obligation.id],
+        transferredOn: '2026-10-19',
+        reference: 'national-review',
+        note: 'Transfer verified',
+      }),
+    ).resolves.toBeDefined();
+    expect(
+      f.rows.find(
+        (row) => row.action === 'membership.obligation.review_resolved',
+      ),
+    ).toMatchObject({
+      actorId: f.staff.id,
+      metadata: {
+        previous: { plan: 'normal' },
+        accepted: { plan: 'fam1' },
+        paidBani: 30000,
+        reason: 'Plan and received amount verified.',
+      },
+    });
+    await expect(confirm(f)).rejects.toThrow();
+  });
+
+  it('restores checkout for the remaining amount after a partial payment', async () => {
+    const f = await reviewed(10000);
+    await expect(confirm(f)).resolves.toMatchObject({
+      state: 'partial',
+      remainingBani: 20000,
+    });
+    await expect(
+      f.service.checkout({
+        periodId: f.period.id,
+        identifier: 'AT36805',
+        acceptTerms: true,
+        attemptToken: 'r'.repeat(43),
+      }),
+    ).resolves.toMatchObject({ state: 'pending' });
+    expect(f.rows.find((row) => row.table === 'checkout')).toMatchObject({
+      amountBani: 20000,
+      plan: 'fam1',
+    });
+  });
+
+  it.each(['orgo_review', 'missing_from_orgo'])(
+    'rechecks valid ORGO data for %s',
+    async (state) => {
+      const f = await reviewed(10000);
+      f.obligation.reviewState = state;
+      await expect(confirm(f)).resolves.toMatchObject({ state: 'partial' });
+    },
+  );
+
+  it.each([
+    'missing',
+    'ineligible',
+    'surplus',
+    'open',
+    'unknown',
+    'receipt',
+    'checkout',
+    'national',
+    'national-syncing',
+    'unsupported',
+  ])('keeps %s cases under review', async (kind) => {
+    const f = await reviewed();
+    if (kind === 'missing') f.rosterMembers.mockResolvedValue([]);
+    if (kind === 'ineligible')
+      f.rosterMembers.mockResolvedValue([
+        {
+          orgoUserId: 36805,
+          cardId: 'AT36805',
+          memberName: 'Test Member',
+          plan: 'fam1',
+          eligible: false,
+        },
+      ]);
+    if (kind === 'surplus')
+      f.rosterMembers.mockResolvedValue([
+        {
+          orgoUserId: 36805,
+          cardId: 'AT36805',
+          memberName: 'Test Member',
+          plan: 'fam2',
+          eligible: true,
+        },
+      ]);
+    if (['open', 'unknown', 'checkout'].includes(kind))
+      f.rows.push({
+        id: randomUUID(),
+        table: 'checkout',
+        periodId: f.period.id,
+        obligationId: f.obligation.id,
+        identifier: 'AT36805',
+        purpose: 'membership',
+        state:
+          kind === 'checkout'
+            ? 'succeeded'
+            : kind === 'unknown'
+              ? 'unknown'
+              : 'pending',
+        reviewRequired: kind === 'checkout',
+      });
+    if (kind === 'receipt')
+      f.rows.find((row) => row.table === 'receipt')!.reviewRequired = true;
+    if (kind.startsWith('national'))
+      f.rows.push({
+        id: randomUUID(),
+        table: 'item',
+        obligationId: f.obligation.id,
+        amountBani: kind === 'national' ? 7500 : 15000,
+        orgoState: kind === 'national-syncing' ? 'syncing' : 'synced',
+      });
+    if (kind === 'unsupported') f.obligation.reviewState = 'unsupported';
+    const before = JSON.stringify(f.obligation);
+    const preview = await f.service.previewObligationReview(
+      f.staff,
+      f.obligation.id,
+    );
+    expect(preview.canResolve).toBe(false);
+    expect(preview.blockers.length).toBeGreaterThan(0);
+    await expect(confirm(f)).rejects.toThrow();
+    expect(JSON.stringify(f.obligation)).toBe(before);
+    expect(
+      f.rows.some(
+        (row) => row.action === 'membership.obligation.review_resolved',
+      ),
+    ).toBe(false);
+  });
+
+  it('resumes a compatible national correction by reading ORGO without another transfer', async () => {
+    const f = await reviewed();
+    const item = {
+      id: randomUUID(),
+      table: 'item',
+      obligationId: f.obligation.id,
+      amountBani: 15000,
+      orgoState: 'correction_required',
+      orgoError: 'Resolve financial review',
+    };
+    f.rows.push(item);
+    const preview = await f.service.previewObligationReview(
+      f.staff,
+      f.obligation.id,
+    );
+    expect(preview).toMatchObject({
+      canResolve: true,
+      resumesNationalReview: true,
+    });
+    await confirm(f);
+    expect(item).toMatchObject({
+      amountBani: 15000,
+      orgoState: 'pending_approval',
+      orgoError: null,
+      orgoActorId: f.staff.id,
+    });
+    expect(f.rows.filter((row) => row.table === 'item')).toHaveLength(1);
+  });
+
+  it('keeps an existing national transfer blocked if the new tariff is not fully paid', async () => {
+    const f = await reviewed(10000);
+    f.rows.push({
+      id: randomUUID(),
+      table: 'item',
+      obligationId: f.obligation.id,
+      amountBani: 15000,
+      orgoState: 'synced',
+    });
+    const preview = await f.service.previewObligationReview(
+      f.staff,
+      f.obligation.id,
+    );
+    expect(preview.canResolve).toBe(false);
+    await expect(confirm(f)).rejects.toThrow();
+  });
+
+  it('preserves a compatible completed national transfer', async () => {
+    const f = await reviewed();
+    const item = {
+      id: randomUUID(),
+      table: 'item',
+      obligationId: f.obligation.id,
+      amountBani: 15000,
+      orgoState: 'synced',
+    };
+    f.rows.push(item);
+    await expect(confirm(f)).resolves.toMatchObject({ state: 'paid' });
+    expect(item).toMatchObject({ amountBani: 15000, orgoState: 'synced' });
+  });
+
+  it('clears the review flag on a closed unpaid attempt while retaining its history', async () => {
+    const f = await reviewed(10000);
+    const checkout = {
+      id: randomUUID(),
+      table: 'checkout',
+      obligationId: f.obligation.id,
+      periodId: f.period.id,
+      identifier: 'AT36805',
+      state: 'failed',
+      reviewRequired: true,
+    };
+    f.rows.push(checkout);
+    await confirm(f);
+    expect(checkout).toMatchObject({ state: 'failed', reviewRequired: false });
+  });
+
+  it.each(['orgo', 'price', 'allocation', 'review', 'checkout'])(
+    'rejects a stale preview after %s changes',
+    async (kind) => {
+      const f = await reviewed(10000);
+      const preview = await f.service.previewObligationReview(
+        f.staff,
+        f.obligation.id,
+      );
+      if (kind === 'orgo')
+        f.rosterMembers.mockResolvedValue([
+          {
+            orgoUserId: 36805,
+            cardId: 'AT36805',
+            memberName: 'Test Member',
+            plan: 'fam2',
+            eligible: true,
+          },
+        ]);
+      if (kind === 'price') f.period.prices.fam1.totalBani = 31000;
+      if (kind === 'allocation')
+        f.rows.find((row) => row.table === 'allocation')!.amountBani = 9000;
+      if (kind === 'review') f.obligation.reviewReason = 'New review reason';
+      if (kind === 'checkout')
+        f.rows.push({
+          id: randomUUID(),
+          table: 'checkout',
+          obligationId: f.obligation.id,
+          periodId: f.period.id,
+          state: 'pending',
+        });
+      await expect(
+        f.service.resolveObligationReview(f.staff, f.obligation.id, {
+          version: preview.version,
+          note: 'Verified',
+        }),
+      ).rejects.toThrow('Datele s-au schimbat');
+      expect(f.obligation.plan).toBe('normal');
+    },
+  );
+
+  it('requires a financial role and a nonempty explanation before contacting ORGO', async () => {
+    const f = await reviewed();
+    f.rosterMembers.mockClear();
+    const member = { ...f.staff, roles: [] };
+    await expect(
+      f.service.previewObligationReview(member, f.obligation.id),
+    ).rejects.toThrow();
+    await expect(
+      f.service.resolveObligationReview(member, f.obligation.id, {}),
+    ).rejects.toThrow();
+    await expect(
+      f.service.resolveObligationReview(f.staff, f.obligation.id, {
+        version: 'x',
+        note: ' ',
+      }),
+    ).rejects.toThrow();
+    expect(f.rosterMembers).not.toHaveBeenCalled();
+  });
+});
 
 describe('membership service rules', () => {
   it.each(['bank', 'cash'])(

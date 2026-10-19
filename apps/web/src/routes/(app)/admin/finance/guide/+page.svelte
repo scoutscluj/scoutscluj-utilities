@@ -250,6 +250,15 @@
 	<section id="corectii">
 		<h2>Verificări, corecții și rambursări</h2>
 		<p>
+			În Membri și cotizații, apasă <strong>Rezolvă</strong> lângă „De verificat”. Pentru un plan ORGO
+			schimbat după încasare, verifică planul actual, totalul recalculat, partea națională, suma alocată
+			și restul de plată. Scrie motivul și apasă „Confirmă planul și recalculează”. Încasările se păstrează,
+			iar starea devine automat Plătit, Parțial sau Neplătit. Membrul poate continua plata diferenței.
+			Pentru date ORGO lipsă sau neclare, corectează-le mai întâi în ORGO și reîncarcă verificarea. Surplusurile,
+			plățile neclarificate și transferurile naționale incompatibile rămân blocate; dialogul indică secțiunea
+			în care trebuie rezolvate.
+		</p>
+		<p>
 			În Admin → Financiar → <a href={resolve('/admin/finance/payments')}>Plăți în curs</a> găsești încercările
 			deschise pentru toți membrii. Caută după nume, ID sau referință și verifică beneficiarul, perioada,
 			suma și mediul înainte de anulare. Deschide „Anulează această încercare”, scrie motivul și confirmă.

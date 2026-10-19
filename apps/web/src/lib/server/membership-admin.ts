@@ -1,7 +1,7 @@
 import { error, fail } from '@sveltejs/kit';
 import { apiFetch } from '$lib/server/api';
 import { SESSION_COOKIE_NAME } from '$lib/server/cookies';
-import type { Dashboard, RosterPreview } from '$lib/membership/types';
+import type { Dashboard, RosterPreview, ObligationReview } from '$lib/membership/types';
 import type { Actions, RequestEvent } from '@sveltejs/kit';
 
 export const loadMembershipAdmin = async ({ cookies, locals, setHeaders }: RequestEvent) => {
@@ -58,7 +58,9 @@ export const membershipAdminActions: Actions = {
 		} else if (action === 'activate')
 			path = `periods/${encodeURIComponent(String(form.get('id')))}/activate`;
 		else if (action === 'obligation') path = 'obligations';
-		else if (action === 'bank') {
+		else if (action === 'reviewPreview' || action === 'resolveReview') {
+			path = `obligations/${encodeURIComponent(String(form.get('id')))}/${action === 'reviewPreview' ? 'review-preview' : 'resolve-review'}`;
+		} else if (action === 'bank') {
 			path = 'bank-receipts';
 			body.amountBani = amount(form.get('amount'));
 		} else if (action === 'allocate') {
@@ -104,6 +106,13 @@ export const membershipAdminActions: Actions = {
 				success: false,
 				message: result.message ?? 'Operațiunea nu a putut fi salvată.'
 			});
+		if (action === 'reviewPreview')
+			return { success: true, reviewPreview: result as unknown as ObligationReview };
+		if (action === 'resolveReview')
+			return {
+				success: true,
+				message: 'Verificarea a fost rezolvată. Starea cotizației a fost recalculată.'
+			};
 		if (action === 'rosterInitialize' || action === 'rosterSync')
 			return {
 				success: true,

@@ -11,6 +11,79 @@ test.beforeEach(async ({ page, request }) => {
 	]);
 });
 
+test('review dialog accepts Fam 1 and updates the member without another receipt', async ({
+	page,
+	request
+}) => {
+	await request.post('http://127.0.0.1:3015/test/review/plan');
+	await page.goto('/admin/finance/membership');
+	await page.getByRole('button', { name: 'Rezolvă verificarea pentru Ana Popescu' }).click();
+	const dialog = page.getByRole('dialog');
+	await expect(dialog).toContainText('Fam 1');
+	await expect(dialog).toContainText('După confirmare: Plătit');
+	const confirm = dialog.getByRole('button', { name: 'Confirmă planul și recalculează' });
+	await expect(confirm).toBeDisabled();
+	await dialog.getByLabel('Motivul confirmării').fill('Fam 1 și încasarea verificate.');
+	await confirm.click();
+	await expect(dialog).not.toBeVisible();
+	const row = page.getByRole('row').filter({ hasText: 'Ana Popescu' });
+	await expect(row).toContainText('Fam 1');
+	await expect(row).toContainText('Plătit');
+	await expect(row).not.toContainText('De verificat');
+	const submissions = await (await request.get('http://127.0.0.1:3015/test/submissions')).json();
+	expect(submissions.at(-1)).toMatchObject({
+		version: 'synthetic-review-version',
+		note: 'Fam 1 și încasarea verificate.'
+	});
+});
+
+test('stale review requires a refreshed preview and retains the explanation', async ({
+	page,
+	request
+}) => {
+	await request.post('http://127.0.0.1:3015/test/review/stale');
+	await page.goto('/admin/finance/membership');
+	await page.getByRole('button', { name: 'Rezolvă verificarea pentru Ana Popescu' }).click();
+	const dialog = page.getByRole('dialog');
+	await dialog.getByLabel('Motivul confirmării').fill('Verificat');
+	await dialog.getByRole('button', { name: 'Confirmă planul și recalculează' }).click();
+	await expect(dialog.getByRole('alert')).toContainText('Datele s-au schimbat');
+	await expect(
+		dialog.getByRole('button', { name: 'Confirmă planul și recalculează' })
+	).not.toBeVisible();
+	await dialog.getByRole('button', { name: 'Reîncarcă verificarea' }).click();
+	await expect(dialog.getByLabel('Motivul confirmării')).toHaveValue('Verificat');
+	await dialog.getByRole('button', { name: 'Confirmă planul și recalculează' }).click();
+	await expect(dialog).not.toBeVisible();
+});
+
+test('review dialog shows reason-specific blockers on mobile', async ({
+	page,
+	request
+}, testInfo) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	for (const reason of ['surplus', 'missing']) {
+		await request.post('http://127.0.0.1:3015/test/reset');
+		await request.post(`http://127.0.0.1:3015/test/review/${reason}`);
+		await page.goto('/admin/finance/membership');
+		await page.getByRole('button', { name: 'Rezolvă verificarea pentru Ana Popescu' }).click();
+		const dialog = page.getByRole('dialog');
+		await expect(
+			dialog.getByRole('link', {
+				name: reason === 'surplus' ? 'Încasări și alocări' : 'Setări și sincronizare ORGO'
+			})
+		).toBeVisible();
+		await expect(
+			dialog.getByRole('button', { name: 'Confirmă planul și recalculează' })
+		).not.toBeVisible();
+		expect(
+			await dialog.evaluate((element) => element.scrollWidth - element.clientWidth)
+		).toBeLessThanOrEqual(1);
+		await page.screenshot({ path: testInfo.outputPath(`review-${reason}-mobile.png`) });
+		await page.keyboard.press('Escape');
+	}
+});
+
 test('period progress survives filtering and payment tooltips open with keyboard or click', async ({
 	page
 }) => {

@@ -191,7 +191,7 @@ test('admission link keeps the 55 lei flow after lookup and checkout rejection',
 	await page.goto('/cotizatie');
 	await page.getByRole('link', { name: 'Plătește adeziunea aici' }).click();
 	await expect(page.getByRole('heading', { level: 1 })).toContainText('adeziune');
-	await expect(page.getByText(/ultimele 90 de zile/)).toBeVisible();
+	await expect(page.getByText(/ultimele 6 luni/)).toBeVisible();
 	await page.getByLabel('ID ORGO sau ID Card').fill('at36801');
 	await page.getByRole('button', { name: 'Verifică ID-ul' }).click();
 	await expect(page.getByRole('heading', { level: 1 })).toContainText('adeziune');

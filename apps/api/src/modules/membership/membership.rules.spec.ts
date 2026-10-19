@@ -83,15 +83,27 @@ describe('card payment amount', () => {
 
 describe('new ORGO member eligibility', () => {
   const now = new Date('2026-10-19T12:00:00Z');
-  it('includes exactly 90 days and excludes older, future, invalid or missing dates', () => {
-    expect(isNewOrgoMember(new Date(now.getTime() - 90 * 86400000), now)).toBe(
-      true,
+  it('includes exactly six calendar months and excludes older dates', () => {
+    expect(isNewOrgoMember(new Date('2026-04-19T12:00:00Z'), now)).toBe(true);
+    expect(isNewOrgoMember(new Date('2026-04-19T11:59:59.999Z'), now)).toBe(
+      false,
     );
+    expect(isNewOrgoMember(new Date('2026-06-19T12:00:00Z'), now)).toBe(true);
+  });
+  it.each([
+    ['2026-08-31T12:00:00Z', '2026-02-28T12:00:00Z'],
+    ['2024-08-31T12:00:00Z', '2024-02-29T12:00:00Z'],
+    ['2026-03-31T12:00:00Z', '2025-09-30T12:00:00Z'],
+  ])('clamps month ends for %s', (current, boundary) => {
+    expect(isNewOrgoMember(new Date(boundary), new Date(current))).toBe(true);
     expect(
-      isNewOrgoMember(new Date(now.getTime() - 90 * 86400000 - 1), now),
+      isNewOrgoMember(new Date(Date.parse(boundary) - 1), new Date(current)),
     ).toBe(false);
+  });
+  it('excludes future, invalid and missing dates', () => {
     expect(isNewOrgoMember(new Date(now.getTime() + 1), now)).toBe(false);
     expect(isNewOrgoMember(new Date('invalid'), now)).toBe(false);
     expect(isNewOrgoMember(null, now)).toBe(false);
+    expect(isNewOrgoMember(undefined, now)).toBe(false);
   });
 });

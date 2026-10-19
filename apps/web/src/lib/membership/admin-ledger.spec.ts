@@ -103,3 +103,50 @@ describe('membership collection progress', () => {
 		expect(membershipProgress(reviewed, 'current').paidMembers).toBe(0);
 	});
 });
+
+describe('admission marker', () => {
+	it('marks only confirmed admission in the selected member-period without affecting dues', async () => {
+		const { admissionPaidInPeriod, unallocatedAmount } = await import('./admin-ledger');
+		const admission = structuredClone(ledger);
+		const member = admission.obligations[0];
+		admission.checkouts.push({
+			id: 'admission',
+			obligationId: member.id,
+			periodId: member.periodId,
+			identifier: '1',
+			plan: 'normal',
+			purpose: 'admission',
+			state: 'pending',
+			amountBani: 5500,
+			provider: 'netopia',
+			reviewRequired: false
+		});
+		admission.receipts.push({
+			id: 'admission-receipt',
+			checkoutId: 'admission',
+			periodId: member.periodId,
+			amountBani: 5500,
+			refundedBani: 0,
+			method: 'card',
+			receivedOn: '2026-10-19',
+			note: 'Adeziune',
+			reference: 'admission',
+			reviewRequired: false
+		});
+		expect(admissionPaidInPeriod(admission, member)).toBe(false);
+		admission.checkouts[0].state = 'unknown';
+		expect(membershipProgress(admission, 'current')).toEqual(membershipProgress(ledger, 'current'));
+		admission.checkouts[0].state = 'succeeded';
+		expect(admissionPaidInPeriod(admission, member)).toBe(true);
+		expect(admissionPaidInPeriod(admission, { ...member, id: 'later', periodId: 'later' })).toBe(
+			false
+		);
+		expect(membershipProgress(admission, 'current')).toEqual(membershipProgress(ledger, 'current'));
+		expect(unallocatedAmount(admission, admission.receipts[0])).toBe(0);
+		admission.receipts[0].refundedBani = 1;
+		expect(admissionPaidInPeriod(admission, member)).toBe(false);
+		admission.receipts[0].refundedBani = 0;
+		admission.receipts[0].reviewRequired = true;
+		expect(admissionPaidInPeriod(admission, member)).toBe(false);
+	});
+});

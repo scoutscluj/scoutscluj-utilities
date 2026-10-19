@@ -4,6 +4,7 @@ import {
   date,
   identifier,
   membershipPeriodFor,
+  isNewOrgoMember,
   plan,
 } from './membership.rules';
 
@@ -77,5 +78,20 @@ describe('card payment amount', () => {
     [100000000, 9999, 0],
   ])('rejects invalid or excessive amounts', (due, percent, fixed) => {
     expect(() => cardPaymentAmount(due, percent, fixed)).toThrow();
+  });
+});
+
+describe('new ORGO member eligibility', () => {
+  const now = new Date('2026-10-19T12:00:00Z');
+  it('includes exactly 90 days and excludes older, future, invalid or missing dates', () => {
+    expect(isNewOrgoMember(new Date(now.getTime() - 90 * 86400000), now)).toBe(
+      true,
+    );
+    expect(
+      isNewOrgoMember(new Date(now.getTime() - 90 * 86400000 - 1), now),
+    ).toBe(false);
+    expect(isNewOrgoMember(new Date(now.getTime() + 1), now)).toBe(false);
+    expect(isNewOrgoMember(new Date('invalid'), now)).toBe(false);
+    expect(isNewOrgoMember(null, now)).toBe(false);
   });
 });

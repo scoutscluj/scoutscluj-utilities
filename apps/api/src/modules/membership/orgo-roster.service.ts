@@ -6,6 +6,7 @@ import type { PlanKey } from './membership.rules';
 export type OrgoRosterMember = {
   orgoUserId: number;
   cardId?: string;
+  orgoCreatedAt?: Date;
   memberName: string;
   plan?: PlanKey;
   eligible: boolean;
@@ -79,6 +80,13 @@ export function parseOrgoRoster(
     const memberName =
       string(item.fullName) ??
       [string(item.firstName), string(item.lastName)].filter(Boolean).join(' ');
+    const createdAt = string(item.dateCreated);
+    const orgoCreatedAt =
+      createdAt &&
+      /^\d{4}-\d{2}-\d{2}T/.test(createdAt) &&
+      Number.isFinite(Date.parse(createdAt))
+        ? new Date(createdAt)
+        : undefined;
     const status = normalized(label(item.status) ?? '');
     const explicitlyInactive =
       item.active === false ||
@@ -97,6 +105,7 @@ export function parseOrgoRoster(
     return [
       {
         orgoUserId: id,
+        orgoCreatedAt,
         cardId: string(item.cardId)?.toUpperCase(),
         memberName: memberName || `ORGO ${id}`,
         plan,

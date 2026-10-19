@@ -14,16 +14,19 @@ export const allocatedAmount = (ledger: Dashboard, obligationId: string) =>
 		.reduce((sum, a) => sum + a.amountBani, 0);
 
 export const unallocatedAmount = (ledger: Dashboard, receipt: Receipt) =>
-	receipt.amountBani -
-	receipt.refundedBani -
-	ledger.allocations
-		.filter((a) => a.receiptId === receipt.id && !a.reversed)
-		.reduce((sum, a) => sum + a.amountBani, 0);
+	ledger.checkouts.some((c) => c.id === receipt.checkoutId && c.purpose === 'admission')
+		? 0
+		: receipt.amountBani -
+			receipt.refundedBani -
+			ledger.allocations
+				.filter((a) => a.receiptId === receipt.id && !a.reversed)
+				.reduce((sum, a) => sum + a.amountBani, 0);
 
 export const needsPaymentReview = (ledger: Dashboard, obligation: Obligation) =>
 	Boolean(obligation.reviewState) ||
 	ledger.checkouts.some(
 		(checkout) =>
+			checkout.purpose !== 'admission' &&
 			checkout.periodId === obligation.periodId &&
 			(checkout.identifier === String(obligation.orgoUserId) ||
 				checkout.identifier === obligation.cardId) &&
@@ -54,4 +57,22 @@ export function membershipProgress(ledger: Dashboard, periodId?: string) {
 		remainingBani: Math.max(0, totalBani - collectedBani),
 		percent: totalBani > 0 ? Math.round((collectedBani / totalBani) * 100) : 0
 	};
+}
+
+// The badge belongs to the period of the admission payment, not every later year.
+export function admissionPaidInPeriod(ledger: Dashboard, obligation: Obligation) {
+	return ledger.checkouts.some(
+		(checkout) =>
+			checkout.purpose === 'admission' &&
+			checkout.obligationId === obligation.id &&
+			checkout.periodId === obligation.periodId &&
+			checkout.state === 'succeeded' &&
+			!checkout.reviewRequired &&
+			ledger.receipts.some(
+				(receipt) =>
+					receipt.checkoutId === checkout.id &&
+					!receipt.reviewRequired &&
+					receipt.amountBani - receipt.refundedBani >= 5500
+			)
+	);
 }

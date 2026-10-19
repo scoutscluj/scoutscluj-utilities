@@ -139,3 +139,12 @@ export function uuid(value: unknown): string {
   }
   return result;
 }
+
+export function isNewOrgoMember(
+  createdAt: Date | null | undefined,
+  now = new Date(),
+): boolean {
+  if (!createdAt) return false;
+  const age = now.getTime() - createdAt.getTime();
+  return Number.isFinite(age) && age >= 0 && age <= 90 * 24 * 60 * 60 * 1000;
+}

@@ -1687,3 +1687,183 @@ describe('membership service rules', () => {
     expect(checkout.state).toBe('succeeded');
   });
 });
+
+describe('one-time membership admission', () => {
+  async function newMember() {
+    const f = await setup();
+    f.obligation.orgoCreatedAt = new Date(Date.now() - 86400000);
+    return f;
+  }
+  async function admission() {
+    const f = await newMember();
+    const input = {
+      periodId: f.period.id,
+      identifier: 'AT36805',
+      purpose: 'admission',
+      amountBani: 5500,
+      acceptTerms: true,
+      attemptToken: 'a'.repeat(43),
+    };
+    await f.service.checkout(input);
+    const checkout = f.rows.find((row) => row.table === 'checkout')!;
+    const confirm = () =>
+      f.service.notifyNetopia(
+        Buffer.from(
+          JSON.stringify({
+            order: { orderID: checkout.id },
+            payment: {
+              ntpID: 'ntp-test',
+              amount: 55,
+              currency: 'RON',
+              status: 3,
+            },
+          }),
+        ),
+        'verified-fixture',
+      );
+    return { ...f, input, checkout, confirm };
+  }
+
+  it('quotes exactly 55 lei separately from dues and rejects a changed price', async () => {
+    const f = await newMember();
+    expect(
+      await f.service.guestLookup({
+        identifier: 'AT36805',
+        purpose: 'admission',
+      }),
+    ).toMatchObject({ amountBani: 5500, paid: false });
+    await expect(
+      f.service.checkout({
+        periodId: f.period.id,
+        identifier: 'AT36805',
+        purpose: 'admission',
+        amountBani: 1,
+        acceptTerms: true,
+        attemptToken: 'b'.repeat(43),
+      }),
+    ).rejects.toThrow('Suma de plată s-a schimbat');
+    expect(f.netopia.start).not.toHaveBeenCalled();
+  });
+
+  it('records a single admission receipt without paying any annual dues', async () => {
+    const f = await admission();
+    await f.confirm();
+    await f.confirm();
+    expect(f.rows.filter((row) => row.table === 'receipt')).toHaveLength(1);
+    expect(f.rows.filter((row) => row.table === 'allocation')).toHaveLength(0);
+    expect(f.netopia.start).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amountBani: 5500,
+        description: 'Taxă de adeziune Centrul Local Cluj',
+      }),
+      expect.anything(),
+    );
+    expect(
+      await f.service.guestLookup({
+        identifier: '36805',
+        purpose: 'admission',
+      }),
+    ).toMatchObject({ amountBani: 0, paid: true });
+    expect(await f.service.guestLookup({ identifier: '36805' })).toMatchObject({
+      amountBani: 30000,
+      paid: false,
+    });
+    const receipt = f.rows.find((row) => row.table === 'receipt')!;
+    await expect(
+      f.service.allocate(f.staff, {
+        receiptId: receipt.id,
+        obligationId: f.obligation.id,
+        amountBani: 5500,
+        note: 'Invalid allocation',
+      }),
+    ).rejects.toThrow('Adeziunea nu poate fi alocată');
+  });
+
+  it('blocks another admission attempt while pending and reuses the same browser attempt', async () => {
+    const f = await admission();
+    await expect(f.service.checkout(f.input)).resolves.toMatchObject({
+      state: 'pending',
+    });
+    await expect(
+      f.service.checkout({ ...f.input, attemptToken: 'b'.repeat(43) }),
+    ).rejects.toThrow('Există o adeziune în curs');
+    expect(f.netopia.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('prevents a second admission payment across period and card ID changes', async () => {
+    const f = await admission();
+    await f.confirm();
+    // Keep the old paid evidence, but move the current period to a new ID.
+    const newPeriodId = randomUUID();
+    const oldPeriodId = f.period.id;
+    f.period.id = newPeriodId;
+    f.rows.push({
+      ...f.obligation,
+      id: randomUUID(),
+      periodId: newPeriodId,
+      cardId: 'NEWCARD',
+      table: 'obligation',
+    });
+    expect(f.checkout.periodId).toBe(oldPeriodId);
+    await expect(
+      f.service.checkout({
+        ...f.input,
+        periodId: newPeriodId,
+        identifier: '36805',
+        attemptToken: 'c'.repeat(43),
+      }),
+    ).rejects.toThrow('Adeziunea a fost deja achitată');
+  });
+
+  it('does not report refunded or disputed admission as paid', async () => {
+    const f = await admission();
+    await f.confirm();
+    const receipt = f.rows.find((row) => row.table === 'receipt')!;
+    receipt.refundedBani = 5500;
+    expect(
+      await f.service.guestLookup({
+        identifier: '36805',
+        purpose: 'admission',
+      }),
+    ).toMatchObject({ paid: false });
+    receipt.refundedBani = 0;
+    receipt.reviewRequired = true;
+    f.checkout.reviewRequired = true;
+    expect(
+      await f.service.guestLookup({
+        identifier: '36805',
+        purpose: 'admission',
+      }),
+    ).toMatchObject({ paid: false });
+    await expect(
+      f.service.checkout({ ...f.input, attemptToken: 'd'.repeat(43) }),
+    ).rejects.toThrow('necesită verificare');
+  });
+});
+
+describe('admission age guard', () => {
+  it.each([null, new Date(Date.now() - 91 * 86400000)])(
+    'blocks missing/old ORGO dates without affecting dues',
+    async (createdAt) => {
+      const f = await setup();
+      f.obligation.orgoCreatedAt = createdAt;
+      await expect(
+        f.service.guestLookup({ identifier: '36805', purpose: 'admission' }),
+      ).rejects.toThrow();
+      await expect(
+        f.service.checkout({
+          periodId: f.period.id,
+          identifier: '36805',
+          purpose: 'admission',
+          acceptTerms: true,
+          amountBani: 5500,
+          attemptToken: 'z'.repeat(43),
+        }),
+      ).rejects.toThrow();
+      expect(f.netopia.start).not.toHaveBeenCalled();
+      expect(
+        await f.service.guestLookup({ identifier: '36805' }),
+      ).toMatchObject({ amountBani: 30000 });
+    },
+  );
+});

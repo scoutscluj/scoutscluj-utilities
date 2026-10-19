@@ -6,7 +6,7 @@ import type { GuestMemberLookup, Obligation, PaymentStatus, Period } from '$lib/
 import type { Actions, PageServerLoad } from './$types';
 
 const ATTEMPT_COOKIE = 'membership_attempt';
-export const load: PageServerLoad = async ({ cookies, locals, setHeaders }) => {
+export const load: PageServerLoad = async ({ cookies, locals, setHeaders, url }) => {
 	// Keep same-origin POST origins intact while hiding the beneficiary URL from providers.
 	setHeaders({ 'cache-control': 'private, no-store', 'referrer-policy': 'same-origin' });
 	let token = cookies.get(ATTEMPT_COOKIE);
@@ -44,7 +44,13 @@ export const load: PageServerLoad = async ({ cookies, locals, setHeaders }) => {
 		});
 		if (response.ok) obligations = (await response.json()) as Obligation[];
 	}
-	return { ...catalog, obligations, status, user: locals.user };
+	return {
+		...catalog,
+		obligations,
+		status,
+		user: locals.user,
+		admission: url.searchParams.get('tip') === 'adeziune'
+	};
 };
 
 export const actions: Actions = {
@@ -56,7 +62,7 @@ export const actions: Actions = {
 		const response = await apiFetch('/api/membership/guest-lookup', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ identifier })
+			body: JSON.stringify({ identifier, purpose: fields.get('purpose') ?? 'membership' })
 		});
 		const result = (await response.json()) as GuestMemberLookup & { message?: string };
 		if (!response.ok) {
@@ -88,6 +94,7 @@ export const actions: Actions = {
 						: {})
 				},
 				body: JSON.stringify({
+					purpose: fields.get('purpose') ?? 'membership',
 					periodId: fields.get('periodId'),
 					obligationId: fields.get('obligationId'),
 					amountBani: Number(fields.get('amountBani')),
@@ -108,7 +115,10 @@ export const actions: Actions = {
 				const lookupResponse = await apiFetch('/api/membership/guest-lookup', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ identifier: guestIdentifier })
+					body: JSON.stringify({
+						identifier: guestIdentifier,
+						purpose: fields.get('purpose') ?? 'membership'
+					})
 				});
 				if (lookupResponse.ok) lookup = (await lookupResponse.json()) as GuestMemberLookup;
 			}

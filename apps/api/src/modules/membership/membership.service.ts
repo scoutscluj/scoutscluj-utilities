@@ -35,6 +35,7 @@ import {
   date,
   identifier,
   membershipPeriodFor,
+  isNewOrgoMember,
   plan,
   record,
   text,
@@ -56,6 +57,8 @@ import {
   OrgoRosterService,
   type OrgoRosterMember,
 } from './orgo-roster.service';
+
+const ADMISSION_FEE_BANI = 5500;
 
 const MEMBERSHIP_TERMS_VERSION = '2026-10-01';
 
@@ -415,6 +418,7 @@ export class MembershipService {
       for (const member of members) {
         seen.add(member.orgoUserId);
         const obligation = byId.get(member.orgoUserId);
+        if (obligation) obligation.orgoCreatedAt = member.orgoCreatedAt ?? null;
         if (!member.eligible || !member.plan) {
           if (obligation) {
             obligation.reviewState = 'orgo_review';
@@ -432,6 +436,7 @@ export class MembershipService {
             em.create(Obligation, {
               periodId: period.id,
               orgoUserId: member.orgoUserId,
+              orgoCreatedAt: member.orgoCreatedAt,
               cardId: member.cardId,
               memberName: member.memberName,
               plan: member.plan,
@@ -583,8 +588,55 @@ export class MembershipService {
       : em.findOne(Obligation, { periodId, cardId: entered.value });
   }
 
+  // Resolve lifetime admission evidence by canonical ORGO identity, across periods.
+  private async admissionState(em: EntityManager, orgoUserId: number) {
+    const obligations = await em.find(Obligation, { orgoUserId });
+    const attempts = await em.find(Checkout, {
+      obligationId: { $in: obligations.map((item) => item.id) },
+      purpose: 'admission',
+    });
+    let paid = false;
+    for (const attempt of attempts) {
+      const receipt = await em.findOne(Receipt, { checkoutId: attempt.id });
+      if (
+        attempt.state === 'succeeded' &&
+        !attempt.reviewRequired &&
+        receipt &&
+        !receipt.reviewRequired &&
+        receipt.amountBani - receipt.refundedBani >= ADMISSION_FEE_BANI
+      )
+        paid = true;
+    }
+    return {
+      paid,
+      blocked: attempts.some(
+        (attempt) =>
+          ['starting', 'pending', 'unknown'].includes(attempt.state) ||
+          attempt.reviewRequired,
+      ),
+    };
+  }
+
+  private requireNewMember(obligation: Obligation) {
+    if (!obligation.orgoCreatedAt)
+      throw new ConflictException(
+        'Data creării contului ORGO lipsește. Contactează responsabilul financiar pentru sincronizare și verificarea adeziunii.',
+      );
+    if (!isNewOrgoMember(obligation.orgoCreatedAt))
+      throw new ConflictException(
+        'Adeziunea online este disponibilă pentru conturile ORGO create în ultimele 90 de zile.',
+      );
+  }
+
+  private paymentPurpose(value: unknown) {
+    if (value === undefined || value === 'membership') return 'membership';
+    if (value === 'admission') return 'admission';
+    throw new BadRequestException('Tip de plată invalid.');
+  }
+
   async guestLookup(input: unknown) {
     const body = record(input);
+    const purpose = this.paymentPurpose(body.purpose);
     const entered = identifier(body.identifier);
     const period = await this.ensureCurrentPeriod();
     const obligation = await this.findObligationByIdentifier(
@@ -601,14 +653,24 @@ export class MembershipService {
         'Cotizația acestui membru necesită verificare înainte de plată.',
       );
     const paidBani = await this.balance(this.em, obligation.id);
-    const contributionBani = Math.max(0, obligation.totalBani - paidBani);
+    const admission =
+      purpose === 'admission'
+        ? await this.admissionState(this.em, obligation.orgoUserId)
+        : null;
+    const contributionBani = admission
+      ? admission.paid
+        ? 0
+        : ADMISSION_FEE_BANI
+      : Math.max(0, obligation.totalBani - paidBani);
+    if (purpose === 'admission' && !admission?.paid)
+      this.requireNewMember(obligation);
     const displayName = beneficiaryDisplayName(obligation.memberName);
     return {
       identifier: entered.value,
       displayName,
       affiliation: 'Centrul Local Cluj',
       amountBani: contributionBani,
-      paid: paidBani >= obligation.totalBani,
+      paid: admission ? admission.paid : paidBani >= obligation.totalBani,
     };
   }
 
@@ -622,6 +684,8 @@ export class MembershipService {
       totalBani: number;
       nationalBani: number;
       paidBani: number;
+      admissionPaid: boolean;
+      admissionEligible: boolean;
       reviewState: string | null;
       reviewReason: string | null;
     }>
@@ -642,6 +706,9 @@ export class MembershipService {
           totalBani: item.totalBani,
           nationalBani: item.nationalBani,
           paidBani,
+          admissionEligible: isNewOrgoMember(item.orgoCreatedAt),
+          admissionPaid: (await this.admissionState(this.em, item.orgoUserId))
+            .paid,
           reviewState: item.reviewState ?? null,
           reviewReason: item.reviewReason ?? null,
         };
@@ -662,6 +729,7 @@ export class MembershipService {
         Checkout,
         | 'id'
         | 'identifier'
+        | 'purpose'
         | 'identifierKind'
         | 'periodId'
         | 'plan'
@@ -711,6 +779,7 @@ export class MembershipService {
             'providerId',
             'environment',
             'identifier',
+            'purpose',
             'identifierKind',
             'periodId',
             'plan',
@@ -757,6 +826,7 @@ export class MembershipService {
         environment: c.environment,
         identifier: c.identifier,
         identifierKind: c.identifierKind,
+        purpose: c.purpose,
         periodId: c.periodId,
         plan: c.plan,
         amountBani: c.amountBani,
@@ -1070,6 +1140,14 @@ export class MembershipService {
       const obligation = await em.findOneOrFail(Obligation, {
         id: obligationId,
       });
+      if (
+        receipt.checkoutId &&
+        (await em.findOne(Checkout, { id: receipt.checkoutId }))?.purpose ===
+          'admission'
+      )
+        throw new BadRequestException(
+          'Adeziunea nu poate fi alocată la cotizație.',
+        );
       if (receipt.periodId !== obligation.periodId)
         throw new BadRequestException('Perioade diferite.');
       if (receipt.reviewRequired && receipt.checkoutId) {
@@ -1425,6 +1503,7 @@ export class MembershipService {
       throw new BadRequestException(
         'Acceptă termenii, politica de anulare și politica de confidențialitate.',
       );
+    const purpose = this.paymentPurpose(body.purpose);
     const token = text(body.attemptToken, 100);
     if (!/^[A-Za-z0-9_-]{43}$/.test(token))
       throw new BadRequestException('Referință de plată invalidă.');
@@ -1498,6 +1577,7 @@ export class MembershipService {
       const previous = await em.findOne(Checkout, { tokenHash });
       if (previous) {
         if (
+          (previous.purpose ?? 'membership') !== purpose ||
           previous.obligationId !== obligation.id ||
           previous.periodId !== periodId ||
           (body.amountBani !== undefined &&
@@ -1508,8 +1588,21 @@ export class MembershipService {
           );
         return previous;
       }
+      if (purpose === 'admission') {
+        const admission = await this.admissionState(em, obligation.orgoUserId);
+        if (admission.paid)
+          throw new ConflictException(
+            'Adeziunea a fost deja achitată. Se plătește o singură dată.',
+          );
+        this.requireNewMember(obligation);
+        if (admission.blocked)
+          throw new ConflictException(
+            'Există o adeziune în curs sau care necesită verificare financiară.',
+          );
+      }
       const pending = await em.findOne(Checkout, {
         obligationId: obligation.id,
+        purpose,
         state: { $in: ['starting', 'pending', 'unknown'] },
       });
       if (
@@ -1532,7 +1625,9 @@ export class MembershipService {
         );
       const planKey = plan(obligation.plan);
       const contributionBani =
-        obligation.totalBani - (await this.balance(em, obligation.id));
+        purpose === 'admission'
+          ? ADMISSION_FEE_BANI
+          : obligation.totalBani - (await this.balance(em, obligation.id));
       if (contributionBani <= 0)
         throw new ConflictException('Cotizație deja plătită.');
       const amountBani = contributionBani;
@@ -1543,6 +1638,7 @@ export class MembershipService {
       const attempt = em.create(Checkout, {
         id: randomUUID(),
         tokenHash,
+        purpose,
         periodId,
         obligationId: obligation.id,
         identifier: entered.value,
@@ -1599,7 +1695,10 @@ export class MembershipService {
       const startInput = {
         id: checkout.id,
         amountBani: checkout.amountBani,
-        description: 'Cotizație Centrul Local Cluj',
+        description:
+          checkout.purpose === 'admission'
+            ? 'Taxă de adeziune Centrul Local Cluj'
+            : 'Cotizație Centrul Local Cluj',
         beneficiaryName: beneficiary
           ? beneficiaryDisplayName(beneficiary.memberName)
           : undefined,
@@ -1655,6 +1754,7 @@ export class MembershipService {
     if (!checkout) throw new NotFoundException();
     return {
       state: checkout.state,
+      purpose: checkout.purpose,
       amountBani: checkout.amountBani,
       provider: checkout.provider,
       environment: checkout.environment,
@@ -1892,13 +1992,17 @@ export class MembershipService {
             amountBani: checkout.amountBani,
             method: 'card',
             receivedOn: new Date().toISOString().slice(0, 10),
-            note: `${provider === 'stripe' ? 'Stripe' : 'NETOPIA'} — confirmare verificată`,
+            note: `${checkout.purpose === 'admission' ? 'Adeziune — ' : ''}${provider === 'stripe' ? 'Stripe' : 'NETOPIA'} — confirmare verificată`,
             reference: event.providerId,
             reviewRequired: !checkout.obligationId || checkout.reviewRequired,
           });
           em.persist(receipt);
           await em.flush();
-          if (checkout.obligationId && !checkout.reviewRequired) {
+          if (
+            checkout.obligationId &&
+            !checkout.reviewRequired &&
+            checkout.purpose !== 'admission'
+          ) {
             const obligation = await em.findOneOrFail(Obligation, {
               id: checkout.obligationId,
             });

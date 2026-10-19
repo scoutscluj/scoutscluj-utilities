@@ -5,7 +5,16 @@
 	let { data, form } = $props();
 	let identifier = $state('');
 	const own = $derived(data.obligations.find((item) => item.periodId === data.period?.id));
-	const ownRemaining = $derived(own ? Math.max(0, own.totalBani - (own.paidBani ?? 0)) : 0);
+	const ownRemaining = $derived(
+		own
+			? data.admission
+				? own.admissionPaid
+					? 0
+					: 5500
+				: Math.max(0, own.totalBani - (own.paidBani ?? 0))
+			: 0
+	);
+	const feeName = $derived(data.admission ? 'Adeziune' : 'Cotizație');
 	const lookup = $derived(form?.lookup);
 	const providerName = $derived(
 		(data.status?.provider ?? data.activeProvider) === 'stripe' ? 'Stripe' : 'NETOPIA'
@@ -37,7 +46,12 @@
 		<p class="section-intro">
 			Verificăm că ID-ul aparține unui membru eligibil din Centrul Local Cluj înainte de plată.
 		</p>
-		<form method="POST" action="?/lookup" class="lookup-form">
+		<form
+			method="POST"
+			action={data.admission ? '?/lookup&tip=adeziune' : '?/lookup'}
+			class="lookup-form"
+		>
+			<input type="hidden" name="purpose" value={data.admission ? 'admission' : 'membership'} />
 			<label for="member-identifier">ID ORGO sau ID Card</label>
 			<div class="lookup-row">
 				<input
@@ -71,16 +85,26 @@
 				</div>
 				<div class="result-amount">
 					{#if !lookup.paid}<span>Total de plată</span>{/if}
-					<strong>{lookup.paid ? 'Cotizație achitată' : money(lookup.amountBani)}</strong>
+					<strong>{lookup.paid ? `${feeName} achitată` : money(lookup.amountBani)}</strong>
 				</div>
 			</div>
 			{#if lookup.paid}
 				<p class="success-message">
-					Cotizația pentru perioada curentă a fost deja achitată. Mulțumim!
+					{data.admission
+						? 'Adeziunea a fost deja achitată. Această taxă se plătește o singură dată.'
+						: 'Cotizația pentru perioada curentă a fost deja achitată. Mulțumim!'}
 				</p>
 			{:else}
-				<form method="POST" action="?/pay" class="payment-form">
-					<input type="hidden" name="mode" value="guest" /><input
+				<form
+					method="POST"
+					action={data.admission ? '?/pay&tip=adeziune' : '?/pay'}
+					class="payment-form"
+				>
+					<input
+						type="hidden"
+						name="purpose"
+						value={data.admission ? 'admission' : 'membership'}
+					/><input type="hidden" name="mode" value="guest" /><input
 						type="hidden"
 						name="periodId"
 						value={data.period?.id}
@@ -109,7 +133,7 @@
 			height="42"
 		/>
 		<p class="eyebrow">Contul meu ORGO</p>
-		<h2 id="own-title">Cotizația ta</h2>
+		<h2 id="own-title">{data.admission ? 'Adeziunea ta' : 'Cotizația ta'}</h2>
 		{#if own}
 			<dl class="account-summary">
 				<div>
@@ -121,12 +145,12 @@
 					<dd>{data.period?.name}</dd>
 				</div>
 				<div>
-					<dt>Cotizație totală</dt>
-					<dd>{money(own.totalBani)}</dd>
+					<dt>{feeName} totală</dt>
+					<dd>{money(data.admission ? 5500 : own.totalBani)}</dd>
 				</div>
 				<div>
 					<dt>Achitat și alocat</dt>
-					<dd>{money(own.paidBani ?? 0)}</dd>
+					<dd>{money(data.admission ? (own.admissionPaid ? 5500 : 0) : (own.paidBani ?? 0))}</dd>
 				</div>
 				<div class="balance">
 					<dt>Total de plată</dt>
@@ -142,13 +166,28 @@
 				</p>
 			{:else if own && ownRemaining === 0}
 				<div class="success-panel">
-					<strong>Cotizația pentru această perioadă a fost achitată.</strong><span
-						>Îți mulțumim, {data.user.firstName ?? data.user.displayName}!</span
-					>
+					<strong
+						>{data.admission
+							? 'Adeziunea a fost deja achitată.'
+							: 'Cotizația pentru această perioadă a fost achitată.'}</strong
+					><span>Îți mulțumim, {data.user.firstName ?? data.user.displayName}!</span>
 				</div>
+			{:else if own && data.admission && !own.admissionEligible}
+				<p class="notice">
+					Adeziunea online este disponibilă pentru conturile ORGO create în ultimele 90 de zile.
+					Dacă data lipsește sau ai nevoie de ajutor, contactează responsabilul financiar.
+				</p>
 			{:else if own}
-				<form method="POST" action="?/pay" class="payment-form">
-					<input type="hidden" name="mode" value="own" /><input
+				<form
+					method="POST"
+					action={data.admission ? '?/pay&tip=adeziune' : '?/pay'}
+					class="payment-form"
+				>
+					<input
+						type="hidden"
+						name="purpose"
+						value={data.admission ? 'admission' : 'membership'}
+					/><input type="hidden" name="mode" value="own" /><input
 						type="hidden"
 						name="periodId"
 						value={data.period?.id}
@@ -168,9 +207,17 @@
 				</p>{/if}
 		{:else}
 			<p class="section-intro">
-				Autentifică-te cu ORGO pentru ca aplicația să identifice automat cotizația și suma ta.
+				Autentifică-te cu ORGO pentru ca aplicația să identifice automat {data.admission
+					? 'adeziunea'
+					: 'cotizația'} și suma ta.
 			</p>
-			<a class="primary-button login-button" href={resolve('/login?redirectTo=%2Fcotizatie')}
+			<a
+				class="primary-button login-button"
+				href={resolve(
+					data.admission
+						? '/login?redirectTo=%2Fcotizatie%3Ftip%3Dadeziune'
+						: '/login?redirectTo=%2Fcotizatie'
+				)}
 				><img src="/branding/orgo-symbol.png" alt="" width="30" height="30" /> Autentifică-te cu ORGO</a
 			>
 		{/if}
@@ -178,10 +225,10 @@
 {/snippet}
 
 <svelte:head
-	><title>Plată cotizație{periodLabel ? ` (${periodLabel})` : ''} · Scouts Cluj</title><meta
-		name="robots"
-		content="noindex"
-	/></svelte:head
+	><title
+		>Plată {data.admission ? 'adeziune' : 'cotizație'}{periodLabel ? ` (${periodLabel})` : ''} · Scouts
+		Cluj</title
+	><meta name="robots" content="noindex" /></svelte:head
 >
 
 {#if !data.user}
@@ -201,8 +248,20 @@
 
 <main class="payment-page">
 	<div class="page-heading">
-		<h1>Plată cotizație{periodLabel ? ` (${periodLabel})` : ''}</h1>
-		<p class="section-intro">Situația cotizației și plata cu cardul, într-un singur loc.</p>
+		<h1>
+			Plată {data.admission ? 'adeziune' : 'cotizație'}{periodLabel ? ` (${periodLabel})` : ''}
+		</h1>
+		<p class="section-intro">
+			{data.admission
+				? 'Taxa de adeziune este de 55 lei și se plătește o singură dată, la alăturarea în organizație. Plata online este disponibilă pentru conturile ORGO create în ultimele 90 de zile.'
+				: 'Situația cotizației și plata cu cardul, într-un singur loc.'}
+		</p>
+		{#if data.admission}<p class="admission-link">
+				<a href={resolve('/cotizatie')}>Înapoi la plata cotizației</a>
+			</p>{:else}<p class="admission-link">
+				Ești membru nou? <a href={resolve('/cotizatie?tip=adeziune')}>Plătește adeziunea aici</a> · 55
+				lei, o singură dată.
+			</p>{/if}
 	</div>
 	{#if (data.status?.environment ?? data.environment) !== 'live'}<p class="environment-notice">
 			Mediu de test · {providerName}. Nu folosi datele unui card real.
@@ -211,6 +270,7 @@
 		<section class="status-card">
 			<p class="eyebrow">Ultima încercare de plată în acest browser</p>
 			<h2>{paymentLabels[data.status.state] ?? 'În curs de verificare'}</h2>
+			<p>{data.status.purpose === 'admission' ? 'Taxă de adeziune' : 'Cotizație'}</p>
 			<p class="status-amount">{money(data.status.amountBani)}</p>
 			<p>Procesator: <strong>{providerName}</strong></p>
 			{#if data.status.state === 'succeeded'}
@@ -267,6 +327,13 @@
 </main>
 
 <style>
+	.admission-link {
+		font-size: 0.85rem;
+		color: #52616f;
+	}
+	.admission-link a {
+		color: #991b1b;
+	}
 	.public-topbar {
 		min-height: 64px;
 		display: flex;

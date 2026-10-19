@@ -892,7 +892,7 @@ export class MembershipService {
       );
     if (!isNewOrgoMember(obligation.orgoCreatedAt))
       throw new ConflictException(
-        'Adeziunea online este disponibilă pentru conturile ORGO create în ultimele 90 de zile.',
+        'Adeziunea online este disponibilă pentru conturile ORGO create în ultimele 6 luni.',
       );
   }
 

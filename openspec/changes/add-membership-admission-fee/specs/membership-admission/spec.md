@@ -29,10 +29,10 @@ The registry SHALL show a small admission marker for confirmed admission receipt
 - **THEN** the paid admission marker is absent
 
 ### Requirement: ORGO account age eligibility
-The system SHALL offer admission collection only for ORGO accounts created within the last 90 days, including the boundary, with no existing confirmed admission payment. The original account creation date SHALL come from ORGO dateCreated and SHALL NOT be inferred from local account creation or first import time.
+The system SHALL offer admission collection only for ORGO accounts created within the last 6 calendar months, including the boundary, with no existing confirmed admission payment. The original account creation date SHALL come from ORGO dateCreated and SHALL NOT be inferred from local account creation or first import time.
 
 #### Scenario: Old or unknown account creation date
-- **WHEN** dateCreated is missing, invalid, in the future or older than 90 days
+- **WHEN** dateCreated is missing, invalid, in the future or older than 6 calendar months
 - **THEN** admission collection is rejected with a clear explanation
 - **AND** annual dues payment remains available
 

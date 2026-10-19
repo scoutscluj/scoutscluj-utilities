@@ -2179,7 +2179,7 @@ describe('one-time membership admission', () => {
 });
 
 describe('admission age guard', () => {
-  it.each([null, new Date(Date.now() - 91 * 86400000)])(
+  it.each([null, new Date(Date.now() - 200 * 86400000)])(
     'blocks missing/old ORGO dates without affecting dues',
     async (createdAt) => {
       const f = await setup();
@@ -2203,4 +2203,31 @@ describe('admission age guard', () => {
       ).toMatchObject({ amountBani: 30000 });
     },
   );
+});
+
+describe('extended admission eligibility', () => {
+  it('allows an unpaid four-month-old ORGO account to pay 55 RON', async () => {
+    const f = await setup();
+    f.obligation.orgoCreatedAt = new Date(Date.now() - 120 * 86400000);
+    expect(
+      await f.service.guestLookup({
+        identifier: '36805',
+        purpose: 'admission',
+      }),
+    ).toMatchObject({ paid: false, amountBani: 5500 });
+    await expect(
+      f.service.checkout({
+        periodId: f.period.id,
+        identifier: '36805',
+        purpose: 'admission',
+        acceptTerms: true,
+        amountBani: 5500,
+        attemptToken: 's'.repeat(43),
+      }),
+    ).resolves.toMatchObject({ state: 'pending' });
+    expect(f.netopia.start).toHaveBeenCalledWith(
+      expect.objectContaining({ amountBani: 5500 }),
+      expect.anything(),
+    );
+  });
 });

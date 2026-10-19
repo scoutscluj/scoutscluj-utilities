@@ -174,8 +174,8 @@
 				</div>
 			{:else if own && data.admission && !own.admissionEligible}
 				<p class="notice">
-					Adeziunea online este disponibilă pentru conturile ORGO create în ultimele 90 de zile.
-					Dacă data lipsește sau ai nevoie de ajutor, contactează responsabilul financiar.
+					Adeziunea online este disponibilă pentru conturile ORGO create în ultimele 6 luni. Dacă
+					data lipsește sau ai nevoie de ajutor, contactează responsabilul financiar.
 				</p>
 			{:else if own}
 				<form
@@ -253,7 +253,7 @@
 		</h1>
 		<p class="section-intro">
 			{data.admission
-				? 'Taxa de adeziune este de 55 lei și se plătește o singură dată, la alăturarea în organizație. Plata online este disponibilă pentru conturile ORGO create în ultimele 90 de zile.'
+				? 'Taxa de adeziune este de 55 lei și se plătește o singură dată, la alăturarea în organizație. Plata online este disponibilă pentru conturile ORGO create în ultimele 6 luni.'
 				: 'Situația cotizației și plata cu cardul, într-un singur loc.'}
 		</p>
 		{#if data.admission}<p class="admission-link">

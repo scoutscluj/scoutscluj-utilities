@@ -145,6 +145,16 @@ export function isNewOrgoMember(
   now = new Date(),
 ): boolean {
   if (!createdAt) return false;
-  const age = now.getTime() - createdAt.getTime();
-  return Number.isFinite(age) && age >= 0 && age <= 90 * 24 * 60 * 60 * 1000;
+  // Calendar months: clamp month-end dates instead of overflowing into March.
+  const cutoff = new Date(now);
+  cutoff.setUTCDate(1);
+  cutoff.setUTCMonth(cutoff.getUTCMonth() - 6);
+  const lastDay = new Date(
+    Date.UTC(cutoff.getUTCFullYear(), cutoff.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  cutoff.setUTCDate(Math.min(now.getUTCDate(), lastDay));
+  return (
+    createdAt.getTime() >= cutoff.getTime() &&
+    createdAt.getTime() <= now.getTime()
+  );
 }

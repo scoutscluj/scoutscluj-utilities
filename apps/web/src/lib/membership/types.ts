@@ -17,6 +17,8 @@ export type Obligation = {
 	totalBani: number;
 	nationalBani: number;
 	paidBani?: number;
+	admissionPaid?: boolean;
+	admissionEligible?: boolean;
 	orgoLastSyncedAt?: string;
 	reviewState?: string | null;
 	reviewReason?: string | null;
@@ -76,6 +78,7 @@ export type Dashboard = {
 		createdAt?: string;
 		periodId: string;
 		identifier: string;
+		purpose?: 'membership' | 'admission';
 		plan: string;
 		state: string;
 		amountBani: number;
@@ -127,6 +130,7 @@ export type RosterPreview = {
 	newCount: number;
 };
 export type PaymentStatus = {
+	purpose?: 'membership' | 'admission';
 	environment: string;
 	state: string;
 	amountBani: number;

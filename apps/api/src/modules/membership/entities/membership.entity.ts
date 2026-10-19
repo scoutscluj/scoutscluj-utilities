@@ -79,6 +79,7 @@ export const MembershipObligation = defineEntity({
     nationalBani: p.integer(),
     verificationNote: p.text(),
     orgoLastSyncedAt: p.datetime().nullable(),
+    orgoCreatedAt: p.datetime().nullable(),
     reviewState: p.string().nullable(),
     reviewReason: p.text().nullable(),
     createdAt: created(),
@@ -109,6 +110,7 @@ export const MembershipCheckout = defineEntity({
   properties: {
     id: id(),
     tokenHash: p.string().unique(),
+    purpose: p.string().default('membership'),
     periodId: p.uuid(),
     obligationId: p.uuid().nullable(),
     identifier: p.string(),

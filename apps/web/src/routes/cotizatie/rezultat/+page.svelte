@@ -8,7 +8,9 @@
 	><title>Starea plății · Cotizație</title><meta name="robots" content="noindex" /></svelte:head
 >
 <main>
-	<p class="eyebrow">Cotizații · Confirmarea plății</p>
+	<p class="eyebrow">
+		{data.status?.purpose === 'admission' ? 'Adeziune' : 'Cotizații'} · Confirmarea plății
+	</p>
 	<h1>
 		{data.status
 			? (paymentLabels[data.status.state] ?? 'În curs de verificare')
@@ -34,7 +36,7 @@
 				necesită verificare.
 			</p>{/if}
 		{#if data.status.requiresStaffReview}<p class="notice">
-				Responsabilul financiar trebuie să verifice plata înainte de creditarea cotizației.
+				Responsabilul financiar trebuie să verifice plata înainte de confirmarea încasării.
 			</p>{/if}
 	{/if}
 	<div class="actions">

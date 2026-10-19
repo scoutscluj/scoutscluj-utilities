@@ -168,3 +168,32 @@ describe('ORGO membership roster parsing', () => {
     expect(apiJson).not.toHaveBeenCalled();
   });
 });
+
+describe('ORGO account creation date', () => {
+  it.each(['2026-10-01T10:00:00+03:00', null, 'invalid'])(
+    'reads only a valid dateCreated: %s',
+    (dateCreated) => {
+      const [member] = parseOrgoRoster(
+        {
+          items: [
+            {
+              id: 1,
+              fullName: 'Test',
+              localCenter: { id: 8 },
+              feePrice: 'Normală',
+              dateCreated,
+              dateJoined: '2026-10-10T00:00:00Z',
+            },
+          ],
+        },
+        'Vest',
+        8,
+      );
+      expect(member.orgoCreatedAt).toEqual(
+        dateCreated === '2026-10-01T10:00:00+03:00'
+          ? new Date(dateCreated)
+          : undefined,
+      );
+    },
+  );
+});

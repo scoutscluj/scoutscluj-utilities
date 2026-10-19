@@ -4,6 +4,7 @@
 	import { money } from './types';
 	import {
 		feePlans,
+		admissionPaidInPeriod,
 		allocatedAmount,
 		needsPaymentReview,
 		membershipProgress
@@ -173,9 +174,11 @@
 										/>{/if}</td
 								>{/if}
 							<td
-								><strong>{o.memberName}</strong><small
-									>ID Orgo {o.orgoUserId} {o.cardId ? `· ${o.cardId}` : ''}</small
-								></td
+								><strong>{o.memberName}</strong>{#if admissionPaidInPeriod(ledger, o)}<span
+										class="admission-badge"
+										title="Taxa unică de adeziune de 55 lei a fost achitată în această perioadă"
+										>Adeziune achitată</span
+									>{/if}<small>ID Orgo {o.orgoUserId} {o.cardId ? `· ${o.cardId}` : ''}</small></td
 							>
 							<td>{feePlans.find((p) => p[0] === o.plan)?.[1] ?? o.plan}</td>
 							<td>{money(o.totalBani)}</td>
@@ -249,6 +252,16 @@
 	/>{/if}
 
 <style>
+	.admission-badge {
+		display: inline-block;
+		margin-left: 6px;
+		padding: 2px 6px;
+		border-radius: 999px;
+		background: #eff6ff;
+		color: #1e40af;
+		font-size: 0.7rem;
+		font-weight: 600;
+	}
 	.collection-progress {
 		background: linear-gradient(120deg, #f0fdf4, #f7faf8) !important;
 		border-color: #cee7d5 !important;

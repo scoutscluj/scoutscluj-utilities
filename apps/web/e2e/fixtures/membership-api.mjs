@@ -185,6 +185,64 @@ createServer(async (req, res) => {
 	if (req.url === '/api/auth/me')
 		return respond(res, { id: 1, displayName: 'Responsabil financiar', roles: ['super_admin'] });
 	if (req.url === '/api/activities') return respond(res, []);
+
+	if (req.url === '/api/membership/catalog')
+		return respond(res, {
+			period: ledger.periods[0],
+			cardEnabled: true,
+			environment: 'sandbox',
+			activeProvider: 'netopia'
+		});
+	if (req.url === '/api/membership/mine') return respond(res, []);
+	if (req.url?.startsWith('/api/membership/status/'))
+		return respond(res, { message: 'No payment' }, 404);
+	if (req.url === '/api/membership/guest-lookup') {
+		let raw = '';
+		for await (const chunk of req) raw += chunk;
+		const body = JSON.parse(raw);
+		submissions.push(body);
+		return respond(res, {
+			identifier: body.identifier,
+			displayName: 'Ana P.',
+			affiliation: 'Centrul Local Cluj',
+			amountBani: body.purpose === 'admission' ? 5500 : 30500,
+			paid: false
+		});
+	}
+	if (req.url === '/api/membership/guest-checkout') {
+		let raw = '';
+		for await (const chunk of req) raw += chunk;
+		submissions.push(JSON.parse(raw));
+		return respond(res, { message: 'Eroare de test. Reîncearcă.' }, 409);
+	}
+	if (req.url === '/test/admission-confirm') {
+		const member = ledger.obligations[0];
+		ledger.checkouts.push({
+			id: 'admission',
+			obligationId: member.id,
+			periodId: member.periodId,
+			purpose: 'admission',
+			identifier: String(member.orgoUserId),
+			plan: 'normal',
+			amountBani: 5500,
+			state: 'succeeded',
+			provider: 'netopia',
+			reviewRequired: false
+		});
+		ledger.receipts.push({
+			id: 'admission-receipt',
+			checkoutId: 'admission',
+			periodId: member.periodId,
+			amountBani: 5500,
+			refundedBani: 0,
+			method: 'card',
+			receivedOn: '2026-10-19',
+			reference: 'admission',
+			note: 'Adeziune',
+			reviewRequired: false
+		});
+		return respond(res, {});
+	}
 	if (req.url === '/api/membership/admin') return respond(res, ledger);
 	if (req.url === '/api/membership/bank-receipts' && req.method === 'POST') {
 		let raw = '';

@@ -110,3 +110,37 @@ test('finance pages fit desktop and mobile layouts', async ({ page }, testInfo) 
 		await expect(page.getByRole('dialog')).not.toBeVisible();
 	}
 });
+
+test('admission link keeps the 55 lei flow after lookup and checkout rejection', async ({
+	page,
+	request
+}) => {
+	await page.goto('/cotizatie');
+	await page.getByRole('link', { name: 'Plătește adeziunea aici' }).click();
+	await expect(page.getByRole('heading', { level: 1 })).toContainText('adeziune');
+	await expect(page.getByText(/ultimele 90 de zile/)).toBeVisible();
+	await page.getByLabel('ID ORGO sau ID Card').fill('at36801');
+	await page.getByRole('button', { name: 'Verifică ID-ul' }).click();
+	await expect(page.getByRole('heading', { level: 1 })).toContainText('adeziune');
+	await expect(page.locator('input[name="amountBani"]')).toHaveValue('5500');
+	await page.locator('input[name="acceptTerms"]').check();
+	await page.getByRole('button', { name: 'Continuă la plata cu cardul' }).click();
+	await expect(page.getByRole('alert')).toContainText('Eroare de test');
+	await expect(page.getByRole('heading', { level: 1 })).toContainText('adeziune');
+	await expect(page.locator('input[name="amountBani"]')).toHaveValue('5500');
+	const submissions = await (await request.get('http://127.0.0.1:3015/test/submissions')).json();
+	expect(submissions.find((item: { attemptToken?: string }) => item.attemptToken)).toMatchObject({
+		purpose: 'admission',
+		identifier: 'AT36801',
+		amountBani: 5500,
+		acceptTerms: true
+	});
+	await request.post('http://127.0.0.1:3015/test/admission-confirm');
+	await page.goto('/admin/finance/membership');
+	await expect(page.getByText('Adeziune achitată', { exact: true })).toBeVisible();
+	await expect(page.getByRole('progressbar')).toHaveAttribute('value', '53');
+	await page
+		.getByRole('combobox', { name: /^Perioadă/ })
+		.selectOption('22222222-2222-4222-8222-222222222222');
+	await expect(page.getByText('Adeziune achitată', { exact: true })).not.toBeVisible();
+});

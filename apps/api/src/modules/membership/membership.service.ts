@@ -511,6 +511,274 @@ export class MembershipService {
     });
   }
 
+  private async obligationReview(
+    em: EntityManager,
+    obligation: Obligation,
+    member: OrgoRosterMember | undefined,
+  ) {
+    const period = await em.findOneOrFail(
+      Period,
+      { id: obligation.periodId },
+      { refresh: true },
+    );
+    const price =
+      member?.eligible && member.plan ? period.prices[member.plan] : null;
+    const allocations = await em.find(
+      Allocation,
+      { obligationId: obligation.id, reversed: false },
+      { refresh: true },
+    );
+    const paidBani = allocations.reduce(
+      (sum, item) => sum + item.amountBani,
+      0,
+    );
+    const checkouts = (
+      await em.find(
+        Checkout,
+        { periodId: obligation.periodId },
+        { refresh: true },
+      )
+    ).filter(
+      (item) =>
+        item.purpose !== 'admission' &&
+        (item.obligationId === obligation.id ||
+          item.identifier === String(obligation.orgoUserId) ||
+          (obligation.cardId && item.identifier === obligation.cardId)),
+    );
+    const receipts = (
+      await em.find(
+        Receipt,
+        { periodId: obligation.periodId },
+        { refresh: true },
+      )
+    ).filter(
+      (item) =>
+        allocations.some((allocation) => allocation.receiptId === item.id) ||
+        checkouts.some((checkout) => checkout.id === item.checkoutId),
+    );
+    const nationalItems = await em.find(
+      Item,
+      { obligationId: obligation.id },
+      { refresh: true },
+    );
+    const blockers: Array<{
+      target: 'orgo' | 'payments' | 'receipts' | 'transfers';
+      message: string;
+    }> = [];
+    if (
+      ![
+        'plan_changed_after_payment',
+        'orgo_review',
+        'missing_from_orgo',
+      ].includes(obligation.reviewState ?? '')
+    )
+      blockers.push({
+        target: 'orgo',
+        message:
+          'Această stare nu poate fi rezolvată prin confirmarea datelor ORGO.',
+      });
+    if (!member || !member.eligible || !member.plan || !price)
+      blockers.push({
+        target: 'orgo',
+        message:
+          member?.issue ??
+          'Membrul lipsește din registrul ORGO sau nu are un plan valid. Corectează datele în ORGO, apoi reîncarcă verificarea.',
+      });
+    if (
+      checkouts.some((item) =>
+        ['starting', 'pending', 'unknown'].includes(item.state),
+      )
+    )
+      blockers.push({
+        target: 'payments',
+        message:
+          'Există o plată în curs sau cu rezultat necunoscut. Verifică tranzacția și finalizează ori anulează încercarea înainte de confirmare.',
+      });
+    if (
+      receipts.some((item) => item.reviewRequired) ||
+      checkouts.some((item) => item.reviewRequired && item.state !== 'failed')
+    )
+      blockers.push({
+        target: 'receipts',
+        message:
+          'Există încasări sau plăți care necesită verificare financiară. Reconciliază-le înainte de confirmare.',
+      });
+    if (price && paidBani > price.totalBani)
+      blockers.push({
+        target: 'receipts',
+        message:
+          'Suma alocată depășește noul tarif. Rezolvă surplusul prin corectarea alocărilor sau rambursare înainte de confirmare.',
+      });
+    if (
+      nationalItems.some(
+        (item) =>
+          !price ||
+          item.amountBani !== price.nationalBani ||
+          paidBani < price.totalBani ||
+          item.orgoState === 'syncing',
+      )
+    )
+      blockers.push({
+        target: 'transfers',
+        message:
+          'Transferul național existent are o valoare incompatibilă, cotizația nu este integral acoperită sau sincronizarea este în curs. Verifică transferul înainte de confirmare.',
+      });
+    const preview = {
+      obligationId: obligation.id,
+      periodName: period.name,
+      reviewState: obligation.reviewState,
+      reviewReason: obligation.reviewReason,
+      currentPlan: obligation.plan,
+      currentTotalBani: obligation.totalBani,
+      currentNationalBani: obligation.nationalBani,
+      orgoPlan: member?.plan ?? null,
+      proposedTotalBani: price?.totalBani ?? null,
+      proposedNationalBani: price?.nationalBani ?? null,
+      paidBani,
+      remainingBani: price ? Math.max(0, price.totalBani - paidBani) : null,
+      resultingState:
+        price && paidBani >= price.totalBani
+          ? 'paid'
+          : paidBani > 0
+            ? 'partial'
+            : 'unpaid',
+      canResolve: blockers.length === 0,
+      resumesNationalReview: nationalItems.some(
+        (item) => item.orgoState === 'correction_required',
+      ),
+      blockers,
+    };
+    // Compare both the displayed outcome and the records that justify it.
+    const version = hash(
+      JSON.stringify({
+        preview,
+        member,
+        allocations: allocations
+          .map((item) => [item.id, item.amountBani])
+          .sort(),
+        checkouts: checkouts
+          .map((item) => [item.id, item.state, item.reviewRequired])
+          .sort(),
+        receipts: receipts
+          .map((item) => [
+            item.id,
+            item.amountBani,
+            item.refundedBani,
+            item.reviewRequired,
+          ])
+          .sort(),
+        nationalItems: nationalItems
+          .map((item) => [item.id, item.amountBani, item.orgoState])
+          .sort(),
+      }),
+    );
+    return { ...preview, version };
+  }
+
+  async previewObligationReview(user: CurrentUser, id: string) {
+    this.staff(user);
+    uuid(id);
+    // ORGO calls must complete before taking the financial mutation lock.
+    const members = await this.orgoRoster.members(user.id);
+    return this.mutate(async (em) => {
+      const obligation = await em.findOneOrFail(
+        Obligation,
+        { id },
+        { refresh: true },
+      );
+      return this.obligationReview(
+        em,
+        obligation,
+        members.find((member) => member.orgoUserId === obligation.orgoUserId),
+      );
+    });
+  }
+
+  async resolveObligationReview(user: CurrentUser, id: string, input: unknown) {
+    this.staff(user);
+    uuid(id);
+    const body = record(input);
+    const note = text(body.note, 2000);
+    const version = text(body.version, 100);
+    const members = await this.orgoRoster.members(user.id);
+    return this.mutate(async (em) => {
+      const obligation = await em.findOneOrFail(
+        Obligation,
+        { id },
+        { refresh: true },
+      );
+      const member = members.find(
+        (item) => item.orgoUserId === obligation.orgoUserId,
+      );
+      const preview = await this.obligationReview(em, obligation, member);
+      if (preview.version !== version)
+        throw new ConflictException(
+          'Datele s-au schimbat. Reîncarcă verificarea și confirmă noile valori.',
+        );
+      if (
+        !preview.canResolve ||
+        !member?.eligible ||
+        !member.plan ||
+        preview.proposedTotalBani === null ||
+        preview.proposedNationalBani === null
+      )
+        throw new ConflictException(
+          preview.blockers.map((item) => item.message).join(' '),
+        );
+      const previous = {
+        plan: obligation.plan,
+        totalBani: obligation.totalBani,
+        nationalBani: obligation.nationalBani,
+        reviewState: obligation.reviewState,
+        reviewReason: obligation.reviewReason,
+      };
+      obligation.plan = member.plan;
+      obligation.totalBani = preview.proposedTotalBani;
+      obligation.nationalBani = preview.proposedNationalBani;
+      obligation.memberName = member.memberName;
+      obligation.cardId = member.cardId ?? null;
+      obligation.orgoCreatedAt = member.orgoCreatedAt ?? null;
+      obligation.orgoLastSyncedAt = new Date();
+      obligation.reviewState = null;
+      obligation.reviewReason = null;
+      // Closed, unpaid attempts can carry the flag set by the roster sync.
+      const closed = await em.find(Checkout, {
+        obligationId: id,
+        state: 'failed',
+        reviewRequired: true,
+      });
+      for (const checkout of closed) checkout.reviewRequired = false;
+      const correctedItems = await em.find(Item, {
+        obligationId: id,
+        orgoState: 'correction_required',
+      });
+      for (const item of correctedItems) {
+        // Re-read ORGO without creating a second national payment.
+        item.orgoState = 'pending_approval';
+        item.orgoActorId = user.id;
+        item.orgoError = null;
+      }
+      this.audit(em, user.id, 'obligation.review_resolved', id, {
+        reason: note,
+        previous,
+        accepted: {
+          plan: obligation.plan,
+          totalBani: obligation.totalBani,
+          nationalBani: obligation.nationalBani,
+        },
+        paidBani: preview.paidBani,
+        resultingState: preview.resultingState,
+        nationalItemsRechecked: correctedItems.map((item) => item.id),
+      });
+      await em.flush();
+      return {
+        success: true,
+        state: preview.resultingState,
+        remainingBani: preview.remainingBani,
+      };
+    });
+  }
+
   private async failRosterSync(
     user: CurrentUser,
     period: Period,

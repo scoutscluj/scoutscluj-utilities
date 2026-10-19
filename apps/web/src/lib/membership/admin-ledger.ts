@@ -28,9 +28,18 @@ export const needsPaymentReview = (ledger: Dashboard, obligation: Obligation) =>
 		(checkout) =>
 			checkout.purpose !== 'admission' &&
 			checkout.periodId === obligation.periodId &&
-			(checkout.identifier === String(obligation.orgoUserId) ||
+			(checkout.obligationId === obligation.id ||
+				checkout.identifier === String(obligation.orgoUserId) ||
 				checkout.identifier === obligation.cardId) &&
 			(checkout.state === 'unknown' || checkout.reviewRequired)
+	) ||
+	ledger.allocations.some(
+		(allocation) =>
+			allocation.obligationId === obligation.id &&
+			!allocation.reversed &&
+			ledger.receipts.some(
+				(receipt) => receipt.id === allocation.receiptId && receipt.reviewRequired
+			)
 	);
 
 export type MembershipAdminForm = {

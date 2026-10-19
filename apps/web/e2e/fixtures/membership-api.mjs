@@ -220,6 +220,7 @@ createServer(async (req, res) => {
 		ledger.checkouts.push({
 			id: 'admission',
 			obligationId: member.id,
+			periodName: ledger.periods[0].name,
 			periodId: member.periodId,
 			purpose: 'admission',
 			identifier: String(member.orgoUserId),
@@ -244,6 +245,71 @@ createServer(async (req, res) => {
 		return respond(res, {});
 	}
 	if (req.url === '/api/membership/admin') return respond(res, ledger);
+	if (req.url?.startsWith('/test/review/')) {
+		const member = ledger.obligations[0];
+		member.reviewState = req.url.endsWith('/missing')
+			? 'missing_from_orgo'
+			: 'plan_changed_after_payment';
+		member.reviewReason =
+			member.reviewState === 'missing_from_orgo'
+				? 'Membrul nu mai apare ca eligibil în registrul ORGO.'
+				: 'Plan ORGO nou: fam1. Obligația are deja încasări.';
+		if (req.url.endsWith('/surplus')) member.testSurplus = true;
+		if (req.url.endsWith('/stale')) member.testStale = true;
+		return respond(res, {});
+	}
+	if (req.url?.endsWith('/review-preview')) {
+		const member = ledger.obligations[0];
+		return respond(res, {
+			obligationId: member.id,
+			reviewState: member.reviewState,
+			reviewReason: member.reviewReason,
+			currentPlan: member.plan,
+			currentTotalBani: member.totalBani,
+			currentNationalBani: member.nationalBani,
+			orgoPlan: member.testSurplus
+				? 'fam2'
+				: member.reviewState === 'missing_from_orgo'
+					? null
+					: 'fam1',
+			proposedTotalBani: member.testSurplus ? 15500 : 30500,
+			proposedNationalBani: 15000,
+			paidBani: 30500,
+			remainingBani: 0,
+			resultingState: 'paid',
+			canResolve: !member.testSurplus && member.reviewState !== 'missing_from_orgo',
+			blockers: member.testSurplus
+				? [{ target: 'receipts', message: 'Suma alocată depășește noul tarif. Rezolvă surplusul.' }]
+				: member.reviewState === 'missing_from_orgo'
+					? [
+							{
+								target: 'orgo',
+								message: 'Membrul lipsește din registrul ORGO. Corectează datele în ORGO.'
+							}
+						]
+					: [],
+			version: 'synthetic-review-version'
+		});
+	}
+	if (req.url?.endsWith('/resolve-review')) {
+		let raw = '';
+		for await (const chunk of req) raw += chunk;
+		const body = JSON.parse(raw);
+		submissions.push(body);
+		const member = ledger.obligations[0];
+		if (member.testStale) {
+			delete member.testStale;
+			return respond(
+				res,
+				{ message: 'Datele s-au schimbat. Reîncarcă verificarea și confirmă noile valori.' },
+				409
+			);
+		}
+		member.plan = 'fam1';
+		member.reviewState = null;
+		member.reviewReason = null;
+		return respond(res, { success: true, state: 'paid', remainingBani: 0 });
+	}
 	if (req.url === '/api/membership/bank-receipts' && req.method === 'POST') {
 		let raw = '';
 		for await (const chunk of req) raw += chunk;

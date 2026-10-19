@@ -198,6 +198,26 @@ export class MembershipController {
   }
 
   @UseGuards(AuthGuard)
+  @Post('obligations/:id/review-preview')
+  @Header('Cache-Control', 'no-store')
+  reviewPreview(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.membership.previewObligationReview(user, id);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('obligations/:id/resolve-review')
+  resolveReview(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.membership.resolveObligationReview(user, id, body);
+  }
+
+  @UseGuards(AuthGuard)
   @Post('receipts/:id/reconcile')
   reconcile(
     @CurrentUser() user: AuthenticatedUser,

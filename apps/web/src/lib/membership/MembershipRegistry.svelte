@@ -17,6 +17,7 @@
 	import FinanceStatus from './FinanceStatus.svelte';
 	import PaymentDetailsTooltip from './PaymentDetailsTooltip.svelte';
 	import ManualReceiptDialog from './ManualReceiptDialog.svelte';
+	import ObligationReviewDialog from './ObligationReviewDialog.svelte';
 	let { ledger, transfers = false }: { ledger: Dashboard; transfers?: boolean } = $props();
 	let search = $state('');
 	let periodFilter = $state('');
@@ -28,6 +29,8 @@
 		ready = true;
 	});
 	let receiptMember = $state<Obligation>();
+	let reviewMember = $state<Obligation>();
+	let reviewOpen = $state(false);
 	const activePeriod = $derived(ledger.periods.find((period) => period.active));
 	const paid = (id: string) => allocatedAmount(ledger, id);
 	const needsReview = (o: Dashboard['obligations'][number]) => needsPaymentReview(ledger, o);
@@ -197,6 +200,16 @@
 											? 'Plătit · netransferat'
 											: labels[paymentState(o)]}
 								/>
+								{#if !transfers && needsReview(o)}<button
+										type="button"
+										class="resolve-review"
+										disabled={!ready}
+										aria-label={`Rezolvă verificarea pentru ${o.memberName}`}
+										onclick={() => {
+											reviewMember = o;
+											reviewOpen = true;
+										}}>Rezolvă</button
+									>{/if}
 								{#if o.reviewState}<small>Necesită verificare: {o.reviewReason}</small>{/if}
 							</td>
 							{#if !transfers}<td
@@ -245,13 +258,19 @@
 	{:else}{@render memberRows()}{/if}
 </section>
 
-{#if !transfers}<ManualReceiptDialog
-		{ledger}
-		obligation={receiptMember}
-		bind:open={receiptOpen}
-	/>{/if}
+{#if !transfers}<ManualReceiptDialog {ledger} obligation={receiptMember} bind:open={receiptOpen} />
+	<ObligationReviewDialog obligation={reviewMember} bind:open={reviewOpen} />{/if}
 
 <style>
+	.resolve-review {
+		margin-left: 8px;
+		padding: 5px 10px;
+		border: 1px solid #d6a94f;
+		border-radius: 8px;
+		color: #854d0e;
+		background: #fffbeb;
+		cursor: pointer;
+	}
 	.admission-badge {
 		display: inline-block;
 		margin-left: 6px;

@@ -102,6 +102,38 @@ describe('membership collection progress', () => {
 		reviewed.obligations[0].reviewState = 'orgo_review';
 		expect(membershipProgress(reviewed, 'current').paidMembers).toBe(0);
 	});
+	it('retains payment reviews by canonical obligation even after the card identifier changes', () => {
+		const reviewed = structuredClone(ledger);
+		reviewed.checkouts.push({
+			id: 'attempt',
+			obligationId: 'paid',
+			periodId: 'current',
+			identifier: 'OLD-CARD',
+			plan: 'normal',
+			state: 'succeeded',
+			amountBani: 30000,
+			provider: 'stripe',
+			reviewRequired: true
+		});
+		expect(membershipProgress(reviewed, 'current').paidMembers).toBe(0);
+	});
+	it('keeps a flagged allocated receipt under review until reconciliation', () => {
+		const reviewed = structuredClone(ledger);
+		reviewed.receipts.push({
+			id: 'r1',
+			periodId: 'current',
+			amountBani: 30000,
+			refundedBani: 0,
+			method: 'bank',
+			receivedOn: '2026-10-19',
+			note: '',
+			reference: 'BT-review',
+			reviewRequired: true
+		});
+		expect(membershipProgress(reviewed, 'current').paidMembers).toBe(0);
+		reviewed.receipts[0].reviewRequired = false;
+		expect(membershipProgress(reviewed, 'current').paidMembers).toBe(1);
+	});
 });
 
 describe('admission marker', () => {

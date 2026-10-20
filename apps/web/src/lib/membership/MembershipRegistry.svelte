@@ -109,7 +109,7 @@
 			<CircleCheck size={18} /><span>Cotizații achitate</span><strong>{totals.paidMembers}</strong>
 		</div>
 		<div class="stat">
-			<Wallet size={18} /><span>Încasat</span><strong>{money(totals.collectedBani)}</strong>
+			<Wallet size={18} /><span>Achitat</span><strong>{money(totals.collectedBani)}</strong>
 		</div>
 		<div class="stat">
 			<Clock size={18} /><span>Restant</span><strong>{money(totals.remainingBani)}</strong>

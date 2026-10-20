@@ -12,7 +12,13 @@
 	);
 	const definitions = $derived(
 		Array.isArray(profile.customDefinitions)
-			? (profile.customDefinitions as { id: number; name?: string; visibility?: string }[])
+			? (profile.customDefinitions as {
+					id: number;
+					name?: string;
+					visibility?: string;
+					type?: string;
+					options?: { options?: Record<string, string> };
+				}[])
 			: []
 	);
 	const show = (v: unknown): string =>
@@ -23,6 +29,8 @@
 				: typeof v === 'object'
 					? JSON.stringify(v)
 					: String(v);
+	const choices = (id: number) =>
+		Object.entries(definitions.find((d) => Number(d.id) === id)?.options?.options ?? {});
 	const editable = (key: string, value: unknown) =>
 		(a.edit || a.own) &&
 		!m.orgoReadonly?.includes(key) &&
@@ -87,7 +95,15 @@
 						>{definitions.find((d) => Number(d.id) === field.field)?.name ??
 							`Informație Orgo ${field.field}`}
 						{#if a.identity && definitions.some((d) => Number(d.id) === field.field) && ['string', 'number', 'boolean'].includes(typeof field.value)}
-							{#if typeof field.value === 'boolean'}<select
+							{#if choices(field.field).length}<select
+									name={`orgo.custom:${field.field}`}
+									value={String(field.value ?? '')}
+									><option value="">Nespecificat</option
+									>{#each choices(field.field) as [value, label] (value)}<option {value}
+											>{label}</option
+										>{/each}</select
+								>
+							{:else if typeof field.value === 'boolean'}<select
 									name={`orgo.custom:${field.field}`}
 									value={String(field.value)}
 									><option value="true">Da</option><option value="false">Nu</option></select
@@ -97,7 +113,10 @@
 									value={String(field.value ?? '')}
 									maxlength="4000"
 								/>{/if}
-						{:else}<span>{show(field.value)}</span>{/if}
+						{:else}<span
+								>{choices(field.field).find(([value]) => value === String(field.value))?.[1] ??
+									show(field.value)}</span
+							>{/if}
 					</label>{/each}
 			</div>
 			{#if a.edit || a.own}<button>Salvează informațiile Orgo</button>{/if}

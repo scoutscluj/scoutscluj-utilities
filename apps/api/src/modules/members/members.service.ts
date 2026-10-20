@@ -1,5 +1,9 @@
 import { admissionEvidence } from '../membership/admission-ledger';
-import { profileFields, readonlyFields } from './orgo-profile';
+import {
+  profileFields,
+  readonlyFields,
+  customProfilePatch,
+} from './orgo-profile';
 import { createHash } from 'node:crypto';
 import { EntityManager } from '@mikro-orm/postgresql';
 import {
@@ -604,6 +608,7 @@ export class MembersService {
       profile.allergies = '';
       profile.medication = '';
       profile.dietary = '';
+      profile.needs = '';
     }
     const notes = access.notes
       ? await this.em.find(
@@ -639,13 +644,51 @@ export class MembersService {
         promiseDate: m.promiseDate,
         promiseSource: m.promiseSource,
         branch: m.branch,
-        orgoProfile: access.sensitive
-          ? Object.fromEntries(
-              Object.entries(m.orgoProfile ?? {}).filter(
-                ([key]) => key !== 'customFieldValues' || access.identity,
-              ),
-            )
-          : { logo: m.orgoProfile?.logo, type: m.orgoProfile?.type },
+        orgoProfile: (access.sensitive
+          ? {
+              ...m.orgoProfile,
+              customDefinitions: (Array.isArray(
+                m.orgoProfile?.customDefinitions,
+              )
+                ? m.orgoProfile.customDefinitions
+                : []
+              ).filter((d) => {
+                const field = d as {
+                  isOnlyAdmin?: boolean;
+                  visibility?: string;
+                };
+                return (
+                  access.identity ||
+                  (!field.isOnlyAdmin && field.visibility !== 'admin')
+                );
+              }),
+              customFieldValues: (Array.isArray(
+                m.orgoProfile?.customFieldValues,
+              )
+                ? m.orgoProfile.customFieldValues
+                : []
+              ).filter((v) => {
+                const field = v as { field: unknown };
+                const definition = (
+                  Array.isArray(m.orgoProfile?.customDefinitions)
+                    ? m.orgoProfile.customDefinitions
+                    : []
+                ).find(
+                  (d) =>
+                    Number((d as { id: unknown }).id) === Number(field.field),
+                ) as { isOnlyAdmin?: boolean; visibility?: string } | undefined;
+                return (
+                  access.identity ||
+                  (!!definition &&
+                    !definition.isOnlyAdmin &&
+                    definition.visibility !== 'admin')
+                );
+              }),
+            }
+          : { logo: m.orgoProfile?.logo, type: m.orgoProfile?.type }) as Record<
+          string,
+          unknown
+        >,
         orgoFields: profileFields,
         orgoReadonly: [...readonlyFields],
         conflicts: access.identity ? (m.orgoConflicts ?? {}) : {},
@@ -875,11 +918,13 @@ export class MembersService {
       if (!name) throw new BadRequestException('Numele este obligatoriu.');
       if (m.name !== name) payload.name = name;
       m.name = name;
+      m.orgoProfile = { ...m.orgoProfile, fullName: name };
     }
     if ('birthDate' in b) {
       const date = b.birthDate ? dateValue(b.birthDate) : null;
       if (m.birthDate !== date) payload.birthDate = date;
       m.birthDate = date;
+      m.orgoProfile = { ...m.orgoProfile, dateBirth: date };
     }
     if ('grade' in b) {
       const grade = b.grade == null || b.grade === '' ? null : Number(b.grade);
@@ -910,21 +955,47 @@ export class MembersService {
         if (!(key in emptyProfile()))
           throw new BadRequestException('Câmp de fișă necunoscut.');
         if (
-          ['medical', 'allergies', 'medication', 'dietary'].includes(key) &&
+          ['medical', 'allergies', 'medication', 'dietary', 'needs'].includes(
+            key,
+          ) &&
           !access.sensitive
         )
           denied();
         m.profile = { ...m.profile, [key]: stringValue(value, 4000) };
       }
-      // Medical fields are intentionally local until an equivalent protected remote field is verified.
-      if (prior.email !== m.profile.email || prior.phone !== m.profile.phone)
+      const linked = customProfilePatch(prior, m.profile, m.orgoProfile ?? {});
+      if (linked) {
+        m.orgoProfile = { ...m.orgoProfile, customFieldValues: linked.values };
+        payload.rawUserCustomFieldsValues = linked.patch;
+      }
+      // Only tenant fields with verified labels are linked; other clinical information stays local.
+      if (prior.email !== m.profile.email || prior.phone !== m.profile.phone) {
         payload.contact = { email: m.profile.email, phone: m.profile.phone };
+        m.orgoProfile = {
+          ...m.orgoProfile,
+          email: m.profile.email,
+          phoneNumber: m.profile.phone,
+        };
+      }
+    }
+    if (payload.rawUserCustomFieldsValues && payload.contact) {
+      const contact = payload.contact as { email: string; phone: string };
+      payload.email = contact.email;
+      payload.phoneNumber = contact.phone;
+      delete payload.contact;
     }
     this.queue(
       tx,
       m,
       user.id,
-      Object.keys(payload).length ? 'profile' : 'local-profile',
+      payload.rawUserCustomFieldsValues &&
+        Object.keys(payload).every((k) =>
+          ['email', 'phoneNumber', 'rawUserCustomFieldsValues'].includes(k),
+        )
+        ? 'orgo-profile'
+        : Object.keys(payload).length
+          ? 'profile'
+          : 'local-profile',
       payload,
     );
     return { id, result: { ok: true } };

@@ -152,7 +152,8 @@ export const profileLabels: Record<string, string> = {
 	medical: 'Probleme medicale',
 	allergies: 'Alergii',
 	medication: 'Medicație',
-	dietary: 'Regim alimentar'
+	dietary: 'Regim alimentar',
+	needs: 'Alte nevoi'
 };
 export const syncLabels: Record<string, string> = {
 	'local-only': 'Păstrat local',

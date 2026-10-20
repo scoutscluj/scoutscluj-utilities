@@ -26,6 +26,15 @@
 	const money = (b: number) =>
 		new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON' }).format(b / 100);
 	const chief = $derived(data.registry.admin || data.registry.chiefUnitIds.length > 0);
+	const dietaryChoices = $derived(
+		Object.values(
+			(
+				m.orgoProfile?.customDefinitions as
+					| { name?: string; options?: { options?: Record<string, string> } }[]
+					| undefined
+			)?.find((d) => d.name?.toLocaleLowerCase('ro') === 'alimentatie')?.options?.options ?? {}
+		)
+	);
 </script>
 
 <svelte:head><title>{m.name} · Membri</title></svelte:head>
@@ -86,8 +95,15 @@
 							placeholder="Fără excepție"
 						/></label
 					>{/if}
-				{#each Object.entries(profileLabels).filter(([key]) => a.sensitive || !['medical', 'allergies', 'medication', 'dietary'].includes(key)) as [key, label] (key)}<label
-						>{label}{#if ['medical', 'allergies', 'medication', 'dietary'].includes(key)}<textarea
+				{#each Object.entries(profileLabels).filter(([key]) => a.sensitive || !['medical', 'allergies', 'medication', 'dietary', 'needs'].includes(key)) as [key, label] (key)}<label
+						>{label}{#if key === 'dietary' && dietaryChoices.length}<select
+								name={a.edit || a.own ? 'profile.dietary' : undefined}
+								disabled={!a.edit && !a.own}
+								value={m.profile.dietary ?? ''}
+								><option value="">Nespecificat</option
+								>{#each dietaryChoices as choice (choice)}<option value={choice}>{choice}</option
+									>{/each}</select
+							>{:else if ['medical', 'allergies', 'medication', 'dietary', 'needs'].includes(key)}<textarea
 								name={a.edit || a.own ? `profile.${key}` : undefined}
 								readonly={!a.edit && !a.own}
 								maxlength="4000"

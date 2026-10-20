@@ -47,6 +47,7 @@ export type Profile = {
   allergies: string;
   medication: string;
   dietary: string;
+  needs: string;
 };
 export const emptyProfile = (): Profile => ({
   email: '',
@@ -60,6 +61,7 @@ export const emptyProfile = (): Profile => ({
   allergies: '',
   medication: '',
   dietary: '',
+  needs: '',
 });
 export type ScopeAssignment = {
   memberId: string;

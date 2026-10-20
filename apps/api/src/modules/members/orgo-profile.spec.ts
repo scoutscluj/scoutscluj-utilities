@@ -1,3 +1,5 @@
+import { emptyProfile } from './member.types';
+import { projectCustomProfile, customProfilePatch } from './orgo-profile';
 import {
   activeRoles,
   branchFor,
@@ -64,5 +66,57 @@ describe('Orgo profile contract and reconciliation', () => {
       base: { bio: 'same', address: null },
       conflicts: {},
     });
+  });
+});
+
+describe('verified reusable medical custom fields', () => {
+  const orgo = {
+    customDefinitions: [
+      {
+        id: 1,
+        name: 'Alimentatie',
+        options: { options: { 1: 'Omnivor', 2: 'Vegan' } },
+        visibility: 'public',
+      },
+      { id: 2, name: 'Alergii', visibility: 'public' },
+      { id: 3, name: 'Alte nevoi', visibility: 'public' },
+    ],
+    customFieldValues: [
+      { field: 1, value: 1, media: null },
+      { field: 2, value: 'Alergie test', media: null },
+      { field: 3, value: 'Nevoi test', media: null },
+    ],
+  };
+  it('projects readable dietary labels and reusable medical data', () => {
+    expect(projectCustomProfile(emptyProfile(), orgo)).toMatchObject({
+      dietary: 'Omnivor',
+      allergies: 'Alergie test',
+      needs: 'Nevoi test',
+    });
+  });
+  it('maps a corrected dietary label back to the original Orgo option key', () => {
+    const before = projectCustomProfile(emptyProfile(), orgo);
+    const result = customProfilePatch(
+      before,
+      { ...before, dietary: 'Vegan', allergies: 'Corectat' },
+      orgo,
+    );
+    expect(result?.patch).toEqual({
+      '1': 2,
+      '2': 'Corectat',
+      '3': 'Nevoi test',
+    });
+    expect(orgo.customFieldValues[0].value).toBe(1);
+  });
+  it('does not expose an admin-only or encrypted custom value through the reusable profile', () => {
+    expect(
+      projectCustomProfile(emptyProfile(), {
+        ...orgo,
+        customDefinitions: orgo.customDefinitions.map((d) => ({
+          ...d,
+          isOnlyAdmin: true,
+        })),
+      }),
+    ).toEqual(emptyProfile());
   });
 });

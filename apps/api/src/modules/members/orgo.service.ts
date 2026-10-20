@@ -7,6 +7,7 @@ import {
   reconcile,
   profileFields,
   readonlyFields,
+  projectCustomProfile,
 } from './orgo-profile';
 import { MembersService } from './members.service';
 import { EntityManager } from '@mikro-orm/postgresql';
@@ -107,9 +108,11 @@ export class MemberOrgoService {
         .map((d) => ({
           id: d.id,
           name: d.name ?? d.label,
-          type: d.type,
+          type: d.fieldType,
           visibility: d.visibility,
-          options: d.options,
+          options: d.fieldOptions,
+          isOnlyAdmin: d.isOnlyAdmin === true,
+          isEncrypted: d.isEncrypted === true,
         }));
     const roster = await this.roster(),
       rows: Record<string, unknown>[] = [];
@@ -134,7 +137,9 @@ export class MemberOrgoService {
   }
   private projectProfile(m: ScoutMember) {
     const p = m.orgoProfile ?? {};
-    if (typeof p.firstName === 'string' && typeof p.lastName === 'string')
+    if (typeof p.fullName === 'string' && p.fullName.trim())
+      m.name = p.fullName;
+    else if (typeof p.firstName === 'string' && typeof p.lastName === 'string')
       m.name = [p.firstName, p.middleName, p.lastName]
         .filter(Boolean)
         .join(' ');
@@ -143,19 +148,29 @@ export class MemberOrgoService {
       /^\d{4}-\d{2}-\d{2}/.test(p.dateBirth)
     )
       m.birthDate = p.dateBirth.slice(0, 10);
-    m.profile = {
-      ...m.profile,
-      ...(typeof p.email === 'string' ? { email: p.email } : {}),
-      ...(typeof p.phoneNumber === 'string' ? { phone: p.phoneNumber } : {}),
-    };
+    if (p.dateBirth === null) m.birthDate = null;
+    m.profile = projectCustomProfile(
+      {
+        ...m.profile,
+        ...(typeof p.email === 'string' ? { email: p.email } : {}),
+        ...(typeof p.phoneNumber === 'string' ? { phone: p.phoneNumber } : {}),
+      },
+      p,
+    );
   }
   private rolePreview(raw: Record<string, unknown>) {
-    return activeRoles(raw).map((r) => ({
-      id: Number(object(r.role).id),
-      name: object(r.role).name,
-      unitId: Number(object(r.unit).id) || null,
-      unitName: object(r.unit).name ?? null,
-    }));
+    return activeRoles(raw)
+      .filter(
+        (r) =>
+          ![2, 18, 19, 22].includes(Number(object(r.role).id)) &&
+          Number(object(object(r.role).unitType).id) !== 4,
+      )
+      .map((r) => ({
+        id: Number(object(r.role).id),
+        name: object(r.role).name,
+        unitId: Number(object(r.unit).id) || null,
+        unitName: object(r.unit).name ?? null,
+      }));
   }
   private version(rows: Record<string, unknown>[]) {
     return createHash('sha256')
@@ -250,9 +265,9 @@ export class MemberOrgoService {
           ? 'council'
           : role.id === 7
             ? 'chief'
-            : [1, 18].includes(role.id)
+            : role.id === 1
               ? 'leader'
-              : [6, 19].includes(role.id)
+              : role.id === 6
                 ? 'helper'
                 : null;
       if (!mapped || !adult || (mapped !== 'council' && !unit)) continue;
@@ -352,6 +367,19 @@ export class MemberOrgoService {
         };
         m.orgoBase = result.base;
         m.orgoConflicts = result.conflicts;
+        const simple = remoteFields(r);
+        const links: Record<string, string> = {
+          name: 'fullName',
+          email: 'email',
+          phone: 'phoneNumber',
+        };
+        for (const [key, rich] of Object.entries(links))
+          if (
+            !result.conflicts[rich] &&
+            JSON.stringify(result.values[rich]) ===
+              JSON.stringify(result.base[rich])
+          )
+            m.remote = { ...m.remote, [key]: simple[key] };
         this.projectProfile(m);
         if (
           before !==
@@ -400,6 +428,10 @@ export class MemberOrgoService {
       const custom: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(values)) {
         if (key.startsWith('custom:')) {
+          if (!grant.sensitive)
+            throw new ForbiddenException(
+              'Informațiile suplimentare necesită acces la fișa protejată.',
+            );
           const fieldId = Number(key.slice(7)),
             definitions = Array.isArray(m.orgoProfile?.customDefinitions)
               ? m.orgoProfile.customDefinitions.map(object)
@@ -407,7 +439,9 @@ export class MemberOrgoService {
             definition = definitions.find((d) => Number(d.id) === fieldId);
           if (
             !definition ||
-            (definition.visibility === 'admin' && !grant.identity)
+            ((definition.visibility === 'admin' ||
+              definition.isOnlyAdmin === true) &&
+              !grant.identity)
           )
             throw new ForbiddenException('Câmp Orgo protejat.');
           const fields = Array.isArray(m.orgoProfile.customFieldValues)
@@ -471,6 +505,18 @@ export class MemberOrgoService {
           ),
         ),
       };
+      if (['firstName', 'lastName', 'middleName'].some((key) => key in patch)) {
+        const fullName = [
+          m.orgoProfile.firstName,
+          m.orgoProfile.middleName,
+          m.orgoProfile.lastName,
+        ]
+          .filter((v) => typeof v === 'string' && v.trim())
+          .join(' ');
+        if (!fullName)
+          throw new BadRequestException('Numele este obligatoriu.');
+        m.orgoProfile = { ...m.orgoProfile, fullName };
+      }
       this.projectProfile(m);
       m.revision++;
       tx.create(MemberSync, {
@@ -946,6 +992,7 @@ export class MemberOrgoService {
         };
         member.orgoBase = result.base;
         member.orgoConflicts = result.conflicts;
+        this.projectProfile(member);
         await this.applyImportedRoles(tx, member, r, user.id);
       }
       tx.create(AuditEntry, {

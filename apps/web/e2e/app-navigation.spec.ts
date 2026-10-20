@@ -93,7 +93,7 @@ test('member registry keeps occasional actions collapsed and offers only groups 
 
 test('inactive Orgo history stays separate and supports paging and search', async ({ page }) => {
 	await page.goto('/units');
-	await page.getByLabel('Status', { exact: true }).selectOption('');
+	await page.getByRole('combobox', { name: 'Status', exact: true }).selectOption('');
 	await expect(page.getByRole('link', { name: 'Istoric 01', exact: true })).toHaveCount(0);
 	await page.locator('summary').filter({ hasText: 'Membri inactivi din Orgo (52)' }).click();
 	const history = page.getByRole('region', { name: 'Membri inactivi din Orgo' });

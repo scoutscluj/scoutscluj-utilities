@@ -217,3 +217,54 @@ test('admission link keeps the 55 lei flow after lookup and checkout rejection',
 		.selectOption('22222222-2222-4222-8222-222222222222');
 	await expect(page.getByText('Adeziune achitată', { exact: true })).not.toBeVisible();
 });
+
+test('bank admission can share one transfer with membership and leaves membership totals distinct', async ({
+	page,
+	request
+}, testInfo) => {
+	await page.setViewportSize({ width: 390, height: 1000 });
+	await page.goto('/admin/finance/membership');
+	await page.locator('summary').filter({ hasText: 'Adeziuni și plăți din extras' }).click();
+	const panel = page
+		.locator('details')
+		.filter({ has: page.locator('summary').filter({ hasText: 'Adeziuni și plăți din extras' }) })
+		.first();
+	await panel.getByLabel('Data din extras').fill('2026-10-20');
+	await panel.getByLabel('Referința unică din extras').fill('BT-ADEZIUNE-200');
+	await panel
+		.getByLabel('Detalii din extras')
+		.fill('Extras verificat pentru adeziune și cotizație');
+	const admission = panel.locator('fieldset').first();
+	await admission.getByRole('combobox', { name: 'Membru', exact: true }).selectOption('36802');
+	await admission.getByLabel('Observații').fill('Adeziune Florești');
+	await expect(admission.getByLabel('Sumă alocată (RON)')).toHaveValue('105.00');
+	await panel.getByRole('button', { name: 'Adaugă alt membru sau altă destinație' }).click();
+	const fee = panel.locator('fieldset').nth(1);
+	await fee.getByLabel('Destinație').selectOption('membership');
+	await fee.getByLabel('Membru și cotizație').selectOption('44444444-4444-4444-8444-444444444444');
+	await fee.getByLabel('Sumă alocată (RON)').fill('50');
+	await fee.getByLabel('Observații').fill('Cotizație parțială');
+	await expect(panel.getByLabel('Suma totală primită (RON)')).toHaveValue('155.00');
+	expect(
+		await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)
+	).toBeLessThanOrEqual(1);
+	await page.screenshot({ path: testInfo.outputPath('bank-admission-mobile.png'), fullPage: true });
+	await panel.getByRole('button', { name: 'Înregistrează transferul și alocările' }).click();
+	await expect(page.getByRole('row').filter({ hasText: 'Andrei Ionescu' })).toContainText(
+		'Adeziune achitată'
+	);
+	const submissions = await (await request.get('http://127.0.0.1:3015/test/submissions')).json();
+	expect(submissions.at(-1)).toMatchObject({
+		amountBani: 15500,
+		allocations: [
+			{ purpose: 'admission', orgoUserId: '36802', amountBani: 10500 },
+			{ purpose: 'membership', amountBani: 5000 }
+		]
+	});
+	await expect(page.getByRole('progressbar')).toHaveAttribute('value', '59');
+	await page.goto('/admin/finance/receipts');
+	await page.getByRole('searchbox', { name: 'Caută încasare' }).fill('BT-ADEZIUNE-200');
+	await expect(page.getByRole('row').filter({ hasText: 'BT-ADEZIUNE-200' })).toContainText(
+		'Alocat integral'
+	);
+});

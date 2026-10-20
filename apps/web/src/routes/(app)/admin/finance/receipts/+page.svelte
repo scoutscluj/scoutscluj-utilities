@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BankAdmissions from '$lib/membership/BankAdmissions.svelte';
 	import MembershipAdminPage from '$lib/membership/MembershipAdminPage.svelte';
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
@@ -43,6 +44,7 @@
 	description="Urmărește plățile primite și alocă sumele la cotizațiile membrilor."
 	{form}
 >
+	<BankAdmissions ledger={data.ledger} />
 	<div class="stats-grid receipt-stats" aria-label="Rezumat încasări">
 		<div class="stat">
 			<Wallet size={18} /><span>Încasări înregistrate</span><strong>{ledger.receipts.length}</strong
@@ -210,9 +212,8 @@
 			<form method="POST" class="grid">
 				<input type="hidden" name="action" value="reconcile" />
 				<label
-					>Încasare card<select name="id" required
-						><option value="">Selectează</option
-						>{#each ledger.receipts.filter((r) => r.method === 'card') as r (r.id)}<option
+					>Încasare<select name="id" required
+						><option value="">Selectează</option>{#each ledger.receipts as r (r.id)}<option
 								value={r.id}
 								>{r.reference} · {money(r.amountBani)} · restituit {money(r.refundedBani)}</option
 							>{/each}</select

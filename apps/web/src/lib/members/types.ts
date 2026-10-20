@@ -1,4 +1,18 @@
+export type Structure = { id: string; name: string; forming: boolean };
+export type StructurePreview = {
+	structures: Structure[];
+	units: { id: string; name: string; structureId: string }[];
+	members: {
+		id: string;
+		name: string;
+		revision: number;
+		unitId: string | null;
+		inactive: boolean;
+		structureId: string;
+	}[];
+};
 export type Unit = {
+	structureId?: string;
 	grades: number[];
 	id: string;
 	name: string;
@@ -7,6 +21,7 @@ export type Unit = {
 	archived: boolean;
 };
 export type Member = {
+	structureId?: string;
 	responsibilityUnitIds?: string[];
 	responsibilityGroupIds?: string[];
 	id: string;
@@ -27,13 +42,15 @@ export type Sync = {
 	createdAt: string;
 };
 export type Registry = {
+	structures?: Structure[];
+	manageableStructureIds?: string[];
 	notices: { id: string; unitId: string; memberId: string; createdAt: string }[];
 	admin: boolean;
 	canManage: boolean;
 	chiefUnitIds: (string | null)[];
 	units: Unit[];
 	members: Member[];
-	inactiveMembers?: { id: string; name: string; orgoId: number | null }[];
+	inactiveMembers?: { id: string; name: string; orgoId: number | null; structureId?: string }[];
 	ownMemberId: string | null;
 	progressionEnabled: boolean;
 	sync: Sync[];
@@ -47,7 +64,9 @@ export type Detail = {
 		revision: number;
 		skipProgressionYear: number | null;
 	};
+	admission?: { paid: boolean; receivedBani: number } | null;
 	access: {
+		withdraw?: boolean;
 		read: boolean;
 		edit: boolean;
 		identity: boolean;
@@ -63,6 +82,7 @@ export type Detail = {
 		unitId: string | null;
 		groupId: string | null;
 		role: string;
+		structureId?: string | null;
 		startedAt: string;
 		endedAt: string | null;
 		canEdit: boolean;
@@ -90,6 +110,7 @@ export const roleLabels: Record<string, string> = {
 	leader: 'Lider',
 	chief: 'Șef de unitate',
 	scouter: 'Scouter',
+	structure_admin: 'Responsabil de structură',
 	council: 'Consiliu'
 };
 export const profileLabels: Record<string, string> = {

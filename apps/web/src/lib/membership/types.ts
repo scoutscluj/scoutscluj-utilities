@@ -75,7 +75,24 @@ export type NationalItem = {
 	orgoLastAttemptAt?: string | null;
 	evidence?: string;
 };
+export type AdmissionAllocation = {
+	id: string;
+	receiptId: string;
+	orgoUserId: number;
+	amountBani: number;
+	expectedBani: number;
+	reversed: boolean;
+	note: string;
+};
 export type Dashboard = {
+	admissionAllocations?: AdmissionAllocation[];
+	admissionMembers?: {
+		orgoUserId: number;
+		name: string;
+		expectedBani: number;
+		paid: boolean;
+		receivedBani: number;
+	}[];
 	payouts: Array<{
 		id: string;
 		reference: string;

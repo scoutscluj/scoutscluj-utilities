@@ -17,6 +17,18 @@
 		if (activeSection === 'progression') progressionOpen = true;
 		if (['retry', 'import'].includes(activeSection)) orgoOpen = true;
 	});
+	let structureFilter = $state('');
+	let newStructure = $state('');
+	let unitStructure = $state('');
+	$effect(() => {
+		if (!newStructure)
+			newStructure =
+				data.registry.manageableStructureIds?.[0] ?? data.registry.structures?.[0]?.id ?? 'cluj';
+		if (!unitStructure)
+			unitStructure =
+				data.registry.manageableStructureIds?.[0] ?? data.registry.structures?.[0]?.id ?? 'cluj';
+	});
+	const structures = $derived(data.registry.structures ?? []);
 	let search = $state(''),
 		unitFilter = $state(''),
 		status = $state('active');
@@ -26,6 +38,7 @@
 	const visible = $derived(
 		data.registry.members.filter(
 			(m) =>
+				(!structureFilter || (m.structureId ?? 'cluj') === structureFilter) &&
 				(!search || m.name.toLocaleLowerCase('ro').includes(search.toLocaleLowerCase('ro'))) &&
 				(!unitFilter ||
 					m.unitId === unitFilter ||
@@ -72,11 +85,18 @@
 	<section>
 		<h2>Registru</h2>
 		<div class="filters">
+			<label
+				>Structură<select bind:value={structureFilter} onchange={() => (unitFilter = '')}
+					><option value="">Toate structurile</option>{#each structures as st (st.id)}<option
+							value={st.id}>{st.name}</option
+						>{/each}</select
+				></label
+			>
 			<label>Caută membru<input bind:value={search} placeholder="Nume" /></label><label
 				>Unitate / grupă<select bind:value={unitFilter}
 					><option value="">Toate</option
-					>{#each data.registry.units.filter((u) => !u.archived) as u (u.id)}<option value={u.id}
-							>{u.parentId ? '↳ ' : ''}{u.name}</option
+					>{#each data.registry.units.filter((u) => !u.archived && (!structureFilter || (u.structureId ?? 'cluj') === structureFilter)) as u (u.id)}<option
+							value={u.id}>{u.parentId ? '↳ ' : ''}{u.name}</option
 						>{/each}</select
 				></label
 			><label
@@ -96,9 +116,9 @@
 				><tbody
 					>{#each visible as m (m.id)}<tr
 							><td
-								><a href={resolve(`/units/${m.id}`)}>{m.name}</a>{#if !m.orgoId}<small
-										>Identitate Orgo neconfirmată</small
-									>{/if}</td
+								><a href={resolve(`/units/${m.id}`)}>{m.name}</a><small
+									>{structures.find((st) => st.id === (m.structureId ?? 'cluj'))?.name}</small
+								>{#if !m.orgoId}<small>Identitate Orgo neconfirmată</small>{/if}</td
 							><td
 								>{m.unitId
 									? name(m.unitId)
@@ -116,12 +136,25 @@
 			</table>
 		</div>
 	</section>
-	<InactiveMembers members={data.registry.inactiveMembers ?? []} linkToProfile />
+	<InactiveMembers
+		members={(data.registry.inactiveMembers ?? []).filter(
+			(m) => !structureFilter || (m.structureId ?? 'cluj') === structureFilter
+		)}
+		linkToProfile
+	/>
 	{#if data.registry.canManage}<section>
 			<details bind:open={createOpen}>
 				<summary>Adaugă membru</summary>
 				<form method="POST" class="grid">
 					<input type="hidden" name="action" value="create" /><label
+						>Structură<select
+							name="structureId"
+							bind:value={newStructure}
+							onchange={() => (newMemberUnit = '')}
+							>{#each structures as st (st.id)}<option value={st.id}>{st.name}</option
+								>{/each}</select
+						></label
+					><label
 						>Tip membru<select name="kind" bind:value={newMemberKind}
 							><option value="beneficiary">Beneficiar</option><option value="adult"
 								>Voluntar adult</option
@@ -138,7 +171,9 @@
 							required={newMemberKind === 'beneficiary'}
 							><option value=""
 								>{newMemberKind === 'adult' ? 'Fără unitate' : 'Alege unitatea'}</option
-							>{#each units as u (u.id)}<option value={u.id}>{u.name}</option>{/each}</select
+							>{#each units.filter((u) => (u.structureId ?? 'cluj') === newStructure) as u (u.id)}<option
+									value={u.id}>{u.name}</option
+								>{/each}</select
 						></label
 					><label
 						>Grupă<select name="groupId" disabled={!newMemberUnit}
@@ -159,7 +194,7 @@
 					{#each data.registry.units.filter((u) => !u.archived) as u (u.id)}<div>
 							<span
 								>{u.parentId ? '↳ ' : ''}<strong>{u.name}</strong> · {branchLabels[u.branch]}</span
-							>{#if data.registry.admin || data.registry.chiefUnitIds.includes(u.parentId)}<form
+							>{#if data.registry.admin || data.registry.chiefUnitIds.includes(u.parentId ?? u.id)}<form
 									method="POST"
 								>
 									<input type="hidden" name="action" value="archive" /><input
@@ -172,11 +207,16 @@
 				</div>
 				<form method="POST" class="grid">
 					<input type="hidden" name="action" value="unit" /><label
-						>Nume<input name="name" required /></label
-					><label
+						>Structură<select name="structureId" bind:value={unitStructure}
+							>{#each structures.filter((st) => data.registry.manageableStructureIds?.includes(st.id) || units.some((u) => (u.structureId ?? 'cluj') === st.id && data.registry.chiefUnitIds.includes(u.id))) as st (st.id)}<option
+									value={st.id}>{st.name}</option
+								>{/each}</select
+						></label
+					><label>Nume<input name="name" required /></label><label
 						>Creează în<select name="parentId"
-							>{#if data.registry.admin}<option value="">Unitate nouă</option
-								>{/if}{#each units.filter((u) => data.registry.admin || data.registry.chiefUnitIds.includes(u.id)) as u (u.id)}<option
+							>{#if data.registry.admin || data.registry.manageableStructureIds?.includes(unitStructure)}<option
+									value="">Unitate nouă</option
+								>{/if}{#each units.filter((u) => (u.structureId ?? 'cluj') === unitStructure && (data.registry.admin || data.registry.chiefUnitIds.includes(u.id))) as u (u.id)}<option
 									value={u.id}>{u.name}</option
 								>{/each}</select
 						></label
@@ -190,7 +230,20 @@
 				</form>
 			</details>
 		</section>{/if}
+	{#if !data.registry.admin && data.registry.transitions.some((t) => t.state === 'review')}<section>
+			<h2>Treceri de ramură de verificat</h2>
+			{#each data.registry.transitions.filter((t) => t.state === 'review') as t (t.id)}<p>
+					<a href={resolve(`/units/${t.memberId}`)}
+						>{data.registry.members.find((m) => m.id === t.memberId)?.name ?? 'Verifică membrul'}</a
+					>
+					· {t.message}
+				</p>{/each}
+		</section>{/if}
 	{#if data.registry.admin}<section>
+			<h2>Apartenența la Cluj și Florești</h2>
+			<a href={resolve('/units/structures')}>Verifică și confirmă repartizarea inițială</a>
+		</section>
+		<section>
 			<details bind:open={progressionOpen}>
 				<summary>Actualizarea anuală a membrilor</summary>
 				<p>

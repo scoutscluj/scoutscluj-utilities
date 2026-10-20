@@ -18,7 +18,16 @@ export async function memberAction(event: RequestEvent) {
 	delete body.action;
 	if (form.has('keepLocal')) body.keepLocal = form.get('keepLocal') === 'on';
 	let path: string;
-	if (action === 'unit') path = '/units';
+	if (action === 'classify') {
+		path = '/structures/confirm';
+		try {
+			body.members = JSON.parse(String(form.get('members')));
+			body.units = JSON.parse(String(form.get('units')));
+		} catch {
+			return fail(400, { message: 'Reîncarcă previzualizarea.' });
+		}
+		body.confirm = form.get('confirm') === 'on';
+	} else if (action === 'unit') path = '/units';
 	else if (action === 'archive')
 		path = `/units/${encodeURIComponent(String(form.get('id')))}/archive`;
 	else if (action === 'create') path = '';
@@ -27,6 +36,13 @@ export async function memberAction(event: RequestEvent) {
 		body.enabled = form.get('enabled') === 'on';
 	} else if (action === 'import') {
 		path = '/orgo/import';
+		if (form.get('units')) {
+			try {
+				body.units = JSON.parse(String(form.get('units')));
+			} catch {
+				return fail(400, { message: 'Unități invalide.' });
+			}
+		}
 		body.confirm = form.get('confirm') === 'on';
 	} else if (action === 'retry') path = `/orgo/retry/${encodeURIComponent(String(form.get('id')))}`;
 	else if (id) {
@@ -60,6 +76,7 @@ export async function memberAction(event: RequestEvent) {
 		message?: string;
 		id?: string;
 		added?: number;
+		unitsAdded?: number;
 		conflicts?: number;
 	};
 	if (!response.ok)
@@ -72,9 +89,10 @@ export async function memberAction(event: RequestEvent) {
 		section: action,
 		message:
 			action === 'import'
-				? `Import finalizat: ${result.added ?? 0} adăugați, ${result.conflicts ?? 0} cazuri de verificat.`
+				? `Import finalizat: ${result.added ?? 0} membri și ${result.unitsAdded ?? 0} unități adăugate, ${result.conflicts ?? 0} cazuri de verificat.`
 				: ((
 						{
+							classify: 'Apartenențele au fost confirmate. Schimbarea numelui nu le va modifica.',
 							profile: 'Datele membrului au fost salvate.',
 							note: 'Notița a fost adăugată.',
 							unit: 'Unitatea sau grupa a fost adăugată.',

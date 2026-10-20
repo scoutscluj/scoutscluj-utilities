@@ -41,6 +41,17 @@ export class MembersController {
   ) {
     return this.orgo.retry(u, id, b);
   }
+  @Get('structures/preview')
+  @Header('Cache-Control', 'private, no-store')
+  structurePreview(@CurrentUser() u: Actor) {
+    return this.members.structurePreview(u);
+  }
+  @Post('structures/confirm') structureConfirm(
+    @CurrentUser() u: Actor,
+    @Body() b: unknown,
+  ) {
+    return this.members.confirmStructures(u, b);
+  }
   @Post('progression') settings(@CurrentUser() u: Actor, @Body() b: unknown) {
     return this.members.progressionSettings(u, b);
   }

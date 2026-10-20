@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { membershipProgress } from './admin-ledger';
+import { membershipProgress, unallocatedAmount, admissionPaidInPeriod } from './admin-ledger';
 import type { Dashboard } from './types';
 
 const ledger: Dashboard = {
@@ -198,4 +198,80 @@ describe('admission marker', () => {
 			expect(admissionPaidInPeriod(admission, member)).toBe(false);
 		}
 	);
+});
+
+describe('manual admission display and receipt availability', () => {
+	it('subtracts both destinations and refunds without changing membership collection totals', () => {
+		const copy = structuredClone(ledger);
+		const receipt = {
+			id: 'mixed',
+			periodId: 'current',
+			amountBani: 20500,
+			refundedBani: 500,
+			method: 'bank',
+			receivedOn: '2026-10-20',
+			reference: 'BT',
+			note: 'Extras',
+			reviewRequired: false
+		};
+		copy.receipts.push(receipt);
+		copy.allocations.push({
+			id: 'fee',
+			receiptId: 'mixed',
+			obligationId: 'partial',
+			amountBani: 5000,
+			reversed: false,
+			note: 'Cotizație'
+		});
+		copy.admissionAllocations = [
+			{
+				id: 'admission',
+				receiptId: 'mixed',
+				orgoUserId: 2,
+				amountBani: 10500,
+				expectedBani: 10500,
+				reversed: false,
+				note: 'Adeziune'
+			}
+		];
+		expect(unallocatedAmount(copy, receipt)).toBe(4500);
+		expect(membershipProgress(copy, 'current').collectedBani).toBe(45000);
+		copy.admissionAllocations[0].reversed = true;
+		expect(unallocatedAmount(copy, receipt)).toBe(15000);
+	});
+	it('uses canonical paid evidence while keeping the badge in the receipt year', () => {
+		const copy = structuredClone(ledger),
+			obligation = copy.obligations[0];
+		copy.receipts.push({
+			id: 'historic',
+			periodId: 'previous',
+			amountBani: 5500,
+			refundedBani: 0,
+			method: 'bank',
+			receivedOn: '2025-10-20',
+			reference: 'BT',
+			note: 'Extras',
+			reviewRequired: false
+		});
+		copy.admissionAllocations = [
+			{
+				id: 'admission',
+				receiptId: 'historic',
+				orgoUserId: 1,
+				amountBani: 5500,
+				expectedBani: 5500,
+				reversed: false,
+				note: 'Adeziune istorică'
+			}
+		];
+		copy.admissionMembers = [
+			{ orgoUserId: 1, name: 'Ana', expectedBani: 5500, paid: true, receivedBani: 5500 }
+		];
+		expect(admissionPaidInPeriod(copy, obligation)).toBe(false);
+		expect(
+			admissionPaidInPeriod(copy, { ...obligation, id: 'another-year', periodId: 'previous' })
+		).toBe(true);
+		copy.admissionMembers[0].paid = false;
+		expect(admissionPaidInPeriod(copy, { ...obligation, periodId: 'previous' })).toBe(false);
+	});
 });

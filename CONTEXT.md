@@ -245,3 +245,11 @@ _Avoid_: President
 **Centrul Local**:
 The Scouts Cluj local center as a whole, across units and age branches.
 _Avoid_: Organization
+
+## Local structures and admission evidence
+
+Cluj and Florești are explicit local structures within the same configured Orgo center. Members own one primary structure; unit subgroups inherit their unit's structure. Adults may serve units across structures, granted by Council, independently of their primary affiliation. Council alone transfers primary affiliation and grants structure administrator mandates. Structure administrators manage their own structure and chiefs, without global administrator or finance privileges. Visiting adult engagements can end locally; their global withdrawal remains with home-scope management or Council. Annual progression searches only within the primary structure and queues missing destinations for manual review.
+
+Legacy affiliations remain unconfirmed until Council reviews /units/structures. Name-based Florești matching proposes initial classification only. Import excludes Orgo patrol types and descendants; selected units require explicit branch and structure. Inactive history stays separate. Existing Orgo identifiers and raw names remain unchanged.
+
+Manual admission allocations are a distinct ledger linked to actual bank/cash receipts and canonical Orgo identity. Receipt availability sums membership and admission allocations and subtracts refunds. All financial writes share advisory lock 9212026; transfers and classification take this lock before member lock 19102026. Historical manual admission can be recorded independently of the six-month online eligibility rule. Partial admission can be completed online; checkout snapshots the expected integral amount to prevent a later manual correction turning the remainder into an integral admission. Confirmed explicit affiliation determines new admission tariffs; unconfirmed legacy members keep the original name-based tariff until reviewed. Paid evidence and documented historical amounts remain stable across names and periods.

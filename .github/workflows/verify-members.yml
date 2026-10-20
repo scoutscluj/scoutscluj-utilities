@@ -41,6 +41,10 @@ jobs:
       - run: pnpm --filter api build
       - name: Migrate a fresh PostgreSQL database and verify persisted member operations
         run: pnpm --filter api exec tsx test/members-postgres.smoke.ts
+      - name: Verify catalog maintenance command completes and is repeatable
+        run: |
+          timeout 60s pnpm --filter api kitchen:seed:prod
+          timeout 60s pnpm --filter api kitchen:seed:prod
       - run: pnpm --filter web typecheck
       - run: pnpm --filter web test
       - run: pnpm --filter web build

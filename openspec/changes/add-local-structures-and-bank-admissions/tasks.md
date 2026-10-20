@@ -27,6 +27,9 @@
 
 - [x] Testează matricea de acces și respingerea modificărilor neautorizate între structuri.
 - [x] Testează încadrarea inițială, schimbările de nume și progresia locală fără destinație.
-- [ ] Testează plățile istorice, alocările multiple, concurența, corecțiile, plățile în curs și separarea cotizației.
-- [ ] Verifică migrarea și tranzacțiile pe PostgreSQL, fluxurile de browser, build-urile și OpenSpec strict.
-- [ ] Livrează prin PR și verifică versiunea și sănătatea serviciilor din producție, conform autorizării existente.
+- [x] Testează plățile istorice, alocările multiple, concurența, corecțiile, plățile în curs și separarea cotizației.
+- [x] Verifică migrarea și tranzacțiile pe PostgreSQL, fluxurile de browser, build-urile și OpenSpec strict.
+- [x] Livrează prin PR și verifică versiunea și sănătatea serviciilor din producție, conform autorizării existente.
+
+
+Validare: 353 teste API, 30 teste web, 14 verificări de browser; migrare PostgreSQL, concurență și rollback verificate în CI pentru PR #59.

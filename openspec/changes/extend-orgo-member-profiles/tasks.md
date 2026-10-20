@@ -12,5 +12,5 @@
 - [x] 8. Evidență distinctă a naționalului plătit direct, asocierea încasării
       locale din meniul contextual și protecție împotriva transferurilor duble.
 - [x] 9. Vizualizarea cotizațiilor pentru membrii deja vizibili în registru.
-- [ ] 10. Teste de contract, drepturi, concurență, Postgres și fluxuri web.
+- [x] 10. Teste de contract, drepturi, concurență, Postgres și fluxuri web.
 - [ ] 11. Documentație, PR verificat și publicare în producție.

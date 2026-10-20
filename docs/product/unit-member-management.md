@@ -176,4 +176,8 @@ Oricine poate vedea un membru poate consulta situația cotizațiilor sale. Confi
 
 Verificarea aprobată a tokenului existent, efectuată la 20 octombrie 2026 printr-un singur PATCH gol, a primit HTTP 403. Scrierile Orgo rămân dezactivate; activarea cere un token cu drept de editare. Citirea și importul folosesc tokenul serverului existent.
 
+Istoricul național verificat în Orgo folosește anul 1 octombrie–30 septembrie și poate furniza agregate `paid`/`unpaid` fără câmpul `status`. Perioadele locale existente din septembrie sunt asociate cu același an cercetășesc, fără modificarea obligațiilor sau plăților. Asocierea ambiguă este respinsă; plățile parțiale, în așteptare, scutirile și rambursările nu confirmă o cotizație achitată.
+
+Extinderea a fost instalată și verificată în producție la 20 octombrie 2026: migrarea `Migration20261020000200`, serviciile API/web și protecția accesului la membri și fotografii. Validarea include 391 teste API, 31 teste web și 17 teste în browser.
+
 Definițiile tenantului au fost verificate: rolurile 1/6 sunt pentru unități, iar 18/19 sunt pentru patrule și sunt excluse inclusiv din previzualizarea funcțiilor. Câmpurile publice Alimentație, Alergii și Alte nevoi sunt legate de fișa reutilizabilă, cu etichete pentru opțiunile alimentare și protecția câmpurilor administrative. Corecturile folosesc aceeași bază de reconciliere ca fișa Orgo.

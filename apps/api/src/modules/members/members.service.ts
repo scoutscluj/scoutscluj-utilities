@@ -157,26 +157,32 @@ export class MembersService {
           $in: ctx.assignments.filter((a) => a.unitId).map((a) => a.unitId!),
         },
       }));
-    const homeScope =
-      ctx.admin ||
-      ctx.structureIds.includes(structureOf(member)) ||
-      ctx.assignments.some(
-        (a) =>
-          (['chief', 'leader'].includes(a.role) ||
-            (a.role === 'helper' && a.canEdit)) &&
-          actorUnits.some(
-            (u) => u.id === a.unitId && structureOf(u) === structureOf(member),
-          ),
-      );
-    if (!homeScope) {
-      scoped.identity = false;
-      scoped.transfer = false;
-    }
+    const homeAssignments = ctx.assignments.filter((a) =>
+      actorUnits.some(
+        (u) => u.id === a.unitId && structureOf(u) === structureOf(member),
+      ),
+    );
+    const homeAdmin =
+      ctx.admin || ctx.structureIds.includes(structureOf(member));
+    const home = permissions(homeAdmin, false, homeAssignments, member);
+    if (!member.unitId)
+      for (const target of responsibilities) {
+        const grant = permissions(homeAdmin, false, homeAssignments, {
+          id: member.id,
+          unitId: target.unitId,
+          groupId: target.groupId,
+        });
+        home.identity ||= grant.identity;
+        home.transfer ||= grant.transfer;
+        home.edit ||= grant.edit;
+      }
+    scoped.identity &&= home.identity;
+    scoped.transfer &&= home.transfer;
     return {
       ...scoped,
       ...(basicAdultRead ? { read: true } : {}),
       own: ctx.member?.id === member.id,
-      withdraw: scoped.edit && homeScope,
+      withdraw: scoped.edit && home.edit,
     };
   }
   private async chief(tx: EntityManager, user: CurrentUser, unitId: string) {

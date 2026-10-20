@@ -322,6 +322,55 @@ describe('member HTTP scope and lifecycle', () => {
       .send({ role: 'structure_admin', structureId: 'cluj' })
       .expect(403);
   });
+  it('does not combine a local mandate and unrelated home-unit leadership into global rights over a visiting adult', async () => {
+    localAdmin();
+    f.list('assignment').push({
+      id: randomUUID(),
+      memberId: adultId,
+      role: 'leader',
+      unitId: otherUnit,
+      groupId: null,
+    });
+    const guestId = randomUUID();
+    f.list('member').push({
+      id: guestId,
+      name: 'Adult Cluj vizitator',
+      structureId: 'cluj',
+      birthDate: '1990-01-01',
+      status: 'active',
+      profile: emptyProfile(),
+      revision: 1,
+      remote: {},
+    });
+    await http()
+      .post(`/members/${guestId}/assignments`)
+      .set('x-actor', '2')
+      .send({ role: 'helper', unitId })
+      .expect(201);
+    await http().get(`/members/${guestId}`).expect(200);
+    await http()
+      .post(`/members/${guestId}/lifecycle`)
+      .send({ action: 'withdraw' })
+      .expect(403);
+    await http()
+      .post(`/members/${guestId}`)
+      .send({ revision: 2, name: 'Identitate schimbată' })
+      .expect(403);
+    // A home-unit leader still cannot borrow the local mandate's identity privilege.
+    await http()
+      .post(`/members/${guestId}/assignments`)
+      .set('x-actor', '2')
+      .send({ role: 'helper', unitId: otherUnit })
+      .expect(201);
+    await http()
+      .post(`/members/${guestId}`)
+      .send({ revision: 3, name: 'Identitate schimbată' })
+      .expect(403);
+    await http()
+      .post(`/members/${guestId}/lifecycle`)
+      .send({ action: 'withdraw' })
+      .expect(201);
+  });
   it('lets visiting adults work in both structures but lets local managers end only their local engagement', async () => {
     localAdmin();
     const guestId = randomUUID();

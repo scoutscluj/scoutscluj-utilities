@@ -202,8 +202,14 @@
 						><a href={resolve(`/units/${m.id}`)}>{m.name}</a><small
 							>{registry.structures?.find((s) => s.id === (m.structureId ?? 'cluj'))?.name}{m.branch
 								? ` · ${branchLabels[m.branch] ?? m.branch}`
-								: ''}</small
-						></td
+								: m.orgoType
+									? ` · ${m.orgoType}`
+									: ''}
+							{(m.roles ?? [])
+								.filter((role) => role !== 'beneficiary')
+								.map((role) => roleLabels[role] ?? role)
+								.join(', ')}
+						</small></td
 					>
 					{#if !inactive}<td
 							>{m.unitId

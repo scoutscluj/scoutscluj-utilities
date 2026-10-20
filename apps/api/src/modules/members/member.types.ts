@@ -11,8 +11,19 @@ export const adultRoles = [
   'chief',
   'scouter',
   'council',
+  'structure_admin',
 ] as const;
 export type AssignmentRole = 'beneficiary' | (typeof adultRoles)[number];
+export const structureOf = (value: { structureId?: string | null }) =>
+  value.structureId ?? 'cluj';
+export const proposedStructure = (name: string) =>
+  name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .includes('floresti')
+    ? 'floresti'
+    : 'cluj';
 export function isImportedInactive(member: {
   orgoId?: number | null;
   status: string;

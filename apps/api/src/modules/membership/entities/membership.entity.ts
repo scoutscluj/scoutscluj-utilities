@@ -116,6 +116,7 @@ export const MembershipCheckout = defineEntity({
     identifier: p.string(),
     identifierKind: p.string(),
     plan: p.string(),
+    admissionExpectedBani: p.integer().nullable(),
     amountBani: p.integer(),
     provider: p.string(),
     providerConfigId: p.uuid().nullable(),

@@ -248,6 +248,23 @@ export class MembershipController {
   allocate(@CurrentUser() user: AuthenticatedUser, @Body() body: unknown) {
     return this.membership.allocate(user, body);
   }
+  @UseGuards(AuthGuard)
+  @Post('admission-allocations')
+  allocateAdmission(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: unknown,
+  ) {
+    return this.membership.allocateAdmission(user, body);
+  }
+  @UseGuards(AuthGuard)
+  @Post('admission-allocations/:id/reverse')
+  reverseAdmission(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.membership.reverseAdmission(user, id, body);
+  }
 
   @UseGuards(AuthGuard)
   @Post('allocations/:id/reverse')

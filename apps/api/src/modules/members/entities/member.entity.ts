@@ -7,6 +7,16 @@ const id = () =>
     .primary()
     .onCreate(() => randomUUID());
 const created = () => p.datetime().onCreate(() => new Date());
+export const LocalStructure = defineEntity({
+  name: 'LocalStructure',
+  tableName: 'local_structures',
+  properties: {
+    id: p.string().primary(),
+    name: p.string(),
+    forming: p.boolean().default(false),
+  },
+});
+export type LocalStructure = InferEntity<typeof LocalStructure>;
 export const ScoutUnit = defineEntity({
   name: 'ScoutUnit',
   tableName: 'scout_units',
@@ -14,6 +24,8 @@ export const ScoutUnit = defineEntity({
     id: id(),
     name: p.string(),
     branch: p.string().$type<Branch>(),
+    structureId: p.string().default('cluj'),
+    structureConfirmed: p.boolean().default(false),
     parentId: p.uuid().nullable(),
     graduationYear: p.integer().nullable(),
     orgoId: p.integer().nullable().unique(),
@@ -31,6 +43,8 @@ export const ScoutMember = defineEntity({
     accountId: p.integer().nullable().unique(),
     name: p.string(),
     birthDate: p.string().nullable(),
+    structureId: p.string().default('cluj'),
+    structureConfirmed: p.boolean().default(false),
     grade: p.integer().nullable(),
     unitId: p.uuid().nullable(),
     groupId: p.uuid().nullable(),
@@ -55,6 +69,7 @@ export const ScoutAssignment = defineEntity({
     id: id(),
     memberId: p.uuid(),
     unitId: p.uuid().nullable(),
+    structureId: p.string().nullable(),
     groupId: p.uuid().nullable(),
     role: p.string().$type<AssignmentRole>(),
     canEdit: p.boolean().default(false),
@@ -130,6 +145,7 @@ export const MemberNotice = defineEntity({
   },
 });
 export const MEMBER_ENTITIES = [
+  LocalStructure,
   ScoutUnit,
   ScoutMember,
   ScoutAssignment,

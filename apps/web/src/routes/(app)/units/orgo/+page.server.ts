@@ -10,6 +10,7 @@ export const load: PageServerLoad = async (event) => {
 		message?: string;
 		serverToken?: boolean;
 		writesEnabled?: boolean;
+		importedUnitIds?: number[];
 		members?: { id: number; name: string; status: string }[];
 		inactiveMembers?: { id: number; name: string }[];
 		units?: { id: number; name: string; parent: number | null; type: string | null }[];

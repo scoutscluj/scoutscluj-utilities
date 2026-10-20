@@ -17,6 +17,19 @@ const prices = Object.fromEntries(
 	])
 );
 const fixture = () => ({
+	admissionAllocations: [],
+	admissionMembers: [
+		{
+			orgoUserId: 99999,
+			name: 'Istoric bancar',
+			expectedBani: 5500,
+			paid: false,
+			receivedBani: 0,
+			inactive: true
+		},
+		{ orgoUserId: 36801, name: 'Ana Popescu', expectedBani: 5500, paid: false, receivedBani: 0 },
+		{ orgoUserId: 36802, name: 'Andrei Ionescu', expectedBani: 10500, paid: false, receivedBani: 0 }
+	],
 	periods: [
 		{
 			id: current,
@@ -187,6 +200,11 @@ createServer(async (req, res) => {
 	if (req.url === '/api/activities') return respond(res, []);
 	if (req.url === '/api/members')
 		return respond(res, {
+			structures: [
+				{ id: 'cluj', name: 'Cluj' },
+				{ id: 'floresti', name: 'Florești' }
+			],
+			manageableStructureIds: ['cluj', 'floresti'],
 			admin: true,
 			canManage: true,
 			chiefUnitIds: [],
@@ -196,6 +214,15 @@ createServer(async (req, res) => {
 			transitions: [],
 			notices: [],
 			units: [
+				{
+					id: 'u3',
+					name: 'Temerari Florești',
+					structureId: 'floresti',
+					branch: 'temerari',
+					parentId: null,
+					archived: false,
+					grades: []
+				},
 				{
 					id: 'u1',
 					name: 'Temerari',
@@ -236,6 +263,16 @@ createServer(async (req, res) => {
 			})),
 			members: [
 				{
+					id: 'm2',
+					name: 'Copil Florești',
+					structureId: 'floresti',
+					orgoId: 36802,
+					unitId: 'u3',
+					groupId: null,
+					grade: 5,
+					status: 'active'
+				},
+				{
 					id: 'm1',
 					name: 'Ana Popescu',
 					orgoId: 36801,
@@ -248,6 +285,30 @@ createServer(async (req, res) => {
 			]
 		});
 
+	if (req.url === '/api/members/structures/preview')
+		return respond(res, {
+			structures: [
+				{ id: 'cluj', name: 'Cluj' },
+				{ id: 'floresti', name: 'Florești' }
+			],
+			units: [{ id: 'u1', name: 'Temerari', structureId: 'cluj' }],
+			members: [
+				{
+					id: 'm1',
+					name: 'Copil Florești',
+					revision: 1,
+					unitId: 'u1',
+					structureId: 'floresti',
+					inactive: false
+				}
+			]
+		});
+	if (req.url === '/api/members/structures/confirm') {
+		let raw = '';
+		for await (const chunk of req) raw += chunk;
+		submissions.push(JSON.parse(raw));
+		return respond(res, { ok: true });
+	}
 	if (req.url === '/api/membership/catalog')
 		return respond(res, {
 			period: ledger.periods[0],
@@ -278,6 +339,7 @@ createServer(async (req, res) => {
 		return respond(res, { message: 'Eroare de test. Reîncearcă.' }, 409);
 	}
 	if (req.url === '/test/admission-confirm') {
+		ledger.admissionMembers.find((m) => m.orgoUserId === 36801).paid = true;
 		const member = ledger.obligations[0];
 		ledger.checkouts.push({
 			id: 'admission',
@@ -400,6 +462,30 @@ createServer(async (req, res) => {
 				reversed: false,
 				note: body.note
 			});
+		for (const a of body.allocations ?? []) {
+			if (a.purpose === 'admission') {
+				const member = ledger.admissionMembers.find((m) => m.orgoUserId === Number(a.orgoUserId));
+				ledger.admissionAllocations.push({
+					id: randomUUID(),
+					receiptId: receipt.id,
+					orgoUserId: Number(a.orgoUserId),
+					amountBani: a.amountBani,
+					expectedBani: a.expectedBani ?? member.expectedBani,
+					note: a.note,
+					reversed: false
+				});
+				member.receivedBani += a.amountBani;
+				member.paid = member.receivedBani >= member.expectedBani;
+			} else
+				ledger.allocations.push({
+					id: randomUUID(),
+					receiptId: receipt.id,
+					obligationId: a.obligationId,
+					amountBani: a.amountBani,
+					note: a.note,
+					reversed: false
+				});
+		}
 		return respond(res, receipt);
 	}
 	return respond(res, {});

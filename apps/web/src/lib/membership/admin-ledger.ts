@@ -18,7 +18,7 @@ export const unallocatedAmount = (ledger: Dashboard, receipt: Receipt) =>
 		? 0
 		: receipt.amountBani -
 			receipt.refundedBani -
-			ledger.allocations
+			[...ledger.allocations, ...(ledger.admissionAllocations ?? [])]
 				.filter((a) => a.receiptId === receipt.id && !a.reversed)
 				.reduce((sum, a) => sum + a.amountBani, 0);
 
@@ -72,6 +72,23 @@ export function membershipProgress(ledger: Dashboard, periodId?: string) {
 
 // The badge belongs to the period of the admission payment, not every later year.
 export function admissionPaidInPeriod(ledger: Dashboard, obligation: Obligation) {
+	const canonical = ledger.admissionMembers?.find((m) => m.orgoUserId === obligation.orgoUserId);
+	if (canonical && !canonical.paid) return false;
+	const rows = (ledger.admissionAllocations ?? []).filter(
+		(a) => a.orgoUserId === obligation.orgoUserId && !a.reversed
+	);
+	const manualPaid =
+		ledger.admissionMembers?.find((m) => m.orgoUserId === obligation.orgoUserId)?.paid ??
+		(rows.length > 0 && rows.reduce((s, a) => s + a.amountBani, 0) >= rows[0].expectedBani);
+	if (
+		manualPaid &&
+		rows.some((a) =>
+			ledger.receipts.some(
+				(r) => r.id === a.receiptId && r.periodId === obligation.periodId && !r.reviewRequired
+			)
+		)
+	)
+		return true;
 	return ledger.checkouts.some(
 		(checkout) =>
 			checkout.purpose === 'admission' &&

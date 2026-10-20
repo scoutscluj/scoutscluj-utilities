@@ -105,3 +105,38 @@ test('inactive Orgo history stays separate and supports paging and search', asyn
 	await expect(history.getByRole('link')).toHaveCount(1);
 	await expect(history.getByRole('link', { name: 'Istoric 01', exact: true })).toBeVisible();
 });
+
+test('structure filtering and initial classification keep unit choices consistent', async ({
+	page,
+	request
+}) => {
+	await page.goto('/units');
+	await page
+		.getByRole('combobox', { name: 'Structură', exact: true })
+		.first()
+		.selectOption('floresti');
+	await expect(page.getByRole('link', { name: 'Copil Florești', exact: true })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Ana Popescu', exact: true })).not.toBeVisible();
+	await page.locator('summary').filter({ hasText: 'Adaugă membru' }).click();
+	const create = page
+		.locator('form')
+		.filter({ has: page.locator('input[name="action"][value="create"]') });
+	await create.getByLabel('Structură').selectOption('floresti');
+	await expect(
+		create.getByRole('combobox', { name: 'Unitate', exact: true }).locator('option')
+	).toHaveText(['Alege unitatea', 'Temerari Florești']);
+	await page.goto('/units/structures');
+	const confirm = page.getByRole('button', { name: 'Confirmă repartizarea' });
+	await expect(confirm).toBeDisabled();
+	await page.getByRole('combobox', { name: 'Unitate', exact: true }).selectOption('u3');
+	await page
+		.getByRole('checkbox', { name: 'Am verificat toate repartizările, inclusiv membrii inactivi.' })
+		.check();
+	await expect(confirm).toBeEnabled();
+	await confirm.click();
+	const submissions = await (await request.get('http://127.0.0.1:3015/test/submissions')).json();
+	expect(submissions.at(-1)).toMatchObject({
+		confirm: true,
+		members: [{ id: 'm1', structureId: 'floresti', unitId: 'u3' }]
+	});
+});

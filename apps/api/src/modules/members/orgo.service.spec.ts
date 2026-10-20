@@ -1,5 +1,7 @@
 jest.mock('@mikro-orm/postgresql', () => ({ EntityManager: class {} }));
 jest.mock('./entities/member.entity', () => ({
+  ScoutUnit: 'unit',
+  LocalStructure: 'structure',
   ScoutMember: 'member',
   MemberSync: 'sync',
 }));
@@ -24,8 +26,77 @@ describe('Orgo import preview', () => {
   afterEach(() => {
     global.fetch = originalFetch;
   });
+  it('imports selected units with confirmed branches and rejects a forged patrol selection', async () => {
+    const created: Record<string, unknown>[] = [];
+    const em = {
+      findOneOrFail: () => Promise.resolve({ roles: ['admin'] }),
+      findOne: () => Promise.resolve(null),
+      execute: () => Promise.resolve([]),
+      create: (_entity: unknown, value: Record<string, unknown>) => {
+        created.push(value);
+        return value;
+      },
+      transactional: async <T>(fn: (tx: unknown) => Promise<T>) => fn(em),
+    };
+    const service = new MemberOrgoService(
+      em as unknown as EntityManager,
+      new ConfigService({
+        ORGO_API_TOKEN: 'server',
+        ORGO_LOCAL_CENTER_ID: '7',
+        ORGO_OAUTH_BASE_URL: 'https://orgo.example.test',
+      }),
+    );
+    global.fetch = jest.fn().mockImplementation((url: string) =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            'hydra:member': String(url).includes('/units?')
+              ? [
+                  {
+                    id: 10,
+                    name: 'Unitatea Florești',
+                    unitType: { name: 'Unitate' },
+                  },
+                  { id: 11, name: 'Patrulă', unitType: { name: 'Patrula' } },
+                ]
+              : [],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    const actor = { id: 1, displayName: 'Admin', roles: [] };
+    await expect(
+      service.import(actor, {
+        confirm: true,
+        units: [{ orgoId: 11, branch: 'temerari', structureId: 'floresti' }],
+      }),
+    ).rejects.toThrow('nu poate fi importată');
+    expect(created).toHaveLength(0);
+    await expect(
+      service.import(actor, {
+        confirm: true,
+        units: [{ orgoId: 10, branch: '', structureId: 'floresti' }],
+      }),
+    ).rejects.toThrow('ramura');
+    const result = await service.import(actor, {
+      confirm: true,
+      units: [{ orgoId: 10, branch: 'temerari', structureId: 'floresti' }],
+    });
+    expect(result.unitsAdded).toBe(1);
+    expect(created[0]).toMatchObject({
+      orgoId: 10,
+      name: 'Unitatea Florești',
+      branch: 'temerari',
+      structureId: 'floresti',
+      structureConfirmed: true,
+    });
+  });
   it('separates inactive members and excludes patrol types and descendants without matching unit names', async () => {
-    const em = { findOneOrFail: () => Promise.resolve({ roles: ['admin'] }) };
+    const em = {
+      findOneOrFail: () => Promise.resolve({ roles: ['admin'] }),
+      find: () => Promise.resolve([]),
+    };
     const service = new MemberOrgoService(
       em as unknown as EntityManager,
       new ConfigService({

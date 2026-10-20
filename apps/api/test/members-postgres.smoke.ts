@@ -1,3 +1,16 @@
+import { MembershipService } from '../src/modules/membership/membership.service';
+import {
+  MembershipPeriod,
+  MembershipObligation,
+  MembershipReceipt,
+  MembershipAllocation,
+} from '../src/modules/membership/entities/membership.entity';
+import { AdmissionAllocation } from '../src/modules/membership/entities/admission-allocation.entity';
+import {
+  admissionEvidence,
+  receiptAllocated,
+} from '../src/modules/membership/admission-ledger';
+import { BASELINE_PLANS } from '../src/modules/membership/membership.rules';
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { MikroORM } from '@mikro-orm/postgresql';
@@ -99,7 +112,173 @@ async function main() {
       }),
       1,
     );
-    console.log('PostgreSQL migrations and member lifecycle checks passed.');
+    const floresti = await service().createUnit(actor, {
+      name: 'Temerari Florești',
+      branch: 'temerari',
+      structureId: 'floresti',
+    });
+    await service().transfer(actor, member.id, {
+      unitId: floresti.id,
+      structureId: 'floresti',
+    });
+    reader.clear();
+    assert.equal(
+      (await reader.findOneOrFail(ScoutMember, member.id)).structureId,
+      'floresti',
+    );
+    const localAccount = reader.create(User, {
+      displayName: 'Responsabil Florești',
+      roles: [],
+    });
+    await reader.flush();
+    const localMember = await service().createMember(actor, {
+      name: 'Adult Florești test',
+      kind: 'adult',
+      birthDate: '1990-01-01',
+      structureId: 'floresti',
+    });
+    const local = await reader.findOneOrFail(ScoutMember, localMember.id);
+    local.accountId = localAccount.id;
+    await reader.flush();
+    await service().assignment(actor, local.id, {
+      role: 'structure_admin',
+      structureId: 'floresti',
+    });
+    const localActor = {
+      id: localAccount.id,
+      displayName: localAccount.displayName,
+      roles: [],
+    };
+    const dashboard = await service().dashboard(localActor);
+    assert.equal(dashboard.admin, false);
+    assert.ok(dashboard.units.every((u) => u.structureId === 'floresti'));
+    await assert.rejects(
+      service().createUnit(localActor, {
+        name: 'Forbidden',
+        branch: 'lupisori',
+        structureId: 'cluj',
+      }),
+    );
+    const period = reader.create(MembershipPeriod, {
+      name: 'Adeziuni test',
+      startsOn: '2026-09-01',
+      endsOn: '2027-08-31',
+      prices: BASELINE_PLANS,
+    });
+    await reader.flush();
+    const obligation = reader.create(MembershipObligation, {
+      periodId: period.id,
+      orgoUserId: 77777,
+      memberName: 'Membru Florești',
+      plan: 'normal',
+      totalBani: 30000,
+      nationalBani: 15000,
+      verificationNote: 'Identitate verificată',
+    });
+    await reader.flush();
+    const finance = () =>
+      new MembershipService(
+        orm.em.fork(),
+        undefined as never,
+        undefined as never,
+        undefined as never,
+        undefined as never,
+      );
+    const receipt = await finance().bankReceipt(actor, {
+      periodId: period.id,
+      amountBani: 20500,
+      reference: 'PG-MIXED',
+      receivedOn: '2026-10-20',
+      note: 'Extras',
+      allocations: [
+        {
+          purpose: 'admission',
+          orgoUserId: 77777,
+          amountBani: 10500,
+          note: 'Adeziune',
+        },
+        {
+          purpose: 'membership',
+          obligationId: obligation.id,
+          amountBani: 10000,
+          note: 'Cotizație',
+        },
+      ],
+    });
+    assert.equal(await receiptAllocated(orm.em.fork(), receipt.id), 20500);
+    assert.equal((await admissionEvidence(orm.em.fork(), 77777)).paid, true);
+    assert.equal(
+      await reader.count(MembershipAllocation, { receiptId: receipt.id }),
+      1,
+    );
+    await assert.rejects(
+      finance().reconcileReceipt(actor, receipt.id, {
+        refundedBani: 1,
+        note: 'Restituire',
+      }),
+    );
+    const admission = await reader.findOneOrFail(AdmissionAllocation, {
+      receiptId: receipt.id,
+    });
+    await finance().reverseAdmission(actor, admission.id, {
+      note: 'Corecție verificată',
+    });
+    await finance().reconcileReceipt(actor, receipt.id, {
+      refundedBani: 10500,
+      note: 'Restituire',
+    });
+    assert.equal((await admissionEvidence(orm.em.fork(), 77777)).paid, false);
+    // Independent connections race for the same receipt, sharing one database lock.
+    const race = await finance().bankReceipt(actor, {
+      periodId: period.id,
+      amountBani: 10500,
+      reference: 'PG-RACE',
+      receivedOn: '2026-10-20',
+      note: 'Extras',
+    });
+    const attempts = await Promise.allSettled(
+      [1, 2].map(() =>
+        finance().allocateAdmission(actor, {
+          receiptId: race.id,
+          orgoUserId: 77777,
+          amountBani: 10500,
+          note: 'Adeziune',
+        }),
+      ),
+    );
+    assert.equal(attempts.filter((a) => a.status === 'fulfilled').length, 1);
+    assert.equal(await receiptAllocated(orm.em.fork(), race.id), 10500);
+    // A later invalid allocation rolls back the receipt and earlier allocations together.
+    await assert.rejects(
+      finance().bankReceipt(actor, {
+        periodId: period.id,
+        amountBani: 500,
+        reference: 'PG-ROLLBACK',
+        receivedOn: '2026-10-20',
+        note: 'Extras',
+        allocations: [
+          {
+            purpose: 'membership',
+            obligationId: obligation.id,
+            amountBani: 100,
+            note: 'Cotizație',
+          },
+          {
+            purpose: 'admission',
+            orgoUserId: 999999,
+            amountBani: 400,
+            note: 'Identitate inexistentă',
+          },
+        ],
+      }),
+    );
+    assert.equal(
+      await reader.count(MembershipReceipt, { reference: 'PG-ROLLBACK' }),
+      0,
+    );
+    console.log(
+      'PostgreSQL migrations, scoped structures, admission allocation concurrency and transaction rollback checks passed.',
+    );
   } finally {
     await orm.close(true);
   }

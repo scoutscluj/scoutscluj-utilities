@@ -1,5 +1,9 @@
+jest.mock('../membership/entities/admission-allocation.entity', () => ({
+  AdmissionAllocation: 'admission-allocation',
+}));
 jest.mock('@mikro-orm/postgresql', () => ({ EntityManager: class {} }));
 jest.mock('./entities/member.entity', () => ({
+  LocalStructure: 'structure',
   ScoutMember: 'member',
   ScoutUnit: 'unit',
   ScoutAssignment: 'assignment',
@@ -21,6 +25,7 @@ jest.mock('../membership/entities/membership.entity', () => ({
   MembershipAllocation: 'allocation',
   MembershipPeriod: 'period',
   MembershipCheckout: 'checkout',
+  MembershipReceipt: 'receipt',
 }));
 jest.mock('../auth/guards/auth.guard', () => ({
   AuthGuard: class {
@@ -48,7 +53,13 @@ function fixture() {
   const list = (name: string) => tables[name] ?? (tables[name] = []);
   const matches = (row: Row, filter: Row) =>
     Object.entries(filter).every(([key, value]) => {
-      const actual = row[key] ?? null;
+      const actual =
+        row[key] ??
+        (key === 'structureId'
+          ? 'cluj'
+          : key === 'structureConfirmed'
+            ? false
+            : null);
       if (value && typeof value === 'object') {
         const op = value as Row;
         if ('$ne' in op) return actual !== op.$ne;
@@ -108,6 +119,10 @@ describe('member HTTP scope and lifecycle', () => {
     adultId = randomUUID();
   beforeEach(async () => {
     f = fixture();
+    f.list('structure').push(
+      { id: 'cluj', name: 'Cluj' },
+      { id: 'floresti', name: 'Florești' },
+    );
     childId = randomUUID();
     otherId = randomUUID();
     f.list('user').push(
@@ -197,6 +212,273 @@ describe('member HTTP scope and lifecycle', () => {
     await app.close();
   });
   const http = () => request(app.getHttpServer() as Server);
+  const localAdmin = () => {
+    const actor = f.list('member').find((m) => m.id === adultId)!;
+    actor.structureId = 'floresti';
+    actor.birthDate = '1990-01-01';
+    f.tables.assignment = [
+      {
+        id: randomUUID(),
+        memberId: adultId,
+        role: 'structure_admin',
+        structureId: 'floresti',
+        unitId: null,
+        groupId: null,
+      },
+    ];
+    const unit = f.list('unit').find((u) => u.id === unitId)!;
+    unit.structureId = 'floresti';
+    for (const id of [childId, otherId])
+      f.list('member').find((m) => m.id === id)!.structureId = 'floresti';
+  };
+  it('preserves adult responsibilities when council transfers primary affiliation and flags pending admissions', async () => {
+    const adult = f.list('member').find((m) => m.id === adultId)!;
+    adult.birthDate = '1990-01-01';
+    f.list('unit').find((u) => u.id === otherUnit)!.structureId = 'floresti';
+    await http()
+      .post(`/members/${adultId}/assignments`)
+      .set('x-actor', '2')
+      .send({ role: 'helper', unitId: otherUnit })
+      .expect(201);
+    f.list('obligation').push({ id: 'o-admission', orgoUserId: 100 });
+    f.list('checkout').push({
+      id: 'pending-admission',
+      obligationId: 'o-admission',
+      purpose: 'admission',
+      state: 'pending',
+      reviewRequired: false,
+    });
+    await http()
+      .post(`/members/${adultId}/transfer`)
+      .set('x-actor', '2')
+      .send({ structureId: 'floresti' })
+      .expect(201);
+    expect(
+      f.list('assignment').filter((a) => a.memberId === adultId && !a.endedAt),
+    ).toHaveLength(2);
+    expect(f.list('checkout')[0].reviewRequired).toBe(true);
+    expect(adult.structureId).toBe('floresti');
+  });
+  it('keeps unit responsibilities independent of the acting adult’s home affiliation', async () => {
+    f.list('unit').find((u) => u.id === unitId)!.structureId = 'floresti';
+    f.list('member').find((m) => m.id === childId)!.structureId = 'floresti';
+    await http()
+      .post(`/members/${childId}/lifecycle`)
+      .send({ action: 'withdraw' })
+      .expect(201);
+  });
+  it('gives local administrators only their structure and no global admin role', async () => {
+    localAdmin();
+    f.list('member').push({
+      id: randomUUID(),
+      name: 'Membru Cluj',
+      structureId: 'cluj',
+      status: 'active',
+      profile: emptyProfile(),
+    });
+    const result = await http().get('/members').expect(200);
+    const data = JSON.parse(result.text) as {
+      admin: boolean;
+      members: { name: string }[];
+    };
+    expect(data.admin).toBe(false);
+    expect(data.members.map((m) => m.name)).not.toContain('Membru Cluj');
+    await http()
+      .post('/members/units')
+      .send({
+        name: 'Lupișori Florești',
+        branch: 'lupisori',
+        structureId: 'floresti',
+      })
+      .expect(201);
+    await http()
+      .post('/members/units')
+      .send({ name: 'Unitate Cluj', branch: 'lupisori', structureId: 'cluj' })
+      .expect(403);
+    await http()
+      .post(`/members/${childId}/transfer`)
+      .send({ unitId: otherUnit, structureId: 'cluj' })
+      .expect(403);
+    await http()
+      .post(`/members/${adultId}/assignments`)
+      .send({ role: 'council' })
+      .expect(403);
+  });
+  it('allows only council to grant a local mandate and does not require a leader promise', async () => {
+    const adult = f.list('member').find((m) => m.id === adultId)!;
+    adult.birthDate = '1990-01-01';
+    await http()
+      .post(`/members/${adultId}/assignments`)
+      .set('x-actor', '2')
+      .send({ role: 'structure_admin', structureId: 'floresti' })
+      .expect(201);
+    expect(f.list('user').find((u) => u.id === 1)).toMatchObject({
+      roles: [],
+      councilAdmin: false,
+    });
+    expect(adult.promiseDate).toBeUndefined();
+    await http()
+      .post(`/members/${adultId}/assignments`)
+      .send({ role: 'structure_admin', structureId: 'cluj' })
+      .expect(403);
+  });
+  it('does not combine a local mandate and unrelated home-unit leadership into global rights over a visiting adult', async () => {
+    localAdmin();
+    f.list('assignment').push({
+      id: randomUUID(),
+      memberId: adultId,
+      role: 'leader',
+      unitId: otherUnit,
+      groupId: null,
+    });
+    const guestId = randomUUID();
+    f.list('member').push({
+      id: guestId,
+      name: 'Adult Cluj vizitator',
+      structureId: 'cluj',
+      birthDate: '1990-01-01',
+      status: 'active',
+      profile: emptyProfile(),
+      revision: 1,
+      remote: {},
+    });
+    await http()
+      .post(`/members/${guestId}/assignments`)
+      .set('x-actor', '2')
+      .send({ role: 'helper', unitId })
+      .expect(201);
+    await http().get(`/members/${guestId}`).expect(200);
+    await http()
+      .post(`/members/${guestId}/lifecycle`)
+      .send({ action: 'withdraw' })
+      .expect(403);
+    await http()
+      .post(`/members/${guestId}`)
+      .send({ revision: 2, name: 'Identitate schimbată' })
+      .expect(403);
+    // A home-unit leader still cannot borrow the local mandate's identity privilege.
+    await http()
+      .post(`/members/${guestId}/assignments`)
+      .set('x-actor', '2')
+      .send({ role: 'helper', unitId: otherUnit })
+      .expect(201);
+    await http()
+      .post(`/members/${guestId}`)
+      .send({ revision: 3, name: 'Identitate schimbată' })
+      .expect(403);
+    await http()
+      .post(`/members/${guestId}/lifecycle`)
+      .send({ action: 'withdraw' })
+      .expect(201);
+  });
+  it('lets visiting adults work in both structures but lets local managers end only their local engagement', async () => {
+    localAdmin();
+    const guestId = randomUUID();
+    f.list('member').push({
+      id: guestId,
+      name: 'Adult Cluj',
+      structureId: 'cluj',
+      birthDate: '1990-01-01',
+      status: 'active',
+      profile: emptyProfile(),
+      revision: 1,
+      remote: {},
+    });
+    await http()
+      .post(`/members/${guestId}/assignments`)
+      .send({ role: 'helper', unitId })
+      .expect(403);
+    await http()
+      .post(`/members/${guestId}/assignments`)
+      .set('x-actor', '2')
+      .send({ role: 'helper', unitId })
+      .expect(201);
+    await http().get(`/members/${guestId}`).expect(200);
+    await http()
+      .post(`/members/${guestId}/lifecycle`)
+      .send({ action: 'withdraw' })
+      .expect(403);
+    await http()
+      .post(`/members/${guestId}/transfer`)
+      .send({ unitId: otherUnit })
+      .expect(403);
+    const assignment = f
+      .list('assignment')
+      .find((a) => a.memberId === guestId)!;
+    await http()
+      .post(`/members/${guestId}/assignments/${String(assignment.id)}/end`)
+      .send({})
+      .expect(201);
+    expect(f.list('member').find((m) => m.id === guestId)?.status).toBe(
+      'active',
+    );
+  });
+  it('retains Florești progression for manual resolution if no local destination exists', async () => {
+    localAdmin();
+    const child = f.list('member').find((m) => m.id === childId)!;
+    child.grade = 8;
+    child.lastProgressionYear = 2026;
+    f.list('settings').push({ id: 'default', progressionEnabled: true });
+    await new MembersService(f.em).annual(new Date('2027-09-01T10:00:00Z'));
+    expect(child).toMatchObject({ grade: 8, structureId: 'floresti', unitId });
+    expect(
+      f.list('transition').find((t) => t.memberId === childId)?.state,
+    ).toBe('review');
+    const result = await http().get('/members').expect(200);
+    expect(
+      (
+        JSON.parse(result.text) as { transitions: { memberId: string }[] }
+      ).transitions.some((t) => t.memberId === childId),
+    ).toBe(true);
+  });
+  it('confirms initial membership once and preserves it when the name changes', async () => {
+    const m = f.list('member').find((m) => m.id === childId)!;
+    m.name = 'Copil Florești';
+    for (const u of f.list('unit')) u.name = 'Unitate test';
+    const preview = await http()
+      .get('/members/structures/preview')
+      .set('x-actor', '2')
+      .expect(200);
+    expect(
+      (
+        JSON.parse(preview.text) as {
+          members: { id: string; structureId: string }[];
+        }
+      ).members.find((r) => r.id === childId)?.structureId,
+    ).toBe('floresti');
+    // This fixture puts all beneficiaries into the same unit; confirm them together.
+    await http()
+      .post('/members/structures/confirm')
+      .set('x-actor', '2')
+      .send({
+        confirm: true,
+        units: [{ id: unitId, structureId: 'floresti' }],
+        members: [childId, otherId].map((id) => ({
+          id,
+          revision: 1,
+          structureId: 'floresti',
+          unitId,
+        })),
+      })
+      .expect(201);
+    await http()
+      .post(`/members/${childId}`)
+      .set('x-actor', '2')
+      .send({ revision: m.revision, name: 'Nume fără localitate' })
+      .expect(201);
+    expect(m.structureId).toBe('floresti');
+    await http()
+      .post('/members/structures/confirm')
+      .set('x-actor', '2')
+      .send({
+        confirm: true,
+        units: [],
+        members: [
+          { id: childId, revision: m.revision, structureId: 'cluj', unitId },
+        ],
+      })
+      .expect(409);
+  });
   it('separates imported inactive history without hiding suspended or locally reactivated members', async () => {
     f.list('member').push(
       {

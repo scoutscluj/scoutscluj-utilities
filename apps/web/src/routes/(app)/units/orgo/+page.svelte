@@ -1,8 +1,24 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import type { PageData, ActionData } from './$types';
+	import { branchLabels } from '$lib/members/types';
 	import InactiveMembers from '$lib/members/InactiveMembers.svelte';
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+	// eslint-disable-next-line svelte/prefer-writable-derived -- Editable rows need deep reactive state for checkbox and branch bindings.
+	let selected = $state<
+		{ orgoId: number; name: string; branch: string; structureId: string; include: boolean }[]
+	>([]);
+	$effect(() => {
+		selected = (data.preview?.units ?? [])
+			.filter((u) => !data.preview?.importedUnitIds?.includes(u.id))
+			.map((u) => ({
+				orgoId: u.id,
+				name: u.name,
+				branch: '',
+				structureId: 'cluj',
+				include: false
+			}));
+	});
 </script>
 
 <svelte:head><title>Import Orgo · Membri</title></svelte:head>
@@ -15,13 +31,10 @@
 		<p>Token server-to-server · Scrieri {data.preview.writesEnabled ? 'activate' : 'neactivate'}</p>
 		<h2>Structura identificată</h2>
 		<p>Patrulele din Orgo sunt excluse. Grupele se organizează separat în aplicație.</p>
-		<ul>
-			{#each data.preview.units ?? [] as unit (unit.id)}<li>
-					#{unit.id} · {unit.name} · {unit.type ?? 'tip neprecizat'}{unit.parent
-						? ` · părinte #${unit.parent}`
-						: ''}
-				</li>{/each}
-		</ul>
+		<p>
+			Unitățile se importă numai cu ramura și structura confirmate. Clasele și repartizarea
+			membrilor se completează separat.
+		</p>
 		<h2>Registru pentru import</h2>
 		<table>
 			<thead><tr><th>ID Orgo</th><th>Nume</th><th>Status Orgo</th></tr></thead><tbody
@@ -32,7 +45,34 @@
 		</table>
 		<InactiveMembers members={data.preview.inactiveMembers ?? []} />
 		<form method="POST">
-			<input type="hidden" name="action" value="import" /><label
+			<input type="hidden" name="action" value="import" /><input
+				type="hidden"
+				name="units"
+				value={JSON.stringify(
+					selected
+						.filter((u) => u.include)
+						.map(({ orgoId, branch, structureId }) => ({ orgoId, branch, structureId }))
+				)}
+			/>
+			<h2>Unități de importat</h2>
+			{#each selected as unit (unit.orgoId)}<div class="unit">
+					<label
+						><input type="checkbox" bind:checked={unit.include} />{unit.name} · Orgo #{unit.orgoId}</label
+					>{#if unit.include}<label
+							>Ramură<select bind:value={unit.branch} required
+								><option value="">Alege ramura</option
+								>{#each Object.entries(branchLabels) as [id, name] (id)}<option value={id}
+										>{name}</option
+									>{/each}</select
+							></label
+						><label
+							>Structură<select bind:value={unit.structureId}
+								><option value="cluj">Cluj</option><option value="floresti">Florești</option
+								></select
+							></label
+						>{/if}
+				</div>{:else}<p>Unitățile identificate au fost deja importate.</p>{/each}
+			<label
 				><input type="checkbox" name="confirm" required />Am verificat registrul. Confirm importul
 				identităților; clasele și repartizările vor fi completate separat.</label
 			><button>Importă registrul verificat</button>
@@ -40,6 +80,17 @@
 </div>
 
 <style>
+	.unit {
+		padding: 16px;
+		border: 1px solid #dce5df;
+		border-radius: 10px;
+		display: grid;
+		gap: 12px;
+	}
+	select {
+		font: inherit;
+		padding: 10px;
+	}
 	.workspace {
 		max-width: 1000px;
 		margin: auto;

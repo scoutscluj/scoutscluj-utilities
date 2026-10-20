@@ -5,6 +5,21 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	const m = $derived(data.detail.member),
 		a = $derived(data.detail.access);
+	let transferStructure = $state(''),
+		transferUnit = $state(''),
+		transferGroup = $state('');
+	let role = $state('helper'),
+		roleStructure = $state('cluj'),
+		roleUnit = $state(''),
+		roleGroup = $state('');
+	let returnUnit = $state(''),
+		returnGroup = $state('');
+	$effect(() => {
+		transferStructure = m.structureId ?? 'cluj';
+		transferUnit = m.unitId ?? '';
+		transferGroup = m.groupId ?? '';
+	});
+	const structures = $derived(data.registry.structures ?? []);
 	const units = $derived(data.registry.units.filter((u) => !u.parentId && !u.archived));
 	const name = (id: string | null) => unitName(data.registry.units, id, 'Centru / fără unitate');
 	const money = (b: number) =>
@@ -18,6 +33,7 @@
 	<header>
 		<div>
 			<h1>{m.name}</h1>
+			<p>{structures.find((st) => st.id === (m.structureId ?? 'cluj'))?.name}</p>
 			<p>
 				{name(m.unitId)}{m.groupId ? ` / ${name(m.groupId)}` : ''} · {m.status === 'active'
 					? 'Activ'
@@ -107,7 +123,16 @@
 				</form>{/if}
 		</section>{/if}
 	{#if a.fees}<section>
-			<h2>Cotizații</h2>
+			<h2>Cotizații și adeziune</h2>
+			{#if data.detail.admission}<p>
+					Adeziune: <strong
+						>{data.detail.admission.paid
+							? 'Achitată'
+							: data.detail.admission.receivedBani > 0
+								? 'Plătită parțial'
+								: 'Fără plată confirmată'}</strong
+					>
+				</p>{/if}
 			<div class="table">
 				<table>
 					<thead><tr><th>Perioadă</th><th>Total</th><th>Plătit</th><th>Rămas</th></tr></thead><tbody
@@ -123,59 +148,75 @@
 				</table>
 			</div>
 		</section>{/if}
-	{#if a.edit || a.transfer}<section>
+	{#if a.transfer || (a.edit && m.unitId) || a.withdraw}<section>
 			<h2>Repartizare și status</h2>
 			{#if m.status === 'active'}<form method="POST" class="grid">
-					<input type="hidden" name="action" value="transfer" /><label
-						>Unitate<select name="unitId"
+					<input type="hidden" name="action" value="transfer" />{#if data.registry.admin}<label
+							>Structură<select
+								name="structureId"
+								bind:value={transferStructure}
+								onchange={() => {
+									transferUnit = '';
+									transferGroup = '';
+								}}
+								>{#each structures as st (st.id)}<option value={st.id}>{st.name}</option
+									>{/each}</select
+							></label
+						>{/if}<label
+						>Unitate<select
+							name="unitId"
+							bind:value={transferUnit}
+							onchange={() => (transferGroup = '')}
 							>{#if a.transfer}<option value="">Voluntar adult fără unitate</option
-								>{/if}{#each units.filter((u) => a.transfer || u.id === m.unitId) as u (u.id)}<option
-									value={u.id}
-									selected={u.id === m.unitId}>{u.name}</option
+								>{/if}{#each units.filter((u) => (u.structureId ?? 'cluj') === transferStructure && (a.transfer || u.id === m.unitId)) as u (u.id)}<option
+									value={u.id}>{u.name}</option
 								>{/each}</select
 						></label
 					><label
-						>Grupă<select name="groupId"
+						>Grupă<select name="groupId" bind:value={transferGroup}
 							><option value="">Colectiv comun / nerepartizat</option
-							>{#each data.registry.units.filter((u) => u.parentId && !u.archived) as u (u.id)}<option
-									value={u.id}
-									selected={u.id === m.groupId}>{name(u.parentId)} / {u.name}</option
+							>{#each data.registry.units.filter((u) => u.parentId === transferUnit && !u.archived) as u (u.id)}<option
+									value={u.id}>{name(u.parentId)} / {u.name}</option
 								>{/each}</select
 						></label
 					><button>Mută membrul</button>
 				</form>
-				<details>
-					<summary>Retragere din activitate</summary>
-					<p>
-						Încheie toate implicările active și drepturile derivate ale persoanei, în întregul
-						centru. Istoricul se păstrează; restanțele nu mai sunt urmărite.
-					</p>
-					<form
-						method="POST"
-						onsubmit={(event) => {
-							if (!confirm(`Marchezi retragerea din orice activitate pentru ${m.name}?`))
-								event.preventDefault();
-						}}
-					>
-						<input type="hidden" name="action" value="withdraw" /><button class="danger"
-							>Marchează „Retras din activitate”</button
+				{#if a.withdraw ?? a.edit}<details>
+						<summary>Retragere din activitate</summary>
+						<p>
+							Încheie toate implicările active și drepturile derivate ale persoanei, în întregul
+							centru. Istoricul se păstrează; restanțele nu mai sunt urmărite.
+						</p>
+						<form
+							method="POST"
+							onsubmit={(event) => {
+								if (!confirm(`Marchezi retragerea din orice activitate pentru ${m.name}?`))
+									event.preventDefault();
+							}}
 						>
-					</form>
-				</details>{:else}<p>
+							<input type="hidden" name="action" value="withdraw" /><button class="danger"
+								>Marchează „Retras din activitate”</button
+							>
+						</form>
+					</details>{/if}{:else}<p>
 					La revenire se datorează doar cotizația anului curent, cu păstrarea plăților deja făcute.
 					Rolurile și privilegiile vechi nu se reactivează automat.
 				</p>
 				<form method="POST" class="grid">
 					<input type="hidden" name="action" value="reactivate" /><label
-						>Unitate<select name="unitId"
-							><option value="">Adult fără unitate</option>{#each units as u (u.id)}<option
+						>Unitate<select
+							name="unitId"
+							bind:value={returnUnit}
+							onchange={() => (returnGroup = '')}
+							><option value="">Adult fără unitate</option
+							>{#each units.filter((u) => (u.structureId ?? 'cluj') === (m.structureId ?? 'cluj')) as u (u.id)}<option
 									value={u.id}>{u.name}</option
 								>{/each}</select
 						></label
 					><label
-						>Grupă<select name="groupId"
+						>Grupă<select name="groupId" bind:value={returnGroup}
 							><option value="">Fără grupă</option
-							>{#each data.registry.units.filter((u) => u.parentId && !u.archived) as u (u.id)}<option
+							>{#each data.registry.units.filter((u) => u.parentId === returnUnit && !u.archived) as u (u.id)}<option
 									value={u.id}>{name(u.parentId)} / {u.name}</option
 								>{/each}</select
 						></label
@@ -188,12 +229,15 @@
 				<div>
 					<strong>{roleLabels[assignment.role] ?? assignment.role}</strong>
 					<p>
-						{name(assignment.unitId)}{assignment.groupId ? ` / ${name(assignment.groupId)}` : ''} · {assignment.endedAt
-							? 'Încheiat'
-							: 'Activ'}
+						{assignment.structureId
+							? structures.find((st) => st.id === assignment.structureId)?.name
+							: name(assignment.unitId)}{assignment.groupId ? ` / ${name(assignment.groupId)}` : ''} ·
+						{assignment.endedAt ? 'Încheiat' : 'Activ'}
 					</p>
 				</div>
-				{#if chief && !assignment.endedAt && assignment.role !== 'beneficiary'}<form method="POST">
+				{#if !assignment.endedAt && assignment.role !== 'beneficiary' && (data.registry.admin || (assignment.unitId && data.registry.chiefUnitIds.includes(assignment.unitId) && (assignment.role !== 'chief' || data.registry.manageableStructureIds?.includes(data.registry.units.find((u) => u.id === assignment.unitId)?.structureId ?? 'cluj'))))}<form
+						method="POST"
+					>
 						<input type="hidden" name="action" value="end" /><input
 							type="hidden"
 							name="assignmentId"
@@ -204,24 +248,47 @@
 		{#if chief && m.status === 'active'}<form method="POST">
 				<input type="hidden" name="action" value="assignment" />
 				<div class="grid">
+					{#if role === 'structure_admin'}<label
+							>Structură<select name="structureId" bind:value={roleStructure}
+								>{#each structures as st (st.id)}<option value={st.id}>{st.name}</option
+									>{/each}</select
+							></label
+						>{/if}
 					<label
-						>Rol<select name="role"
+						>Rol<select
+							name="role"
+							bind:value={role}
+							onchange={() => {
+								roleUnit = '';
+								roleGroup = '';
+							}}
 							><option value="helper">Voluntar adult / ajutor de lider</option><option
 								value="leader">Lider</option
-							>{#if data.registry.admin}<option value="chief">Șef de unitate</option><option
-									value="scouter">Scouter</option
-								><option value="council">Consiliu</option>{/if}</select
+							>{#if data.registry.admin || data.registry.manageableStructureIds?.includes(m.structureId ?? 'cluj')}<option
+									value="chief">Șef de unitate</option
+								>{/if}{#if data.registry.admin}<option value="structure_admin"
+									>Responsabil de structură</option
+								><option value="scouter">Scouter</option><option value="council">Consiliu</option
+								>{/if}</select
 						></label
 					><label
-						>Unitate<select name="unitId"
-							><option value="">La nivel de centru</option>{#each units as u (u.id)}<option
+						>Unitate<select
+							name="unitId"
+							bind:value={roleUnit}
+							disabled={['structure_admin', 'council', 'scouter'].includes(role)}
+							onchange={() => (roleGroup = '')}
+							><option value="">La nivel de centru</option
+							>{#each units.filter((u) => data.registry.admin || ((u.structureId ?? 'cluj') === (m.structureId ?? 'cluj') && data.registry.chiefUnitIds.includes(u.id))) as u (u.id)}<option
 									value={u.id}>{u.name}</option
 								>{/each}</select
 						></label
 					><label
-						>Grupă<select name="groupId"
+						>Grupă<select
+							name="groupId"
+							bind:value={roleGroup}
+							disabled={!roleUnit || role === 'chief'}
 							><option value="">Colectiv comun / întreaga unitate</option
-							>{#each data.registry.units.filter((u) => u.parentId && !u.archived) as u (u.id)}<option
+							>{#each data.registry.units.filter((u) => u.parentId === roleUnit && !u.archived) as u (u.id)}<option
 									value={u.id}>{name(u.parentId)} / {u.name}</option
 								>{/each}</select
 						></label

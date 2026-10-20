@@ -1,3 +1,4 @@
+import { AdmissionAllocation } from './entities/admission-allocation.entity';
 import { Module } from '@nestjs/common';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { AuthModule } from '../auth/auth.module';
@@ -16,7 +17,11 @@ import { OrgoNationalWorker } from './orgo-national-worker.service';
 @Module({
   imports: [
     AuthModule,
-    MikroOrmModule.forFeature([...MEMBERSHIP_ENTITIES, AuditEntry]),
+    MikroOrmModule.forFeature([
+      ...MEMBERSHIP_ENTITIES,
+      AdmissionAllocation,
+      AuditEntry,
+    ]),
   ],
   controllers: [MembershipController],
   providers: [

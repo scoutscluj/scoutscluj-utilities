@@ -12,9 +12,14 @@ import { User } from '../users/entities/user.entity';
 import { UserRole } from '../users/entities/user-role.enum';
 import { OrgoConnection } from '../users/entities/orgo-connection.entity';
 import { AuditEntry } from '../audit/entities/audit-entry.entity';
-import { ScoutMember, MemberSync } from './entities/member.entity';
+import {
+  ScoutMember,
+  ScoutUnit,
+  LocalStructure,
+  MemberSync,
+} from './entities/member.entity';
 import { bodyObject, stringValue } from './members.service';
-import { emptyProfile, targetYear } from './member.types';
+import { emptyProfile, targetYear, branches } from './member.types';
 
 const obj = (v: unknown): Record<string, unknown> =>
   v && typeof v === 'object' && !Array.isArray(v)
@@ -197,6 +202,9 @@ export class MemberOrgoService {
           ...remoteFields(r),
           birthDate: r.dateBirth ?? null,
         })),
+      importedUnitIds: (
+        await this.em.find(ScoutUnit, { orgoId: { $ne: null } })
+      ).map((u) => u.orgoId),
       units: withoutPatrols(units).map((r) => ({
         id: r.id,
         name: r.name,
@@ -213,8 +221,48 @@ export class MemberOrgoService {
     if (b.confirm !== true)
       throw new BadRequestException('Confirmă importul după previzualizare.');
     const rows = await this.roster();
+    const selectedUnits = b.units === undefined ? [] : b.units;
+    if (!Array.isArray(selectedUnits) || selectedUnits.length > 100)
+      throw new BadRequestException('Unități invalide.');
+    const remoteUnits = selectedUnits.length
+      ? withoutPatrols(
+          await this.collection(
+            `/api/v1/units?localCenter=${this.settings().center}&page=1`,
+          ),
+        )
+      : [];
     return this.em.transactional(async (tx) => {
       await tx.execute('select pg_advisory_xact_lock(19102026)');
+      let unitsAdded = 0;
+      for (const selected of selectedUnits) {
+        const row = bodyObject(selected),
+          remote = remoteUnits.find((u) => u.id === Number(row.orgoId));
+        if (
+          !remote ||
+          (remote.localCenter &&
+            Number(obj(remote.localCenter).id) !== this.settings().center)
+        )
+          throw new BadRequestException(
+            'Unitatea nu poate fi importată din centrul configurat.',
+          );
+        if (await tx.findOne(ScoutUnit, { orgoId: Number(remote.id) }))
+          continue;
+        const branch = stringValue(row.branch);
+        if (!branches.includes(branch as (typeof branches)[number]))
+          throw new BadRequestException(
+            'Alege ramura fiecărei unități importate.',
+          );
+        const structureId = stringValue(row.structureId);
+        await tx.findOneOrFail(LocalStructure, { id: structureId });
+        tx.create(ScoutUnit, {
+          orgoId: Number(remote.id),
+          name: stringValue(remote.name),
+          branch: branch as (typeof branches)[number],
+          structureId,
+          structureConfirmed: true,
+        });
+        unitsAdded++;
+      }
       let added = 0,
         conflicts = 0;
       for (const r of rows) {
@@ -272,7 +320,17 @@ export class MemberOrgoService {
           if (JSON.stringify(member.remote) !== JSON.stringify(fields)) {
             const pending = await tx.count(MemberSync, {
               memberId: member.id,
-              state: { $ne: 'synced' },
+              state: {
+                $in: [
+                  'pending',
+                  'running',
+                  'conflict',
+                  'unsupported',
+                  'uncertain',
+                  'permission-required',
+                  'review',
+                ],
+              },
             });
             if (pending) {
               conflicts++;
@@ -292,7 +350,7 @@ export class MemberOrgoService {
         entityId: 'orgo',
         metadata: { added, conflicts },
       });
-      return { added, conflicts };
+      return { added, conflicts, unitsAdded };
     });
   }
   async retry(user: CurrentUser, id: string, input: unknown = {}) {

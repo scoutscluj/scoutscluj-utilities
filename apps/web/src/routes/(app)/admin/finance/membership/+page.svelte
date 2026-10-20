@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BankAdmissions from '$lib/membership/BankAdmissions.svelte';
 	import MembershipAdminPage from '$lib/membership/MembershipAdminPage.svelte';
 	import MembershipRegistry from '$lib/membership/MembershipRegistry.svelte';
 	let { data, form } = $props();
@@ -9,5 +10,6 @@
 	description="Situația cotizațiilor pentru fiecare membru, în perioada selectată."
 	{form}
 >
+	<BankAdmissions ledger={data.ledger} />
 	<MembershipRegistry ledger={data.ledger} />
 </MembershipAdminPage>

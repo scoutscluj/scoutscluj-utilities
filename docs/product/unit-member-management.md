@@ -77,14 +77,14 @@ grupe, independente de clasa curentă.
 
 Configurația se păstrează exclusiv pe server:
 
-| Variabilă | Utilizare |
-| --- | --- |
-| `ORGO_API_TOKEN` | Tokenul server-to-server; nu este expus browserului |
-| `ORGO_LOCAL_CENTER_ID` | Centrul pentru toate verificările de acces |
-| `ORGO_OAUTH_BASE_URL` | Hostul tenantului, obligatoriu HTTPS |
+| Variabilă                    | Utilizare                                                                      |
+| ---------------------------- | ------------------------------------------------------------------------------ |
+| `ORGO_API_TOKEN`             | Tokenul server-to-server; nu este expus browserului                            |
+| `ORGO_LOCAL_CENTER_ID`       | Centrul pentru toate verificările de acces                                     |
+| `ORGO_OAUTH_BASE_URL`        | Hostul tenantului, obligatoriu HTTPS                                           |
 | `ORGO_MEMBER_WRITES_ENABLED` | Implicit dezactivat; `true` numai după verificarea contractului și drepturilor |
-| `ORGO_ACTIVE_STATUS` | Valoarea Orgo confirmată pentru statusul activ |
-| `ORGO_WITHDRAWN_STATUS` | Valoarea Orgo confirmată pentru retragerea din activitate |
+| `ORGO_ACTIVE_STATUS`         | Valoarea Orgo confirmată pentru statusul activ                                 |
+| `ORGO_WITHDRAWN_STATUS`      | Valoarea Orgo confirmată pentru retragerea din activitate                      |
 
 Pagina `/units/orgo` citește registrul paginat și structura prin `Api-Token`.
 Membrii cu statusul Orgo `INACTIVE` apar exclusiv în secțiunea separată
@@ -146,3 +146,19 @@ temporară și a verificat adăugarea, actualizarea cu controlul versiunii,
 transferul, retragerea și reactivarea unui membru cu păstrarea datelor medicale.
 Acest test a identificat și prevenit o inserare a outboxului înaintea fișei noi;
 identitatea se salvează acum înaintea rândurilor dependente, în aceeași tranzacție.
+
+## Cluj și Florești
+
+Consiliul confirmă încadrarea inițială din Unități și membri → Apartenența la Cluj și Florești. Propunerea folosește numele doar la prima încadrare; ulterior apartenența este explicită. Unitățile și subgrupele aparțin unei structuri. Dacă datele vechi amestecă ambele structuri într-o unitate, se creează întâi unitățile locale separate și se rezolvă repartizările în previzualizare. Istoricul inactiv se verifică separat, cu căutare și paginare.
+
+Un responsabil de structură este un adult verificat, numit de Consiliu din fișa membrului. Nu are nevoie de promisiunea de lider pentru acest mandat. Gestionează membrii, unitățile și șefii propriei structuri și vede cotizațiile și adeziunile; nu primește drepturi financiare. Consiliul aprobă transferurile Cluj/Florești și implicarea adulților în cealaltă structură. Încetarea unei implicări locale nu retrage adultul din toate activitățile.
+
+Temerarii trec anual în aceeași structură. Dacă Florești nu are Exploratori, fișa rămâne în Florești, iar responsabilul și Consiliul văd trecerea de rezolvat manual. Grupele stabile își păstrează identitatea și liderii.
+
+## Adeziuni din extrase bancare
+
+Personalul financiar deschide Adeziuni și plăți din extras din Membri și cotizații sau Încasări și alocări. Înregistrează data, referința unică și suma reală, apoi selectează membrul și destinația. O încasare poate acoperi mai multe persoane și atât adeziune, cât și cotizație. Dacă încasarea există deja, se selectează aceasta; nu se introduce din nou.
+
+Adeziunea se recunoaște o singură dată pe identitatea Orgo, indiferent de anul cotizației sau schimbarea numelui. Sumele parțiale rămân parțiale. Pentru un tarif istoric diferit există o opțiune separată și o justificare obligatorie. Fișa și registrul financiar afișează adeziunea achitată; banii ei nu se adună la cotizație sau la transferul național. Corecțiile anulează alocarea cu motiv, păstrând încasarea. Restituirea se înregistrează după anularea alocărilor afectate.
+
+Plățile online aflate în curs la schimbarea apartenenței sau la înregistrarea unei adeziuni bancare sunt trimise la verificare financiară. Transferurile nu rescriu plățile deja confirmate.

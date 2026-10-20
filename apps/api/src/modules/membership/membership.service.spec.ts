@@ -1,3 +1,9 @@
+jest.mock('./entities/admission-allocation.entity', () => ({
+  AdmissionAllocation: 'admission-allocation',
+}));
+jest.mock('../members/entities/member.entity', () => ({
+  ScoutMember: 'member',
+}));
 jest.mock('../auth/guards/auth.guard', () => ({
   AuthGuard: class {
     canActivate() {
@@ -246,12 +252,18 @@ type Row = Record<string, unknown> & { id: string; table: string };
 // The separate PostgreSQL integration runner covers real transaction behavior.
 function fixture() {
   const rows: Row[] = [];
-  const matches = (row: Row, where: Record<string, unknown>) =>
-    Object.entries(where).every(([key, value]) =>
-      value && typeof value === 'object' && '$in' in value
-        ? (value.$in as unknown[]).includes(row[key])
-        : row[key] === value,
-    );
+  const matches = (row: Row, where: Record<string, unknown>): boolean =>
+    Object.entries(where).every(([key, value]) => {
+      if (key === '$or')
+        return (value as Record<string, unknown>[]).some((f) =>
+          matches(row, f),
+        );
+      if (value && typeof value === 'object') {
+        if ('$in' in value) return (value.$in as unknown[]).includes(row[key]);
+        if ('$ne' in value) return (row[key] ?? null) !== value.$ne;
+      }
+      return (row[key] ?? null) === value;
+    });
   const em = {
     transactional: jest.fn(
       <T>(fn: (tx: EntityManager) => Promise<T>): Promise<T> =>
@@ -2369,5 +2381,222 @@ describe('Floresti admission tariff', () => {
         attemptToken: 'j'.repeat(43),
       }),
     ).rejects.toThrow('deja achitată');
+  });
+});
+
+describe('bank admission evidence and shared receipt limits', () => {
+  const bank = (
+    f: Awaited<ReturnType<typeof setup>>,
+    allocations: unknown[],
+    amountBani = 10500,
+    reference = 'BANK-ADMISSION',
+  ) =>
+    f.service.bankReceipt(f.staff, {
+      periodId: f.period.id,
+      reference,
+      amountBani,
+      receivedOn: '2026-10-20',
+      note: 'Extras verificat',
+      allocations,
+    });
+  const admission = (
+    amountBani: number,
+    extra: Record<string, unknown> = {},
+  ) => ({
+    purpose: 'admission',
+    orgoUserId: 36805,
+    amountBani,
+    note: 'Adeziune din extras',
+    ...extra,
+  });
+  it('records historical admission without the online age limit and recognises it across periods', async () => {
+    const f = await setup();
+    f.obligation.orgoCreatedAt = new Date('2015-01-01');
+    f.obligation.memberName = 'Membru Florești';
+    await bank(f, [admission(5500, { expectedBani: 5500 })], 5500);
+    const mine = await f.service.mine({
+      ...f.staff,
+      orgoConnection: { orgoUserId: 36805 },
+    });
+    expect(mine[0]).toMatchObject({
+      admissionPaid: true,
+      admissionAmountBani: 5500,
+      paidBani: 0,
+    });
+    const next = await f.service.createPeriod(f.staff, {
+      name: 'An următor',
+      startsOn: '2027-09-01',
+      endsOn: '2028-08-31',
+    });
+    await f.service.createObligation(f.staff, {
+      periodId: next.id,
+      orgoUserId: '36805',
+      memberName: 'Nume schimbat',
+      plan: 'normal',
+      verificationNote: 'Identitate verificată',
+    });
+    const later = await f.service.mine({
+      ...f.staff,
+      orgoConnection: { orgoUserId: 36805 },
+    });
+    expect(
+      later.every((o) => o.admissionPaid && o.admissionAmountBani === 5500),
+    ).toBe(true);
+    await expect(
+      bank(f, [admission(5500)], 5500, 'DUPLICATE-MEMBER'),
+    ).rejects.toThrow('deja achitată');
+  });
+  it('keeps partial evidence, uses explicit affiliation after a name change, and only charges the remainder online', async () => {
+    const f = await setup();
+    f.rows.push({
+      id: randomUUID(),
+      table: 'member',
+      orgoId: 36805,
+      name: 'Nume fără localitate',
+      structureId: 'floresti',
+      structureConfirmed: true,
+    });
+    f.obligation.orgoCreatedAt = new Date();
+    await bank(f, [admission(5000)], 5000);
+    const lookup = await f.service.guestLookup({
+      identifier: '36805',
+      purpose: 'admission',
+    });
+    expect(lookup).toMatchObject({ paid: false, amountBani: 5500 });
+    await f.service.checkout({
+      periodId: f.period.id,
+      identifier: '36805',
+      purpose: 'admission',
+      acceptTerms: true,
+      attemptToken: 'a'.repeat(43),
+    });
+    const checkout = f.rows.find((r) => r.table === 'checkout')!;
+    expect(checkout).toMatchObject({
+      amountBani: 5500,
+      admissionExpectedBani: 10500,
+    });
+    checkout.state = 'succeeded';
+    f.rows.push({
+      id: randomUUID(),
+      table: 'receipt',
+      checkoutId: checkout.id,
+      amountBani: 5500,
+      refundedBani: 0,
+      reviewRequired: false,
+    });
+    const allocation = f.rows.find((r) => r.table === 'admission-allocation')!;
+    await f.service.reverseAdmission(f.staff, allocation.id, {
+      note: 'Corecție de persoană',
+    });
+    expect(
+      await f.service.guestLookup({
+        identifier: '36805',
+        purpose: 'admission',
+      }),
+    ).toMatchObject({ paid: false, amountBani: 5000 });
+  });
+  it('shares receipt funds between admission and membership and protects refunds until both are reversed', async () => {
+    const f = await setup();
+    const receipt = await bank(
+      f,
+      [
+        admission(5500),
+        {
+          purpose: 'membership',
+          obligationId: f.obligation.id,
+          amountBani: 10000,
+          note: 'Cotizație',
+        },
+      ],
+      15500,
+    );
+    await expect(
+      f.service.allocate(f.staff, {
+        receiptId: receipt.id,
+        obligationId: f.obligation.id,
+        amountBani: 1,
+        note: 'Excedent',
+      }),
+    ).rejects.toThrow('suma încasată');
+    await expect(
+      f.service.reconcileReceipt(f.staff, receipt.id, {
+        refundedBani: 1,
+        note: 'Restituire',
+      }),
+    ).rejects.toThrow('alocările');
+    const allocation = f.rows.find((r) => r.table === 'admission-allocation')!;
+    await f.service.reverseAdmission(f.staff, allocation.id, {
+      note: 'Restituire adeziune',
+    });
+    await f.service.reconcileReceipt(f.staff, receipt.id, {
+      refundedBani: 5500,
+      note: 'Restituire adeziune',
+    });
+    expect(
+      (
+        await f.service.mine({
+          ...f.staff,
+          orgoConnection: { orgoUserId: 36805 },
+        })
+      )[0],
+    ).toMatchObject({ admissionPaid: false, paidBani: 10000 });
+  });
+  it('supports several beneficiaries on one receipt and refuses unverified identities and financial access for local actors', async () => {
+    const f = await setup();
+    const second = await f.service.createObligation(f.staff, {
+      periodId: f.period.id,
+      orgoUserId: '999',
+      memberName: 'Al doilea Florești',
+      plan: 'normal',
+      verificationNote: 'Verificat',
+    });
+    const receipt = await bank(
+      f,
+      [admission(5500), { ...admission(10500), orgoUserId: second.orgoUserId }],
+      16000,
+    );
+    expect(
+      f.rows.filter((r) => r.table === 'admission-allocation'),
+    ).toHaveLength(2);
+    await expect(
+      f.service.allocateAdmission(
+        { ...f.staff, roles: [] },
+        { receiptId: receipt.id, orgoUserId: 999, amountBani: 100, note: 'Nu' },
+      ),
+    ).rejects.toThrow();
+    await expect(
+      f.service.allocateAdmission(f.staff, {
+        receiptId: receipt.id,
+        orgoUserId: 123,
+        amountBani: 100,
+        note: 'Nu',
+      }),
+    ).rejects.toThrow('identitatea');
+  });
+  it('flags pending online attempts when bank evidence arrives and protects receipt reference uniqueness', async () => {
+    const f = await setup();
+    f.obligation.orgoCreatedAt = new Date();
+    await f.service.checkout({
+      periodId: f.period.id,
+      identifier: '36805',
+      purpose: 'admission',
+      acceptTerms: true,
+      attemptToken: 'b'.repeat(43),
+    });
+    await bank(f, [admission(5500)], 5500);
+    expect(f.rows.find((r) => r.table === 'checkout')?.reviewRequired).toBe(
+      true,
+    );
+    await expect(
+      f.service.checkout({
+        periodId: f.period.id,
+        identifier: '36805',
+        purpose: 'admission',
+        acceptTerms: true,
+        attemptToken: 'b'.repeat(43),
+      }),
+    ).rejects.toThrow('verificare financiară');
+    await expect(bank(f, [], 5500)).rejects.toThrow('deja înregistrată');
+    expect(f.rows.filter((r) => r.table === 'receipt')).toHaveLength(1);
   });
 });

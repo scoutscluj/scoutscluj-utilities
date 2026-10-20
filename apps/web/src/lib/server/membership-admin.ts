@@ -60,7 +60,27 @@ export const membershipAdminActions: Actions = {
 		else if (action === 'obligation') path = 'obligations';
 		else if (action === 'reviewPreview' || action === 'resolveReview') {
 			path = `obligations/${encodeURIComponent(String(form.get('id')))}/${action === 'reviewPreview' ? 'review-preview' : 'resolve-review'}`;
-		} else if (action === 'bank') {
+		} else if (action === 'bankAllocations') {
+			path = 'bank-receipts';
+			body.amountBani = amount(form.get('amount'));
+			try {
+				const rows = JSON.parse(String(form.get('allocations'))) as Record<string, unknown>[];
+				if (!Array.isArray(rows)) throw Error();
+				body.allocations = rows.map((r) => ({
+					...r,
+					amountBani: amount(String(r.amount)),
+					expectedBani: r.expected ? amount(String(r.expected)) : undefined
+				}));
+			} catch {
+				return fail(400, { success: false, message: 'Alocări invalide.' });
+			}
+		} else if (action === 'allocateAdmission') {
+			path = 'admission-allocations';
+			body.amountBani = amount(form.get('amount'));
+			if (form.get('expected')) body.expectedBani = amount(form.get('expected'));
+		} else if (action === 'reverseAdmission')
+			path = `admission-allocations/${encodeURIComponent(String(form.get('id')))}/reverse`;
+		else if (action === 'bank') {
 			path = 'bank-receipts';
 			body.amountBani = amount(form.get('amount'));
 		} else if (action === 'allocate') {

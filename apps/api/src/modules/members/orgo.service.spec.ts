@@ -40,7 +40,12 @@ describe('Orgo import preview', () => {
         Promise.resolve(
           new Response(
             JSON.stringify({
-              'hydra:member': String(url).includes('/users?')
+              'hydra:member': (typeof url === 'string'
+                ? url
+                : url instanceof URL
+                  ? url.href
+                  : url.url
+              ).includes('/users?')
                 ? ['ACTIVE', 'INACTIVE', 'SUSPENDED'].map((status, i) => ({
                     id: i + 1,
                     fullName: status,

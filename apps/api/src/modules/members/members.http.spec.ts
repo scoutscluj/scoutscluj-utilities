@@ -197,6 +197,49 @@ describe('member HTTP scope and lifecycle', () => {
     await app.close();
   });
   const http = () => request(app.getHttpServer() as Server);
+  it('separates imported inactive history without hiding suspended or locally reactivated members', async () => {
+    f.list('member').push(
+      {
+        id: 'historical',
+        orgoId: 800,
+        name: 'Istoric',
+        status: 'review',
+        remote: { status: 'INACTIVE' },
+      },
+      {
+        id: 'suspended',
+        orgoId: 801,
+        name: 'Suspendat',
+        status: 'review',
+        remote: { status: 'SUSPENDED' },
+      },
+      {
+        id: 'returned',
+        orgoId: 802,
+        name: 'Reactivat',
+        status: 'active',
+        remote: { status: 'INACTIVE' },
+      },
+    );
+    const response = await http()
+      .get('/members')
+      .set('x-actor', '2')
+      .expect(200);
+    const result = JSON.parse(response.text) as {
+      members: { id: string }[];
+      inactiveMembers: { id: string }[];
+    };
+    expect(result.inactiveMembers.map((m) => m.id)).toEqual(['historical']);
+    expect(result.members.map((m) => m.id)).toEqual(
+      expect.arrayContaining(['suspended', 'returned']),
+    );
+    expect(result.members.map((m) => m.id)).not.toContain('historical');
+    const scoped = await http().get('/members').expect(200);
+    expect(
+      (JSON.parse(scoped.text) as { inactiveMembers: unknown[] })
+        .inactiveMembers,
+    ).toEqual([]);
+  });
   it('allows a leader to read another cohort, including health, but denies its updates', async () => {
     const read = await http().get(`/members/${otherId}`).expect(200);
     expect(

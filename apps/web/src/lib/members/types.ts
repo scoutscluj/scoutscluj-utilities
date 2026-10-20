@@ -33,6 +33,7 @@ export type Registry = {
 	chiefUnitIds: (string | null)[];
 	units: Unit[];
 	members: Member[];
+	inactiveMembers?: { id: string; name: string; orgoId: number | null }[];
 	ownMemberId: string | null;
 	progressionEnabled: boolean;
 	sync: Sync[];

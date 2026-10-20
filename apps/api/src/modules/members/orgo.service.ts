@@ -20,6 +20,32 @@ const obj = (v: unknown): Record<string, unknown> =>
   v && typeof v === 'object' && !Array.isArray(v)
     ? (v as Record<string, unknown>)
     : {};
+function withoutPatrols(units: Record<string, unknown>[]) {
+  const excluded = new Set<number>();
+  for (const unit of units) {
+    const type = obj(unit.unitType);
+    const labels = [type.name, type.namePlural].map((label) =>
+      typeof label === 'string'
+        ? label
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim()
+            .toLowerCase()
+        : '',
+    );
+    if (labels.some((label) => /^patrul/.test(label)))
+      excluded.add(Number(unit.id));
+  }
+  // Never retain descendants whose imported parent would be a patrol.
+  let previousSize = -1;
+  while (previousSize !== excluded.size) {
+    previousSize = excluded.size;
+    for (const unit of units)
+      if (excluded.has(Number(obj(unit.parent).id)))
+        excluded.add(Number(unit.id));
+  }
+  return units.filter((unit) => !excluded.has(Number(unit.id)));
+}
 const remoteFields = (
   raw: Record<string, unknown>,
 ): Record<string, unknown> => ({
@@ -158,12 +184,20 @@ export class MemberOrgoService {
       serverToken: true,
       writesEnabled:
         this.config.get<string>('ORGO_MEMBER_WRITES_ENABLED') === 'true',
-      members: members.map((r) => ({
-        id: r.id,
-        ...remoteFields(r),
-        birthDate: r.dateBirth ?? null,
-      })),
-      units: units.map((r) => ({
+      inactiveMembers: members
+        .filter((r) => r.status === 'INACTIVE')
+        .map((r) => ({
+          id: r.id,
+          name: remoteFields(r).name,
+        })),
+      members: members
+        .filter((r) => r.status !== 'INACTIVE')
+        .map((r) => ({
+          id: r.id,
+          ...remoteFields(r),
+          birthDate: r.dateBirth ?? null,
+        })),
+      units: withoutPatrols(units).map((r) => ({
         id: r.id,
         name: r.name,
         parent: obj(r.parent).id ?? null,

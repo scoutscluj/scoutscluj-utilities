@@ -19,6 +19,74 @@ import { ConfigService } from '@nestjs/config';
 import { MemberOrgoService } from './orgo.service';
 import { emptyProfile } from './member.types';
 
+describe('Orgo import preview', () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+  it('separates inactive members and excludes patrol types and descendants without matching unit names', async () => {
+    const em = { findOneOrFail: () => Promise.resolve({ roles: ['admin'] }) };
+    const service = new MemberOrgoService(
+      em as unknown as EntityManager,
+      new ConfigService({
+        ORGO_API_TOKEN: 'server',
+        ORGO_LOCAL_CENTER_ID: '7',
+        ORGO_OAUTH_BASE_URL: 'https://orgo.example.test',
+      }),
+    );
+    global.fetch = jest
+      .fn<ReturnType<typeof global.fetch>, Parameters<typeof global.fetch>>()
+      .mockImplementation((url) =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              'hydra:member': (typeof url === 'string'
+                ? url
+                : url instanceof URL
+                  ? url.href
+                  : url.url
+              ).includes('/users?')
+                ? ['ACTIVE', 'INACTIVE', 'SUSPENDED'].map((status, i) => ({
+                    id: i + 1,
+                    fullName: status,
+                    status,
+                    localCenter: { id: 7 },
+                  }))
+                : [
+                    { id: 10, name: 'Unitate', unitType: { name: 'Unitate' } },
+                    {
+                      id: 11,
+                      name: 'Patrulă istorică',
+                      unitType: { name: 'Patrula' },
+                    },
+                    { id: 12, name: 'Copil patrulă', parent: { id: 11 } },
+                    {
+                      id: 13,
+                      name: 'Patrula Nouă',
+                      unitType: { name: 'Unitate' },
+                    },
+                    {
+                      id: 14,
+                      name: 'Altă patrulă',
+                      unitType: { name: 'Patrulă' },
+                    },
+                  ],
+            }),
+            { status: 200 },
+          ),
+        ),
+      );
+    const result = await service.discover({
+      id: 1,
+      displayName: 'Admin',
+      roles: [],
+    });
+    expect(result.members.map((m) => m.id)).toEqual([1, 3]);
+    expect(result.inactiveMembers.map((m) => m.id)).toEqual([2]);
+    expect(result.units.map((u) => u.id)).toEqual([10, 13]);
+  });
+});
+
 function fixture(writes = true) {
   const member = {
     id: 'local',

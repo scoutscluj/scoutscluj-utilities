@@ -229,6 +229,11 @@ createServer(async (req, res) => {
 					grades: [3]
 				}
 			],
+			inactiveMembers: Array.from({ length: 52 }, (_, i) => ({
+				id: `inactive-${i + 1}`,
+				name: `Istoric ${String(i + 1).padStart(2, '0')}`,
+				orgoId: 900 + i
+			})),
 			members: [
 				{
 					id: 'm1',

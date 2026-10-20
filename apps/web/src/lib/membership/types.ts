@@ -17,6 +17,7 @@ export type Obligation = {
 	plan: string;
 	totalBani: number;
 	nationalBani: number;
+	nationalDirectBani?: number;
 	paidBani?: number;
 	admissionPaid?: boolean;
 	admissionAmountBani?: number;

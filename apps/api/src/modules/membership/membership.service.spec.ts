@@ -1,3 +1,4 @@
+jest.mock('./orgo-national.service', () => ({ OrgoNationalService: class {} }));
 jest.mock('./entities/admission-allocation.entity', () => ({
   AdmissionAllocation: 'admission-allocation',
 }));
@@ -467,12 +468,16 @@ function fixture() {
       },
     ]),
   );
+  const nationalCheck = jest.fn(() =>
+    Promise.resolve({ state: 'synced', message: 'Verified in Orgo' }),
+  );
   const service = new MembershipService(
     em as unknown as EntityManager,
     netopia as unknown as NetopiaService,
     stripe as unknown as StripeService,
     configurations as never,
     { members: rosterMembers, nationalReady: () => false } as never,
+    { synchronize: nationalCheck } as never,
   );
   const staff: CurrentUser = {
     id: 1,
@@ -486,6 +491,7 @@ function fixture() {
     stripe,
     configurations,
     rosterMembers,
+    nationalCheck,
     service,
     staff,
   };
@@ -2598,5 +2604,93 @@ describe('bank admission evidence and shared receipt limits', () => {
     ).rejects.toThrow('verificare financiară');
     await expect(bank(f, [], 5500)).rejects.toThrow('deja înregistrată');
     expect(f.rows.filter((r) => r.table === 'receipt')).toHaveLength(1);
+  });
+});
+
+describe('national paid directly in Orgo and local bank contribution', () => {
+  const input = (f: Awaited<ReturnType<typeof setup>>) => ({
+    obligationId: f.obligation.id,
+    reference: 'local-bank',
+    receivedOn: '2026-10-20',
+  });
+  it('records only the local receipt, recognizes the whole fee and cannot transfer national twice', async () => {
+    const f = await setup();
+    await f.service.directNational(f.staff, input(f));
+    expect(f.nationalCheck).toHaveBeenCalledWith(
+      f.staff.id,
+      {
+        orgoUserId: 36805,
+        startsOn: '2026-09-01',
+        endsOn: '2027-08-31',
+        amountBani: 15000,
+      },
+      false,
+    );
+    expect(f.obligation.nationalDirectBani).toBe(15000);
+    expect(
+      f.rows.filter((r) => r.table === 'receipt').map((r) => r.amountBani),
+    ).toEqual([15000]);
+    expect(
+      f.rows.filter((r) => r.table === 'allocation').map((r) => r.amountBani),
+    ).toEqual([15000]);
+    await expect(
+      f.service.guestLookup({ identifier: 'AT36805' }),
+    ).resolves.toMatchObject({ paid: true, amountBani: 0 });
+    await f.service.directNational(f.staff, input(f));
+    expect(f.rows.filter((r) => r.table === 'receipt')).toHaveLength(1);
+    expect(f.rows.filter((r) => r.table === 'allocation')).toHaveLength(1);
+    await expect(
+      f.service.nationalBatch(f.staff, { obligationIds: [f.obligation.id] }),
+    ).rejects.toThrow('achitat direct');
+  });
+  it('reuses a bank receipt instead of creating another for the same transfer', async () => {
+    const f = await setup();
+    await f.service.bankReceipt(f.staff, {
+      periodId: f.period.id,
+      reference: 'local-bank',
+      receivedOn: '2026-10-20',
+      amountBani: 30000,
+      note: 'Shared transfer',
+    });
+    await f.service.directNational(f.staff, input(f));
+    expect(f.rows.filter((r) => r.table === 'receipt')).toHaveLength(1);
+    expect(f.rows.find((r) => r.table === 'allocation')?.amountBani).toBe(
+      15000,
+    );
+  });
+  it('requires the exact national period to be confirmed before creating financial records', async () => {
+    const f = await setup();
+    f.nationalCheck.mockResolvedValue({
+      state: 'unknown',
+      message: 'Not paid',
+    });
+    await expect(f.service.directNational(f.staff, input(f))).rejects.toThrow(
+      'nu este confirmată',
+    );
+    expect(f.rows.filter((r) => r.table === 'receipt')).toHaveLength(0);
+    expect(f.obligation.nationalDirectBani ?? 0).toBe(0);
+  });
+  it('does not grant financial write permissions to a leader', async () => {
+    const f = await setup();
+    await expect(
+      f.service.directNational(
+        { id: 9, displayName: 'Leader', roles: [] },
+        input(f),
+      ),
+    ).rejects.toThrow();
+    expect(f.nationalCheck).not.toHaveBeenCalled();
+  });
+  it('refuses confirmation while a card payment is still in progress', async () => {
+    const f = await setup();
+    f.rows.push({
+      table: 'checkout',
+      id: randomUUID(),
+      obligationId: f.obligation.id,
+      state: 'pending',
+    });
+    await expect(f.service.directNational(f.staff, input(f))).rejects.toThrow(
+      'plată în curs',
+    );
+    expect(f.obligation.nationalDirectBani ?? 0).toBe(0);
   });
 });

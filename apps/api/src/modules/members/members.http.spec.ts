@@ -99,7 +99,25 @@ function fixture() {
       list(name).push(r);
       return r;
     },
-    transactional: async <T>(fn: (tx: unknown) => Promise<T>) => fn(em),
+    transactional: async <T>(fn: (tx: unknown) => Promise<T>) => {
+      const before = structuredClone(tables);
+      try {
+        return await fn(em);
+      } catch (error) {
+        for (const key of Object.keys(tables)) {
+          const old = before[key] ?? [];
+          const restored = old.map((saved) => {
+            const current = tables[key].find((r) => r.id === saved.id);
+            if (!current) return saved;
+            for (const field of Object.keys(current)) delete current[field];
+            Object.assign(current, saved);
+            return current;
+          });
+          tables[key] = restored;
+        }
+        throw error;
+      }
+    },
     execute: () => Promise.resolve([]),
     clear: () => {},
     flush: async () => {},
@@ -231,6 +249,92 @@ describe('member HTTP scope and lifecycle', () => {
     for (const id of [childId, otherId])
       f.list('member').find((m) => m.id === id)!.structureId = 'floresti';
   };
+  it('previews a multi-member Floresti transfer without changing data, then applies it atomically', async () => {
+    const body = {
+      members: [childId, otherId].map((id) => ({ id, revision: 1 })),
+      changes: { kind: 'structure', structureId: 'floresti' },
+    };
+    const preview = await http()
+      .post('/members/bulk')
+      .set('x-actor', '2')
+      .send(body)
+      .expect(201);
+    expect(
+      f
+        .list('member')
+        .filter((m) => [childId, otherId].includes(String(m.id)))
+        .every((m) => m.structureId !== 'floresti'),
+    ).toBe(true);
+    const result = JSON.parse(preview.text) as {
+      version: string;
+      members: unknown[];
+    };
+    expect(result.members).toHaveLength(2);
+    await http()
+      .post('/members/bulk')
+      .set('x-actor', '2')
+      .send({ ...body, confirm: true, version: result.version })
+      .expect(201);
+    for (const id of [childId, otherId])
+      expect(f.list('member').find((m) => m.id === id)).toMatchObject({
+        structureId: 'floresti',
+        unitId: null,
+      });
+    await http()
+      .post('/members/bulk')
+      .set('x-actor', '2')
+      .send({ ...body, confirm: true, version: result.version })
+      .expect(409);
+  });
+  it('rejects a bulk change outside the leader group and rolls back preceding rows', async () => {
+    await http()
+      .post('/members/bulk')
+      .send({
+        members: [childId, otherId].map((id) => ({ id, revision: 1 })),
+        changes: { kind: 'grade', grade: 8 },
+      })
+      .expect(403);
+    expect(f.list('member').find((m) => m.id === childId)?.grade).toBe(5);
+    expect(f.list('sync')).toHaveLength(0);
+  });
+  it('lets a visible-member reader see fees without receiving financial write access', async () => {
+    f.tables.assignment = [
+      {
+        memberId: adultId,
+        role: 'helper',
+        unitId,
+        groupId: groupA,
+        canSeeFees: false,
+      },
+    ];
+    const response = await http()
+      .get('/members/' + childId)
+      .expect(200);
+    expect(
+      (
+        JSON.parse(response.text) as {
+          access: { fees: boolean; edit: boolean };
+        }
+      ).access,
+    ).toMatchObject({ fees: true, edit: false });
+    await http()
+      .get('/members/' + otherId)
+      .expect(403);
+  });
+  it('confirms imported inactive members as withdrawn without a remote status change', async () => {
+    const member = f.list('member').find((m) => m.id === childId)!;
+    member.status = 'review';
+    member.remote = { status: 'INACTIVE' };
+    await http()
+      .post('/members/' + childId + '/lifecycle')
+      .send({ action: 'withdraw' })
+      .expect(201);
+    expect(member.status).toBe('withdrawn');
+    expect(f.list('sync')[0]).toMatchObject({
+      kind: 'local-profile',
+      state: 'local-only',
+    });
+  });
   it('preserves adult responsibilities when council transfers primary affiliation and flags pending admissions', async () => {
     const adult = f.list('member').find((m) => m.id === adultId)!;
     adult.birthDate = '1990-01-01';

@@ -8,10 +8,17 @@ export const load: PageServerLoad = async (event) => {
 	if (response.status === 403) error(403, 'Acces rezervat administratorilor.');
 	const result = (await response.json()) as {
 		message?: string;
+		version?: string;
 		serverToken?: boolean;
 		writesEnabled?: boolean;
 		importedUnitIds?: number[];
-		members?: { id: number; name: string; status: string }[];
+		members?: {
+			id: number;
+			name: string;
+			status: string;
+			type?: string;
+			roles?: { id: number; name: string; unitName: string | null }[];
+		}[];
 		inactiveMembers?: { id: number; name: string }[];
 		units?: { id: number; name: string; parent: number | null; type: string | null }[];
 	};

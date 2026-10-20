@@ -1,4 +1,6 @@
 import { admissionEvidence } from '../membership/admission-ledger';
+import { profileFields, readonlyFields } from './orgo-profile';
+import { createHash } from 'node:crypto';
 import { EntityManager } from '@mikro-orm/postgresql';
 import {
   BadRequestException,
@@ -96,7 +98,7 @@ export class MembersService {
       .map((a) => a.structureId!);
     return { admin, member, assignments, structureIds };
   }
-  private async access(
+  async access(
     tx: EntityManager,
     user: CurrentUser,
     member: ScoutMember,
@@ -236,7 +238,7 @@ export class MembersService {
     work: (tx: EntityManager) => Promise<{ id: string; result: T }>,
   ) {
     return this.em.transactional(async (tx) => {
-      if (['lifecycle', 'transfer', 'classify'].includes(action))
+      if (['lifecycle', 'transfer', 'classify', 'bulk'].includes(action))
         await tx.execute('select pg_advisory_xact_lock(9212026)');
       await tx.execute('select pg_advisory_xact_lock(19102026)');
       tx.clear();
@@ -274,6 +276,132 @@ export class MembersService {
           : 'În așteptarea sincronizării.',
     });
   }
+  async bulk(user: CurrentUser, input: unknown) {
+    const b = bodyObject(input);
+    if (
+      !Array.isArray(b.members) ||
+      !b.members.length ||
+      b.members.length > 1500
+    )
+      throw new BadRequestException('Selectează între 1 și 1500 de membri.');
+    const rows = b.members.map((value) => {
+      const r = bodyObject(value);
+      return { id: stringValue(r.id), revision: Number(r.revision) };
+    });
+    if (new Set(rows.map((r) => r.id)).size !== rows.length)
+      throw new BadRequestException('Selecție duplicată.');
+    const changes = bodyObject(b.changes);
+    const allowed = [
+      'grade',
+      'transfer',
+      'withdraw',
+      'reactivate',
+      'structure',
+    ];
+    if (!allowed.includes(String(changes.kind)))
+      throw new BadRequestException('Operație invalidă.');
+    const em = this.em.fork();
+    const run = async (tx: EntityManager) => {
+      await tx.execute('select pg_advisory_xact_lock(9212026)');
+      await tx.execute('select pg_advisory_xact_lock(19102026)');
+      tx.clear();
+      const members: ScoutMember[] = [];
+      for (const row of rows) {
+        const m = await this.get(tx, row.id);
+        if (m.revision !== row.revision)
+          throw new ConflictException(
+            'Selecția s-a schimbat. Reîncarcă registrul.',
+          );
+        if (!(await this.access(tx, user, m)).read) denied();
+        members.push(m);
+      }
+      const version = createHash('sha256')
+        .update(JSON.stringify({ actor: user.id, rows, changes }))
+        .digest('hex');
+      if (b.confirm === true && b.version !== version)
+        throw new ConflictException('Reîncarcă previzualizarea.');
+      const preview = members.map((m) => ({
+        id: m.id,
+        name: m.name,
+        revision: m.revision,
+        from: structureOf(m),
+        unitId: m.unitId,
+      }));
+      for (const m of members) {
+        const kind = String(changes.kind);
+        if (kind === 'structure') {
+          await this.admin(tx, user);
+          const structureId = stringValue(changes.structureId);
+          await tx.findOneOrFail(LocalStructure, { id: structureId });
+          if (structureOf(m) !== structureId) {
+            const previous = structureOf(m);
+            if (m.unitId) {
+              const unit = await tx.findOne(ScoutUnit, { id: m.unitId });
+              m.branch = unit?.branch ?? m.branch;
+              await this.place(tx, m, null, null, user.id);
+            }
+            m.structureId = structureId;
+            m.structureConfirmed = true;
+            if (m.orgoId)
+              for (const o of await tx.find(MembershipObligation, {
+                orgoUserId: m.orgoId,
+              }))
+                for (const c of await tx.find(MembershipCheckout, {
+                  obligationId: o.id,
+                  purpose: 'admission',
+                  state: { $in: ['starting', 'pending', 'unknown'] },
+                }))
+                  c.reviewRequired = true;
+            tx.create(AuditEntry, {
+              actorId: user.id,
+              action: 'members.structure-transfer',
+              entityType: 'Member',
+              entityId: m.id,
+              metadata: { from: previous, to: structureId },
+            });
+            this.queue(tx, m, user.id, 'assignment', { structureId });
+          }
+        } else if (kind === 'grade')
+          await this.applyUpdateMember(tx, user, m.id, {
+            revision: m.revision,
+            grade: changes.grade,
+          });
+        else if (kind === 'transfer')
+          await this.applyTransfer(tx, user, m.id, {
+            unitId: changes.unitId,
+            groupId: changes.groupId,
+          });
+        else
+          await this.applyLifecycle(tx, user, m.id, {
+            action: kind,
+            unitId: changes.unitId,
+            groupId: changes.groupId,
+          });
+        tx.create(AuditEntry, {
+          actorId: user.id,
+          action: 'members.bulk-' + kind,
+          entityType: 'Member',
+          entityId: m.id,
+          metadata: { size: members.length },
+        });
+      }
+      const result = {
+        version,
+        members: preview,
+        changes,
+        applied: b.confirm === true,
+      };
+      if (b.confirm !== true) throw new BulkPreview(result);
+      return result;
+    };
+    try {
+      return await em.transactional(run);
+    } catch (error) {
+      if (error instanceof BulkPreview) return error.result;
+      throw error;
+    }
+  }
+
   async dashboard(user: CurrentUser) {
     const ctx = await this.context(this.em, user);
     const all = await this.em.find(
@@ -290,17 +418,19 @@ export class MembersService {
       { orderBy: { name: 'asc' } },
     );
     const visible: ScoutMember[] = [];
-    for (const m of all)
-      if (
-        (
-          await this.access(this.em, user, m, {
-            ctx,
-            assignments: allAssignments,
-            units: allUnits,
-          })
-        ).read
-      )
-        visible.push(m);
+    const grants = new Map<
+      string,
+      Awaited<ReturnType<MembersService['access']>>
+    >();
+    for (const m of all) {
+      const grant = await this.access(this.em, user, m, {
+        ctx,
+        assignments: allAssignments,
+        units: allUnits,
+      });
+      grants.set(m.id, grant);
+      if (grant.read) visible.push(m);
+    }
     const unitIds = new Set(ctx.assignments.map((a) => a.unitId));
     if (ctx.member?.unitId) unitIds.add(ctx.member.unitId);
     const units = allUnits
@@ -378,6 +508,11 @@ export class MembersService {
         : ctx.structureIds,
       notices,
       admin: ctx.admin,
+      canFinance: user.roles.some((r) =>
+        [UserRole.Admin, UserRole.SuperAdmin, UserRole.FinanceManager].includes(
+          r,
+        ),
+      ),
       canManage:
         ctx.admin ||
         ctx.structureIds.length > 0 ||
@@ -400,6 +535,9 @@ export class MembersService {
         name: m.name,
         orgoId: m.orgoId,
         structureId: structureOf(m),
+        revision: m.revision,
+        status: m.status,
+        access: grants.get(m.id),
       })),
       members: visible
         .filter((m) => !isImportedInactive(m))
@@ -427,6 +565,21 @@ export class MembersService {
           groupId: m.groupId,
           status: m.status,
           adultKind: m.adultKind,
+          roles: [
+            ...new Set(
+              allAssignments
+                .filter((a) => a.memberId === m.id)
+                .map((a) => a.role),
+            ),
+          ],
+          orgoType:
+            typeof (m.orgoProfile?.type as { name?: unknown } | undefined)
+              ?.name === 'string'
+              ? (m.orgoProfile.type as { name: string }).name
+              : null,
+          revision: m.revision,
+          access: grants.get(m.id),
+          branch: m.branch,
         })),
       ownMemberId: ctx.member?.id ?? null,
       progressionEnabled: settings?.progressionEnabled ?? false,
@@ -464,7 +617,8 @@ export class MembersService {
       { memberId: id },
       { orderBy: { startedAt: 'desc' } },
     );
-    const fees = access.fees ? await this.fees(m) : [];
+    access.fees = access.read;
+    const fees = await this.fees(m);
     const sync = await this.em.find(
       MemberSync,
       { memberId: id },
@@ -483,6 +637,18 @@ export class MembersService {
         status: m.status,
         adultKind: m.adultKind,
         promiseDate: m.promiseDate,
+        promiseSource: m.promiseSource,
+        branch: m.branch,
+        orgoProfile: access.sensitive
+          ? Object.fromEntries(
+              Object.entries(m.orgoProfile ?? {}).filter(
+                ([key]) => key !== 'customFieldValues' || access.identity,
+              ),
+            )
+          : { logo: m.orgoProfile?.logo, type: m.orgoProfile?.type },
+        orgoFields: profileFields,
+        orgoReadonly: [...readonlyFields],
+        conflicts: access.identity ? (m.orgoConflicts ?? {}) : {},
         profile,
         revision: m.revision,
         skipProgressionYear: m.skipProgressionYear,
@@ -517,9 +683,10 @@ export class MembersService {
         })
       : [];
     return obligations.map((o) => {
-      const paid = allocations
+      const centerPaid = allocations
         .filter((a) => a.obligationId === o.id)
         .reduce((s, a) => s + a.amountBani, 0);
+      const paid = centerPaid + (o.nationalDirectBani ?? 0);
       const period = periods.find((p) => p.id === o.periodId);
       const collectible =
         member.status === 'active' &&
@@ -527,6 +694,11 @@ export class MembersService {
           (period?.startsOn ?? '') >= member.feeResumePeriod);
       return {
         period: period?.name ?? '',
+        obligationId: o.id,
+        startsOn: period?.startsOn,
+        nationalBani: o.nationalBani,
+        nationalDirectBani: o.nationalDirectBani ?? 0,
+        localPaidBani: centerPaid,
         totalBani: o.totalBani,
         paidBani: paid,
         remainingBani: collectible ? Math.max(0, o.totalBani - paid) : 0,
@@ -653,6 +825,7 @@ export class MembersService {
         groupId: adult ? null : groupId,
         profile: emptyProfile(),
         adultKind: adult ? 'volunteer' : null,
+        branch: adult ? null : (destination?.branch ?? null),
         lastProgressionYear: targetYear(new Date()),
       });
       // Scalar foreign keys do not give the ORM an insert dependency graph.
@@ -672,84 +845,89 @@ export class MembersService {
   }
   async updateMember(user: CurrentUser, id: string, input: unknown) {
     const b = bodyObject(input);
-    return this.mutate(user, 'update', async (tx) => {
-      const m = await this.get(tx, id),
-        access = await this.access(tx, user, m);
-      if (!access.edit && !access.own) denied();
-      if (Number(b.revision) !== m.revision)
-        throw new ConflictException(
-          'Fișa s-a schimbat. Reîncarcă înainte de salvare.',
-        );
-      const allowed = [
-        'revision',
-        'profile',
-        ...(access.edit ? ['grade', 'skipProgressionYear'] : []),
-        ...(access.identity ? ['name', 'birthDate'] : []),
-      ];
-      if (Object.keys(b).some((k) => !allowed.includes(k))) denied();
-      const payload: Record<string, unknown> = {};
-      if ('name' in b) {
-        const name = stringValue(b.name);
-        if (!name) throw new BadRequestException('Numele este obligatoriu.');
-        if (m.name !== name) payload.name = name;
-        m.name = name;
-      }
-      if ('birthDate' in b) {
-        const date = b.birthDate ? dateValue(b.birthDate) : null;
-        if (m.birthDate !== date) payload.birthDate = date;
-        m.birthDate = date;
-      }
-      if ('grade' in b) {
-        const grade =
-          b.grade == null || b.grade === '' ? null : Number(b.grade);
-        if (
-          grade !== null &&
-          (!Number.isInteger(grade) || grade < 1 || grade > 12)
-        )
-          throw new BadRequestException('Clasă invalidă.');
-        if (m.grade !== grade) payload.grade = grade;
-        m.grade = grade;
-        m.lastProgressionYear = targetYear(new Date());
-      }
-      if ('skipProgressionYear' in b) {
-        const year = b.skipProgressionYear
-          ? Number(b.skipProgressionYear)
-          : null;
-        if (
-          year !== null &&
-          (!Number.isInteger(year) ||
-            year < targetYear(new Date()) ||
-            year > targetYear(new Date()) + 2)
-        )
-          throw new BadRequestException('An invalid.');
-        m.skipProgressionYear = year;
-      }
-      if ('profile' in b) {
-        const profile = bodyObject(b.profile);
-        const prior = m.profile;
-        for (const [key, value] of Object.entries(profile)) {
-          if (!(key in emptyProfile()))
-            throw new BadRequestException('Câmp de fișă necunoscut.');
-          if (
-            ['medical', 'allergies', 'medication', 'dietary'].includes(key) &&
-            !access.sensitive
-          )
-            denied();
-          m.profile = { ...m.profile, [key]: stringValue(value, 4000) };
-        }
-        // Medical fields are intentionally local until an equivalent protected remote field is verified.
-        if (prior.email !== m.profile.email || prior.phone !== m.profile.phone)
-          payload.contact = { email: m.profile.email, phone: m.profile.phone };
-      }
-      this.queue(
-        tx,
-        m,
-        user.id,
-        Object.keys(payload).length ? 'profile' : 'local-profile',
-        payload,
+    return this.mutate(user, 'update', (tx) =>
+      this.applyUpdateMember(tx, user, id, b),
+    );
+  }
+  private async applyUpdateMember(
+    tx: EntityManager,
+    user: CurrentUser,
+    id: string,
+    b: Record<string, unknown>,
+  ) {
+    const m = await this.get(tx, id),
+      access = await this.access(tx, user, m);
+    if (!access.edit && !access.own) denied();
+    if (Number(b.revision) !== m.revision)
+      throw new ConflictException(
+        'Fișa s-a schimbat. Reîncarcă înainte de salvare.',
       );
-      return { id, result: { ok: true } };
-    });
+    const allowed = [
+      'revision',
+      'profile',
+      ...(access.edit ? ['grade', 'skipProgressionYear'] : []),
+      ...(access.identity ? ['name', 'birthDate'] : []),
+    ];
+    if (Object.keys(b).some((k) => !allowed.includes(k))) denied();
+    const payload: Record<string, unknown> = {};
+    if ('name' in b) {
+      const name = stringValue(b.name);
+      if (!name) throw new BadRequestException('Numele este obligatoriu.');
+      if (m.name !== name) payload.name = name;
+      m.name = name;
+    }
+    if ('birthDate' in b) {
+      const date = b.birthDate ? dateValue(b.birthDate) : null;
+      if (m.birthDate !== date) payload.birthDate = date;
+      m.birthDate = date;
+    }
+    if ('grade' in b) {
+      const grade = b.grade == null || b.grade === '' ? null : Number(b.grade);
+      if (
+        grade !== null &&
+        (!Number.isInteger(grade) || grade < 1 || grade > 12)
+      )
+        throw new BadRequestException('Clasă invalidă.');
+      if (m.grade !== grade) payload.grade = grade;
+      m.grade = grade;
+      m.lastProgressionYear = targetYear(new Date());
+    }
+    if ('skipProgressionYear' in b) {
+      const year = b.skipProgressionYear ? Number(b.skipProgressionYear) : null;
+      if (
+        year !== null &&
+        (!Number.isInteger(year) ||
+          year < targetYear(new Date()) ||
+          year > targetYear(new Date()) + 2)
+      )
+        throw new BadRequestException('An invalid.');
+      m.skipProgressionYear = year;
+    }
+    if ('profile' in b) {
+      const profile = bodyObject(b.profile);
+      const prior = m.profile;
+      for (const [key, value] of Object.entries(profile)) {
+        if (!(key in emptyProfile()))
+          throw new BadRequestException('Câmp de fișă necunoscut.');
+        if (
+          ['medical', 'allergies', 'medication', 'dietary'].includes(key) &&
+          !access.sensitive
+        )
+          denied();
+        m.profile = { ...m.profile, [key]: stringValue(value, 4000) };
+      }
+      // Medical fields are intentionally local until an equivalent protected remote field is verified.
+      if (prior.email !== m.profile.email || prior.phone !== m.profile.phone)
+        payload.contact = { email: m.profile.email, phone: m.profile.phone };
+    }
+    this.queue(
+      tx,
+      m,
+      user.id,
+      Object.keys(payload).length ? 'profile' : 'local-profile',
+      payload,
+    );
+    return { id, result: { ok: true } };
   }
   async note(user: CurrentUser, id: string, input: unknown) {
     const b = bodyObject(input);
@@ -765,80 +943,88 @@ export class MembersService {
   }
   async transfer(user: CurrentUser, id: string, input: unknown) {
     const b = bodyObject(input);
-    return this.mutate(user, 'transfer', async (tx) => {
-      const m = await this.get(tx, id),
-        a = await this.access(tx, user, m);
-      const unitId = b.unitId ? stringValue(b.unitId) : null,
-        groupId = b.groupId ? stringValue(b.groupId) : null;
-      const destination = await this.unit(tx, unitId, groupId);
-      const structureId = b.structureId
-        ? stringValue(b.structureId)
-        : destination
-          ? structureOf(destination)
-          : structureOf(m);
-      const ctx = await this.context(tx, user);
-      if (structureId !== structureOf(m) && !ctx.admin) denied();
-      if (destination && structureOf(destination) !== structureId)
-        throw new BadRequestException('Unitatea aparține altei structuri.');
-      await tx.findOneOrFail(LocalStructure, { id: structureId });
-      if (
-        (!m.unitId && !a.transfer) ||
-        (m.unitId !== unitId ? !a.transfer : !a.edit)
-      )
-        denied();
-      if (m.status !== 'active')
-        throw new BadRequestException('Reactivează membrul înainte de mutare.');
-      if (structureOf(m) !== structureId) {
-        tx.create(AuditEntry, {
-          actorId: user.id,
-          action: 'members.structure-transfer',
-          entityType: 'Member',
-          entityId: m.id,
-          metadata: { from: structureOf(m), to: structureId },
-        });
-        m.structureId = structureId;
-        m.structureConfirmed = true;
-        if (m.orgoId) {
-          const obligations = await tx.find(MembershipObligation, {
-            orgoUserId: m.orgoId,
-          });
-          for (const o of obligations)
-            for (const c of await tx.find(MembershipCheckout, {
-              obligationId: o.id,
-              purpose: 'admission',
-              state: { $in: ['starting', 'pending', 'unknown'] },
-            }))
-              c.reviewRequired = true;
-        }
-      }
-      if (!unitId) {
-        if (
-          !m.birthDate ||
-          m.birthDate >
-            `${Number(localDate(new Date()).slice(0, 4)) - 18}${localDate(new Date()).slice(4)}`
-        )
-          throw new BadRequestException(
-            'Trecerea la voluntar adult necesită o dată a nașterii verificată și vârsta de minimum 18 ani.',
-          );
-        m.adultKind = 'volunteer';
-        m.grade = null;
-        if (m.unitId)
-          for (const assignment of await tx.find(ScoutAssignment, {
-            memberId: id,
-            role: 'helper',
-            endedAt: null,
-          }))
-            assignment.endedAt = new Date();
-      }
-      await this.place(tx, m, unitId, groupId, user.id);
-      if (unitId) tx.create(MemberNotice, { unitId, memberId: m.id });
-      this.queue(tx, m, user.id, 'assignment', {
-        unitId,
-        groupId,
-        structureId,
+    return this.mutate(user, 'transfer', (tx) =>
+      this.applyTransfer(tx, user, id, b),
+    );
+  }
+  private async applyTransfer(
+    tx: EntityManager,
+    user: CurrentUser,
+    id: string,
+    b: Record<string, unknown>,
+  ) {
+    const m = await this.get(tx, id),
+      a = await this.access(tx, user, m);
+    const unitId = b.unitId ? stringValue(b.unitId) : null,
+      groupId = b.groupId ? stringValue(b.groupId) : null;
+    const destination = await this.unit(tx, unitId, groupId);
+    const structureId = b.structureId
+      ? stringValue(b.structureId)
+      : destination
+        ? structureOf(destination)
+        : structureOf(m);
+    const ctx = await this.context(tx, user);
+    if (structureId !== structureOf(m) && !ctx.admin) denied();
+    if (destination && structureOf(destination) !== structureId)
+      throw new BadRequestException('Unitatea aparține altei structuri.');
+    await tx.findOneOrFail(LocalStructure, { id: structureId });
+    if (
+      (!m.unitId && !a.transfer) ||
+      (m.unitId !== unitId ? !a.transfer : !a.edit)
+    )
+      denied();
+    if (m.status !== 'active')
+      throw new BadRequestException('Reactivează membrul înainte de mutare.');
+    if (structureOf(m) !== structureId) {
+      tx.create(AuditEntry, {
+        actorId: user.id,
+        action: 'members.structure-transfer',
+        entityType: 'Member',
+        entityId: m.id,
+        metadata: { from: structureOf(m), to: structureId },
       });
-      return { id, result: { ok: true } };
+      m.structureId = structureId;
+      m.structureConfirmed = true;
+      if (m.orgoId) {
+        const obligations = await tx.find(MembershipObligation, {
+          orgoUserId: m.orgoId,
+        });
+        for (const o of obligations)
+          for (const c of await tx.find(MembershipCheckout, {
+            obligationId: o.id,
+            purpose: 'admission',
+            state: { $in: ['starting', 'pending', 'unknown'] },
+          }))
+            c.reviewRequired = true;
+      }
+    }
+    if (!unitId) {
+      if (
+        !m.birthDate ||
+        m.birthDate >
+          `${Number(localDate(new Date()).slice(0, 4)) - 18}${localDate(new Date()).slice(4)}`
+      )
+        throw new BadRequestException(
+          'Trecerea la voluntar adult necesită o dată a nașterii verificată și vârsta de minimum 18 ani.',
+        );
+      m.adultKind = 'volunteer';
+      m.grade = null;
+      if (m.unitId)
+        for (const assignment of await tx.find(ScoutAssignment, {
+          memberId: id,
+          role: 'helper',
+          endedAt: null,
+        }))
+          assignment.endedAt = new Date();
+    }
+    await this.place(tx, m, unitId, groupId, user.id);
+    if (unitId) tx.create(MemberNotice, { unitId, memberId: m.id });
+    this.queue(tx, m, user.id, 'assignment', {
+      unitId,
+      groupId,
+      structureId,
     });
+    return { id, result: { ok: true } };
   }
   async place(
     tx: EntityManager,
@@ -858,6 +1044,9 @@ export class MembersService {
     m.unitId = unitId;
     m.groupId = groupId;
     if (unitId)
+      m.branch =
+        (await tx.findOne(ScoutUnit, { id: unitId }))?.branch ?? m.branch;
+    if (unitId)
       tx.create(ScoutAssignment, {
         memberId: m.id,
         unitId,
@@ -868,117 +1057,133 @@ export class MembersService {
   }
   async lifecycle(user: CurrentUser, id: string, input: unknown) {
     const b = bodyObject(input);
-    return this.mutate(user, 'lifecycle', async (tx) => {
-      const m = await this.get(tx, id);
-      const action = stringValue(b.action);
-      if (action === 'withdraw') {
-        if (!(await this.access(tx, user, m)).withdraw) denied();
-        for (const a of await tx.find(ScoutAssignment, {
-          memberId: id,
-          endedAt: null,
-        }))
-          a.endedAt = new Date();
-        m.status = 'withdrawn';
-        if (m.orgoId) {
-          const obligations = await tx.find(MembershipObligation, {
-            orgoUserId: m.orgoId,
-          });
-          for (const obligation of obligations)
-            for (const checkout of await tx.find(MembershipCheckout, {
-              obligationId: obligation.id,
-              state: { $in: ['starting', 'pending', 'unknown'] },
-            }))
-              checkout.reviewRequired = true;
-        }
-        const account = m.accountId
-          ? await tx.findOne(User, { id: m.accountId })
-          : null;
-        if (account) {
-          account.councilAdmin = false;
-          account.memberAccessDisabled = true;
-        }
-      } else if (action === 'reactivate') {
-        const unitId = b.unitId ? stringValue(b.unitId) : null,
-          groupId = b.groupId ? stringValue(b.groupId) : null;
-        const destination = await this.unit(tx, unitId, groupId);
-        if (destination && structureOf(destination) !== structureOf(m))
-          throw new BadRequestException(
-            'Reactivează în aceeași structură, apoi folosește transferul.',
-          );
-        const ctx = await this.context(tx, user);
-        if (
-          !permissions(
-            ctx.admin || ctx.structureIds.includes(structureOf(m)),
-            false,
-            ctx.assignments,
-            {
-              id,
-              unitId,
-              groupId,
-            },
-          ).edit
-        )
-          denied();
-        if (!['withdrawn', 'review'].includes(m.status))
-          throw new BadRequestException('Membrul este deja activ.');
-        const wasWithdrawn = m.status === 'withdrawn';
-        m.status = 'active';
-        m.adultKind = unitId ? null : 'volunteer';
-        if (wasWithdrawn) m.feeResumePeriod = `${targetYear(new Date())}-09-01`;
-        await this.place(tx, m, unitId, groupId, user.id);
-        const current = await tx.findOne(MembershipPeriod, {
-          startsOn: m.feeResumePeriod,
+    return this.mutate(user, 'lifecycle', (tx) =>
+      this.applyLifecycle(tx, user, id, b),
+    );
+  }
+  private async applyLifecycle(
+    tx: EntityManager,
+    user: CurrentUser,
+    id: string,
+    b: Record<string, unknown>,
+  ) {
+    const m = await this.get(tx, id);
+    const action = stringValue(b.action);
+    if (action === 'withdraw') {
+      if (!(await this.access(tx, user, m)).withdraw) denied();
+      for (const a of await tx.find(ScoutAssignment, {
+        memberId: id,
+        endedAt: null,
+      }))
+        a.endedAt = new Date();
+      m.status = 'withdrawn';
+      if (m.orgoId) {
+        const obligations = await tx.find(MembershipObligation, {
+          orgoUserId: m.orgoId,
         });
-        if (current && m.orgoId) {
-          const existing = await tx.findOne(MembershipObligation, {
-            orgoUserId: m.orgoId,
-            periodId: current.id,
-          });
-          if (existing) {
-            if (
-              ['orgo_review', 'missing_from_orgo'].includes(
-                existing.reviewState ?? '',
-              )
-            ) {
-              existing.reviewState = null;
-              existing.reviewReason = null;
-            }
-          } else {
-            const prior = await tx.find(
-              MembershipObligation,
-              { orgoUserId: m.orgoId },
-              { orderBy: { createdAt: 'desc' }, limit: 1 },
-            );
-            const previousPlan = prior[0]?.plan;
-            const price = previousPlan
-              ? current.prices[previousPlan as keyof typeof current.prices]
-              : null;
-            if (previousPlan && price)
-              tx.create(MembershipObligation, {
-                orgoUserId: m.orgoId,
-                periodId: current.id,
-                memberName: m.name,
-                plan: previousPlan,
-                totalBani: price.totalBani,
-                nationalBani: price.nationalBani,
-                verificationNote:
-                  'Reactivare: cotizația anului curent; fără recuperarea anilor anteriori.',
-              });
+        for (const obligation of obligations)
+          for (const checkout of await tx.find(MembershipCheckout, {
+            obligationId: obligation.id,
+            state: { $in: ['starting', 'pending', 'unknown'] },
+          }))
+            checkout.reviewRequired = true;
+      }
+      const account = m.accountId
+        ? await tx.findOne(User, { id: m.accountId })
+        : null;
+      if (account) {
+        account.councilAdmin = false;
+        account.memberAccessDisabled = true;
+      }
+    } else if (action === 'reactivate') {
+      const unitId = b.unitId ? stringValue(b.unitId) : null,
+        groupId = b.groupId ? stringValue(b.groupId) : null;
+      const destination = await this.unit(tx, unitId, groupId);
+      if (destination && structureOf(destination) !== structureOf(m))
+        throw new BadRequestException(
+          'Reactivează în aceeași structură, apoi folosește transferul.',
+        );
+      const ctx = await this.context(tx, user);
+      if (
+        !permissions(
+          ctx.admin || ctx.structureIds.includes(structureOf(m)),
+          false,
+          ctx.assignments,
+          {
+            id,
+            unitId,
+            groupId,
+          },
+        ).edit
+      )
+        denied();
+      if (!['withdrawn', 'review'].includes(m.status))
+        throw new BadRequestException('Membrul este deja activ.');
+      const wasWithdrawn = m.status === 'withdrawn';
+      m.status = 'active';
+      m.adultKind = unitId ? null : 'volunteer';
+      if (wasWithdrawn) m.feeResumePeriod = `${targetYear(new Date())}-09-01`;
+      await this.place(tx, m, unitId, groupId, user.id);
+      const current = await tx.findOne(MembershipPeriod, {
+        startsOn: m.feeResumePeriod,
+      });
+      if (current && m.orgoId) {
+        const existing = await tx.findOne(MembershipObligation, {
+          orgoUserId: m.orgoId,
+          periodId: current.id,
+        });
+        if (existing) {
+          if (
+            ['orgo_review', 'missing_from_orgo'].includes(
+              existing.reviewState ?? '',
+            )
+          ) {
+            existing.reviewState = null;
+            existing.reviewReason = null;
           }
+        } else {
+          const prior = await tx.find(
+            MembershipObligation,
+            { orgoUserId: m.orgoId },
+            { orderBy: { createdAt: 'desc' }, limit: 1 },
+          );
+          const previousPlan = prior[0]?.plan;
+          const price = previousPlan
+            ? current.prices[previousPlan as keyof typeof current.prices]
+            : null;
+          if (previousPlan && price)
+            tx.create(MembershipObligation, {
+              orgoUserId: m.orgoId,
+              periodId: current.id,
+              memberName: m.name,
+              plan: previousPlan,
+              totalBani: price.totalBani,
+              nationalBani: price.nationalBani,
+              verificationNote:
+                'Reactivare: cotizația anului curent; fără recuperarea anilor anteriori.',
+            });
         }
-        // Old manual global access must not spring back on return.
-        if (m.accountId && wasWithdrawn) {
-          const account = await tx.findOne(User, { id: m.accountId });
-          if (account) {
-            account.roles = [];
-            account.memberAccessDisabled = false;
-            account.councilAdmin = false;
-          }
+      }
+      // Old manual global access must not spring back on return.
+      if (m.accountId && wasWithdrawn) {
+        const account = await tx.findOne(User, { id: m.accountId });
+        if (account) {
+          account.roles = [];
+          account.memberAccessDisabled = false;
+          account.councilAdmin = false;
         }
-      } else throw new BadRequestException('Acțiune necunoscută.');
-      this.queue(tx, m, user.id, 'status', { status: m.status });
-      return { id, result: { ok: true } };
-    });
+      }
+    } else throw new BadRequestException('Acțiune necunoscută.');
+    this.queue(
+      tx,
+      m,
+      user.id,
+      action === 'withdraw' && isImportedInactive(m)
+        ? 'local-profile'
+        : 'status',
+      { status: m.status },
+    );
+    return { id, result: { ok: true } };
   }
   async assignment(user: CurrentUser, id: string, input: unknown) {
     const b = bodyObject(input);
@@ -1032,8 +1237,8 @@ export class MembersService {
           ? dateValue(b.promiseDate)
           : m.promiseDate;
         if (
-          !promise ||
-          promise > localDate(new Date()) ||
+          (!promise && m.promiseSource !== 'orgo-leader') ||
+          (promise && promise > localDate(new Date())) ||
           !m.birthDate ||
           m.birthDate >
             `${Number(localDate(new Date()).slice(0, 4)) - 18}${localDate(new Date()).slice(4)}` ||
@@ -1343,6 +1548,7 @@ export class MembersService {
           }
         }
         m.grade = result.grade;
+        m.branch = result.branch;
         m.lastProgressionYear = year;
         transition.state = 'done';
         transition.message = 'Actualizare anuală aplicată.';
@@ -1389,5 +1595,18 @@ export class MembersService {
         }
       }
     });
+  }
+}
+
+class BulkPreview extends Error {
+  constructor(
+    readonly result: {
+      version: string;
+      members: unknown[];
+      changes: Record<string, unknown>;
+      applied: boolean;
+    },
+  ) {
+    super('preview');
   }
 }

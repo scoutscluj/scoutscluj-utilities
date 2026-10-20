@@ -18,7 +18,51 @@ export async function memberAction(event: RequestEvent) {
 	delete body.action;
 	if (form.has('keepLocal')) body.keepLocal = form.get('keepLocal') === 'on';
 	let path: string;
-	if (action === 'classify') {
+	if (action === 'fee-menu') {
+		const target = String(form.get('id'));
+		const detail = await memberRead<import('$lib/members/types').Detail>(
+			event,
+			'/' + encodeURIComponent(target)
+		);
+		return {
+			section: action,
+			message: '',
+			feeMenu: { id: target, name: detail.member.name, fees: detail.fees }
+		};
+	}
+	if (action === 'bulk') {
+		path = '/bulk';
+		try {
+			body.members = JSON.parse(String(form.get('members')));
+			body.changes = JSON.parse(String(form.get('changes')));
+		} catch {
+			return fail(400, { message: 'Selecție invalidă.' });
+		}
+		body.confirm = form.get('confirm') === 'on';
+	} else if (action === 'refresh') path = '/orgo/refresh';
+	else if (action === 'direct-national') {
+		const response = await apiFetch('/api/membership/national-direct', {
+			method: 'POST',
+			headers: { ...memberHeaders(event), 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				obligationId: form.get('obligationId'),
+				reference: form.get('reference'),
+				receivedOn: form.get('receivedOn'),
+				...(form.get('receiptId') ? { receiptId: form.get('receiptId') } : {}),
+				...(form.get('amount') ? { amountBani: Math.round(Number(form.get('amount')) * 100) } : {})
+			})
+		});
+		const result = (await response.json()) as { message?: string };
+		if (!response.ok)
+			return fail(response.status, {
+				section: action,
+				message: result.message ?? 'Plata nu a putut fi confirmată.'
+			});
+		return {
+			section: action,
+			message: 'Plata națională a fost verificată; partea locală este înregistrată.'
+		};
+	} else if (action === 'classify') {
 		path = '/structures/confirm';
 		try {
 			body.members = JSON.parse(String(form.get('members')));
@@ -47,7 +91,27 @@ export async function memberAction(event: RequestEvent) {
 	} else if (action === 'retry') path = `/orgo/retry/${encodeURIComponent(String(form.get('id')))}`;
 	else if (id) {
 		path = `/${encodeURIComponent(id)}`;
-		if (action === 'profile') {
+		if (action === 'orgo-profile') {
+			path += '/orgo-profile';
+			body.values = {};
+			for (const [key, value] of form)
+				if (key.startsWith('orgo.'))
+					(body.values as Record<string, string>)[key.slice(5)] = String(value);
+			for (const key of Object.keys(body)) if (key.startsWith('orgo.')) delete body[key];
+		} else if (action === 'conflict') path += '/conflicts';
+		else if (action === 'photo') {
+			path += '/photo';
+			const file = form.get('file');
+			if (
+				!(file instanceof File) ||
+				file.size > 2097152 ||
+				!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
+			)
+				return fail(400, { message: 'Alege o fotografie JPG, PNG sau WebP de maximum 2 MB.' });
+			body.data =
+				'data:' + file.type + ';base64,' + Buffer.from(await file.arrayBuffer()).toString('base64');
+			delete body.file;
+		} else if (action === 'profile') {
 			const profile: Record<string, string> = {};
 			for (const [key, value] of form)
 				if (key.startsWith('profile.')) profile[key.slice(8)] = String(value);
@@ -78,12 +142,22 @@ export async function memberAction(event: RequestEvent) {
 		added?: number;
 		unitsAdded?: number;
 		conflicts?: number;
+		applied?: boolean;
+		version?: string;
+		members?: { id: string; name: string; revision: number; from: string; unitId: string | null }[];
+		changes?: Record<string, unknown>;
 	};
 	if (!response.ok)
 		return fail(response.status, {
 			section: action,
 			message: result.message ?? 'Modificarea nu a putut fi salvată.'
 		});
+	if (action === 'bulk' && !result.applied)
+		return {
+			section: action,
+			message: 'Verifică persoanele și modificarea înainte de confirmare.',
+			bulkPreview: { version: result.version!, members: result.members!, changes: result.changes! }
+		};
 	if (action === 'create' && result.id) redirect(303, `/units/${result.id}`);
 	return {
 		section: action,

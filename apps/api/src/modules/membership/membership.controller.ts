@@ -277,6 +277,15 @@ export class MembershipController {
   }
 
   @UseGuards(AuthGuard)
+  @Post('national-direct')
+  @UseGuards(AuthGuard)
+  directNational(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: unknown,
+  ) {
+    return this.membership.directNational(user, body);
+  }
+
   @Post('national-batches')
   batch(@CurrentUser() user: AuthenticatedUser, @Body() body: unknown) {
     return this.membership.nationalBatch(user, body);

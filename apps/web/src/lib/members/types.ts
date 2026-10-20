@@ -21,6 +21,17 @@ export type Unit = {
 	archived: boolean;
 };
 export type Member = {
+	roles?: string[];
+	orgoType?: string | null;
+	revision?: number;
+	branch?: string | null;
+	access?: {
+		edit: boolean;
+		transfer: boolean;
+		withdraw?: boolean;
+		identity: boolean;
+		read: boolean;
+	};
 	structureId?: string;
 	responsibilityUnitIds?: string[];
 	responsibilityGroupIds?: string[];
@@ -42,6 +53,7 @@ export type Sync = {
 	createdAt: string;
 };
 export type Registry = {
+	canFinance?: boolean;
 	structures?: Structure[];
 	manageableStructureIds?: string[];
 	notices: { id: string; unitId: string; memberId: string; createdAt: string }[];
@@ -50,7 +62,14 @@ export type Registry = {
 	chiefUnitIds: (string | null)[];
 	units: Unit[];
 	members: Member[];
-	inactiveMembers?: { id: string; name: string; orgoId: number | null; structureId?: string }[];
+	inactiveMembers?: {
+		id: string;
+		name: string;
+		orgoId: number | null;
+		structureId?: string;
+		revision?: number;
+		status?: string;
+	}[];
 	ownMemberId: string | null;
 	progressionEnabled: boolean;
 	sync: Sync[];
@@ -58,6 +77,11 @@ export type Registry = {
 };
 export type Detail = {
 	member: Member & {
+		promiseSource?: string | null;
+		orgoProfile?: Record<string, unknown>;
+		orgoFields?: Record<string, string>;
+		orgoReadonly?: string[];
+		conflicts?: Record<string, { local: unknown; remote: unknown }>;
 		birthDate: string | null;
 		promiseDate: string | null;
 		profile: Record<string, string>;
@@ -90,6 +114,10 @@ export type Detail = {
 		canSeeSensitive: boolean;
 	}[];
 	fees: {
+		obligationId?: string;
+		nationalBani?: number;
+		nationalDirectBani?: number;
+		localPaidBani?: number;
 		period: string;
 		totalBani: number;
 		paidBani: number;

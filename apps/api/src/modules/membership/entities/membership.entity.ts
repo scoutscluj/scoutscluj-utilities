@@ -77,6 +77,8 @@ export const MembershipObligation = defineEntity({
     plan: p.string(),
     totalBani: p.integer(),
     nationalBani: p.integer(),
+    nationalDirectBani: p.integer().default(0),
+    nationalDirectEvidence: p.text().nullable(),
     verificationNote: p.text(),
     orgoLastSyncedAt: p.datetime().nullable(),
     orgoCreatedAt: p.datetime().nullable(),

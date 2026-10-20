@@ -95,10 +95,10 @@
 		<progress
 			max={100}
 			value={totals.percent}
-			aria-label="Procent din suma totală a cotizațiilor încasat">{totals.percent}%</progress
+			aria-label="Procent din suma totală a cotizațiilor acoperit">{totals.percent}%</progress
 		>
 		<div class="progress-caption">
-			<span><b>{money(totals.collectedBani)}</b> încasat din {money(totals.totalBani)}</span><span
+			<span><b>{money(totals.collectedBani)}</b> acoperit din {money(totals.totalBani)}</span><span
 				>{totals.members - totals.paidMembers} cotizații de finalizat</span
 			>
 		</div>
@@ -160,7 +160,7 @@
 				<thead
 					><tr
 						>{#if transfers}<th>Transfer</th>{/if}<th>Membru</th><th>Plan</th><th>Datorat</th><th
-							>Încasat</th
+							>Achitat</th
 						><th>Restant</th>{#if transfers}<th>Național</th>{/if}<th>Stare</th>{#if !transfers}<th
 								>Acțiuni</th
 							>{/if}</tr
@@ -171,7 +171,7 @@
 						{@const item = ledger.nationalItems.find((n) => n.obligationId === o.id)}
 						<tr>
 							{#if transfers}<td
-									>{#if !item && paid(o.id) >= o.totalBani}<input
+									>{#if !item && !o.nationalDirectBani && paid(o.id) >= o.totalBani}<input
 											type="checkbox"
 											name="obligationIds"
 											value={o.id}
@@ -189,7 +189,9 @@
 							<td>{feePlans.find((p) => p[0] === o.plan)?.[1] ?? o.plan}</td>
 							<td>{money(o.totalBani)}</td>
 							<td
-								>{money(paid(o.id))}
+								>{money(paid(o.id))}{#if o.nationalDirectBani}<small
+										>Inclusiv {money(o.nationalDirectBani)} plătit direct naționalului</small
+									>{/if}
 								{#if !transfers}<PaymentDetailsTooltip {ledger} obligation={o} />{/if}
 							</td>
 							<td
@@ -201,11 +203,13 @@
 							<td
 								><FinanceStatus
 									state={paymentState(o)}
-									label={transfers && item && !needsReview(o)
-										? (nationalLabels[item.orgoState] ?? item.orgoState)
-										: transfers && paymentState(o) === 'paid'
-											? 'Plătit · netransferat'
-											: labels[paymentState(o)]}
+									label={o.nationalDirectBani
+										? 'Național achitat direct în Orgo'
+										: transfers && item && !needsReview(o)
+											? (nationalLabels[item.orgoState] ?? item.orgoState)
+											: transfers && paymentState(o) === 'paid'
+												? 'Plătit · netransferat'
+												: labels[paymentState(o)]}
 								/>
 								{#if !transfers && needsReview(o)}<button
 										type="button"

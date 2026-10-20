@@ -172,11 +172,20 @@ jobs:
           # pulls and migrations can take longer. Observe this same command;
           # never submit a second deployment merely because a waiter expired.
           wait_status=1
+          ssm_error="$(mktemp)"
           for attempt in {1..180}; do
-            status="$(aws ssm get-command-invocation \
+            if ! status="$(aws ssm get-command-invocation \
               --command-id "${command_id}" \
               --instance-id "${{ steps.stack.outputs.app_host_instance_id }}" \
-              --query Status --output text)"
+              --query Status --output text 2>"${ssm_error}")"; then
+              # SSM can acknowledge a command before its invocation is visible.
+              if grep -q InvocationDoesNotExist "${ssm_error}"; then
+                sleep 5
+                continue
+              fi
+              cat "${ssm_error}" >&2
+              break
+            fi
             case "${status}" in
               Success) wait_status=0; break ;;
               Pending|InProgress|Delayed) sleep 5 ;;

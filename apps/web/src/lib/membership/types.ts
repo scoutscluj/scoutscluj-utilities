@@ -90,6 +90,7 @@ export type Dashboard = {
 		orgoUserId: number;
 		name: string;
 		expectedBani: number;
+		inactive?: boolean;
 		paid: boolean;
 		receivedBani: number;
 	}[];

@@ -6,6 +6,7 @@ import {
   resolveAdmissionEvidence,
 } from './admission-ledger';
 import { AdmissionAllocation } from './entities/admission-allocation.entity';
+import { isImportedInactive } from '../members/member.types';
 import { ScoutMember } from '../members/entities/member.entity';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { collectionAllowed } from '../members/member-collection';
@@ -910,6 +911,9 @@ export class MembershipService {
       return {
         orgoUserId,
         name,
+        inactive: isImportedInactive(
+          members.find((m) => m.orgoId === orgoUserId) ?? { status: 'active' },
+        ),
         paid: state.paid,
         receivedBani: state.receivedBani,
         expectedBani:
@@ -1169,6 +1173,7 @@ export class MembershipService {
       orgoUserId: number;
       name: string;
       expectedBani: number;
+      inactive: boolean;
       paid: boolean;
       receivedBani: number;
     }[];

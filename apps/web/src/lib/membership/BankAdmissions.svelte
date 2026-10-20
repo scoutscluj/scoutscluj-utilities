@@ -11,6 +11,7 @@
 	]);
 	let busy = $state(false);
 	let search = $state('');
+	let historyOnly = $state(false);
 	const available = $derived(
 		ledger.receipts.filter(
 			(r) =>
@@ -29,7 +30,9 @@
 		)
 	);
 	const selectedReceipt = $derived(available.find((r) => r.id === receiptId));
-	const candidates = $derived((ledger.admissionMembers ?? []).filter((m) => !m.paid));
+	const candidates = $derived(
+		(ledger.admissionMembers ?? []).filter((m) => !m.paid && Boolean(m.inactive) === historyOnly)
+	);
 	const row = $derived(rows[0]);
 </script>
 
@@ -46,6 +49,33 @@
 			></select
 		></label
 	>
+	<details>
+		<summary>Membri inactivi din istoric</summary>
+		<p>
+			Istoricul nu apare în lista obișnuită de membri. Activează acest mod doar pentru o încasare
+			istorică verificată.
+		</p>
+		<label
+			><input
+				type="checkbox"
+				bind:checked={historyOnly}
+				onchange={() =>
+					(rows = [
+						{
+							purpose: 'admission',
+							orgoUserId: '',
+							obligationId: '',
+							amount: '',
+							expected: '',
+							note: ''
+						}
+					])}
+			/>Selectez un membru din istoricul inactiv</label
+		>
+	</details>
+	{#if historyOnly}<p role="status">
+			Înregistrare pentru istoricul inactiv. Lista arată doar acești membri.
+		</p>{/if}
 	<form
 		method="POST"
 		use:enhance={() => {

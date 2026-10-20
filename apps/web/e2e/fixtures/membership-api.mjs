@@ -19,6 +19,14 @@ const prices = Object.fromEntries(
 const fixture = () => ({
 	admissionAllocations: [],
 	admissionMembers: [
+		{
+			orgoUserId: 99999,
+			name: 'Istoric bancar',
+			expectedBani: 5500,
+			paid: false,
+			receivedBani: 0,
+			inactive: true
+		},
 		{ orgoUserId: 36801, name: 'Ana Popescu', expectedBani: 5500, paid: false, receivedBani: 0 },
 		{ orgoUserId: 36802, name: 'Andrei Ionescu', expectedBani: 10500, paid: false, receivedBani: 0 }
 	],
@@ -331,7 +339,7 @@ createServer(async (req, res) => {
 		return respond(res, { message: 'Eroare de test. Reîncearcă.' }, 409);
 	}
 	if (req.url === '/test/admission-confirm') {
-		ledger.admissionMembers[0].paid = true;
+		ledger.admissionMembers.find((m) => m.orgoUserId === 36801).paid = true;
 		const member = ledger.obligations[0];
 		ledger.checkouts.push({
 			id: 'admission',

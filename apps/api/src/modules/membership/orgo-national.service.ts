@@ -24,6 +24,16 @@ const resourceId = (value: unknown): string => {
     throw new Error('Identificator ORGO lipsă sau invalid.');
   return String(id);
 };
+const amount = (value: unknown): number | null => {
+  if (
+    (typeof value !== 'number' && typeof value !== 'string') ||
+    (typeof value === 'string' && !value.trim())
+  )
+    return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+};
+
 export type NationalTarget = {
   orgoUserId: number;
   startsOn: string;
@@ -49,6 +59,8 @@ export class OrgoNationalService {
   ): Promise<NationalResult> {
     let submitted = false;
     try {
+      if (!Number.isSafeInteger(target.amountBani) || target.amountBani <= 0)
+        throw new Error('Suma națională trebuie să fie pozitivă.');
       const member = object(
         await this.tokens.administrativeJson(
           actorId,
@@ -94,7 +106,15 @@ export class OrgoNationalService {
       );
       const productId = resourceId(product);
       const price = object(member.feeTenantProductPrice);
-      const intervalId = `${target.startsOn}_${target.endsOn}`;
+      const candidates = new Set([`${target.startsOn}_${target.endsOn}`]);
+      // Legacy local periods start in September; Orgo's annual fee starts in October.
+      const year = Number(target.startsOn.slice(0, 4));
+      if (
+        target.startsOn === `${year}-09-01` &&
+        target.endsOn === `${year + 1}-08-31`
+      )
+        candidates.add(`${year}-10-01_${year + 1}-09-30`);
+      let intervalId: string | undefined;
       const historyPath = `/api/v1/fee-history/tenant/${productId}?uid=${target.orgoUserId}`;
       const readPeriod = async () => {
         const history = await this.tokens.administrativeJson(
@@ -107,32 +127,41 @@ export class OrgoNationalService {
           );
         const periods = history
           .map(object)
-          .filter((p) => p.intervalId === intervalId);
+          .filter((p) =>
+            intervalId
+              ? p.intervalId === intervalId
+              : typeof p.intervalId === 'string' &&
+                candidates.has(p.intervalId),
+          );
         if (periods.length !== 1)
           throw new Error(
             'Perioada din Resurse nu corespunde unei perioade unice în ORGO.',
           );
+        intervalId = String(periods[0].intervalId);
         return periods[0];
       };
       const result = (
         period: Record<string, unknown>,
       ): NationalResult | null => {
-        if (
-          period.status === 'paid' &&
-          !period.isPending &&
-          Number.isFinite(Number(period.unpaid)) &&
-          Number(period.unpaid) === 0 &&
-          Math.round(Number(period.paid) * 100) >= target.amountBani
-        )
-          return {
-            state: 'synced',
-            message: `Cotizație ORGO confirmată pentru ${target.startsOn}–${target.endsOn}.`,
-          };
+        if (period.exempt || period.status === 'refunded') return null;
         if (period.status === 'pending' || period.isPending)
           return {
             state: 'pending_approval',
             message:
               'Înregistrarea există în ORGO și așteaptă aprobarea organizației naționale.',
+          };
+        const paid = amount(period.paid);
+        const unpaid = amount(period.unpaid);
+        if (
+          (period.status === 'paid' || period.status === undefined) &&
+          paid !== null &&
+          paid > 0 &&
+          unpaid === 0 &&
+          Math.round(paid * 100) >= target.amountBani
+        )
+          return {
+            state: 'synced',
+            message: `Cotizație ORGO confirmată pentru ${intervalId?.replace('_', '–')}.`,
           };
         return null;
       };
@@ -148,9 +177,9 @@ export class OrgoNationalService {
       if (
         period.exempt ||
         period.status === 'refunded' ||
-        Number(period.paid) > 0 ||
-        !Number.isFinite(Number(period.unpaid)) ||
-        Math.round(Number(period.unpaid) * 100) !== target.amountBani ||
+        amount(period.paid) !== 0 ||
+        amount(period.unpaid) === null ||
+        Math.round(amount(period.unpaid)! * 100) !== target.amountBani ||
         price.currency !== 'RON'
       )
         throw new Error(

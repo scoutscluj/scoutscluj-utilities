@@ -249,6 +249,35 @@ describe('member HTTP scope and lifecycle', () => {
     for (const id of [childId, otherId])
       f.list('member').find((m) => m.id === id)!.structureId = 'floresti';
   };
+  it('lets unit leaders read public clinical custom fields and keeps edits linked to the reusable profile', async () => {
+    const child = f.list('member').find((m) => m.id === childId)!;
+    child.orgoProfile = {
+      customDefinitions: [{ id: 2, name: 'Alergii', visibility: 'public' }],
+      customFieldValues: [{ field: 2, value: 'Anterior', media: null }],
+    };
+    child.profile = { ...emptyProfile(), allergies: 'Anterior' };
+    await http()
+      .post('/members/' + childId)
+      .send({ revision: 1, profile: { allergies: 'Corectat' } })
+      .expect(201);
+    expect(f.list('sync')[0]).toMatchObject({
+      kind: 'orgo-profile',
+      payload: { rawUserCustomFieldsValues: { '2': 'Corectat' } },
+    });
+    const response = await http()
+      .get('/members/' + childId)
+      .expect(200);
+    const detail = JSON.parse(response.text) as {
+      member: {
+        profile: { allergies: string };
+        orgoProfile: { customFieldValues: unknown[] };
+      };
+    };
+    expect(detail.member.profile.allergies).toBe('Corectat');
+    expect(detail.member.orgoProfile.customFieldValues).toEqual([
+      { field: 2, value: 'Corectat', media: null },
+    ]);
+  });
   it('previews a multi-member Floresti transfer without changing data, then applies it atomically', async () => {
     const body = {
       members: [childId, otherId].map((id) => ({ id, revision: 1 })),

@@ -1,9 +1,10 @@
-import type { Branch } from './member.types';
+import type { Branch, Profile } from './member.types';
 export const object = (v: unknown): Record<string, unknown> =>
   v && typeof v === 'object' && !Array.isArray(v)
     ? (v as Record<string, unknown>)
     : {};
 export const profileFields: Record<string, string> = {
+  fullName: 'Nume complet Orgo',
   email: 'Email Orgo',
   phoneNumber: 'Telefon Orgo',
   dateBirth: 'Data nașterii Orgo',
@@ -58,6 +59,7 @@ export const profileFields: Record<string, string> = {
   customFieldValues: 'Informații suplimentare',
 };
 export const readonlyFields = new Set([
+  'fullName',
   'logo',
   'type',
   'cardId',
@@ -138,4 +140,109 @@ export function reconcile(
       conflicts[key] = { local: local[key] ?? null, remote: value };
   }
   return { values, base: nextBase, conflicts };
+}
+
+export function customProfileKey(
+  definition: Record<string, unknown>,
+): keyof Profile | undefined {
+  const name = (typeof definition.name === 'string' ? definition.name : '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+  return (
+    {
+      alimentatie: 'dietary',
+      alergii: 'allergies',
+      'alte nevoi': 'needs',
+    } as Record<string, keyof Profile>
+  )[name];
+}
+export function projectCustomProfile(
+  profile: Profile,
+  orgo: Record<string, unknown>,
+): Profile {
+  const next = { ...profile };
+  const fields = Array.isArray(orgo.customFieldValues)
+    ? orgo.customFieldValues.map(object)
+    : [];
+  for (const definition of (Array.isArray(orgo.customDefinitions)
+    ? orgo.customDefinitions
+    : []
+  ).map(object)) {
+    if (
+      definition.isOnlyAdmin === true ||
+      definition.visibility === 'admin' ||
+      definition.isEncrypted === true
+    )
+      continue;
+    const key = customProfileKey(definition),
+      field = fields.find((f) => Number(f.field) === Number(definition.id));
+    if (
+      key &&
+      field &&
+      (field.value === null ||
+        ['string', 'number', 'boolean'].includes(typeof field.value))
+    ) {
+      const raw =
+        typeof field.value === 'string'
+          ? field.value
+          : typeof field.value === 'number' || typeof field.value === 'boolean'
+            ? String(field.value)
+            : '';
+      const options = object(object(definition.options).options);
+      next[key] = typeof options[raw] === 'string' ? options[raw] : raw;
+    }
+  }
+  return next;
+}
+export function customProfilePatch(
+  before: Profile,
+  after: Profile,
+  orgo: Record<string, unknown>,
+) {
+  const values = (
+    Array.isArray(orgo.customFieldValues) ? orgo.customFieldValues : []
+  ).map((v) => ({ ...object(v) }));
+  let changed = false;
+  for (const definition of (Array.isArray(orgo.customDefinitions)
+    ? orgo.customDefinitions
+    : []
+  ).map(object)) {
+    if (
+      definition.isOnlyAdmin === true ||
+      definition.visibility === 'admin' ||
+      definition.isEncrypted === true
+    )
+      continue;
+    const key = customProfileKey(definition);
+    if (!key || before[key] === after[key]) continue;
+    const field = values.find((f) => Number(f.field) === Number(definition.id));
+    const options = object(object(definition.options).options);
+    const choice = Object.entries(options).find(
+      ([, label]) => label === after[key],
+    )?.[0];
+    const value =
+      choice === undefined
+        ? after[key]
+        : typeof field?.value === 'number'
+          ? Number(choice)
+          : choice;
+    if (field) field.value = value;
+    else
+      values.push({
+        field: Number(definition.id),
+        value,
+        media: null,
+      });
+    changed = true;
+  }
+  return changed
+    ? {
+        values,
+        patch: Object.fromEntries(
+          values.map((f) => [String(f.field), f.value]),
+        ),
+      }
+    : null;
 }

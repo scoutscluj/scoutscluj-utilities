@@ -61,9 +61,9 @@ describe('Orgo import preview', () => {
       localCenter: { id: 7 },
       type: { id: 42, name: 'Lider' },
       userRoles: [
-        { role: { id: 18, name: 'Lider' }, unit: { id: 10 } },
+        { role: { id: 1, name: 'Lider' }, unit: { id: 10 } },
         { role: { id: 8, name: 'Consiliu' }, unit: { id: 7 } },
-        { role: { id: 1, name: 'Lider' }, unit: { id: 11 } },
+        { role: { id: 18, name: 'Lider' }, unit: { id: 11 } },
         {
           role: { id: 7, name: 'Șef unitate' },
           unit: { id: 10 },
@@ -443,4 +443,39 @@ describe('member photo isolation', () => {
       }),
     ).rejects.toThrow('nu este o fotografie validă');
   });
+});
+
+it('prevents a basic helper from editing clinical custom fields through a forged rich-profile request', async () => {
+  const member = {
+    id: 'm',
+    revision: 1,
+    orgoProfile: {
+      customDefinitions: [{ id: 2, name: 'Alergii', visibility: 'public' }],
+      customFieldValues: [{ field: 2, value: 'Original' }],
+    },
+  };
+  const grant = { edit: true, own: false, sensitive: false, identity: false };
+  const members = {
+    detail: () => Promise.resolve({ access: grant }),
+    access: () => Promise.resolve(grant),
+  };
+  const create = jest.fn();
+  const em = {
+    transactional: <T>(fn: (tx: unknown) => Promise<T>) => fn(em),
+    execute: () => Promise.resolve([]),
+    findOneOrFail: () => Promise.resolve(member),
+    create,
+  };
+  const service = new MemberOrgoService(
+    em as unknown as EntityManager,
+    new ConfigService(),
+    members as never,
+  );
+  await expect(
+    service.saveProfile({ id: 1, displayName: 'Helper', roles: [] }, 'm', {
+      revision: 1,
+      values: { 'custom:2': 'Changed' },
+    }),
+  ).rejects.toThrow('fișa protejată');
+  expect(create).not.toHaveBeenCalled();
 });

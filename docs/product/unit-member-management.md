@@ -162,3 +162,14 @@ Personalul financiar deschide Adeziuni și plăți din extras din Membri și cot
 Adeziunea se recunoaște o singură dată pe identitatea Orgo, indiferent de anul cotizației sau schimbarea numelui. Sumele parțiale rămân parțiale. Pentru un tarif istoric diferit există o opțiune separată și o justificare obligatorie. Fișa și registrul financiar afișează adeziunea achitată; banii ei nu se adună la cotizație sau la transferul național. Corecțiile anulează alocarea cu motiv, păstrând încasarea. Restituirea se înregistrează după anularea alocărilor afectate.
 
 Plățile online aflate în curs la schimbarea apartenenței sau la înregistrarea unei adeziuni bancare sunt trimise la verificare financiară. Transferurile nu rescriu plățile deja confirmate.
+
+
+## Extindere Orgo și operații din registru (20 octombrie 2026)
+
+Importul citește fișele detaliate, tipurile și funcțiile active. Previzualizarea Consiliului afișează funcțiile; rolul Lider confirmă promisiunea fără o dată inventată. Patrulele rămân excluse, iar acordarea funcțiilor respectă vârsta, ramura și unitățile importate. Funcțiile importate au proveniență pentru încheierea lor la un import ulterior confirmat; responsabilitățile locale nu sunt șterse automat.
+
+Fișa include informațiile Orgo și fotografia, cu editare a câmpurilor compatibile, upload JPG/PNG/WebP și protejarea datelor suplimentare după aria de acces. Setările de securitate ale contului nu sunt importate în fișa cercetășească. Fișele se verifică zilnic și la cerere; conflictele păstrează ambele valori. Scrierile folosesc exclusiv tokenul serverului și coada existentă, cu verificare prin recitire. Flagul ORGO_MEMBER_WRITES_ENABLED rămâne controlul operațional pentru scrieri; o limitare remote este vizibilă. Rolurile și progresia fără contract de scriere verificat nu sunt declarate sincronizate.
+
+Registrul permite editarea individuală și în lot a clasei, repartizării și statusului. Selecția tuturor rezultatelor cuprinde toate paginile. Transferul apartenenței la Florești este rezervat Consiliului; încheie repartizarea beneficiarului în vechea unitate și păstrează responsabilitățile adulților. Membrii inactivi rămân într-un istoric separat, cu căutare și paginare, și pot fi confirmați direct ca retrași.
+
+Oricine poate vedea un membru poate consulta situația cotizațiilor sale. Confirmările financiare rămân rezervate rolurilor financiare. Meniul contextual verifică în Orgo partea națională pentru perioada exactă și asociază încasarea bancară locală. Acoperirea națională externă nu este o încasare a centrului și nu poate intra din nou într-un lot național. Soldurile și progresul financiar includ ambele componente, iar disponibilul unei încasări folosește numai fondurile reale.

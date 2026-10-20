@@ -32,20 +32,36 @@
 		<h2>Structura identificată</h2>
 		<p>Patrulele din Orgo sunt excluse. Grupele se organizează separat în aplicație.</p>
 		<p>
-			Unitățile se importă numai cu ramura și structura confirmate. Clasele și repartizarea
-			membrilor se completează separat.
+			Unitățile se importă numai cu ramura și structura confirmate. Rolurile active și repartizările
+			compatibile sunt preluate din Orgo.
 		</p>
+		<form method="POST">
+			<input type="hidden" name="action" value="refresh" /><button
+				>Actualizează fișele existente din Orgo</button
+			>
+		</form>
 		<h2>Registru pentru import</h2>
 		<table>
-			<thead><tr><th>ID Orgo</th><th>Nume</th><th>Status Orgo</th></tr></thead><tbody
+			<thead
+				><tr><th>ID Orgo</th><th>Nume</th><th>Status Orgo</th><th>Tip și funcții active</th></tr
+				></thead
+			><tbody
 				>{#each data.preview.members ?? [] as member (member.id)}<tr
-						><td>{member.id}</td><td>{member.name}</td><td>{member.status}</td></tr
+						><td>{member.id}</td><td>{member.name}</td><td>{member.status}</td><td
+							>{member.type ?? '—'}{#each member.roles ?? [] as role, i (i)}<small
+									>{role.name}{role.unitName ? ` · ${role.unitName}` : ''}</small
+								>{/each}</td
+						></tr
 					>{/each}</tbody
 			>
 		</table>
 		<InactiveMembers members={data.preview.inactiveMembers ?? []} />
 		<form method="POST">
-			<input type="hidden" name="action" value="import" /><input
+			<input type="hidden" name="version" value={data.preview.version ?? ''} /><input
+				type="hidden"
+				name="action"
+				value="import"
+			/><input
 				type="hidden"
 				name="units"
 				value={JSON.stringify(
@@ -74,7 +90,8 @@
 				</div>{:else}<p>Unitățile identificate au fost deja importate.</p>{/each}
 			<label
 				><input type="checkbox" name="confirm" required />Am verificat registrul. Confirm importul
-				identităților; clasele și repartizările vor fi completate separat.</label
+				identităților, rolurilor și accesului afișat. Clasele lipsă și repartizările ambigue se
+				verifică separat.</label
 			><button>Importă registrul verificat</button>
 		</form>{/if}
 </div>

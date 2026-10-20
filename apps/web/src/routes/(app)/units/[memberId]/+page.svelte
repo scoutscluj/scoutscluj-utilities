@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import OrgoProfile from '$lib/members/OrgoProfile.svelte';
 	import type { PageData, ActionData } from './$types';
 	import { profileLabels, roleLabels, syncLabels, unitName } from '$lib/members/types';
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -106,6 +107,7 @@
 			generează și se semnează separat.
 		</p>
 	</section>
+	<OrgoProfile detail={data.detail} />
 	{#if a.notes}<section>
 			<h2>Notițe interne</h2>
 			<p class="hint">

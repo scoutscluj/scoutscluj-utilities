@@ -275,3 +275,19 @@ describe('manual admission display and receipt availability', () => {
 		expect(admissionPaidInPeriod(copy, { ...obligation, periodId: 'previous' })).toBe(false);
 	});
 });
+
+it('recognizes a direct national payment without inflating bank receipt availability', () => {
+	const copy = structuredClone(ledger);
+	copy.obligations = copy.obligations.filter((o) => o.id === 'partial');
+	copy.obligations[0].nationalDirectBani = 15000;
+	copy.allocations = copy.allocations.filter((a) => a.obligationId === 'partial');
+	copy.allocations[0].amountBani = 15000;
+	expect(membershipProgress(copy, 'current')).toMatchObject({
+		paidMembers: 1,
+		collectedBani: 30000,
+		remainingBani: 0
+	});
+	expect(
+		copy.allocations.filter((a) => !a.reversed).reduce((sum, a) => sum + a.amountBani, 0)
+	).toBe(15000);
+});

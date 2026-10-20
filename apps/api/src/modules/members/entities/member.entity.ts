@@ -51,6 +51,13 @@ export const ScoutMember = defineEntity({
     status: p.string().default('active'),
     adultKind: p.string().nullable(),
     promiseDate: p.string().nullable(),
+    promiseSource: p.string().nullable(),
+    branch: p.string().nullable(),
+    orgoProfile: p.json<Record<string, unknown>>().onCreate(() => ({})),
+    orgoBase: p.json<Record<string, unknown>>().onCreate(() => ({})),
+    orgoConflicts: p
+      .json<Record<string, { local: unknown; remote: unknown }>>()
+      .onCreate(() => ({})),
     profile: p.json<Profile>(),
     revision: p.integer().default(1),
     remote: p.json<Record<string, unknown>>().onCreate(() => ({})),
@@ -72,6 +79,7 @@ export const ScoutAssignment = defineEntity({
     structureId: p.string().nullable(),
     groupId: p.uuid().nullable(),
     role: p.string().$type<AssignmentRole>(),
+    orgoRoleId: p.integer().nullable(),
     canEdit: p.boolean().default(false),
     canSeeFees: p.boolean().default(false),
     canSeeSensitive: p.boolean().default(false),
@@ -132,6 +140,7 @@ export const MemberSettings = defineEntity({
   properties: {
     id: p.string().primary(),
     progressionEnabled: p.boolean().default(false),
+    lastOrgoRefresh: p.datetime().nullable(),
   },
 });
 export const MemberNotice = defineEntity({

@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Post,
   UseGuards,
+  StreamableFile,
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -30,6 +31,40 @@ export class MembersController {
     @CurrentUser() u: Actor,
   ) {
     return this.orgo.discover(u);
+  }
+  @Post('bulk') bulk(@CurrentUser() u: Actor, @Body() b: unknown) {
+    return this.members.bulk(u, b);
+  }
+  @Post('orgo/refresh') refresh(@CurrentUser() u: Actor) {
+    return this.orgo.refresh(u);
+  }
+  @Get(':id/photo') @Header('Cache-Control', 'private, no-store') async photo(
+    @CurrentUser() u: Actor,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const photo = await this.orgo.photo(u, id);
+    return new StreamableFile(photo.bytes, { type: photo.type });
+  }
+  @Post(':id/photo') savePhoto(
+    @CurrentUser() u: Actor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+  ) {
+    return this.orgo.savePhoto(u, id, b);
+  }
+  @Post(':id/orgo-profile') orgoProfile(
+    @CurrentUser() u: Actor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+  ) {
+    return this.orgo.saveProfile(u, id, b);
+  }
+  @Post(':id/conflicts') conflict(
+    @CurrentUser() u: Actor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+  ) {
+    return this.orgo.resolve(u, id, b);
   }
   @Post('orgo/import') import(@CurrentUser() u: Actor, @Body() b: unknown) {
     return this.orgo.import(u, b);

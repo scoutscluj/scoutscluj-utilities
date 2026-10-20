@@ -30,6 +30,7 @@ export class MembersWorker implements OnModuleInit, OnModuleDestroy {
     try {
       await this.members.annual();
       await this.orgo.run();
+      await this.orgo.daily();
     } catch {
       this.logger.warn('Procesarea registrului de membri va fi reluată.');
     } finally {

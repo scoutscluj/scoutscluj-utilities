@@ -206,6 +206,7 @@ createServer(async (req, res) => {
 			],
 			manageableStructureIds: ['cluj', 'floresti'],
 			admin: true,
+			canFinance: true,
 			canManage: true,
 			chiefUnitIds: [],
 			ownMemberId: null,
@@ -259,11 +260,14 @@ createServer(async (req, res) => {
 			inactiveMembers: Array.from({ length: 52 }, (_, i) => ({
 				id: `inactive-${i + 1}`,
 				name: `Istoric ${String(i + 1).padStart(2, '0')}`,
-				orgoId: 900 + i
+				orgoId: 900 + i,
+				revision: 1,
+				status: 'review'
 			})),
 			members: [
 				{
 					id: 'm2',
+					revision: 1,
 					name: 'Copil Florești',
 					structureId: 'floresti',
 					orgoId: 36802,
@@ -274,6 +278,7 @@ createServer(async (req, res) => {
 				},
 				{
 					id: 'm1',
+					revision: 1,
 					name: 'Ana Popescu',
 					orgoId: 36801,
 					unitId: 'u1',
@@ -285,6 +290,50 @@ createServer(async (req, res) => {
 			]
 		});
 
+	if (req.url === '/api/members/bulk') {
+		let raw = '';
+		for await (const chunk of req) raw += chunk;
+		const body = JSON.parse(raw);
+		submissions.push(body);
+		return respond(res, {
+			version: 'preview-version',
+			members: body.members.map((m) => ({
+				...m,
+				name: m.id === 'm1' ? 'Ana Popescu' : m.id === 'm2' ? 'Copil Florești' : m.id,
+				from: 'cluj',
+				unitId: null
+			})),
+			changes: body.changes,
+			applied: body.confirm === true
+		});
+	}
+	if (req.url === '/api/membership/national-direct') {
+		let raw = '';
+		for await (const chunk of req) raw += chunk;
+		submissions.push(JSON.parse(raw));
+		return respond(res, { success: true });
+	}
+	if (/^\/api\/members\/(m[12]|inactive-\d+)$/.test(req.url ?? ''))
+		return respond(res, {
+			member: { id: req.url.split('/').pop(), name: 'Membru test', profile: {} },
+			access: { read: true, fees: true },
+			fees: [
+				{
+					period: 'Cotizație 2026–2027',
+					obligationId: ledger.obligations[0].id,
+					totalBani: 30000,
+					nationalBani: 15000,
+					nationalDirectBani: 0,
+					localPaidBani: 0,
+					paidBani: 0,
+					remainingBani: 30000,
+					collectible: true
+				}
+			],
+			notes: [],
+			assignments: [],
+			sync: []
+		});
 	if (req.url === '/api/members/structures/preview')
 		return respond(res, {
 			structures: [

@@ -72,6 +72,29 @@ async function main() {
     const saved = await reader.findOneOrFail(ScoutMember, member.id);
     assert.equal(saved.groupId, group.id);
     assert.equal(await reader.count(MemberSync, { memberId: member.id }), 1);
+    const selection = {
+      members: [{ id: member.id, revision: saved.revision }],
+      changes: { kind: 'grade', grade: 7 },
+    };
+    const preview = await service().bulk(actor, selection);
+    await reader.refresh(saved);
+    assert.equal(saved.revision, selection.members[0].revision);
+    assert.equal(await reader.count(MemberSync, { memberId: member.id }), 1);
+    await service().bulk(actor, {
+      ...selection,
+      confirm: true,
+      version: preview.version,
+    });
+    await reader.refresh(saved);
+    assert.equal(saved.revision, selection.members[0].revision + 1);
+    await assert.rejects(
+      service().bulk(actor, {
+        ...selection,
+        confirm: true,
+        version: preview.version,
+      }),
+      /Selecția s-a schimbat/,
+    );
     await service().updateMember(actor, member.id, {
       revision: saved.revision,
       profile: { medical: 'Date medicale de test' },

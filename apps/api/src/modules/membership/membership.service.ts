@@ -1,3 +1,4 @@
+import { OrgoNationalService } from './orgo-national.service';
 import {
   admissionEvidence,
   admissionTariff,
@@ -15,6 +16,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Optional,
   Logger,
   HttpException,
   NotFoundException,
@@ -91,6 +93,7 @@ export class MembershipService {
     private readonly stripe: StripeService,
     private readonly paymentConfigurations: PaymentConfigurationService,
     private readonly orgoRoster: OrgoRosterService,
+    @Optional() private readonly orgoNational?: OrgoNationalService,
   ) {}
 
   private async paymentSettings(em = this.em) {
@@ -196,7 +199,8 @@ export class MembershipService {
         if (entry.obligationId) protectedIds.add(entry.obligationId);
     }
     for (const obligation of candidates) {
-      if (protectedIds.has(obligation.id)) continue;
+      if (protectedIds.has(obligation.id) || obligation.nationalDirectBani > 0)
+        continue;
       const total = period.prices[plan(obligation.plan)].totalBani;
       if (obligation.totalBani !== total) {
         obligation.totalBani = total;
@@ -325,7 +329,11 @@ export class MembershipService {
       obligationId,
       reversed: false,
     });
-    return allocations.reduce((sum, item) => sum + item.amountBani, 0);
+    const obligation = await em.findOne(Obligation, { id: obligationId });
+    return (
+      allocations.reduce((sum, item) => sum + item.amountBani, 0) +
+      (obligation?.nationalDirectBani ?? 0)
+    );
   }
 
   private async rosterPreviewFor(period: Period, members: OrgoRosterMember[]) {
@@ -543,10 +551,9 @@ export class MembershipService {
       { obligationId: obligation.id, reversed: false },
       { refresh: true },
     );
-    const paidBani = allocations.reduce(
-      (sum, item) => sum + item.amountBani,
-      0,
-    );
+    const paidBani =
+      allocations.reduce((sum, item) => sum + item.amountBani, 0) +
+      (obligation.nationalDirectBani ?? 0);
     const checkouts = (
       await em.find(
         Checkout,
@@ -1525,6 +1532,127 @@ export class MembershipService {
     });
   }
 
+  async directNational(user: CurrentUser, input: unknown) {
+    this.staff(user);
+    const b = record(input),
+      obligationId = uuid(b.obligationId);
+    const initial = await this.em.findOneOrFail(Obligation, {
+      id: obligationId,
+    });
+    const period = await this.em.findOneOrFail(Period, {
+      id: initial.periodId,
+    });
+    if (!this.orgoNational)
+      throw new ServiceUnavailableException(
+        'Verificarea Orgo nu este disponibilă.',
+      );
+    const expected = {
+      nationalBani: initial.nationalBani,
+      periodId: initial.periodId,
+      orgoUserId: initial.orgoUserId,
+    };
+    const checked = await this.orgoNational.synchronize(
+      user.id,
+      {
+        orgoUserId: initial.orgoUserId,
+        startsOn: period.startsOn,
+        endsOn: period.endsOn,
+        amountBani: initial.nationalBani,
+      },
+      false,
+    );
+    if (checked.state !== 'synced')
+      throw new ConflictException(
+        'Plata națională pentru această perioadă nu este confirmată în Orgo. ' +
+          checked.message,
+      );
+    return this.mutate(async (em) => {
+      const o = await em.findOneOrFail(
+        Obligation,
+        { id: obligationId },
+        { refresh: true },
+      );
+      if (
+        o.nationalBani !== expected.nationalBani ||
+        o.periodId !== expected.periodId ||
+        o.orgoUserId !== expected.orgoUserId ||
+        o.reviewState
+      )
+        throw new ConflictException(
+          'Cotizația necesită verificare înainte de confirmare.',
+        );
+      if (
+        (await em.findOne(Item, { obligationId })) ||
+        (await em.findOne(Checkout, {
+          obligationId,
+          state: { $in: ['starting', 'pending', 'unknown'] },
+        }))
+      )
+        throw new ConflictException(
+          'Există deja un transfer național sau o plată în curs. Reconciliază înainte de confirmare.',
+        );
+      const base = period.prices[plan(o.plan)].baseBani ?? o.totalBani;
+      const paid = await this.balance(em, o.id);
+      const centerPaid = paid - (o.nationalDirectBani ?? 0);
+      if (centerPaid > base - o.nationalBani)
+        throw new ConflictException(
+          'Centrul are deja alocată o sumă mai mare decât partea locală. Verifică alocările.',
+        );
+      o.totalBani = base;
+      o.nationalDirectBani = o.nationalBani;
+      o.nationalDirectEvidence = JSON.stringify({
+        checkedAt: new Date().toISOString(),
+        actorId: user.id,
+        startsOn: period.startsOn,
+        endsOn: period.endsOn,
+        message: checked.message,
+      });
+      await em.flush();
+      const remaining = base - o.nationalBani - centerPaid;
+      if (remaining > 0) {
+        const reference = text(b.reference, 200),
+          receivedOn = date(b.receivedOn);
+        let receipt = b.receiptId
+          ? await em.findOneOrFail(Receipt, { id: uuid(b.receiptId) })
+          : await em.findOne(Receipt, { method: 'bank', reference });
+        if (!receipt) {
+          receipt = em.create(Receipt, {
+            periodId: o.periodId,
+            method: 'bank',
+            reference,
+            receivedOn,
+            amountBani:
+              b.amountBani === undefined ? remaining : bani(b.amountBani),
+            note: 'Partea locală; naționalul achitat direct în Orgo.',
+            actorId: user.id,
+            reviewRequired: false,
+          });
+          em.persist(receipt);
+          await em.flush();
+        }
+        if (
+          receipt.method !== 'bank' ||
+          receipt.reference !== reference ||
+          receipt.receivedOn !== receivedOn
+        )
+          throw new ConflictException(
+            'Încasarea existentă nu corespunde datei și referinței.',
+          );
+        await this.allocateFeeWithin(em, user, {
+          receiptId: receipt.id,
+          obligationId,
+          amountBani: remaining,
+          note: 'Național verificat în Orgo; încasare exclusiv locală.',
+        });
+      }
+      this.audit(em, user.id, 'national.direct-confirmed', o.id, {
+        nationalBani: o.nationalBani,
+        localAllocatedBani: remaining,
+      });
+      return { success: true };
+    });
+  }
+
   async bankReceipt(user: CurrentUser, input: unknown) {
     this.staff(user);
     const body = record(input),
@@ -1873,6 +2001,10 @@ export class MembershipService {
       if (obligations.length !== ids.length)
         throw new BadRequestException('Cotizație inexistentă.');
       for (const obligation of obligations) {
+        if (obligation.nationalDirectBani > 0)
+          throw new ConflictException(
+            'Naționalul este deja achitat direct în Orgo.',
+          );
         if (obligation.reviewState)
           throw new ConflictException(
             'Rezolvă verificarea cotizației înainte de transfer.',

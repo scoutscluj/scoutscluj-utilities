@@ -11,7 +11,8 @@ export const feePlans = [
 export const allocatedAmount = (ledger: Dashboard, obligationId: string) =>
 	ledger.allocations
 		.filter((a) => a.obligationId === obligationId && !a.reversed)
-		.reduce((sum, a) => sum + a.amountBani, 0);
+		.reduce((sum, a) => sum + a.amountBani, 0) +
+	(ledger.obligations.find((o) => o.id === obligationId)?.nationalDirectBani ?? 0);
 
 export const unallocatedAmount = (ledger: Dashboard, receipt: Receipt) =>
 	ledger.checkouts.some((c) => c.id === receipt.checkoutId && c.purpose === 'admission')

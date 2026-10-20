@@ -95,13 +95,15 @@ test('inactive Orgo history stays separate and supports paging and search', asyn
 	await page.goto('/units');
 	await page.getByRole('combobox', { name: 'Status', exact: true }).selectOption('');
 	await expect(page.getByRole('link', { name: 'Istoric 01', exact: true })).toHaveCount(0);
-	await page.locator('summary').filter({ hasText: 'Membri inactivi din Orgo (52)' }).click();
-	const history = page.getByRole('region', { name: 'Membri inactivi din Orgo' });
-	await expect(history.getByRole('link')).toHaveCount(25);
+	await page.locator('summary').filter({ hasText: 'Istoric Orgo: membri inactivi (52)' }).click();
+	const history = page.locator('section').filter({
+		has: page.locator('summary').filter({ hasText: 'Istoric Orgo: membri inactivi (52)' })
+	});
+	await expect(history.locator('td > a')).toHaveCount(25);
 	await expect(history.getByRole('link', { name: 'Istoric 01', exact: true })).toBeVisible();
-	await history.getByRole('button', { name: 'Înainte', exact: true }).click();
+	await history.getByRole('button', { name: 'Următor', exact: true }).click();
 	await expect(history.getByRole('link', { name: 'Istoric 26', exact: true })).toBeVisible();
-	await history.getByLabel('Caută membru inactiv').fill('Istoric 01');
+	await history.getByLabel('Caută în istoricul Orgo').fill('Istoric 01');
 	await expect(history.getByRole('link')).toHaveCount(1);
 	await expect(history.getByRole('link', { name: 'Istoric 01', exact: true })).toBeVisible();
 });
@@ -138,5 +140,70 @@ test('structure filtering and initial classification keep unit choices consisten
 	expect(submissions.at(-1)).toMatchObject({
 		confirm: true,
 		members: [{ id: 'm1', structureId: 'floresti', unitId: 'u3' }]
+	});
+});
+
+test('selects filtered Floresti members and confirms the bulk change after preview', async ({
+	page,
+	request
+}) => {
+	await page.goto('/units');
+	await page.getByLabel('Caută membru', { exact: true }).fill('floresti');
+	await expect(page.getByRole('link', { name: 'Copil Florești', exact: true })).toBeVisible();
+	await page.getByRole('button', { name: 'Selectează toate rezultatele (1)', exact: true }).click();
+	await page.getByRole('button', { name: 'Modifică selecția', exact: true }).click();
+	await page.getByRole('combobox', { name: 'Modificare', exact: true }).selectOption('structure');
+	await page.getByRole('button', { name: 'Previzualizează modificarea', exact: true }).click();
+	await page.getByRole('checkbox', { name: 'Am verificat selecția și modificarea.' }).check();
+	await page.getByRole('button', { name: 'Aplică pentru 1 persoane', exact: true }).click();
+	const submissions = await (await request.get('http://127.0.0.1:3015/test/submissions')).json();
+	expect(submissions.at(-1)).toMatchObject({
+		members: [{ id: 'm2', revision: 1 }],
+		changes: { kind: 'structure', structureId: 'floresti' },
+		confirm: true,
+		version: 'preview-version'
+	});
+});
+
+test('selects all inactive results across pages and opens the withdrawal preview', async ({
+	page
+}) => {
+	await page.goto('/units');
+	const history = page.locator('section').filter({
+		has: page.locator('summary').filter({ hasText: 'Istoric Orgo: membri inactivi (52)' })
+	});
+	await history.locator('summary').first().click();
+	await history.getByRole('button', { name: 'Selectează toate rezultatele (52)' }).click();
+	await history.getByRole('button', { name: 'Modifică selecția', exact: true }).click();
+	await history.getByRole('button', { name: 'Previzualizează modificarea', exact: true }).click();
+	await expect(history.getByRole('button', { name: 'Aplică pentru 52 persoane' })).toBeVisible();
+});
+
+test('opens fee details from the member menu and confirms only a local bank contribution', async ({
+	page,
+	request
+}) => {
+	await page.goto('/units');
+	const row = page
+		.getByRole('row')
+		.filter({ has: page.getByRole('link', { name: 'Ana Popescu', exact: true }) });
+	await row.locator('summary').click();
+	await row
+		.getByRole('button', { name: 'Național achitat în Orgo / partea locală', exact: true })
+		.click();
+	await page
+		.locator('summary')
+		.filter({ hasText: 'Național achitat în Orgo — confirmă partea locală' })
+		.click();
+	await page.getByLabel('Referință transfer bancar').fill('BT-local');
+	await page.getByLabel('Data încasării').fill('2026-10-20');
+	await page
+		.getByRole('button', { name: 'Verifică naționalul și confirmă partea locală', exact: true })
+		.click();
+	const submissions = await (await request.get('http://127.0.0.1:3015/test/submissions')).json();
+	expect(submissions.at(-1)).toMatchObject({
+		obligationId: '33333333-3333-4333-8333-333333333333',
+		reference: 'BT-local',
+		receivedOn: '2026-10-20'
 	});
 });

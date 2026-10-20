@@ -1,5 +1,7 @@
 jest.mock('@mikro-orm/postgresql', () => ({ EntityManager: class {} }));
 jest.mock('./entities/member.entity', () => ({
+  ScoutAssignment: 'assignment',
+  MemberSettings: 'settings',
   ScoutUnit: 'unit',
   LocalStructure: 'structure',
   ScoutMember: 'member',
@@ -26,12 +28,94 @@ describe('Orgo import preview', () => {
   afterEach(() => {
     global.fetch = originalFetch;
   });
+  it('imports leader promise evidence and active scoped functions without a fictional promise date or patrol access', async () => {
+    const created: { entity: unknown; value: Record<string, unknown> }[] = [];
+    const unit = {
+      id: 'unit-local',
+      orgoId: 10,
+      branch: 'temerari',
+      structureId: 'cluj',
+    };
+    const em = {
+      findOneOrFail: () => Promise.resolve({ roles: ['admin'] }),
+      findOne: () => Promise.resolve(null),
+      find: (entity: unknown) =>
+        Promise.resolve(entity === 'unit' ? [unit] : []),
+      count: () => Promise.resolve(0),
+      flush: async () => {},
+      execute: () => Promise.resolve([]),
+      create: (entity: unknown, value: Record<string, unknown>) => {
+        const row = { id: 'new-' + created.length, ...value };
+        created.push({ entity, value: row });
+        return row;
+      },
+      transactional: async <T>(fn: (tx: unknown) => Promise<T>) => fn(em),
+    };
+    const detail = {
+      id: 42,
+      fullName: 'Adult lider',
+      firstName: 'Adult',
+      lastName: 'lider',
+      dateBirth: '1990-01-01',
+      status: 'ACTIVE',
+      localCenter: { id: 7 },
+      type: { id: 42, name: 'Lider' },
+      userRoles: [
+        { role: { id: 18, name: 'Lider' }, unit: { id: 10 } },
+        { role: { id: 8, name: 'Consiliu' }, unit: { id: 7 } },
+        { role: { id: 1, name: 'Lider' }, unit: { id: 11 } },
+        {
+          role: { id: 7, name: 'Șef unitate' },
+          unit: { id: 10 },
+          dateEnded: '2020-01-01',
+        },
+      ],
+    };
+    global.fetch = jest.fn().mockImplementation((url: string | URL) =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify(
+            String(url).includes('/users/42')
+              ? detail
+              : {
+                  'hydra:member': String(url).includes('/users?')
+                    ? [detail]
+                    : [],
+                },
+          ),
+          { status: 200 },
+        ),
+      ),
+    );
+    const service = new MemberOrgoService(
+      em as unknown as EntityManager,
+      new ConfigService({
+        ORGO_API_TOKEN: 'server',
+        ORGO_LOCAL_CENTER_ID: '7',
+        ORGO_OAUTH_BASE_URL: 'https://orgo.example.test',
+      }),
+    );
+    await service.import(
+      { id: 1, displayName: 'Admin', roles: [] },
+      { confirm: true },
+    );
+    const member = created.find((r) => r.entity === 'member')!.value;
+    expect(member.promiseSource).toBe('orgo-leader');
+    expect(member.promiseDate).toBeUndefined();
+    expect(
+      created.filter((r) => r.entity === 'assignment').map((r) => r.value.role),
+    ).toEqual(['leader', 'council']);
+    expect(created.find((r) => r.value.role === 'leader')?.value.unitId).toBe(
+      'unit-local',
+    );
+  });
   it('imports selected units with confirmed branches and rejects a forged patrol selection', async () => {
     const created: Record<string, unknown>[] = [];
     const em = {
       findOneOrFail: () => Promise.resolve({ roles: ['admin'] }),
       findOne: () => Promise.resolve(null),
       execute: () => Promise.resolve([]),
+      flush: async () => {},
       create: (_entity: unknown, value: Record<string, unknown>) => {
         created.push(value);
         return value;
@@ -107,8 +191,29 @@ describe('Orgo import preview', () => {
     );
     global.fetch = jest
       .fn<ReturnType<typeof global.fetch>, Parameters<typeof global.fetch>>()
-      .mockImplementation((url) =>
-        Promise.resolve(
+      .mockImplementation((url) => {
+        const match = /\/users\/(\d+)$/.exec(
+          typeof url === 'string'
+            ? url
+            : url instanceof URL
+              ? url.href
+              : url.url,
+        );
+        if (match) {
+          const id = Number(match[1]);
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                id,
+                fullName: ['ACTIVE', 'INACTIVE', 'SUSPENDED'][id - 1],
+                status: ['ACTIVE', 'INACTIVE', 'SUSPENDED'][id - 1],
+                localCenter: { id: 7 },
+              }),
+              { status: 200 },
+            ),
+          );
+        }
+        return Promise.resolve(
           new Response(
             JSON.stringify({
               'hydra:member': (typeof url === 'string'
@@ -145,8 +250,8 @@ describe('Orgo import preview', () => {
             }),
             { status: 200 },
           ),
-        ),
-      );
+        );
+      });
     const result = await service.discover({
       id: 1,
       displayName: 'Admin',
@@ -287,5 +392,55 @@ describe('server-token member synchronization', () => {
     await f.service.run();
     expect(f.operation.state).toBe('review');
     expect(f.member.remote.email).toBe('old@example.test');
+  });
+});
+
+describe('member photo isolation', () => {
+  it('rejects arbitrary remote hosts before fetching an imported photo', async () => {
+    const fetcher = global.fetch;
+    global.fetch = jest.fn();
+    try {
+      const members = {
+        detail: () =>
+          Promise.resolve({
+            member: {
+              orgoProfile: { logo: 'https://untrusted.example/private.jpg' },
+            },
+          }),
+      };
+      const service = new MemberOrgoService(
+        {} as EntityManager,
+        new ConfigService(),
+        members as never,
+      );
+      await expect(
+        service.photo({ id: 1, displayName: 'Reader', roles: [] }, 'member'),
+      ).rejects.toThrow('Referință de fotografie invalidă');
+      expect(global.fetch).not.toHaveBeenCalled();
+    } finally {
+      global.fetch = fetcher;
+    }
+  });
+  it('rejects SVG and false image MIME declarations without writing an outbox operation', async () => {
+    const members = {
+      detail: () => Promise.resolve({ access: { edit: true, own: false } }),
+    };
+    const service = new MemberOrgoService(
+      {} as EntityManager,
+      new ConfigService(),
+      members as never,
+    );
+    await expect(
+      service.savePhoto({ id: 1, displayName: 'Editor', roles: [] }, 'member', {
+        revision: 1,
+        data: 'data:image/svg+xml;base64,PHN2Zz4=',
+      }),
+    ).rejects.toThrow();
+    await expect(
+      service.savePhoto({ id: 1, displayName: 'Editor', roles: [] }, 'member', {
+        revision: 1,
+        data: 'data:image/png;base64,YWJj',
+      }),
+    ).rejects.toThrow('nu este o fotografie validă');
   });
 });

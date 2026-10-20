@@ -2,7 +2,7 @@
 	import { resolve } from '$app/paths';
 	import type { PageData, ActionData } from './$types';
 	import { branchLabels, syncLabels, unitName } from '$lib/members/types';
-	import InactiveMembers from '$lib/members/InactiveMembers.svelte';
+	import MemberTable from '$lib/members/MemberTable.svelte';
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	const activeSection = $derived(
 		form && 'section' in form && typeof form.section === 'string' ? form.section : ''
@@ -35,11 +35,16 @@
 	let newMemberUnit = $state(''),
 		newMemberKind = $state('beneficiary');
 	const units = $derived(data.registry.units.filter((u) => !u.parentId && !u.archived));
+	const normalize = (value: string) =>
+		value
+			.normalize('NFD')
+			.replace(/[\u0300-\u036f]/g, '')
+			.toLocaleLowerCase('ro');
 	const visible = $derived(
 		data.registry.members.filter(
 			(m) =>
 				(!structureFilter || (m.structureId ?? 'cluj') === structureFilter) &&
-				(!search || m.name.toLocaleLowerCase('ro').includes(search.toLocaleLowerCase('ro'))) &&
+				(!search || normalize(m.name).includes(normalize(search))) &&
 				(!unitFilter ||
 					m.unitId === unitFilter ||
 					m.groupId === unitFilter ||
@@ -48,6 +53,8 @@
 				(!status || m.status === status)
 		)
 	);
+	const bulkPreview = $derived(form && 'bulkPreview' in form ? form.bulkPreview : undefined);
+	const feeMenu = $derived(form && 'feeMenu' in form ? form.feeMenu : undefined);
 	const name = (id: string | null) => unitName(data.registry.units, id);
 </script>
 
@@ -108,40 +115,33 @@
 				></label
 			>
 		</div>
-		<div class="table">
-			<table>
-				<thead
-					><tr><th>Membru</th><th>Unitate</th><th>Grupă</th><th>Clasa</th><th>Status</th></tr
-					></thead
-				><tbody
-					>{#each visible as m (m.id)}<tr
-							><td
-								><a href={resolve(`/units/${m.id}`)}>{m.name}</a><small
-									>{structures.find((st) => st.id === (m.structureId ?? 'cluj'))?.name}</small
-								>{#if !m.orgoId}<small>Identitate Orgo neconfirmată</small>{/if}</td
-							><td
-								>{m.unitId
-									? name(m.unitId)
-									: m.responsibilityUnitIds?.map(name).join(', ') || '—'}</td
-							><td>{name(m.groupId)}</td><td>{m.grade ?? '—'}</td><td
-								>{m.status === 'active'
-									? 'Activ'
-									: m.status === 'review'
-										? 'Status de verificat'
-										: 'Retras din activitate'}</td
-							></tr
-						>{:else}<tr><td colspan="5">Nu există membri pentru filtrele alese.</td></tr
-						>{/each}</tbody
-				>
-			</table>
-		</div>
+		<MemberTable members={visible} registry={data.registry} preview={bulkPreview} {feeMenu} />
 	</section>
-	<InactiveMembers
-		members={(data.registry.inactiveMembers ?? []).filter(
-			(m) => !structureFilter || (m.structureId ?? 'cluj') === structureFilter
-		)}
-		linkToProfile
-	/>
+	<section>
+		<details>
+			<summary>Istoric Orgo: membri inactivi ({data.registry.inactiveMembers?.length ?? 0})</summary
+			>
+			<p>
+				Membrii inactivi sunt păstrați separat. Îi poți confirma ca retrași, fără alte formalități.
+			</p>
+			<MemberTable
+				members={(data.registry.inactiveMembers ?? [])
+					.filter((m) => !structureFilter || (m.structureId ?? 'cluj') === structureFilter)
+					.map((m) => ({
+						...m,
+						grade: null,
+						unitId: null,
+						groupId: null,
+						adultKind: null,
+						status: m.status ?? 'review'
+					}))}
+				registry={data.registry}
+				preview={bulkPreview}
+				{feeMenu}
+				inactive
+			/>
+		</details>
+	</section>
 	{#if data.registry.canManage}<section>
 			<details bind:open={createOpen}>
 				<summary>Adaugă membru</summary>
@@ -380,24 +380,6 @@
 	.secondary {
 		background: #f6f9f7;
 		color: #245b46;
-	}
-	.table {
-		overflow: auto;
-		margin-top: 20px;
-	}
-	table {
-		width: 100%;
-		border-collapse: collapse;
-		text-align: left;
-	}
-	th,
-	td {
-		padding: 14px 10px;
-		border-bottom: 1px solid #e6ece8;
-	}
-	th {
-		font-size: 0.8rem;
-		color: #60736a;
 	}
 	a {
 		color: #216249;

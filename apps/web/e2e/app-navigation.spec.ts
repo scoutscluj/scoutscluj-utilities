@@ -90,3 +90,18 @@ test('member registry keeps occasional actions collapsed and offers only groups 
 		'Lupișori / Grupa lupișori'
 	]);
 });
+
+test('inactive Orgo history stays separate and supports paging and search', async ({ page }) => {
+	await page.goto('/units');
+	await page.getByLabel('Status', { exact: true }).selectOption('');
+	await expect(page.getByRole('link', { name: 'Istoric 01', exact: true })).toHaveCount(0);
+	await page.locator('summary').filter({ hasText: 'Membri inactivi din Orgo (52)' }).click();
+	const history = page.getByRole('region', { name: 'Membri inactivi din Orgo' });
+	await expect(history.getByRole('link')).toHaveCount(25);
+	await expect(history.getByRole('link', { name: 'Istoric 01', exact: true })).toBeVisible();
+	await history.getByRole('button', { name: 'Înainte', exact: true }).click();
+	await expect(history.getByRole('link', { name: 'Istoric 26', exact: true })).toBeVisible();
+	await history.getByLabel('Caută membru inactiv').fill('Istoric 01');
+	await expect(history.getByRole('link')).toHaveCount(1);
+	await expect(history.getByRole('link', { name: 'Istoric 01', exact: true })).toBeVisible();
+});

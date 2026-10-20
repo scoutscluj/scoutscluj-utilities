@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import type { PageData, ActionData } from './$types';
 	import { branchLabels, syncLabels, unitName } from '$lib/members/types';
+	import InactiveMembers from '$lib/members/InactiveMembers.svelte';
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	const activeSection = $derived(
 		form && 'section' in form && typeof form.section === 'string' ? form.section : ''
@@ -115,6 +116,7 @@
 			</table>
 		</div>
 	</section>
+	<InactiveMembers members={data.registry.inactiveMembers ?? []} linkToProfile />
 	{#if data.registry.canManage}<section>
 			<details bind:open={createOpen}>
 				<summary>Adaugă membru</summary>

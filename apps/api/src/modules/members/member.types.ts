@@ -13,6 +13,17 @@ export const adultRoles = [
   'council',
 ] as const;
 export type AssignmentRole = 'beneficiary' | (typeof adultRoles)[number];
+export function isImportedInactive(member: {
+  orgoId?: number | null;
+  status: string;
+  remote?: Record<string, unknown>;
+}) {
+  return (
+    !!member.orgoId &&
+    member.status !== 'active' &&
+    member.remote?.status === 'INACTIVE'
+  );
+}
 export type Profile = {
   email: string;
   phone: string;

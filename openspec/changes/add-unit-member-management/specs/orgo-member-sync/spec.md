@@ -1,5 +1,18 @@
 ## ADDED Requirements
 
+### Requirement: Separate imported inactive history and exclude patrols
+The system SHALL show imported Orgo INACTIVE members only in a separate collapsed, searchable, paginated history section, both in the import preview and the local registry. Explicit local reactivation SHALL return a member to the current registry. Historical inactivity SHALL NOT implicitly perform global withdrawal. Orgo patrol types and their descendants SHALL be excluded from the imported structure; local subgroups SHALL remain independently configurable.
+
+#### Scenario: Historical members do not crowd the current registry
+- **WHEN** Orgo returns ACTIVE, INACTIVE and SUSPENDED members
+- **THEN** only INACTIVE identities appear in the separate history section
+- **AND** suspended members remain available for status review
+
+#### Scenario: Patrols are excluded by structural type
+- **WHEN** the Orgo structure contains a unit, a patrol and a patrol descendant
+- **THEN** only the unit is retained
+- **AND** a unit whose name contains the word patrol is retained when its structural type is a unit
+
 ### Requirement: Server-token-first member synchronization
 
 The system SHALL use the local platform as the primary operational management

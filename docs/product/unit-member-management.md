@@ -87,6 +87,15 @@ Configurația se păstrează exclusiv pe server:
 | `ORGO_WITHDRAWN_STATUS` | Valoarea Orgo confirmată pentru retragerea din activitate |
 
 Pagina `/units/orgo` citește registrul paginat și structura prin `Api-Token`.
+Membrii cu statusul Orgo `INACTIVE` apar exclusiv în secțiunea separată
+„Membri inactivi din Orgo”, închisă inițial, cu căutare și pagini de 25 de nume.
+Separarea se aplică atât previzualizării, cât și registrului local, inclusiv
+identităților importate anterior. Un membru reactivat explicit local revine în
+registrul curent. Statusurile necunoscute și `SUSPENDED` rămân pentru verificare;
+inactivitatea istorică nu aplică automat retragerea globală sau modificări financiare.
+Patrulele sunt excluse după tipul structural Orgo (`Patrula` / `Patrulă`),
+împreună cu eventualii descendenți. Numele unei unități nu este folosit pentru
+această clasificare. Grupele locale rămân configurabile independent de Orgo.
 Importul identităților cere previzualizare și confirmare. Clasele, grupele și
 responsabilitățile nu sunt inventate din vârstă sau numele rolurilor. Un status
 Orgo necunoscut intră în verificare, nu este interpretat automat ca retragere.

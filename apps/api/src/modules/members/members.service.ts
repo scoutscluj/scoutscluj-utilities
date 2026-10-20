@@ -35,6 +35,7 @@ import {
   targetYear,
   progression,
   localDate,
+  isImportedInactive,
   type AssignmentRole,
 } from './member.types';
 
@@ -297,30 +298,37 @@ export class MembersService {
         .filter((a) => a.role === 'chief')
         .map((a) => a.unitId),
       units,
-      members: visible.map((m) => ({
-        responsibilityUnitIds: [
-          ...new Set(
-            allAssignments
-              .filter((a) => a.memberId === m.id && a.unitId)
-              .map((a) => a.unitId!),
-          ),
-        ],
-        responsibilityGroupIds: [
-          ...new Set(
-            allAssignments
-              .filter((a) => a.memberId === m.id && a.groupId)
-              .map((a) => a.groupId!),
-          ),
-        ],
+      inactiveMembers: visible.filter(isImportedInactive).map((m) => ({
         id: m.id,
         name: m.name,
         orgoId: m.orgoId,
-        grade: m.grade,
-        unitId: m.unitId,
-        groupId: m.groupId,
-        status: m.status,
-        adultKind: m.adultKind,
       })),
+      members: visible
+        .filter((m) => !isImportedInactive(m))
+        .map((m) => ({
+          responsibilityUnitIds: [
+            ...new Set(
+              allAssignments
+                .filter((a) => a.memberId === m.id && a.unitId)
+                .map((a) => a.unitId!),
+            ),
+          ],
+          responsibilityGroupIds: [
+            ...new Set(
+              allAssignments
+                .filter((a) => a.memberId === m.id && a.groupId)
+                .map((a) => a.groupId!),
+            ),
+          ],
+          id: m.id,
+          name: m.name,
+          orgoId: m.orgoId,
+          grade: m.grade,
+          unitId: m.unitId,
+          groupId: m.groupId,
+          status: m.status,
+          adultKind: m.adultKind,
+        })),
       ownMemberId: ctx.member?.id ?? null,
       progressionEnabled: settings?.progressionEnabled ?? false,
       sync: sync.map((s) => ({

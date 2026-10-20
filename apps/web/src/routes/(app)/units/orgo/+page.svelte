@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import type { PageData, ActionData } from './$types';
+	import InactiveMembers from '$lib/members/InactiveMembers.svelte';
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 </script>
 
@@ -13,6 +14,7 @@
 		</p>{/if}{#if data.preview}<p>{data.preview.message}</p>
 		<p>Token server-to-server · Scrieri {data.preview.writesEnabled ? 'activate' : 'neactivate'}</p>
 		<h2>Structura identificată</h2>
+		<p>Patrulele din Orgo sunt excluse. Grupele se organizează separat în aplicație.</p>
 		<ul>
 			{#each data.preview.units ?? [] as unit (unit.id)}<li>
 					#{unit.id} · {unit.name} · {unit.type ?? 'tip neprecizat'}{unit.parent
@@ -28,6 +30,7 @@
 					>{/each}</tbody
 			>
 		</table>
+		<InactiveMembers members={data.preview.inactiveMembers ?? []} />
 		<form method="POST">
 			<input type="hidden" name="action" value="import" /><label
 				><input type="checkbox" name="confirm" required />Am verificat registrul. Confirm importul

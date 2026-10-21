@@ -180,13 +180,13 @@
 	}
 	header p {
 		max-width: 560px;
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 	.eyebrow {
 		margin: 0;
-		color: #991b1b;
+		color: var(--sc-accent-hover);
 		font-size: 0.78rem;
-		font-weight: 900;
+		font-weight: 600;
 		text-transform: uppercase;
 	}
 	h1 {
@@ -213,7 +213,7 @@
 	}
 	.panel-title p {
 		margin: 4px 0 0;
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.9rem;
 	}
 	.active-chip {
@@ -222,7 +222,7 @@
 		padding: 5px 9px;
 		color: #047857;
 		font-size: 0.82rem;
-		font-weight: 850;
+		font-weight: 600;
 	}
 	.template-list {
 		display: grid;
@@ -232,27 +232,27 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		border: 1px solid #e2e8f0;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
 		padding: 11px;
 		color: inherit;
 		text-decoration: none;
 	}
 	.template-row:hover {
-		border-color: #991b1b;
+		border-color: var(--sc-accent-hover);
 	}
 	.template-row div {
 		display: grid;
 		gap: 3px;
 	}
 	.template-row div span {
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.82rem;
 	}
 	.template-row > span {
 		text-transform: uppercase;
 		font-size: 0.72rem;
-		font-weight: 900;
+		font-weight: 600;
 	}
 	.template-row > span.active {
 		color: #047857;
@@ -275,7 +275,7 @@
 		display: grid;
 		gap: 5px;
 		font-size: 0.82rem;
-		font-weight: 800;
+		font-weight: 600;
 	}
 	label.wide {
 		grid-column: 1/-1;
@@ -289,7 +289,7 @@
 	input,
 	select,
 	textarea {
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 7px;
 		padding: 8px;
 	}
@@ -297,15 +297,15 @@
 		min-height: 38px;
 		border: 0;
 		border-radius: 7px;
-		background: #991b1b;
+		background: var(--sc-accent-hover);
 		padding: 7px 13px;
 		color: #fff;
-		font-weight: 850;
+		font-weight: 600;
 		cursor: pointer;
 	}
 	button.danger {
 		background: #fff;
-		color: #991b1b;
+		color: var(--sc-accent-hover);
 		border: 1px solid #fecaca;
 	}
 	.asset-grid {
@@ -318,7 +318,7 @@
 		grid-template-columns: 84px 1fr;
 		gap: 10px;
 		align-items: center;
-		border: 1px solid #e2e8f0;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
 		padding: 10px;
 	}
@@ -334,7 +334,7 @@
 	}
 	small,
 	code {
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.72rem;
 		overflow: hidden;
 	}
@@ -346,8 +346,8 @@
 		padding: 10px;
 	}
 	.message.error {
-		background: #fef2f2;
-		color: #991b1b;
+		background: var(--sc-accent-soft);
+		color: var(--sc-accent-hover);
 	}
 	.message.success {
 		background: #ecfdf5;

@@ -147,7 +147,7 @@
 		margin: 0;
 		color: #2563eb;
 		font-size: 0.78rem;
-		font-weight: 800;
+		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0;
 	}
@@ -160,19 +160,19 @@
 
 	h1 {
 		font-size: clamp(2rem, 4vw, 3rem);
-		color: #0f172a;
+		color: var(--sc-ink);
 	}
 
 	h2 {
 		font-size: 1.1rem;
-		color: #0f172a;
+		color: var(--sc-ink);
 	}
 
 	.page-heading p:last-child,
 	.panel-subtitle,
 	.meta-grid,
 	.empty-state p {
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 
 	.content-grid {
@@ -186,7 +186,7 @@
 	.activity-card,
 	.empty-state {
 		border: 1px solid #dbe3ef;
-		background: #ffffff;
+		background: var(--sc-surface);
 		border-radius: 8px;
 		box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
 	}
@@ -200,15 +200,15 @@
 	}
 
 	.panel-title {
-		color: #0f172a;
+		color: var(--sc-ink);
 		font-size: 1rem;
-		font-weight: 800;
+		font-weight: 600;
 	}
 
 	label {
 		display: grid;
 		gap: 7px;
-		color: #334155;
+		color: var(--sc-ink);
 		font-size: 0.88rem;
 		font-weight: 700;
 	}
@@ -218,10 +218,10 @@
 	textarea {
 		width: 100%;
 		min-width: 0;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
 		padding: 10px 11px;
-		color: #0f172a;
+		color: var(--sc-ink);
 		font: inherit;
 	}
 
@@ -236,23 +236,23 @@
 		align-items: center;
 		justify-content: center;
 		border-radius: 8px;
-		font-weight: 800;
+		font-weight: 600;
 		text-decoration: none;
 	}
 
 	button {
 		border: 0;
 		background: #0f766e;
-		color: #ffffff;
+		color: var(--sc-surface);
 		cursor: pointer;
 	}
 
 	.activity-card a {
 		justify-self: start;
-		border: 1px solid #cbd5e1;
-		background: #ffffff;
+		border: 1px solid var(--sc-border-strong);
+		background: var(--sc-surface);
 		padding: 0 14px;
-		color: #334155;
+		color: var(--sc-ink);
 	}
 
 	.form-message {
@@ -293,7 +293,7 @@
 		background: #eef2ff;
 		color: #3730a3;
 		font-size: 0.78rem;
-		font-weight: 800;
+		font-weight: 600;
 	}
 
 	.status.active {
@@ -308,14 +308,14 @@
 
 	.status.cancelled {
 		background: #fee2e2;
-		color: #991b1b;
+		color: var(--sc-accent-hover);
 	}
 
 	.finance-strip span {
 		border-radius: 8px;
-		background: #f8fafc;
+		background: var(--sc-canvas);
 		padding: 8px 10px;
-		color: #334155;
+		color: var(--sc-ink);
 		font-size: 0.88rem;
 		font-weight: 700;
 	}

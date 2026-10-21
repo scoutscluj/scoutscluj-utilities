@@ -72,14 +72,14 @@
 		text-transform: uppercase;
 		font-size: 0.76rem;
 		font-weight: 700;
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 	h1 {
 		margin: 8px 0 12px;
 		font-size: clamp(1.8rem, 3vw, 2.3rem);
 	}
 	p {
-		color: #52616f;
+		color: var(--sc-muted);
 		line-height: 1.6;
 	}
 	.modules {
@@ -92,7 +92,7 @@
 		flex-direction: column;
 		align-items: flex-start;
 		background: white;
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 14px;
 		padding: 28px;
 		text-decoration: none;
@@ -107,7 +107,7 @@
 		width: 48px;
 		height: 48px;
 		border-radius: 12px;
-		background: #fef2f2;
+		background: var(--sc-accent-soft);
 		color: #b91c1c;
 	}
 	h2 {
@@ -122,7 +122,7 @@
 		align-items: center;
 		gap: 10px;
 		margin-top: 12px;
-		color: #991b1b;
+		color: var(--sc-accent-hover);
 		font-weight: 650;
 	}
 	a:focus-visible {

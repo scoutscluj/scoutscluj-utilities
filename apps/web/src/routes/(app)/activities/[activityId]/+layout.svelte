@@ -76,17 +76,17 @@
 	.kitchen-tab-group {
 		display: grid;
 		gap: 3px;
-		border: 1px solid #e2e8f0;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
 		padding: 4px;
-		background: #ffffff;
+		background: var(--sc-surface);
 	}
 
 	.kitchen-tab-group span {
 		padding: 0 7px;
 		color: #94a3b8;
 		font-size: 0.68rem;
-		font-weight: 900;
+		font-weight: 600;
 		text-transform: uppercase;
 	}
 
@@ -101,11 +101,11 @@
 		align-items: center;
 		border: 1px solid transparent;
 		border-radius: 8px;
-		background: #f8fafc;
+		background: var(--sc-canvas);
 		padding: 0 12px;
 		color: #475569;
 		font-size: 0.9rem;
-		font-weight: 800;
+		font-weight: 600;
 		text-decoration: none;
 		white-space: nowrap;
 	}
@@ -113,7 +113,7 @@
 	.kitchen-tabs a.active,
 	.kitchen-tabs a:hover {
 		border-color: #dbe3ef;
-		background: #ffffff;
-		color: #991b1b;
+		background: var(--sc-surface);
+		color: var(--sc-accent-hover);
 	}
 </style>

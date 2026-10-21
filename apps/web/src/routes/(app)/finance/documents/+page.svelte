@@ -143,9 +143,9 @@
 	}
 
 	.eyebrow {
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.78rem;
-		font-weight: 900;
+		font-weight: 600;
 		letter-spacing: 0;
 		text-transform: uppercase;
 	}
@@ -162,7 +162,7 @@
 
 	.page-heading p:not(.eyebrow),
 	.empty-state p {
-		color: #52616f;
+		color: var(--sc-muted);
 	}
 
 	.form-message {
@@ -171,13 +171,13 @@
 		background: #f0fdf4;
 		padding: 12px 14px;
 		color: #166534;
-		font-weight: 800;
+		font-weight: 600;
 	}
 
 	.empty-state {
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 	}
 
 	.add-document-button,
@@ -189,7 +189,7 @@
 		justify-content: center;
 		gap: 8px;
 		border-radius: 8px;
-		font-weight: 900;
+		font-weight: 600;
 		text-decoration: none;
 	}
 
@@ -203,34 +203,34 @@
 	.add-document-button {
 		flex: 0 0 auto;
 		border: 0;
-		background: #c81e1e;
+		background: var(--sc-accent);
 		padding: 0 14px;
-		color: #ffffff;
+		color: var(--sc-surface);
 		cursor: pointer;
 	}
 
 	.secondary-button {
 		flex: 0 0 auto;
-		border: 1px solid #cbd5e1;
-		background: #ffffff;
+		border: 1px solid var(--sc-border-strong);
+		background: var(--sc-surface);
 		padding: 0 12px;
-		color: #334155;
+		color: var(--sc-ink);
 		cursor: pointer;
 	}
 
 	.add-document-button:hover {
-		background: #991b1b;
+		background: var(--sc-accent-hover);
 	}
 
 	.secondary-button:hover {
-		background: #f8fafc;
+		background: var(--sc-canvas);
 	}
 
 	.section-heading a {
-		border: 1px solid #cbd5e1;
-		background: #ffffff;
+		border: 1px solid var(--sc-border-strong);
+		background: var(--sc-surface);
 		padding: 0 12px;
-		color: #334155;
+		color: var(--sc-ink);
 	}
 
 	.empty-state {
@@ -254,9 +254,9 @@
 		display: grid;
 		gap: 18px;
 		overflow: auto;
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 18px;
 		box-shadow: 0 24px 70px rgb(15 23 42 / 0.22);
 		transform: translate(-50%, -50%);
@@ -272,9 +272,9 @@
 		display: grid;
 		gap: 18px;
 		overflow: auto;
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 18px;
 		box-shadow: 0 24px 70px rgb(15 23 42 / 0.22);
 		transform: translate(-50%, -50%);
@@ -289,14 +289,14 @@
 
 	:global(.dialog-title) {
 		margin: 0;
-		color: #0f172a;
+		color: var(--sc-ink);
 		font-size: 1.12rem;
-		font-weight: 900;
+		font-weight: 600;
 	}
 
 	:global(.dialog-description) {
 		margin-top: 4px;
-		color: #52616f;
+		color: var(--sc-muted);
 		font-size: 0.92rem;
 	}
 
@@ -306,15 +306,15 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
-		background: #ffffff;
-		color: #334155;
+		background: var(--sc-surface);
+		color: var(--sc-ink);
 		cursor: pointer;
 	}
 
 	:global(.dialog-icon-button:hover) {
-		background: #f8fafc;
+		background: var(--sc-canvas);
 	}
 
 	.add-document-button:focus-visible,

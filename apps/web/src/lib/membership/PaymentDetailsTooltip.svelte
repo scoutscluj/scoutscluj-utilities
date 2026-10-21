@@ -135,7 +135,7 @@
 		border: 0 !important;
 		border-radius: 50% !important;
 		background: #f0f5f3 !important;
-		color: #64748b !important;
+		color: var(--sc-muted) !important;
 		vertical-align: middle;
 		cursor: pointer;
 	}
@@ -161,7 +161,7 @@
 	}
 	.tooltip-name {
 		display: block;
-		color: #64748b;
+		color: var(--sc-muted);
 		margin-top: 2px;
 	}
 	.tooltip-payment {
@@ -176,11 +176,11 @@
 	}
 	small {
 		display: block;
-		color: #64748b;
+		color: var(--sc-muted);
 		margin-top: 4px;
 	}
 	p {
 		margin-bottom: 0;
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 </style>

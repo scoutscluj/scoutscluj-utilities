@@ -238,20 +238,20 @@
 
 	.page-heading > p:not(.eyebrow),
 	.help-text {
-		color: #52616f;
+		color: var(--sc-muted);
 	}
 
 	.eyebrow {
 		margin: 0;
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.78rem;
-		font-weight: 900;
+		font-weight: 600;
 		text-transform: uppercase;
 	}
 
 	section {
 		margin: 24px 0;
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 12px;
 		padding: 20px;
 		background: white;
@@ -270,7 +270,7 @@
 		padding: 6px 10px;
 		color: #166534;
 		font-size: 0.78rem;
-		font-weight: 800;
+		font-weight: 600;
 		text-transform: uppercase;
 	}
 
@@ -284,7 +284,7 @@
 		display: flex;
 		align-items: center;
 		gap: 12px;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
 		padding: 14px;
 	}
@@ -304,7 +304,7 @@
 		accent-color: #166534;
 	}
 	.provider-card {
-		background: #f8fafc;
+		background: var(--sc-canvas);
 		align-content: start;
 	}
 	.provider-card input,
@@ -342,7 +342,7 @@
 	}
 
 	.provider-card {
-		border: 1px solid #e2e8f0;
+		border: 1px solid var(--sc-border);
 		border-radius: 10px;
 		padding: 16px;
 	}

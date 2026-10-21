@@ -31,13 +31,13 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 7px;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 999px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 0 10px;
 		color: #475569;
 		font-size: 0.78rem;
-		font-weight: 850;
+		font-weight: 600;
 		cursor: pointer;
 		white-space: nowrap;
 	}

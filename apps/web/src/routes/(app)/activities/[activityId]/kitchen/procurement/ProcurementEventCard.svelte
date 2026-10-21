@@ -84,7 +84,7 @@
 
 	.panel {
 		border: 1px solid #dbe3ef;
-		background: #ffffff;
+		background: var(--sc-surface);
 		border-radius: 8px;
 		padding: 18px;
 		box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
@@ -111,28 +111,28 @@
 		justify-content: center;
 		border-radius: 8px;
 		padding: 0 12px;
-		font-weight: 800;
+		font-weight: 600;
 		text-decoration: none;
 	}
 
 	button {
 		border: 0;
 		background: #0f766e;
-		color: #ffffff;
+		color: var(--sc-surface);
 		cursor: pointer;
 	}
 
 	.event-actions a,
 	.secondary {
-		border: 1px solid #cbd5e1;
-		background: #ffffff;
-		color: #334155;
+		border: 1px solid var(--sc-border-strong);
+		background: var(--sc-surface);
+		color: var(--sc-ink);
 	}
 
 	.danger {
 		border: 1px solid #fecaca;
-		background: #ffffff;
-		color: #991b1b;
+		background: var(--sc-surface);
+		color: var(--sc-accent-hover);
 	}
 
 	.status {
@@ -141,7 +141,7 @@
 		background: #eef2ff;
 		color: #3730a3;
 		font-size: 0.8rem;
-		font-weight: 900;
+		font-weight: 600;
 	}
 
 	.status.completed {
@@ -160,18 +160,18 @@
 	}
 
 	h2 {
-		color: #0f172a;
+		color: var(--sc-ink);
 	}
 
 	.muted {
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 
 	.eyebrow {
 		margin: 0 0 8px;
 		color: #2563eb;
 		font-size: 0.78rem;
-		font-weight: 800;
+		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0;
 	}

@@ -339,7 +339,7 @@
 		padding: 10px;
 		border: 1px solid #d8e0ea;
 		border-radius: 10px;
-		background: #f8fafc;
+		background: var(--sc-canvas);
 	}
 	button,
 	select,
@@ -349,15 +349,15 @@
 	}
 	button {
 		min-height: 34px;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 7px;
 		background: #fff;
 		padding: 5px 10px;
 		cursor: pointer;
 	}
 	button:hover:not(:disabled) {
-		border-color: #991b1b;
-		color: #991b1b;
+		border-color: var(--sc-accent-hover);
+		color: var(--sc-accent-hover);
 	}
 	button:disabled {
 		opacity: 0.45;
@@ -372,23 +372,23 @@
 	label {
 		display: grid;
 		gap: 5px;
-		color: #334155;
+		color: var(--sc-ink);
 		font-size: 0.85rem;
-		font-weight: 750;
+		font-weight: 600;
 	}
 	select,
 	input,
 	textarea {
 		width: 100%;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 7px;
 		background: #fff;
 		padding: 8px;
-		color: #0f172a;
+		color: var(--sc-ink);
 	}
 	.editor-canvas {
 		min-height: 520px;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 10px;
 		background: #fff;
 		padding: 20px;
@@ -416,14 +416,14 @@
 		margin: 8px 0;
 		border: 1px dashed #8291a5;
 		border-radius: 7px;
-		background: #f1f5f9;
+		background: var(--sc-inset);
 		padding: 9px;
-		color: #334155;
+		color: var(--sc-ink);
 	}
 	:global(.pc-editor-page-break) {
 		margin: 16px 0;
 		border-top: 2px dashed #94a3b8;
-		color: #64748b;
+		color: var(--sc-muted);
 		text-align: center;
 	}
 	:global(.editor-canvas table) {
@@ -445,7 +445,7 @@
 	}
 	.field-panel legend {
 		padding: 0 6px;
-		font-weight: 900;
+		font-weight: 600;
 	}
 	.field-panel .checkbox {
 		display: flex;

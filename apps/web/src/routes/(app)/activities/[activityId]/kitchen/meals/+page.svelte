@@ -273,13 +273,13 @@
 	.form-message {
 		border: 1px solid #dbe3ef;
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 12px;
 	}
 
 	.recipe-row {
 		align-items: flex-start;
-		border: 1px solid #e2e8f0;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
 		padding: 10px;
 	}
@@ -318,7 +318,7 @@
 		z-index: 1;
 		width: min(560px, 100%);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 18px;
 		box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
 	}
@@ -326,9 +326,9 @@
 	label {
 		display: grid;
 		gap: 6px;
-		color: #334155;
+		color: var(--sc-ink);
 		font-size: 0.84rem;
-		font-weight: 800;
+		font-weight: 600;
 	}
 
 	input,
@@ -336,7 +336,7 @@
 	textarea {
 		width: 100%;
 		min-width: 0;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
 		padding: 9px 10px;
 		font: inherit;
@@ -347,9 +347,9 @@
 		border: 0;
 		border-radius: 8px;
 		background: #0f766e;
-		color: #ffffff;
+		color: var(--sc-surface);
 		padding: 0 11px;
-		font-weight: 800;
+		font-weight: 600;
 		cursor: pointer;
 	}
 
@@ -363,9 +363,9 @@
 	.day-tabs button,
 	.secondary,
 	.ghost {
-		border: 1px solid #cbd5e1;
-		background: #ffffff;
-		color: #334155;
+		border: 1px solid var(--sc-border-strong);
+		background: var(--sc-surface);
+		color: var(--sc-ink);
 	}
 
 	.day-tabs button.active {
@@ -380,8 +380,8 @@
 
 	.danger {
 		border: 1px solid #fecaca;
-		background: #ffffff;
-		color: #991b1b;
+		background: var(--sc-surface);
+		color: var(--sc-accent-hover);
 	}
 
 	.danger-text,
@@ -400,19 +400,19 @@
 	h2,
 	h3,
 	strong {
-		color: #0f172a;
+		color: var(--sc-ink);
 	}
 
 	.muted,
 	small,
 	.meal-heading p {
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 
 	.eyebrow {
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.7rem;
-		font-weight: 900;
+		font-weight: 600;
 		text-transform: uppercase;
 	}
 

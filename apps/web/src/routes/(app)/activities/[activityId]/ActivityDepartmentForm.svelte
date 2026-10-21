@@ -61,20 +61,20 @@
 		gap: 16px;
 		border: 1px solid #dbe3ef;
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 18px;
 		box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
 	}
 
 	.panel-title {
 		margin: 0;
-		color: #0f172a;
-		font-weight: 900;
+		color: var(--sc-ink);
+		font-weight: 600;
 	}
 
 	p {
 		margin: 0;
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 
 	.department-form {
@@ -94,7 +94,7 @@
 		border: 1px solid #dbe3ef;
 		border-radius: 8px;
 		padding: 12px;
-		color: #334155;
+		color: var(--sc-ink);
 	}
 
 	.department-options input {
@@ -107,7 +107,7 @@
 	}
 
 	.department-options small {
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.82rem;
 		line-height: 1.35;
 	}
@@ -125,14 +125,14 @@
 		border-radius: 8px;
 		background: #0f766e;
 		padding: 0 14px;
-		color: #ffffff;
-		font-weight: 800;
+		color: var(--sc-surface);
+		font-weight: 600;
 		cursor: pointer;
 	}
 
 	.form-message {
 		color: #1e3a8a;
-		font-weight: 750;
+		font-weight: 600;
 	}
 
 	.warning {

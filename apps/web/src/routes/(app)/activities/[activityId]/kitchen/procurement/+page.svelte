@@ -37,7 +37,7 @@
 
 	.panel {
 		border: 1px solid #dbe3ef;
-		background: #ffffff;
+		background: var(--sc-surface);
 		border-radius: 8px;
 		padding: 18px;
 		box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
@@ -49,7 +49,7 @@
 	}
 
 	h2 {
-		color: #0f172a;
+		color: var(--sc-ink);
 	}
 
 	.form-message {

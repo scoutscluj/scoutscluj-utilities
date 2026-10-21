@@ -398,7 +398,7 @@
 	button {
 		font: inherit;
 		padding: 10px;
-		border: 1px solid #cbd8d0;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 7px;
 		min-width: 0;
 	}
@@ -408,28 +408,28 @@
 	}
 	button {
 		cursor: pointer;
-		background: #245b46;
+		background: var(--sc-accent);
 		color: white;
 		font-weight: 600;
 		margin-top: 16px;
 	}
 	.secondary {
 		background: white;
-		color: #245b46;
+		color: var(--sc-accent);
 	}
 	.danger {
 		background: #9f352e;
 	}
 	.hint,
 	small {
-		color: #64756e;
+		color: var(--sc-muted);
 		font-size: 0.85rem;
 	}
 	small {
 		display: block;
 	}
 	a {
-		color: #216249;
+		color: var(--sc-accent);
 	}
 	p {
 		line-height: 1.6;
@@ -445,7 +445,7 @@
 		font-size: 0.8rem;
 	}
 	article {
-		border-bottom: 1px solid #e6ece8;
+		border-bottom: 1px solid var(--sc-border);
 		padding: 14px 0;
 	}
 	.assignment {
@@ -481,7 +481,7 @@
 	td,
 	th {
 		padding: 14px 8px;
-		border-bottom: 1px solid #e6ece8;
+		border-bottom: 1px solid var(--sc-border);
 	}
 	@media (max-width: 600px) {
 		header,

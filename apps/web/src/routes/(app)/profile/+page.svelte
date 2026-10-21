@@ -345,17 +345,17 @@
 		display: grid;
 		place-items: center;
 		border-radius: 999px;
-		background: #c81e1e;
-		color: #ffffff;
+		background: var(--sc-accent);
+		color: var(--sc-surface);
 		font-size: 1.6rem;
-		font-weight: 900;
+		font-weight: 600;
 	}
 
 	.eyebrow {
 		margin: 0;
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.78rem;
-		font-weight: 900;
+		font-weight: 600;
 		letter-spacing: 0;
 		text-transform: uppercase;
 	}
@@ -372,7 +372,7 @@
 
 	.profile-header p:not(.eyebrow) {
 		margin-top: 4px;
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 
 	.profile-grid {
@@ -383,9 +383,9 @@
 	}
 
 	article {
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 18px;
 	}
 
@@ -402,10 +402,10 @@
 
 	.chips span {
 		border-radius: 999px;
-		background: #fef2f2;
-		color: #991b1b;
+		background: var(--sc-accent-soft);
+		color: var(--sc-accent-hover);
 		padding: 8px 12px;
-		font-weight: 800;
+		font-weight: 600;
 	}
 
 	dl,
@@ -422,17 +422,17 @@
 		display: flex;
 		justify-content: space-between;
 		gap: 18px;
-		border-bottom: 1px solid #edf1f5;
+		border-bottom: 1px solid var(--sc-border);
 		padding-bottom: 10px;
 	}
 
 	dt {
-		color: #64748b;
-		font-weight: 750;
+		color: var(--sc-muted);
+		font-weight: 600;
 	}
 
 	dd {
-		font-weight: 850;
+		font-weight: 600;
 		text-align: right;
 		overflow-wrap: anywhere;
 	}
@@ -443,12 +443,12 @@
 
 	.logout-form button {
 		min-height: 40px;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 0 14px;
-		color: #334155;
-		font-weight: 800;
+		color: var(--sc-ink);
+		font-weight: 600;
 		cursor: pointer;
 	}
 
@@ -461,17 +461,17 @@
 		display: flex;
 		justify-content: space-between;
 		gap: 18px;
-		border-bottom: 1px solid #edf1f5;
+		border-bottom: 1px solid var(--sc-border);
 		padding-bottom: 10px;
 	}
 
 	.notice {
 		margin: 14px 0 0;
-		color: #52616f;
+		color: var(--sc-muted);
 	}
 
 	.notice.warning {
-		color: #991b1b;
+		color: var(--sc-accent-hover);
 	}
 
 	.notification-actions {
@@ -483,19 +483,19 @@
 
 	.notification-actions button {
 		min-height: 38px;
-		border: 1px solid #c81e1e;
+		border: 1px solid var(--sc-accent);
 		border-radius: 8px;
-		background: #c81e1e;
+		background: var(--sc-accent);
 		padding: 0 12px;
-		color: #ffffff;
-		font-weight: 850;
+		color: var(--sc-surface);
+		font-weight: 600;
 		cursor: pointer;
 	}
 
 	.notification-actions .secondary-button {
-		border-color: #cbd5e1;
-		background: #ffffff;
-		color: #334155;
+		border-color: var(--sc-border-strong);
+		background: var(--sc-surface);
+		color: var(--sc-ink);
 	}
 
 	.notification-actions button:disabled {
@@ -504,8 +504,8 @@
 	}
 
 	.logout-form button:hover {
-		border-color: #991b1b;
-		color: #991b1b;
+		border-color: var(--sc-accent-hover);
+		color: var(--sc-accent-hover);
 	}
 
 	@media (max-width: 760px) {

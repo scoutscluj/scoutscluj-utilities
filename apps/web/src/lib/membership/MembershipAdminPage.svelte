@@ -56,7 +56,7 @@
 	}
 	header p {
 		margin: 0;
-		color: #64748b;
+		color: var(--sc-muted);
 		line-height: 1.6;
 	}
 	.membership-admin :global(section),
@@ -104,7 +104,7 @@
 	.membership-admin :global(button) {
 		font: inherit;
 		padding: 10px;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
 		max-width: 100%;
 	}
@@ -143,7 +143,7 @@
 	}
 	.membership-admin :global(.panel-heading p) {
 		margin: 0;
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.85rem;
 	}
 	.membership-admin :global(.panel-heading button) {
@@ -157,18 +157,18 @@
 	.membership-admin :global(.empty-state) {
 		padding: 36px 20px;
 		text-align: center;
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 	.membership-admin :global(.empty-state svg) {
 		color: #15803d;
 		margin: 0 auto 12px;
 	}
 	.membership-admin :global(.empty-state h2) {
-		color: #334155;
+		color: var(--sc-ink);
 		margin-bottom: 8px;
 	}
 	.membership-admin :global(.muted) {
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.85rem;
 	}
 	.membership-admin :global(summary) {
@@ -176,7 +176,7 @@
 		font-weight: 600;
 		list-style-position: outside;
 		margin-left: 16px;
-		color: #334155;
+		color: var(--sc-ink);
 	}
 	.membership-admin :global(.scroll) {
 		overflow: auto;
@@ -190,10 +190,10 @@
 	.membership-admin :global(td) {
 		padding: 12px;
 		text-align: left;
-		border-bottom: 1px solid #e2e8f0;
+		border-bottom: 1px solid var(--sc-border);
 	}
 	.membership-admin :global(th) {
-		background: #f8fafc;
+		background: var(--sc-canvas);
 		color: #475569;
 		font-size: 0.8rem;
 		font-weight: 600;
@@ -204,7 +204,7 @@
 		font-size: 0.9rem;
 	}
 	.membership-admin :global(tbody tr:hover) {
-		background: #f8fafc;
+		background: var(--sc-canvas);
 	}
 	.membership-admin :global(td details) {
 		margin: 8px 0;
@@ -214,7 +214,7 @@
 	}
 	.membership-admin :global(small) {
 		display: block;
-		color: #64748b;
+		color: var(--sc-muted);
 		margin-top: 3px;
 	}
 	.membership-admin :global(.notice) {
@@ -230,14 +230,14 @@
 	}
 	.membership-admin :global(.stat) {
 		padding: 20px;
-		border: 1px solid #e2e8f0;
+		border: 1px solid var(--sc-border);
 		border-radius: 14px;
 		background: white;
 		box-shadow: 0 3px 12px #163a2408;
 	}
 	.membership-admin :global(.stat span) {
 		display: block;
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.85rem;
 	}
 	.membership-admin :global(.stat strong) {
@@ -252,7 +252,7 @@
 		margin-bottom: 20px;
 	}
 	.membership-admin :global(fieldset) {
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
 		padding: 12px;
 	}
@@ -263,7 +263,7 @@
 	}
 	.membership-admin :global(.row) {
 		padding: 10px 0;
-		border-bottom: 1px solid #e2e8f0;
+		border-bottom: 1px solid var(--sc-border);
 	}
 	.membership-admin :global(:is(button, input, select, textarea, a, summary):focus-visible) {
 		outline: 3px solid #86efac;

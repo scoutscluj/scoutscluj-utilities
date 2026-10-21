@@ -50,7 +50,7 @@
 		gap: 16px;
 		border: 1px solid #dbe3ef;
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 16px;
 		box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
 	}
@@ -65,13 +65,13 @@
 	.eyebrow {
 		color: #2563eb;
 		font-size: 0.72rem;
-		font-weight: 900;
+		font-weight: 600;
 		text-transform: uppercase;
 	}
 
 	.description {
 		margin-top: 6px;
-		color: #334155;
+		color: var(--sc-ink);
 		line-height: 1.5;
 	}
 
@@ -82,14 +82,14 @@
 	}
 
 	dt {
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.75rem;
-		font-weight: 800;
+		font-weight: 600;
 	}
 
 	dd {
-		color: #0f172a;
-		font-weight: 850;
+		color: var(--sc-ink);
+		font-weight: 600;
 	}
 
 	@media (max-width: 860px) {

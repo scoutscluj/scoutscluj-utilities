@@ -55,18 +55,18 @@
 
 	.login-panel {
 		width: min(100%, 420px);
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 32px;
 		box-shadow: 0 18px 50px rgb(15 23 42 / 0.08);
 	}
 
 	.eyebrow {
 		margin: 0;
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.78rem;
-		font-weight: 800;
+		font-weight: 600;
 		letter-spacing: 0;
 		text-transform: uppercase;
 	}
@@ -85,7 +85,7 @@
 
 	.summary {
 		margin: 12px 0 28px;
-		color: #52616f;
+		color: var(--sc-muted);
 		line-height: 1.5;
 	}
 
@@ -98,9 +98,9 @@
 		gap: 10px;
 		border: 1px solid #b91c1c;
 		border-radius: 8px;
-		background: #c81e1e;
-		color: #ffffff;
-		font-weight: 800;
+		background: var(--sc-accent);
+		color: var(--sc-surface);
+		font-weight: 600;
 		cursor: pointer;
 	}
 
@@ -119,15 +119,15 @@
 		object-fit: contain;
 		padding: 4px;
 		border-radius: 4px;
-		background: #ffffff;
+		background: var(--sc-surface);
 	}
 
 	.error {
 		margin: 16px 0 0;
 		border: 1px solid #fecaca;
 		border-radius: 8px;
-		background: #fef2f2;
-		color: #991b1b;
+		background: var(--sc-accent-soft);
+		color: var(--sc-accent-hover);
 		padding: 12px;
 		font-weight: 700;
 	}

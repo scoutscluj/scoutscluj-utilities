@@ -42,7 +42,7 @@
 	.audit-panel {
 		border: 1px solid #dbe3ef;
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 14px;
 	}
 
@@ -60,35 +60,35 @@
 	}
 
 	p {
-		color: #0f172a;
-		font-weight: 900;
+		color: var(--sc-ink);
+		font-weight: 600;
 	}
 
 	a {
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.86rem;
-		font-weight: 800;
+		font-weight: 600;
 		text-decoration: none;
 	}
 
 	a:hover {
-		color: #991b1b;
+		color: var(--sc-accent-hover);
 	}
 
 	.entry-list div {
 		display: grid;
 		gap: 2px;
-		border-top: 1px solid #edf1f5;
+		border-top: 1px solid var(--sc-border);
 		padding-top: 9px;
 	}
 
 	strong {
-		color: #334155;
+		color: var(--sc-ink);
 		font-size: 0.9rem;
 	}
 
 	span {
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.82rem;
 	}
 

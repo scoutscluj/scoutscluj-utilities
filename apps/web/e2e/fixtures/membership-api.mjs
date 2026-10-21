@@ -195,6 +195,19 @@ createServer(async (req, res) => {
 		return respond(res, {});
 	}
 	if (req.url === '/test/submissions') return respond(res, submissions);
+	if (req.url === '/api/users')
+		return respond(
+			res,
+			Array.from({ length: 32 }, (_, i) => ({
+				id: i + 1,
+				displayName: `Voluntar ${String(i + 1).padStart(2, '0')}`,
+				email: `voluntar${i + 1}@example.test`,
+				roles: [i % 2 ? 'moderator' : 'finance_manager'],
+				notificationsEnabled: i % 2 === 0,
+				createdAt: '2026-10-01T10:00:00Z',
+				updatedAt: '2026-10-01T10:00:00Z'
+			}))
+		);
 	if (req.url === '/api/auth/me')
 		return respond(res, { id: 1, displayName: 'Responsabil financiar', roles: ['super_admin'] });
 	if (req.url === '/api/activities') return respond(res, []);

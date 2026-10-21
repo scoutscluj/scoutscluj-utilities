@@ -235,14 +235,14 @@
 		margin: 0;
 	}
 	:global(.receipt-dialog-description) {
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.9rem;
 		line-height: 1.6;
 		margin: 12px 0 20px;
 	}
 	:global(.dialog-close) {
 		border: 0;
-		background: #f1f5f9;
+		background: var(--sc-inset);
 		color: #475569;
 		border-radius: 50%;
 		width: 36px;
@@ -317,7 +317,7 @@
 		width: 100%;
 		min-width: 0;
 		padding: 11px 12px;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 10px;
 		font: inherit;
 		color: #1e293b;
@@ -326,7 +326,7 @@
 	.form-hint {
 		font-size: 0.8rem;
 		line-height: 1.6;
-		color: #64748b;
+		color: var(--sc-muted);
 		margin: 16px 0;
 	}
 	.form-error {
@@ -341,7 +341,7 @@
 		justify-content: flex-end;
 		gap: 10px;
 		padding-top: 16px;
-		border-top: 1px solid #e2e8f0;
+		border-top: 1px solid var(--sc-border);
 	}
 	:global(.receipt-dialog .cancel),
 	.save {
@@ -355,7 +355,7 @@
 	:global(.receipt-dialog .cancel) {
 		background: white;
 		color: #475569;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 	}
 	.save {
 		background: #166534;

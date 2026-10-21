@@ -93,16 +93,16 @@
 	label {
 		display: grid;
 		gap: 6px;
-		color: #334155;
+		color: var(--sc-ink);
 		font-size: 0.84rem;
-		font-weight: 800;
+		font-weight: 600;
 	}
 
 	input,
 	select {
 		width: 100%;
 		min-width: 0;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
 		padding: 9px 10px;
 		font: inherit;
@@ -116,9 +116,9 @@
 		border: 0;
 		border-radius: 8px;
 		background: #0f766e;
-		color: #ffffff;
+		color: var(--sc-surface);
 		padding: 0 12px;
-		font-weight: 800;
+		font-weight: 600;
 		cursor: pointer;
 	}
 

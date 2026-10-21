@@ -28,7 +28,7 @@
 		flex-wrap: wrap;
 		gap: 10px;
 		align-items: center;
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.86rem;
 		margin-bottom: 24px;
 	}

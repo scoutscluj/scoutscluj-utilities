@@ -28,9 +28,9 @@
 
 	section {
 		width: min(100%, 520px);
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 28px;
 		box-shadow: 0 18px 50px rgb(15 23 42 / 0.08);
 	}
@@ -44,7 +44,7 @@
 	.eyebrow {
 		color: #b45309;
 		font-size: 0.78rem;
-		font-weight: 900;
+		font-weight: 600;
 		letter-spacing: 0;
 		text-transform: uppercase;
 	}
@@ -57,7 +57,7 @@
 
 	p {
 		margin-top: 14px;
-		color: #52616f;
+		color: var(--sc-muted);
 		line-height: 1.55;
 	}
 
@@ -67,17 +67,17 @@
 		align-items: center;
 		justify-content: center;
 		margin-top: 22px;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 0 14px;
-		color: #17202a;
-		font-weight: 850;
+		color: var(--sc-ink);
+		font-weight: 600;
 		text-decoration: none;
 	}
 
 	a:hover {
-		border-color: #991b1b;
-		color: #991b1b;
+		border-color: var(--sc-accent-hover);
+		color: var(--sc-accent-hover);
 	}
 </style>

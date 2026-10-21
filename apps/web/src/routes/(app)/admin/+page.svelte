@@ -28,17 +28,17 @@
 <style>
 	.admin-page {
 		max-width: 760px;
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 22px;
 	}
 
 	.eyebrow {
 		margin: 0;
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.78rem;
-		font-weight: 900;
+		font-weight: 600;
 		letter-spacing: 0;
 		text-transform: uppercase;
 	}
@@ -50,7 +50,7 @@
 
 	p:not(.eyebrow) {
 		margin: 10px 0 0;
-		color: #52616f;
+		color: var(--sc-muted);
 	}
 
 	.admin-section {
@@ -66,10 +66,10 @@
 		margin-bottom: 12px;
 		display: grid;
 		gap: 6px;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 10px;
 		padding: 16px;
-		color: #0f172a;
+		color: var(--sc-ink);
 		text-decoration: none;
 	}
 
@@ -79,6 +79,6 @@
 	}
 
 	.module-card span {
-		color: #52616f;
+		color: var(--sc-muted);
 	}
 </style>

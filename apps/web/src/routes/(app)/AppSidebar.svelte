@@ -186,8 +186,8 @@
 		display: flex;
 		flex-direction: column;
 		gap: 18px;
-		border-right: 1px solid #d8dee6;
-		background: #ffffff;
+		border-right: 1px solid var(--sc-border);
+		background: var(--sc-surface);
 		padding: 18px 14px;
 		overflow: hidden;
 		transform: translateX(-100%);
@@ -204,7 +204,7 @@
 		align-items: center;
 		gap: 12px;
 		padding: 6px 8px 14px;
-		border-bottom: 1px solid #edf1f5;
+		border-bottom: 1px solid var(--sc-border);
 	}
 
 	.brand-mark {
@@ -229,11 +229,11 @@
 	}
 
 	.brand p {
-		font-weight: 900;
+		font-weight: 600;
 	}
 
 	.brand span {
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.82rem;
 	}
 
@@ -255,7 +255,7 @@
 	.close-menu {
 		margin-left: auto;
 		min-height: 44px;
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
 		padding: 8px;
 		background: #fff;
@@ -266,7 +266,7 @@
 		min-width: 0;
 	}
 	:is(a, button):focus-visible {
-		outline: 3px solid #991b1b;
+		outline: 3px solid var(--sc-accent-hover);
 		outline-offset: -3px;
 	}
 
@@ -279,10 +279,10 @@
 		align-items: center;
 		border-radius: 8px;
 		padding: 0 12px;
-		color: #334155;
+		color: var(--sc-ink);
 		text-decoration: none;
 		font-size: 0.94rem;
-		font-weight: 750;
+		font-weight: 600;
 	}
 
 	.group-button {
@@ -309,14 +309,14 @@
 	.group-button:hover,
 	.group-items a:hover,
 	.active {
-		background: #fef2f2;
-		color: #991b1b;
+		background: var(--sc-accent-soft);
+		color: var(--sc-accent-hover);
 	}
 
 	.group-items {
 		margin-left: 10px;
 		padding-left: 8px;
-		border-left: 1px solid #e2e8f0;
+		border-left: 1px solid var(--sc-border);
 	}
 
 	.disabled {

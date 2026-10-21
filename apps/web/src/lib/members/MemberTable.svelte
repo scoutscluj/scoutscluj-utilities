@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { enhance } from '$app/forms';
+	import { goto } from '$app/navigation';
+	import { tick } from 'svelte';
+	import type { SubmitFunction } from '@sveltejs/kit';
+	import Modal from '$lib/components/ui/Modal.svelte';
+	import ActionMenu from '$lib/components/ui/ActionMenu.svelte';
 	import type { Member, Registry, Detail } from './types';
 	import { unitName, branchLabels, roleLabels } from './types';
 	type Preview = {
@@ -13,13 +18,15 @@
 		registry,
 		preview,
 		feeMenu,
-		inactive = false
+		inactive = false,
+		message = ''
 	}: {
 		members: Member[];
 		registry: Registry;
 		preview?: Preview;
 		feeMenu?: { id: string; name: string; fees: Detail['fees'] };
 		inactive?: boolean;
+		message?: string;
 	} = $props();
 	let selected = $state<string[]>([]),
 		editing = $state(false),
@@ -27,6 +34,19 @@
 		grade = $state(''),
 		unitId = $state(''),
 		groupId = $state('');
+	let pageSize = $state(25);
+	let sort = $state('name');
+	let descending = $state(false);
+	let showUnit = $state(true),
+		showGrade = $state(true),
+		showStatus = $state(true);
+	let activePreview = $state<Preview>();
+	let feesOpen = $state(false);
+	let rowAction = $state(false);
+	let pending = $state(false);
+	let displayedFees = $state<typeof feeMenu>();
+	let feeTarget = $state('');
+	let feeForm: HTMLFormElement;
 	let page = $state(0),
 		inactiveSearch = $state('');
 	const normalize = (value: string) =>
@@ -37,16 +57,121 @@
 	const filtered = $derived(
 		members.filter((m) => !inactiveSearch || normalize(m.name).includes(normalize(inactiveSearch)))
 	);
-	const pageCount = $derived(Math.max(1, Math.ceil(filtered.length / 25)));
-	const pageRows = $derived(
-		filtered.slice(Math.min(page, pageCount - 1) * 25, (Math.min(page, pageCount - 1) + 1) * 25)
+	const sorted = $derived(
+		[...filtered].sort((a, b) => {
+			const value = (m: Member) =>
+				sort === 'grade'
+					? (m.grade ?? -1)
+					: sort === 'unit'
+						? unitName(registry.units, m.unitId)
+						: sort === 'status'
+							? m.status
+							: m.name;
+			const av = value(a),
+				bv = value(b);
+			const result =
+				typeof av === 'number' && typeof bv === 'number'
+					? av - bv
+					: String(av).localeCompare(String(bv), 'ro', { numeric: true });
+			return descending ? -result : result;
+		})
 	);
+	const pageCount = $derived(Math.max(1, Math.ceil(sorted.length / pageSize)));
+	const currentPage = $derived(Math.min(page, pageCount - 1));
+	const pageRows = $derived(sorted.slice(currentPage * pageSize, (currentPage + 1) * pageSize));
+	const allPageSelected = $derived(
+		pageRows.length > 0 && pageRows.every((m) => selected.includes(m.id))
+	);
+	function sortBy(column: string) {
+		descending = sort === column ? !descending : false;
+		sort = column;
+		page = 0;
+	}
 	const relevantPreview = $derived(
 		preview && preview.members.every((m) => members.some((row) => row.id === m.id))
 			? preview
 			: undefined
 	);
-	const chosen = $derived(members.filter((m) => selected.includes(m.id)));
+	const chosen = $derived(filtered.filter((m) => selected.includes(m.id)));
+	$effect(() => {
+		const valid = selected.filter((id) => filtered.some((m) => m.id === id));
+		if (valid.length !== selected.length) selected = valid;
+	});
+	$effect(() => {
+		if (relevantPreview) {
+			activePreview = relevantPreview;
+			editing = true;
+		}
+	});
+	$effect(() => {
+		if (feeMenu && members.some((m) => m.id === feeMenu.id)) {
+			displayedFees = feeMenu;
+			feesOpen = true;
+		}
+	});
+	const submitEdit: SubmitFunction = () => {
+		pending = true;
+		return async ({ result, update }) => {
+			pending = false;
+			await update({ reset: false });
+			if (result.type === 'success' && !result.data?.bulkPreview) {
+				editing = false;
+				selected = [];
+				activePreview = undefined;
+			}
+		};
+	};
+	const submitFee: SubmitFunction =
+		() =>
+		async ({ result, update }) => {
+			await update({ reset: false });
+			if (result.type === 'success') {
+				feesOpen = false;
+				displayedFees = undefined;
+			}
+		};
+	async function loadFees(m: Member) {
+		feeTarget = m.id;
+		await tick();
+		feeForm.requestSubmit();
+	}
+	function rowActions(m: Member) {
+		return [
+			{
+				label: 'Deschide fișa',
+				action: () => {
+					void goto(resolve(`/units/${m.id}`));
+				}
+			},
+			{
+				label: 'Cotizații',
+				action: () => {
+					void loadFees(m);
+				}
+			},
+			...(registry.canManage
+				? [
+						...(!inactive
+							? [
+									{ label: labels.grade, action: () => rowEdit(m, 'grade') },
+									{ label: labels.transfer, action: () => rowEdit(m, 'transfer') },
+									...(m.status !== 'active'
+										? [{ label: labels.reactivate, action: () => rowEdit(m, 'reactivate') }]
+										: [])
+								]
+							: []),
+						...(registry.admin
+							? [{ label: labels.structure, action: () => rowEdit(m, 'structure') }]
+							: []),
+						{
+							label: 'Confirmă retragerea',
+							action: () => rowEdit(m, 'withdraw'),
+							destructive: true
+						}
+					]
+				: [])
+		];
+	}
 	const changes = $derived({
 		kind,
 		...(kind === 'grade'
@@ -65,9 +190,11 @@
 		withdraw: 'Confirmă retragerea din activitate',
 		reactivate: 'Reactivează'
 	};
-	function rowEdit(m: Member) {
+	function rowEdit(m: Member, action: string) {
+		rowAction = true;
+		activePreview = undefined;
 		selected = [m.id];
-		kind = inactive ? 'withdraw' : 'grade';
+		kind = action;
 		grade = String(m.grade ?? '');
 		unitId = m.unitId ?? '';
 		groupId = m.groupId ?? '';
@@ -90,6 +217,8 @@
 		{#if selected.length}<span>{chosen.length} selectați</span><button
 				type="button"
 				onclick={() => {
+					activePreview = undefined;
+					rowAction = false;
 					editing = true;
 					if (inactive) kind = 'withdraw';
 				}}>Modifică selecția</button
@@ -102,94 +231,169 @@
 			>{/if}
 	</div>
 {/if}
-{#if editing && chosen.length}
-	<form method="POST" use:enhance class="editor">
-		<h3>{chosen.length === 1 ? chosen[0].name : `Modifică ${chosen.length} membri`}</h3>
-		<input type="hidden" name="action" value="bulk" /><input
-			type="hidden"
-			name="members"
-			value={json(chosen.map((m) => ({ id: m.id, revision: m.revision })))}
-		/><input type="hidden" name="changes" value={json(changes)} />
-		<label
-			>Modificare<select bind:value={kind}>
-				{#if !inactive}<option value="grade">Schimbă clasa</option><option value="transfer"
-						>Mută în unitate / grupă</option
-					>{/if}
-				{#if registry.admin}<option value="structure">Trece la Florești</option>{/if}
-				<option value="withdraw">Confirmă retragerea din activitate</option>
-				{#if !inactive}<option value="reactivate">Reactivează</option>{/if}
-			</select></label
-		>
-		{#if kind === 'grade'}<label
-				>Clasa<input type="number" min="1" max="12" bind:value={grade} /></label
-			>{/if}
-		{#if kind === 'transfer' || kind === 'reactivate'}
-			<label
-				>Unitate<select bind:value={unitId} onchange={() => (groupId = '')}
-					><option value="">Alege unitatea</option
-					>{#each registry.units.filter((u) => !u.parentId && !u.archived) as u (u.id)}<option
-							value={u.id}>{u.name}</option
-						>{/each}</select
-				></label
+<form method="POST" use:enhance bind:this={feeForm} hidden>
+	<input type="hidden" name="action" value="fee-menu" /><input
+		type="hidden"
+		name="id"
+		value={feeTarget}
+	/>
+</form>
+<Modal
+	bind:open={editing}
+	title={activePreview
+		? `Confirmă: ${labels[String(activePreview.changes.kind)] ?? 'Modificare'}`
+		: chosen.length === 1
+			? `${labels[kind]} · ${chosen[0].name}`
+			: `Modifică ${chosen.length} membri`}
+	description="Verifică modificarea înainte de a o aplica. Istoricul membrilor se păstrează."
+>
+	{#if message}<p role="status">{message}</p>{/if}
+	{#if !activePreview && chosen.length}
+		<form method="POST" use:enhance={submitEdit} class="editor">
+			<input type="hidden" name="action" value="bulk" /><input
+				type="hidden"
+				name="members"
+				value={json(chosen.map((m) => ({ id: m.id, revision: m.revision })))}
+			/><input type="hidden" name="changes" value={json(changes)} />
+			{#if !rowAction}<label
+					>Modificare<select bind:value={kind}>
+						{#if !inactive}<option value="grade">Schimbă clasa</option><option value="transfer"
+								>Mută în unitate / grupă</option
+							>{/if}
+						{#if registry.admin}<option value="structure">Trece la Florești</option>{/if}
+						<option value="withdraw">Confirmă retragerea din activitate</option>
+						{#if !inactive}<option value="reactivate">Reactivează</option>{/if}
+					</select></label
+				>
+			{/if}
+			{#if kind === 'grade'}<label
+					>Clasa<input type="number" min="1" max="12" bind:value={grade} /></label
+				>{/if}
+			{#if kind === 'transfer' || kind === 'reactivate'}
+				<label
+					>Unitate<select bind:value={unitId} onchange={() => (groupId = '')}
+						><option value="">Alege unitatea</option
+						>{#each registry.units.filter((u) => !u.parentId && !u.archived) as u (u.id)}<option
+								value={u.id}>{u.name}</option
+							>{/each}</select
+					></label
+				>
+				<label
+					>Grupă<select bind:value={groupId}
+						><option value="">Colectiv comun / nerepartizat</option
+						>{#each registry.units.filter((u) => u.parentId === unitId && !u.archived) as u (u.id)}<option
+								value={u.id}>{u.name}</option
+							>{/each}</select
+					></label
+				>
+			{/if}
+			{#if kind === 'structure'}<p>
+					Apartenența devine Florești. Repartizările beneficiarilor în unitățile vechi se încheie;
+					alegerea noii unități se face separat. Responsabilitățile adulților se păstrează.
+				</p>{/if}
+			{#if kind === 'withdraw'}<p>
+					Retragerea încheie toate responsabilitățile persoanei. Istoricul și plățile se păstrează.
+				</p>{/if}
+			<button type="submit" disabled={pending}>Previzualizează modificarea</button><button
+				type="button"
+				onclick={() => (editing = false)}>Închide</button
 			>
-			<label
-				>Grupă<select bind:value={groupId}
-					><option value="">Colectiv comun / nerepartizat</option
-					>{#each registry.units.filter((u) => u.parentId === unitId && !u.archived) as u (u.id)}<option
-							value={u.id}>{u.name}</option
-						>{/each}</select
-				></label
+		</form>
+	{/if}
+	{#if activePreview}
+		<form method="POST" use:enhance={submitEdit} class="editor">
+			<p>{activePreview.members.length} persoane vor fi actualizate.</p>
+			<details>
+				<summary>Vezi toate persoanele</summary>
+				<ul>
+					{#each activePreview.members as m (m.id)}<li>
+							{m.name} · {m.from === 'floresti' ? 'Florești' : 'Cluj'}
+						</li>{/each}
+				</ul>
+			</details>
+			<input type="hidden" name="action" value="bulk" /><input
+				type="hidden"
+				name="version"
+				value={activePreview.version}
+			/><input
+				type="hidden"
+				name="members"
+				value={json(activePreview.members.map((m) => ({ id: m.id, revision: m.revision })))}
+			/><input type="hidden" name="changes" value={json(activePreview.changes)} />
+			<label class="check"
+				><input type="checkbox" name="confirm" required />Am verificat selecția și modificarea.</label
+			><button type="submit" disabled={pending}
+				>Aplică pentru {activePreview.members.length} persoane</button
 			>
-		{/if}
-		{#if kind === 'structure'}<p>
-				Apartenența devine Florești. Repartizările beneficiarilor în unitățile vechi se încheie;
-				alegerea noii unități se face separat. Responsabilitățile adulților se păstrează.
-			</p>{/if}
-		{#if kind === 'withdraw'}<p>
-				Retragerea încheie toate responsabilitățile persoanei. Istoricul și plățile se păstrează.
-			</p>{/if}
-		<button>Previzualizează modificarea</button><button
-			type="button"
-			onclick={() => (editing = false)}>Închide</button
-		>
-	</form>
-{/if}
-{#if relevantPreview}
-	<form method="POST" use:enhance class="editor">
-		<h3>Confirmă: {labels[String(relevantPreview.changes.kind)] ?? 'Modificare'}</h3>
-		<p>{relevantPreview.members.length} persoane vor fi actualizate.</p>
-		<details>
-			<summary>Vezi toate persoanele</summary>
-			<ul>
-				{#each relevantPreview.members as m (m.id)}<li>
-						{m.name} · {m.from === 'floresti' ? 'Florești' : 'Cluj'}
-					</li>{/each}
-			</ul>
-		</details>
-		<input type="hidden" name="action" value="bulk" /><input
-			type="hidden"
-			name="version"
-			value={relevantPreview.version}
-		/><input
-			type="hidden"
-			name="members"
-			value={json(relevantPreview.members.map((m) => ({ id: m.id, revision: m.revision })))}
-		/><input type="hidden" name="changes" value={json(relevantPreview.changes)} />
-		<label class="check"
-			><input type="checkbox" name="confirm" required />Am verificat selecția și modificarea.</label
-		><button>Aplică pentru {relevantPreview.members.length} persoane</button>
-	</form>
-{/if}
+			<button type="button" onclick={() => (activePreview = undefined)}>Înapoi la modificare</button
+			>
+		</form>
+	{/if}
+</Modal>
+<div class="table-controls">
+	<span class="result-count" aria-live="polite"
+		>{filtered.length} membri{chosen.length ? ` · ${chosen.length} selectați` : ''}</span
+	>
+	<label
+		>Rânduri pe pagină<select bind:value={pageSize} onchange={() => (page = 0)}
+			><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option
+			><option value={100}>100</option></select
+		></label
+	>
+	{#if !inactive}<details class="column-picker">
+			<summary>Coloane</summary>
+			<div>
+				<label><input type="checkbox" bind:checked={showUnit} />Unitate / grupă</label><label
+					><input type="checkbox" bind:checked={showGrade} />Clasa</label
+				><label><input type="checkbox" bind:checked={showStatus} />Status</label>
+			</div>
+		</details>{/if}
+</div>
 <div class="table">
 	<table>
 		<thead
-			><tr
-				>{#if registry.canManage}<th><span class="sr-only">Selectează</span></th>{/if}<th>Membru</th
-				>{#if !inactive}<th>Unitate / grupă</th><th>Clasa</th><th>Status</th>{/if}<th>Acțiuni</th
-				></tr
-			></thead
+			><tr>
+				{#if registry.canManage}<th
+						><input
+							type="checkbox"
+							aria-label="Selectează pagina curentă"
+							checked={allPageSelected}
+							indeterminate={pageRows.some((m) => selected.includes(m.id)) && !allPageSelected}
+							onchange={() => {
+								selected = allPageSelected
+									? selected.filter((id) => !pageRows.some((m) => m.id === id))
+									: [...new Set([...selected, ...pageRows.map((m) => m.id)])];
+							}}
+						/></th
+					>{/if}
+				<th aria-sort={sort === 'name' ? (descending ? 'descending' : 'ascending') : 'none'}
+					><button type="button" class="sort-button" onclick={() => sortBy('name')}
+						>Membru {sort === 'name' ? (descending ? '↓' : '↑') : '↕'}</button
+					></th
+				>
+				{#if !inactive}
+					{#if showUnit}<th
+							aria-sort={sort === 'unit' ? (descending ? 'descending' : 'ascending') : 'none'}
+							><button type="button" class="sort-button" onclick={() => sortBy('unit')}
+								>Unitate / grupă ↕</button
+							></th
+						>{/if}
+					{#if showGrade}<th
+							aria-sort={sort === 'grade' ? (descending ? 'descending' : 'ascending') : 'none'}
+							><button type="button" class="sort-button" onclick={() => sortBy('grade')}
+								>Clasa ↕</button
+							></th
+						>{/if}
+					{#if showStatus}<th
+							aria-sort={sort === 'status' ? (descending ? 'descending' : 'ascending') : 'none'}
+							><button type="button" class="sort-button" onclick={() => sortBy('status')}
+								>Status ↕</button
+							></th
+						>{/if}
+				{/if}<th><span class="sr-only">Acțiuni</span></th>
+			</tr></thead
 		><tbody>
-			{#each pageRows as m (m.id)}<tr>
+			{#each pageRows as m (m.id)}<tr class:selected={selected.includes(m.id)}>
 					{#if registry.canManage}<td
 							><input
 								type="checkbox"
@@ -211,92 +415,177 @@
 								.join(', ')}
 						</small></td
 					>
-					{#if !inactive}<td
-							>{m.unitId
-								? unitName(registry.units, m.unitId)
-								: m.responsibilityUnitIds?.map((id) => unitName(registry.units, id)).join(', ') ||
-									'—'}{m.groupId ? ` / ${unitName(registry.units, m.groupId)}` : ''}</td
-						><td>{m.grade ?? '—'}</td><td
-							>{m.status === 'active'
-								? 'Activ'
-								: m.status === 'withdrawn'
-									? 'Retras din activitate'
-									: 'De verificat'}</td
-						>{/if}
-					<td
-						><details class="menu">
-							<summary>Acțiuni</summary>
-							<form method="POST" use:enhance>
-								<input type="hidden" name="action" value="fee-menu" /><input
-									type="hidden"
-									name="id"
-									value={m.id}
-								/><button>Cotizații</button>
-								{#if registry.canFinance}<button>Național achitat în Orgo / partea locală</button
-									>{/if}
-							</form>
-							{#if registry.canManage}<button type="button" onclick={() => rowEdit(m)}
-									>{inactive ? 'Confirmă retragerea' : 'Modifică în listă'}</button
-								>{/if}
-							<a href={resolve(`/units/${m.id}`)}>Deschide fișa</a>
-						</details></td
-					>
-				</tr>{:else}<tr><td colspan="6">Nu există membri pentru filtrele alese.</td></tr>{/each}
+					{#if !inactive}{#if showUnit}<td
+								>{m.unitId
+									? unitName(registry.units, m.unitId)
+									: m.responsibilityUnitIds?.map((id) => unitName(registry.units, id)).join(', ') ||
+										'—'}{m.groupId ? ` / ${unitName(registry.units, m.groupId)}` : ''}</td
+							>{/if}{#if showGrade}<td>{m.grade ?? '—'}</td>{/if}{#if showStatus}<td
+								>{m.status === 'active'
+									? 'Activ'
+									: m.status === 'withdrawn'
+										? 'Retras din activitate'
+										: 'De verificat'}</td
+							>{/if}{/if}
+					<td><ActionMenu label={`Acțiuni pentru ${m.name}`} items={rowActions(m)} /></td>
+				</tr>{:else}<tr
+					><td
+						colspan={2 +
+							Number(registry.canManage) +
+							(inactive ? 0 : Number(showUnit) + Number(showGrade) + Number(showStatus))}
+						>Nu există membri pentru filtrele alese.</td
+					></tr
+				>{/each}
 		</tbody>
 	</table>
 </div>
 <nav aria-label="Paginile registrului" class="toolbar">
-	<button type="button" disabled={page <= 0} onclick={() => page--}>Anterior</button><span
-		>Pagina {Math.min(page, pageCount - 1) + 1} din {pageCount} · {filtered.length} membri</span
-	><button type="button" disabled={page >= pageCount - 1} onclick={() => page++}>Următor</button>
+	<button type="button" disabled={currentPage <= 0} onclick={() => (page = currentPage - 1)}
+		>Anterior</button
+	><span>Pagina {Math.min(page, pageCount - 1) + 1} din {pageCount} · {filtered.length} membri</span
+	><button
+		type="button"
+		disabled={currentPage >= pageCount - 1}
+		onclick={() => (page = currentPage + 1)}>Următor</button
+	>
 </nav>
-{#if feeMenu && members.some((m) => m.id === feeMenu.id)}
-	<div class="editor">
-		<h3>Cotizații · {feeMenu.name}</h3>
-		{#each feeMenu.fees as fee (fee.period)}<article>
-				<strong>{fee.period}</strong>
-				<p>
-					Total {money(fee.totalBani)} · Plătit {money(fee.paidBani)} · Rămas {money(
-						fee.remainingBani
-					)}
-				</p>
-				<p>
-					Național: {money(fee.nationalBani ?? 0)}{fee.nationalDirectBani
-						? ' · achitat direct în Orgo'
-						: ''}. Încasat de centru: {money(fee.localPaidBani ?? fee.paidBani)}.
-				</p>
-				{#if registry.canFinance && fee.obligationId}<details>
-						<summary>Național achitat în Orgo — confirmă partea locală</summary>
-						<form method="POST" use:enhance>
-							<input type="hidden" name="action" value="direct-national" /><input
-								type="hidden"
-								name="obligationId"
-								value={fee.obligationId}
-							/>
-							<p>
-								Se verifică plata națională pentru această perioadă. Referința unui transfer deja
-								înregistrat reutilizează încasarea existentă.
-							</p>
-							<label
-								>Referință transfer bancar<input name="reference" required maxlength="200" /></label
-							><label>Data încasării<input type="date" name="receivedOn" required /></label>
-							<label
-								>Suma totală din extras (lei)<input
-									type="number"
-									name="amount"
-									min="0.01"
-									step="0.01"
-									placeholder="Implicit: partea locală rămasă"
-								/></label
-							>
-							<button>Verifică naționalul și confirmă partea locală</button>
-						</form>
-					</details>{/if}
-			</article>{:else}<p>Nu există cotizații asociate.</p>{/each}
-	</div>
-{/if}
+<Modal
+	bind:open={feesOpen}
+	title={`Cotizații · ${displayedFees?.name ?? 'Membru'}`}
+	description="Situația plăților și contribuțiilor pentru fiecare perioadă."
+>
+	{#if message}<p role="status">{message}</p>{/if}
+	{#if displayedFees}
+		<div class="editor">
+			{#each displayedFees.fees as fee (fee.period)}<article>
+					<strong>{fee.period}</strong>
+					<p>
+						Total {money(fee.totalBani)} · Plătit {money(fee.paidBani)} · Rămas {money(
+							fee.remainingBani
+						)}
+					</p>
+					<p>
+						Național: {money(fee.nationalBani ?? 0)}{fee.nationalDirectBani
+							? ' · achitat direct în Orgo'
+							: ''}. Încasat de centru: {money(fee.localPaidBani ?? fee.paidBani)}.
+					</p>
+					{#if registry.canFinance && fee.obligationId}<details>
+							<summary>Național achitat în Orgo — confirmă partea locală</summary>
+							<form method="POST" use:enhance={submitFee}>
+								<input type="hidden" name="action" value="direct-national" /><input
+									type="hidden"
+									name="obligationId"
+									value={fee.obligationId}
+								/>
+								<p>
+									Se verifică plata națională pentru această perioadă. Referința unui transfer deja
+									înregistrat reutilizează încasarea existentă.
+								</p>
+								<label
+									>Referință transfer bancar<input
+										name="reference"
+										required
+										maxlength="200"
+									/></label
+								><label>Data încasării<input type="date" name="receivedOn" required /></label>
+								<label
+									>Suma totală din extras (lei)<input
+										type="number"
+										name="amount"
+										min="0.01"
+										step="0.01"
+										placeholder="Implicit: partea locală rămasă"
+									/></label
+								>
+								<button type="submit">Verifică naționalul și confirmă partea locală</button>
+							</form>
+						</details>{/if}
+				</article>{:else}<p>Nu există cotizații asociate.</p>{/each}
+		</div>
+	{/if}
+</Modal>
 
 <style>
+	.table-controls {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 16px;
+		margin: 16px 0;
+		color: var(--sc-muted);
+		font-size: 13px;
+	}
+	.table-controls > label {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.result-count {
+		margin-right: auto;
+	}
+	.column-picker {
+		position: relative;
+	}
+	.column-picker > div {
+		position: absolute;
+		right: 0;
+		top: 100%;
+		min-width: 180px;
+		background: var(--sc-surface);
+		padding: 12px;
+		border: 1px solid var(--sc-border);
+		border-radius: 8px;
+		box-shadow: var(--sc-shadow);
+		z-index: 2;
+		display: grid;
+		gap: 10px;
+	}
+	.column-picker label {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.sort-button {
+		border: 0;
+		background: transparent;
+		padding: 0;
+		color: var(--sc-muted);
+		font-size: 13px;
+		font-weight: 600;
+		text-align: left;
+		white-space: nowrap;
+	}
+	tbody tr:hover {
+		background: var(--sc-canvas);
+	}
+	tbody tr.selected {
+		background: var(--sc-accent-soft);
+	}
+	th {
+		background: var(--sc-canvas);
+	}
+	td:last-child {
+		width: 48px;
+		text-align: right;
+	}
+	td > a {
+		color: var(--sc-ink);
+		font-weight: 600;
+		text-decoration: none;
+	}
+	td > a:hover {
+		color: var(--sc-accent);
+		text-decoration: underline;
+	}
+	input[type='checkbox'] {
+		width: 16px;
+		height: 16px;
+	}
+	.table {
+		border: 1px solid var(--sc-border);
+		border-radius: 8px;
+	}
+
 	.toolbar {
 		display: flex;
 		flex-wrap: wrap;
@@ -305,16 +594,10 @@
 		margin: 16px 0;
 	}
 	.editor {
-		padding: 20px;
-		background: #f3f7f4;
-		border: 1px solid #cadacf;
-		border-radius: 10px;
-		margin: 16px 0;
+		padding: 0;
+		margin: 0;
 		display: grid;
 		gap: 12px;
-	}
-	.editor h3 {
-		margin: 0;
 	}
 	.editor ul {
 		max-height: 240px;
@@ -331,19 +614,19 @@
 	th,
 	td {
 		padding: 12px 8px;
-		border-bottom: 1px solid #e1e9e3;
-		vertical-align: top;
+		border-bottom: 1px solid var(--sc-border);
+		vertical-align: middle;
 	}
 	th,
 	small {
-		color: #60736a;
+		color: var(--sc-muted);
 	}
 	small {
 		display: block;
 		margin-top: 5px;
 	}
 	a {
-		color: #216249;
+		color: var(--sc-accent);
 	}
 	label {
 		display: grid;
@@ -354,29 +637,17 @@
 	select {
 		font: inherit;
 		padding: 9px;
-		border: 1px solid #c7d6cc;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 6px;
 	}
 	button {
 		cursor: pointer;
 		background: white;
-		color: #245b46;
+		color: var(--sc-accent);
 	}
 	form {
 		display: grid;
 		gap: 12px;
-	}
-	.menu {
-		min-width: 100px;
-	}
-	.menu[open] {
-		display: grid;
-		gap: 8px;
-	}
-	.menu button,
-	.menu a {
-		display: block;
-		margin-top: 9px;
 	}
 	.check {
 		display: flex;
@@ -393,7 +664,7 @@
 		clip-path: inset(50%);
 	}
 	article + article {
-		border-top: 1px solid #c7d6cc;
+		border-top: 1px solid var(--sc-border-strong);
 		padding-top: 14px;
 	}
 </style>

@@ -83,7 +83,7 @@
 
 	th,
 	td {
-		border-bottom: 1px solid #e2e8f0;
+		border-bottom: 1px solid var(--sc-border);
 		padding: 10px;
 		text-align: left;
 		vertical-align: top;
@@ -96,13 +96,13 @@
 	}
 
 	td {
-		color: #334155;
+		color: var(--sc-ink);
 		line-height: 1.35;
 	}
 
 	.date-cell {
 		min-width: 150px;
-		color: #64748b;
+		color: var(--sc-muted);
 		white-space: nowrap;
 	}
 
@@ -129,13 +129,13 @@
 	}
 
 	strong {
-		color: #0f172a;
+		color: var(--sc-ink);
 		font-size: 0.94rem;
 	}
 
 	span,
 	.muted {
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 
 	.muted {

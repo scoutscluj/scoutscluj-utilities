@@ -135,24 +135,24 @@
 		align-content: start;
 		border: 1px solid #dbe3ef;
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 14px;
-		color: #334155;
+		color: var(--sc-ink);
 		text-decoration: none;
 		box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
 	}
 
 	a.department-card:hover {
-		border-color: #991b1b;
+		border-color: var(--sc-accent-hover);
 	}
 
 	.department-card.inactive {
-		background: #f8fafc;
-		color: #64748b;
+		background: var(--sc-canvas);
+		color: var(--sc-muted);
 	}
 
 	strong {
-		color: #0f172a;
+		color: var(--sc-ink);
 		font-size: 1rem;
 	}
 
@@ -169,11 +169,11 @@
 
 	.feature-list a {
 		color: #0f766e;
-		font-weight: 800;
+		font-weight: 600;
 	}
 
 	.feature-list a:hover {
-		color: #991b1b;
+		color: var(--sc-accent-hover);
 	}
 
 	@media (max-width: 760px) {

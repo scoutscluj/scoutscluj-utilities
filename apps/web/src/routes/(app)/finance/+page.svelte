@@ -81,9 +81,9 @@
 	}
 
 	.eyebrow {
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.78rem;
-		font-weight: 900;
+		font-weight: 600;
 		letter-spacing: 0;
 		text-transform: uppercase;
 	}
@@ -101,7 +101,7 @@
 	.page-heading p:not(.eyebrow),
 	.settings-band p,
 	.stat-card span {
-		color: #52616f;
+		color: var(--sc-muted);
 	}
 
 	.page-heading a,
@@ -110,11 +110,11 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 0 12px;
-		font-weight: 900;
+		font-weight: 600;
 		text-decoration: none;
 	}
 
@@ -126,9 +126,9 @@
 
 	.stat-card,
 	.settings-band {
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 18px;
 	}
 
@@ -138,7 +138,7 @@
 	}
 
 	.stat-card span {
-		font-weight: 850;
+		font-weight: 600;
 	}
 
 	.stat-card strong {

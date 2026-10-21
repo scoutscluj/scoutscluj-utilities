@@ -259,7 +259,7 @@
 		font-size: 1.4rem;
 	}
 	:global(.review-description) {
-		color: #64748b;
+		color: var(--sc-muted);
 		line-height: 1.5;
 	}
 	p {
@@ -303,18 +303,18 @@
 	textarea {
 		width: 100%;
 		min-height: 80px;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 10px;
 		padding: 10px;
 		font: inherit;
 	}
 	button,
 	:global(.review-dialog button) {
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 10px;
 		padding: 10px 14px;
 		background: white;
-		color: #334155;
+		color: var(--sc-ink);
 		font: inherit;
 		cursor: pointer;
 	}

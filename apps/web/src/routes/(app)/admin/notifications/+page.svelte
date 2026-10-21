@@ -186,9 +186,9 @@
 	}
 
 	.eyebrow {
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.78rem;
-		font-weight: 900;
+		font-weight: 600;
 		letter-spacing: 0;
 		text-transform: uppercase;
 	}
@@ -200,7 +200,7 @@
 
 	.page-heading p,
 	.form-footer p {
-		color: #52616f;
+		color: var(--sc-muted);
 	}
 
 	.summary-grid {
@@ -212,9 +212,9 @@
 	.summary-grid div,
 	.broadcast-form,
 	.result-panel {
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 	}
 
 	.summary-grid div {
@@ -224,8 +224,8 @@
 	}
 
 	.summary-grid span {
-		color: #64748b;
-		font-weight: 800;
+		color: var(--sc-muted);
+		font-weight: 600;
 	}
 
 	.summary-grid strong {
@@ -241,15 +241,15 @@
 	label {
 		display: grid;
 		gap: 8px;
-		color: #334155;
-		font-weight: 850;
+		color: var(--sc-ink);
+		font-weight: 600;
 	}
 
 	input,
 	textarea {
 		width: 100%;
 		box-sizing: border-box;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
 		padding: 10px 12px;
 		font: inherit;
@@ -269,19 +269,19 @@
 	button,
 	.secondary-button {
 		min-height: 40px;
-		border: 1px solid #c81e1e;
+		border: 1px solid var(--sc-accent);
 		border-radius: 8px;
-		background: #c81e1e;
+		background: var(--sc-accent);
 		padding: 0 14px;
-		color: #ffffff;
-		font-weight: 900;
+		color: var(--sc-surface);
+		font-weight: 600;
 		cursor: pointer;
 	}
 
 	.secondary-button {
-		border-color: #cbd5e1;
-		background: #ffffff;
-		color: #334155;
+		border-color: var(--sc-border-strong);
+		background: var(--sc-surface);
+		color: var(--sc-ink);
 	}
 
 	button:disabled {
@@ -301,19 +301,19 @@
 	}
 
 	.result-panel div {
-		border-top: 1px solid #edf1f5;
+		border-top: 1px solid var(--sc-border);
 		padding-top: 10px;
 	}
 
 	dt {
-		color: #64748b;
-		font-weight: 800;
+		color: var(--sc-muted);
+		font-weight: 600;
 	}
 
 	dd {
 		margin: 4px 0 0;
 		font-size: 1.4rem;
-		font-weight: 900;
+		font-weight: 600;
 	}
 
 	@media (max-width: 720px) {

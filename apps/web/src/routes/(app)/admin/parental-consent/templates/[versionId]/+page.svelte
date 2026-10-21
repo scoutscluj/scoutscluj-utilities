@@ -158,16 +158,16 @@
 		gap: 14px;
 	}
 	header a {
-		color: #991b1b;
+		color: var(--sc-accent-hover);
 		text-decoration: none;
-		font-weight: 800;
+		font-weight: 600;
 	}
 	h1 {
 		margin: 6px 0 0;
 	}
 	header p {
 		margin: 4px 0 0;
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 	.actions {
 		display: flex;
@@ -182,18 +182,18 @@
 		align-items: center;
 		border: 0;
 		border-radius: 7px;
-		background: #991b1b;
+		background: var(--sc-accent-hover);
 		padding: 7px 12px;
 		color: #fff;
 		font: inherit;
-		font-weight: 850;
+		font-weight: 600;
 		text-decoration: none;
 		cursor: pointer;
 	}
 	.button.secondary {
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		background: #fff;
-		color: #334155;
+		color: var(--sc-ink);
 		font-size: 0.84rem;
 	}
 	button:disabled {
@@ -214,18 +214,18 @@
 		gap: 5px;
 		color: #475569;
 		font-size: 0.78rem;
-		font-weight: 850;
+		font-weight: 600;
 	}
 	input {
 		width: 100%;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 7px;
 		padding: 8px;
 		font: inherit;
 	}
 	.notice {
 		border-radius: 8px;
-		background: #f1f5f9;
+		background: var(--sc-inset);
 		padding: 10px;
 		color: #475569;
 	}
@@ -234,8 +234,8 @@
 		color: #9a3412;
 	}
 	.notice.error {
-		background: #fef2f2;
-		color: #991b1b;
+		background: var(--sc-accent-soft);
+		color: var(--sc-accent-hover);
 	}
 	.notice.success {
 		background: #ecfdf5;
@@ -245,9 +245,9 @@
 		max-height: 600px;
 		overflow: auto;
 		border-radius: 9px;
-		background: #0f172a;
+		background: var(--sc-ink);
 		padding: 14px;
-		color: #e2e8f0;
+		color: var(--sc-border);
 	}
 	.save-bar {
 		position: sticky;
@@ -255,7 +255,7 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 10px;
 		background: rgba(255, 255, 255, 0.95);
 		padding: 10px 12px;

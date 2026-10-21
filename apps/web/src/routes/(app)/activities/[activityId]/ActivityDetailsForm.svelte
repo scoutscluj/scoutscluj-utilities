@@ -73,7 +73,7 @@
 		gap: 16px;
 		border: 1px solid #dbe3ef;
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 18px;
 		box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
 	}
@@ -84,12 +84,12 @@
 	}
 
 	.panel-title {
-		color: #0f172a;
-		font-weight: 900;
+		color: var(--sc-ink);
+		font-weight: 600;
 	}
 
 	p {
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 
 	.form-grid {
@@ -101,9 +101,9 @@
 	label {
 		display: grid;
 		gap: 6px;
-		color: #334155;
+		color: var(--sc-ink);
 		font-size: 0.84rem;
-		font-weight: 800;
+		font-weight: 600;
 	}
 
 	.wide {
@@ -114,10 +114,10 @@
 	select,
 	textarea {
 		width: 100%;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
 		padding: 10px 11px;
-		color: #0f172a;
+		color: var(--sc-ink);
 		font: inherit;
 	}
 
@@ -138,14 +138,14 @@
 		border-radius: 8px;
 		background: #0f766e;
 		padding: 0 14px;
-		color: #ffffff;
-		font-weight: 800;
+		color: var(--sc-surface);
+		font-weight: 600;
 		cursor: pointer;
 	}
 
 	.form-actions p {
 		color: #1e3a8a;
-		font-weight: 750;
+		font-weight: 600;
 	}
 
 	@media (max-width: 720px) {

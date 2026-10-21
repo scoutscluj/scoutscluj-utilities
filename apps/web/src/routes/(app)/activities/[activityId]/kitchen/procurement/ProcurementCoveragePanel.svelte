@@ -54,7 +54,7 @@
 
 	.panel {
 		border: 1px solid #dbe3ef;
-		background: #ffffff;
+		background: var(--sc-surface);
 		border-radius: 8px;
 		padding: 18px;
 		box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
@@ -71,7 +71,7 @@
 	.coverage-list article {
 		display: grid;
 		gap: 8px;
-		border: 1px solid #e2e8f0;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
 		padding: 12px;
 	}
@@ -87,14 +87,14 @@
 	.condiments {
 		border: 1px solid #dbe3ef;
 		border-radius: 8px;
-		background: #f8fafc;
+		background: var(--sc-canvas);
 		padding: 7px 9px;
-		font-weight: 800;
+		font-weight: 600;
 	}
 
 	.coverage-items small {
 		margin-left: 4px;
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 
 	.coverage-items .covered {
@@ -111,8 +111,8 @@
 
 	.coverage-items .uncovered {
 		border-color: #fecaca;
-		background: #fef2f2;
-		color: #991b1b;
+		background: var(--sc-accent-soft);
+		color: var(--sc-accent-hover);
 	}
 
 	h2,
@@ -123,18 +123,18 @@
 
 	h2,
 	h3 {
-		color: #0f172a;
+		color: var(--sc-ink);
 	}
 
 	.muted {
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 
 	.eyebrow {
 		margin: 0 0 8px;
 		color: #2563eb;
 		font-size: 0.78rem;
-		font-weight: 800;
+		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0;
 	}

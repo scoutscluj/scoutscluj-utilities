@@ -84,23 +84,23 @@
 		border: 0;
 		border-radius: 8px;
 		background: #0f766e;
-		color: #ffffff;
+		color: var(--sc-surface);
 		padding: 0 12px;
-		font-weight: 800;
+		font-weight: 600;
 		cursor: pointer;
 	}
 
 	.secondary {
-		border: 1px solid #cbd5e1;
-		background: #ffffff;
-		color: #334155;
+		border: 1px solid var(--sc-border-strong);
+		background: var(--sc-surface);
+		color: var(--sc-ink);
 	}
 
 	input,
 	select {
 		width: 100%;
 		min-width: 0;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
 		padding: 9px 10px;
 		font: inherit;
@@ -108,11 +108,11 @@
 
 	h3 {
 		margin: 0;
-		color: #0f172a;
+		color: var(--sc-ink);
 	}
 
 	.muted {
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 
 	@media (max-width: 1100px) {

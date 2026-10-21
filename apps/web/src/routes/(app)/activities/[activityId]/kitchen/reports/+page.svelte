@@ -212,26 +212,26 @@
 		justify-content: center;
 		border-radius: 8px;
 		padding: 0 12px;
-		font-weight: 800;
+		font-weight: 600;
 		text-decoration: none;
 	}
 
 	.report-actions a {
-		border: 1px solid #cbd5e1;
-		background: #ffffff;
-		color: #334155;
+		border: 1px solid var(--sc-border-strong);
+		background: var(--sc-surface);
+		color: var(--sc-ink);
 	}
 
 	.report-actions button {
 		border: 0;
 		background: #0f766e;
-		color: #ffffff;
+		color: var(--sc-surface);
 		cursor: pointer;
 	}
 
 	.report-sheet {
 		border: 1px solid #dbe3ef;
-		background: #ffffff;
+		background: var(--sc-surface);
 		border-radius: 8px;
 		padding: 18px;
 		box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
@@ -239,14 +239,14 @@
 
 	.day-report,
 	.procurement-report {
-		border-top: 1px solid #e2e8f0;
+		border-top: 1px solid var(--sc-border);
 		padding-top: 14px;
 	}
 
 	.meal-list div {
 		display: grid;
 		gap: 3px;
-		border: 1px solid #e2e8f0;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
 		padding: 12px;
 	}
@@ -258,7 +258,7 @@
 
 	th,
 	td {
-		border-bottom: 1px solid #e2e8f0;
+		border-bottom: 1px solid var(--sc-border);
 		padding: 10px;
 		text-align: left;
 	}
@@ -278,20 +278,20 @@
 	h2,
 	h3,
 	strong {
-		color: #0f172a;
+		color: var(--sc-ink);
 	}
 
 	span,
 	.muted,
 	.procurement-report p {
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 
 	.eyebrow {
 		margin: 0 0 8px;
 		color: #2563eb;
 		font-size: 0.78rem;
-		font-weight: 800;
+		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0;
 	}

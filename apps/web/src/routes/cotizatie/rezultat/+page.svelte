@@ -47,7 +47,7 @@
 
 <style>
 	main {
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 16px;
 		background: white;
 		box-shadow: 0 4px 16px rgb(15 23 42 / 0.03);
@@ -60,7 +60,7 @@
 		font-size: 0.75rem;
 		text-transform: uppercase;
 		font-weight: 700;
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 	h1 {
 		font-size: clamp(1.5rem, 4vw, 2rem);
@@ -70,12 +70,12 @@
 		gap: 8px;
 		padding: 20px;
 		border-radius: 12px;
-		background: #f8fafc;
+		background: var(--sc-canvas);
 		color: #475569;
 	}
 	.payment-details strong {
 		font-size: 2rem;
-		color: #17202a;
+		color: var(--sc-ink);
 	}
 	.notice {
 		padding: 16px;
@@ -91,14 +91,14 @@
 	}
 	.actions a {
 		padding: 12px 16px;
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
 		text-decoration: none;
 		font-weight: 600;
 	}
 	.actions a:first-child {
-		background: #c81e1e;
-		border-color: #c81e1e;
+		background: var(--sc-accent);
+		border-color: var(--sc-accent);
 		color: white;
 	}
 	a:focus-visible {

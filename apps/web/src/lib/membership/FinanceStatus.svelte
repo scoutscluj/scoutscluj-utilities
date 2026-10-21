@@ -58,7 +58,7 @@
 	}
 	.slate {
 		color: #475569;
-		background: #f1f5f9;
-		border-color: #e2e8f0;
+		background: var(--sc-inset);
+		border-color: var(--sc-border);
 	}
 </style>

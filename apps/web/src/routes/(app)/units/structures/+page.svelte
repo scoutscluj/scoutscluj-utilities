@@ -132,11 +132,11 @@
 	button {
 		font: inherit;
 		padding: 10px;
-		border: 1px solid #cbd8d0;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 7px;
 	}
 	button {
-		background: #245b46;
+		background: var(--sc-accent);
 		color: white;
 		cursor: pointer;
 	}
@@ -166,6 +166,6 @@
 		line-height: 1.6;
 	}
 	a {
-		color: #216249;
+		color: var(--sc-accent);
 	}
 </style>

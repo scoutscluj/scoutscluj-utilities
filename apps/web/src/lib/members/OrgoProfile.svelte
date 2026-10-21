@@ -180,7 +180,7 @@
 	button {
 		font: inherit;
 		padding: 10px;
-		border: 1px solid #cbd8d0;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 7px;
 		min-width: 0;
 	}
@@ -196,7 +196,7 @@
 	}
 	button {
 		cursor: pointer;
-		background: #245b46;
+		background: var(--sc-accent);
 		color: white;
 	}
 	details {

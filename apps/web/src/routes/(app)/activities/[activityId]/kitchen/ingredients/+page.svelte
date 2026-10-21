@@ -142,7 +142,7 @@
 	.form-message {
 		border: 1px solid #dbe3ef;
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 14px;
 	}
 
@@ -155,7 +155,7 @@
 	.need-list div {
 		display: grid;
 		gap: 5px;
-		border: 1px solid #e2e8f0;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
 		padding: 10px;
 	}
@@ -171,7 +171,7 @@
 
 	th,
 	td {
-		border-bottom: 1px solid #e2e8f0;
+		border-bottom: 1px solid var(--sc-border);
 		padding: 10px;
 		text-align: left;
 	}
@@ -181,7 +181,7 @@
 	}
 
 	tbody tr:hover {
-		background: #f8fafc;
+		background: var(--sc-canvas);
 	}
 
 	.modal-backdrop {
@@ -199,7 +199,7 @@
 		z-index: 1;
 		width: min(540px, 100%);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 18px;
 		box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
 	}
@@ -207,14 +207,14 @@
 	label {
 		display: grid;
 		gap: 6px;
-		color: #334155;
+		color: var(--sc-ink);
 		font-size: 0.84rem;
-		font-weight: 800;
+		font-weight: 600;
 	}
 
 	input {
 		width: 100%;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
 		padding: 9px 10px;
 		font: inherit;
@@ -225,9 +225,9 @@
 		border: 0;
 		border-radius: 8px;
 		background: #0f766e;
-		color: #ffffff;
+		color: var(--sc-surface);
 		padding: 0 12px;
-		font-weight: 800;
+		font-weight: 600;
 		cursor: pointer;
 	}
 
@@ -240,8 +240,8 @@
 
 	.ghost {
 		width: 34px;
-		background: #f8fafc;
-		color: #334155;
+		background: var(--sc-canvas);
+		color: var(--sc-ink);
 		font-size: 1.1rem;
 	}
 
@@ -254,18 +254,18 @@
 	h1,
 	h2,
 	strong {
-		color: #0f172a;
+		color: var(--sc-ink);
 	}
 
 	span,
 	.muted {
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 
 	.eyebrow {
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.7rem;
-		font-weight: 900;
+		font-weight: 600;
 		text-transform: uppercase;
 	}
 </style>

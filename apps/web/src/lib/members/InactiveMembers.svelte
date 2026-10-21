@@ -77,7 +77,7 @@
 		padding: 8px 0;
 	}
 	a {
-		color: #216249;
+		color: var(--sc-accent);
 	}
 	nav {
 		display: flex;

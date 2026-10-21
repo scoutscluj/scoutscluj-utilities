@@ -403,9 +403,9 @@
 <style>
 	.pdf-viewer {
 		overflow: hidden;
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 12px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		box-shadow: 0 10px 28px rgb(15 23 42 / 0.08);
 	}
 
@@ -430,16 +430,16 @@
 
 	.eyebrow {
 		margin: 0;
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.72rem;
-		font-weight: 900;
+		font-weight: 600;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 	}
 
 	h1 {
 		margin: 4px 0 0;
-		color: #17202a;
+		color: var(--sc-ink);
 		font-size: clamp(1.2rem, 3vw, 1.55rem);
 		line-height: 1.2;
 	}
@@ -455,12 +455,12 @@
 		border-radius: 8px;
 		padding: 0 14px;
 		text-decoration: none;
-		font-weight: 800;
+		font-weight: 600;
 	}
 
 	.download-button {
-		background: #17202a;
-		color: #ffffff;
+		background: var(--sc-ink);
+		color: var(--sc-surface);
 	}
 
 	.download-button:hover {
@@ -479,14 +479,14 @@
 
 	.search-bar {
 		gap: 10px;
-		border-top: 1px solid #e2e8f0;
+		border-top: 1px solid var(--sc-border);
 		background: #fff7ed;
 		padding: 10px 14px;
 	}
 
 	.search-bar > label {
 		font-size: 0.82rem;
-		font-weight: 900;
+		font-weight: 600;
 	}
 
 	.search-field {
@@ -500,16 +500,16 @@
 		left: 10px;
 		width: 17px;
 		height: 17px;
-		color: #64748b;
+		color: var(--sc-muted);
 		pointer-events: none;
 	}
 
 	.search-field input {
 		width: 100%;
 		height: 38px;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 7px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 0 10px 0 34px;
 		font: inherit;
 	}
@@ -518,7 +518,7 @@
 		min-width: 104px;
 		color: #475569;
 		font-size: 0.82rem;
-		font-weight: 800;
+		font-weight: 600;
 		text-align: center;
 	}
 
@@ -529,8 +529,8 @@
 	.toolbar {
 		justify-content: space-between;
 		gap: 16px;
-		border-block: 1px solid #e2e8f0;
-		background: #f8fafc;
+		border-block: 1px solid var(--sc-border);
+		background: var(--sc-canvas);
 		padding: 10px 14px;
 	}
 
@@ -541,21 +541,21 @@
 	button {
 		justify-content: center;
 		min-height: 36px;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 7px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		color: #263442;
 		padding: 0 11px;
 		font: inherit;
 		font-size: 0.88rem;
-		font-weight: 800;
+		font-weight: 600;
 		cursor: pointer;
 	}
 
 	button.active,
 	button:hover:not(:disabled) {
-		border-color: #64748b;
-		background: #f1f5f9;
+		border-color: var(--sc-muted);
+		background: var(--sc-inset);
 	}
 
 	button:disabled {
@@ -576,7 +576,7 @@
 		color: #475569;
 		font-variant-numeric: tabular-nums;
 		font-size: 0.88rem;
-		font-weight: 800;
+		font-weight: 600;
 	}
 
 	.zoom-controls span {
@@ -667,18 +667,18 @@
 	.viewer-state.error a {
 		margin-top: 6px;
 		border-radius: 8px;
-		background: #991b1b;
-		color: #ffffff;
+		background: var(--sc-accent-hover);
+		color: var(--sc-surface);
 		padding: 10px 14px;
 		text-decoration: none;
-		font-weight: 800;
+		font-weight: 600;
 	}
 
 	.spinner {
 		width: 30px;
 		height: 30px;
-		border: 3px solid #cbd5e1;
-		border-top-color: #c81e1e;
+		border: 3px solid var(--sc-border-strong);
+		border-top-color: var(--sc-accent);
 		border-radius: 999px;
 		animation: spin 700ms linear infinite;
 	}

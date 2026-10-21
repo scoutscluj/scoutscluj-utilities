@@ -207,7 +207,7 @@
 		align-items: center;
 		border: 1px solid #dbe3ef;
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 12px;
 		color: inherit;
 		text-align: left;
@@ -215,7 +215,7 @@
 	}
 
 	.recipe-row:hover {
-		background: #f8fafc;
+		background: var(--sc-canvas);
 	}
 
 	.recipe-row span:first-child {
@@ -227,8 +227,8 @@
 		border: 1px solid #dbe3ef;
 		border-radius: 999px;
 		padding: 4px 8px;
-		background: #f8fafc;
-		font-weight: 800;
+		background: var(--sc-canvas);
+		font-weight: 600;
 	}
 
 	.modal-backdrop {
@@ -249,7 +249,7 @@
 		max-height: calc(100vh - 32px);
 		overflow-y: auto;
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 18px;
 		box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
 	}
@@ -271,16 +271,16 @@
 
 	.nested-form {
 		margin-top: 14px;
-		border-top: 1px solid #e2e8f0;
+		border-top: 1px solid var(--sc-border);
 		padding-top: 14px;
 	}
 
 	label {
 		display: grid;
 		gap: 6px;
-		color: #334155;
+		color: var(--sc-ink);
 		font-size: 0.84rem;
-		font-weight: 800;
+		font-weight: 600;
 	}
 
 	input,
@@ -288,7 +288,7 @@
 	textarea {
 		width: 100%;
 		min-width: 0;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
 		padding: 9px 10px;
 		font: inherit;
@@ -299,9 +299,9 @@
 		border: 0;
 		border-radius: 8px;
 		background: #0f766e;
-		color: #ffffff;
+		color: var(--sc-surface);
 		padding: 0 12px;
-		font-weight: 800;
+		font-weight: 600;
 		cursor: pointer;
 	}
 
@@ -314,9 +314,9 @@
 
 	.secondary,
 	.ghost {
-		border: 1px solid #cbd5e1;
-		background: #ffffff;
-		color: #334155;
+		border: 1px solid var(--sc-border-strong);
+		background: var(--sc-surface);
+		color: var(--sc-ink);
 	}
 
 	.ghost {
@@ -343,18 +343,18 @@
 	h2,
 	h3,
 	strong {
-		color: #0f172a;
+		color: var(--sc-ink);
 	}
 
 	.muted,
 	small {
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 
 	.eyebrow {
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.7rem;
-		font-weight: 900;
+		font-weight: 600;
 		text-transform: uppercase;
 	}
 

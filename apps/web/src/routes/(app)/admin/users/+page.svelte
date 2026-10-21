@@ -6,6 +6,28 @@
 	import type { UserRole } from '$lib/auth/types';
 
 	let { data } = $props();
+	let search = $state('');
+	let roleFilter = $state('');
+	let sortDescending = $state(false);
+	let currentPage = $state(0);
+	let pageSize = $state(25);
+	const filteredUsers = $derived(
+		data.users
+			.filter(
+				(user) =>
+					(!search ||
+						`${user.displayName} ${user.email ?? ''} ${getOrgoHint(user)}`
+							.toLocaleLowerCase('ro')
+							.includes(search.toLocaleLowerCase('ro'))) &&
+					(!roleFilter || user.roles.includes(roleFilter as UserRole))
+			)
+			.sort((a, b) => (sortDescending ? -1 : 1) * a.displayName.localeCompare(b.displayName, 'ro'))
+	);
+	const pageCount = $derived(Math.max(1, Math.ceil(filteredUsers.length / pageSize)));
+	const activePage = $derived(Math.min(currentPage, pageCount - 1));
+	const visibleUsers = $derived(
+		filteredUsers.slice(activePage * pageSize, (activePage + 1) * pageSize)
+	);
 	let roleDialogOpen = $state(false);
 	let selectedUserId = $state<number | null>(null);
 
@@ -101,10 +123,39 @@
 		<div class="count-pill">{data.users.length} utilizatori</div>
 	</div>
 
-	{#if data.users.length}
+	<div class="table-tools">
+		<label
+			>Caută utilizator<input
+				bind:value={search}
+				oninput={() => (currentPage = 0)}
+				placeholder="Nume, email sau ID Orgo"
+			/></label
+		>
+		<label
+			>Rol<select bind:value={roleFilter} onchange={() => (currentPage = 0)}
+				><option value="">Toate rolurile</option>{#each data.roleOrder as role (role)}<option
+						value={role}>{formatRole(role)}</option
+					>{/each}</select
+			></label
+		>
+		<label
+			>Rânduri pe pagină<select bind:value={pageSize} onchange={() => (currentPage = 0)}
+				><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option
+				></select
+			></label
+		>
+	</div>
+	{#if filteredUsers.length}
 		<div class="user-table" role="table" aria-label="Utilizatori">
 			<div class="table-header" role="row">
-				<span role="columnheader">Utilizator</span>
+				<span role="columnheader" aria-sort={sortDescending ? 'descending' : 'ascending'}
+					><button
+						type="button"
+						class="sort-button"
+						onclick={() => (sortDescending = !sortDescending)}
+						>Utilizator {sortDescending ? '↓' : '↑'}</button
+					></span
+				>
 				<span role="columnheader">Orgo</span>
 				<span role="columnheader">Roluri</span>
 				<span role="columnheader">Notificări</span>
@@ -113,7 +164,7 @@
 			</div>
 
 			<div class="user-list" role="rowgroup">
-				{#each data.users as user (user.id)}
+				{#each visibleUsers as user (user.id)}
 					<div class="user-row" role="row">
 						<div class="identity" role="cell">
 							<div class="avatar" aria-hidden="true">{user.displayName.slice(0, 1)}</div>
@@ -191,10 +242,31 @@
 		</div>
 	{:else}
 		<div class="empty-state">
-			<h2>Nu există utilizatori încă.</h2>
-			<p>Utilizatorii apar aici după prima autentificare prin Orgo.</p>
+			<h2>
+				{data.users.length
+					? 'Niciun utilizator pentru filtrele alese.'
+					: 'Nu există utilizatori încă.'}
+			</h2>
+			<p>
+				{data.users.length
+					? 'Modifică termenul de căutare sau filtrul de rol.'
+					: 'Utilizatorii apar aici după prima autentificare prin Orgo.'}
+			</p>
 		</div>
 	{/if}
+	<nav class="table-pagination" aria-label="Paginile utilizatorilor">
+		<span aria-live="polite"
+			>{filteredUsers.length} utilizatori · Pagina {activePage + 1} din {pageCount}</span
+		>
+		<button type="button" disabled={activePage === 0} onclick={() => (currentPage = activePage - 1)}
+			>Anterior</button
+		>
+		<button
+			type="button"
+			disabled={activePage === pageCount - 1}
+			onclick={() => (currentPage = activePage + 1)}>Următor</button
+		>
+	</nav>
 </section>
 
 <Dialog.Root bind:open={roleDialogOpen}>
@@ -249,6 +321,56 @@
 </Dialog.Root>
 
 <style>
+	.table-tools {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 16px;
+		align-items: end;
+	}
+	.table-tools label {
+		display: grid;
+		gap: 6px;
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--sc-muted);
+	}
+	.table-tools label:first-child {
+		flex: 1;
+		min-width: min(260px, 100%);
+	}
+	.table-tools input,
+	.table-tools select {
+		min-width: 0;
+		padding: 8px 12px;
+		border: 1px solid var(--sc-border-strong);
+		border-radius: 7px;
+		background: var(--sc-surface);
+		color: var(--sc-ink);
+	}
+	.table-pagination {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 10px;
+		font-size: 13px;
+		color: var(--sc-muted);
+	}
+	.table-pagination span {
+		margin-right: auto;
+	}
+	.table-pagination button,
+	.sort-button {
+		background: transparent;
+		color: var(--sc-muted);
+		border: 1px solid var(--sc-border);
+	}
+	.sort-button {
+		padding: 0;
+		border: 0;
+		font-size: inherit;
+		text-transform: inherit;
+	}
+
 	.users-page {
 		display: grid;
 		gap: 18px;
@@ -269,9 +391,9 @@
 	}
 
 	.eyebrow {
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.78rem;
-		font-weight: 900;
+		font-weight: 600;
 		letter-spacing: 0;
 		text-transform: uppercase;
 	}
@@ -291,28 +413,28 @@
 	.email,
 	.muted-cell,
 	.empty-state p {
-		color: #52616f;
+		color: var(--sc-muted);
 	}
 
 	.count-pill {
 		min-height: 34px;
 		display: inline-flex;
 		align-items: center;
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 999px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 0 12px;
-		color: #334155;
+		color: var(--sc-ink);
 		font-size: 0.9rem;
-		font-weight: 900;
+		font-weight: 600;
 		white-space: nowrap;
 	}
 
 	.user-table,
 	.empty-state {
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 	}
 
 	.table-header,
@@ -327,11 +449,11 @@
 
 	.table-header {
 		min-height: 38px;
-		border-bottom: 1px solid #edf1f5;
+		border-bottom: 1px solid var(--sc-border);
 		padding: 0 12px;
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.76rem;
-		font-weight: 900;
+		font-weight: 600;
 		letter-spacing: 0;
 		text-transform: uppercase;
 	}
@@ -347,7 +469,7 @@
 	.user-row {
 		min-height: 70px;
 		padding: 10px 12px;
-		border-bottom: 1px solid #edf1f5;
+		border-bottom: 1px solid var(--sc-border);
 		transition:
 			background-color 160ms ease,
 			box-shadow 160ms ease;
@@ -358,8 +480,8 @@
 	}
 
 	.user-row:hover {
-		background: #fbfcfe;
-		box-shadow: inset 3px 0 0 #c81e1e;
+		background: var(--sc-canvas);
+		box-shadow: inset 3px 0 0 var(--sc-accent);
 	}
 
 	.identity {
@@ -376,9 +498,9 @@
 		display: grid;
 		place-items: center;
 		border-radius: 999px;
-		background: #c81e1e;
-		color: #ffffff;
-		font-weight: 900;
+		background: var(--sc-accent);
+		color: var(--sc-surface);
+		font-weight: 600;
 	}
 
 	.identity-main {
@@ -396,9 +518,9 @@
 	}
 
 	.title-line span {
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.8rem;
-		font-weight: 850;
+		font-weight: 600;
 	}
 
 	.email,
@@ -422,17 +544,17 @@
 		display: inline-flex;
 		align-items: center;
 		border-radius: 999px;
-		background: #f1f5f9;
+		background: var(--sc-inset);
 		padding: 0 9px;
-		color: #334155;
+		color: var(--sc-ink);
 		font-size: 0.8rem;
-		font-weight: 850;
+		font-weight: 600;
 		white-space: nowrap;
 	}
 
 	.primary-role {
-		background: #fef2f2;
-		color: #991b1b;
+		background: var(--sc-accent-soft);
+		color: var(--sc-accent-hover);
 	}
 
 	.extra-role {
@@ -446,11 +568,11 @@
 		align-items: center;
 		gap: 6px;
 		border-radius: 999px;
-		background: #f1f5f9;
+		background: var(--sc-inset);
 		padding: 0 9px;
-		color: #52616f;
+		color: var(--sc-muted);
 		font-size: 0.8rem;
-		font-weight: 850;
+		font-weight: 600;
 		white-space: nowrap;
 	}
 
@@ -483,7 +605,7 @@
 		align-items: center;
 		justify-content: center;
 		border-radius: 8px;
-		font-weight: 900;
+		font-weight: 600;
 		cursor: pointer;
 	}
 
@@ -492,15 +614,15 @@
 		height: 34px;
 		border: 1px solid transparent;
 		background: transparent;
-		color: #334155;
+		color: var(--sc-ink);
 		font-size: 1.1rem;
 		line-height: 1;
 	}
 
 	:global(.icon-button:hover),
 	:global(.icon-button[data-state='open']) {
-		border-color: #d8dee6;
-		background: #f8fafc;
+		border-color: var(--sc-border);
+		background: var(--sc-canvas);
 	}
 
 	button:focus-visible,
@@ -515,9 +637,9 @@
 	:global(.menu-content) {
 		z-index: 60;
 		min-width: 180px;
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 5px;
 		box-shadow: 0 16px 40px rgb(15 23 42 / 0.14);
 	}
@@ -528,16 +650,16 @@
 		align-items: center;
 		border-radius: 6px;
 		padding: 0 9px;
-		color: #17202a;
+		color: var(--sc-ink);
 		font-size: 0.9rem;
-		font-weight: 800;
+		font-weight: 600;
 		cursor: pointer;
 	}
 
 	:global(.menu-item:hover),
 	:global(.menu-item[data-highlighted]) {
-		background: #fef2f2;
-		color: #991b1b;
+		background: var(--sc-accent-soft);
+		color: var(--sc-accent-hover);
 	}
 
 	:global(.menu-item[data-disabled]) {
@@ -558,11 +680,13 @@
 		left: 50%;
 		z-index: 60;
 		width: min(460px, calc(100vw - 32px));
+		max-height: calc(100dvh - 48px);
+		overflow: auto;
 		display: grid;
 		gap: 18px;
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 18px;
 		box-shadow: 0 24px 70px rgb(15 23 42 / 0.22);
 		transform: translate(-50%, -50%);
@@ -578,12 +702,12 @@
 	:global(.dialog-title) {
 		margin: 0;
 		font-size: 1.12rem;
-		font-weight: 900;
+		font-weight: 600;
 	}
 
 	:global(.dialog-description) {
 		margin-top: 4px;
-		color: #52616f;
+		color: var(--sc-muted);
 		font-size: 0.92rem;
 	}
 
@@ -591,15 +715,15 @@
 		width: 32px;
 		height: 32px;
 		border: 1px solid transparent;
-		background: #ffffff;
-		color: #52616f;
+		background: var(--sc-surface);
+		color: var(--sc-muted);
 		font-size: 1.35rem;
 		line-height: 1;
 	}
 
 	:global(.close-button:hover) {
-		border-color: #d8dee6;
-		background: #f8fafc;
+		border-color: var(--sc-border);
+		background: var(--sc-canvas);
 	}
 
 	.dialog-form {
@@ -609,16 +733,16 @@
 
 	fieldset {
 		min-width: 0;
-		border: 1px solid #e2e8f0;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
 		padding: 12px;
 	}
 
 	legend {
 		padding: 0 4px;
-		color: #334155;
+		color: var(--sc-ink);
 		font-size: 0.85rem;
-		font-weight: 900;
+		font-weight: 600;
 	}
 
 	.role-options {
@@ -630,15 +754,15 @@
 		display: flex;
 		align-items: center;
 		gap: 9px;
-		color: #17202a;
+		color: var(--sc-ink);
 		font-size: 0.95rem;
-		font-weight: 800;
+		font-weight: 600;
 	}
 
 	input[type='checkbox'] {
 		width: 17px;
 		height: 17px;
-		accent-color: #c81e1e;
+		accent-color: var(--sc-accent);
 	}
 
 	.dialog-actions {
@@ -655,14 +779,14 @@
 	}
 
 	button {
-		background: #c81e1e;
-		color: #ffffff;
+		background: var(--sc-accent);
+		color: var(--sc-surface);
 	}
 
 	:global(.secondary-button) {
-		border: 1px solid #d8dee6;
-		background: #ffffff;
-		color: #334155;
+		border: 1px solid var(--sc-border);
+		background: var(--sc-surface);
+		color: var(--sc-ink);
 	}
 
 	.empty-state {

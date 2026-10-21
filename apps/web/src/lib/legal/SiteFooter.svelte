@@ -60,7 +60,7 @@
 		grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.1fr) minmax(0, 1fr);
 		gap: 24px 32px;
 		align-items: start;
-		border-top: 1px solid #d8dee6;
+		border-top: 1px solid var(--sc-border);
 		background: #fff;
 		padding: 28px clamp(16px, 3vw, 40px);
 		overflow-wrap: anywhere;
@@ -74,7 +74,7 @@
 		gap: 7px;
 	}
 	strong {
-		color: #17202a;
+		color: var(--sc-ink);
 	}
 	.organization-logos {
 		display: flex;

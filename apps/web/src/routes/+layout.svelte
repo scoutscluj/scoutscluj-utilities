@@ -1,4 +1,5 @@
 <script lang="ts">
+	import '$lib/styles/theme.css';
 	import { page } from '$app/state';
 	import { usesAuthenticatedShell } from '$lib/auth/authenticated-shell';
 	import { Toaster } from '$lib/components/ui/sonner';
@@ -51,8 +52,8 @@
 
 	:global(body) {
 		margin: 0;
-		background: #f4f6f8;
-		color: #17202a;
+		background: var(--sc-canvas);
+		color: var(--sc-ink);
 		font-family:
 			Inter,
 			ui-sans-serif,

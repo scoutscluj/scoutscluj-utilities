@@ -309,6 +309,6 @@
 	}
 	.secondary {
 		background: white !important;
-		color: #245b46 !important;
+		color: var(--sc-accent) !important;
 	}
 </style>

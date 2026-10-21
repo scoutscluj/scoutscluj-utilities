@@ -173,7 +173,7 @@
 	.form-message {
 		border: 1px solid #dbe3ef;
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 14px;
 		text-decoration: none;
 	}
@@ -181,7 +181,7 @@
 	.overview-grid span {
 		color: #0f766e;
 		font-size: 1.25rem;
-		font-weight: 900;
+		font-weight: 600;
 	}
 
 	.notice {
@@ -193,7 +193,7 @@
 
 	.gap-list div,
 	li {
-		border-bottom: 1px solid #e2e8f0;
+		border-bottom: 1px solid var(--sc-border);
 		padding-bottom: 8px;
 	}
 
@@ -211,8 +211,8 @@
 		border: 1px solid #dbe3ef;
 		border-radius: 999px;
 		padding: 5px 9px;
-		background: #f8fafc;
-		font-weight: 800;
+		background: var(--sc-canvas);
+		font-weight: 600;
 	}
 
 	h1,
@@ -223,12 +223,12 @@
 	}
 
 	h1 {
-		color: #0f172a;
+		color: var(--sc-ink);
 		font-size: 1.5rem;
 	}
 
 	h2 {
-		color: #0f172a;
+		color: var(--sc-ink);
 		font-size: 1rem;
 	}
 
@@ -241,27 +241,27 @@
 	p,
 	.muted,
 	.gap-list span {
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 
 	.eyebrow {
 		color: #2563eb;
 		font-size: 0.72rem;
-		font-weight: 900;
+		font-weight: 600;
 		text-transform: uppercase;
 	}
 
 	label {
 		display: grid;
 		gap: 5px;
-		color: #334155;
+		color: var(--sc-ink);
 		font-size: 0.82rem;
-		font-weight: 800;
+		font-weight: 600;
 	}
 
 	input {
 		width: 120px;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
 		padding: 9px 10px;
 		font: inherit;
@@ -272,16 +272,16 @@
 		border: 0;
 		border-radius: 8px;
 		background: #0f766e;
-		color: #ffffff;
+		color: var(--sc-surface);
 		padding: 0 12px;
-		font-weight: 800;
+		font-weight: 600;
 		cursor: pointer;
 	}
 
 	.secondary {
-		border: 1px solid #cbd5e1;
-		background: #ffffff;
-		color: #334155;
+		border: 1px solid var(--sc-border-strong);
+		background: var(--sc-surface);
+		color: var(--sc-ink);
 	}
 
 	@media (max-width: 980px) {

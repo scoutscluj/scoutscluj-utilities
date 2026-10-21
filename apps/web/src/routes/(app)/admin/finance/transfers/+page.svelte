@@ -131,7 +131,7 @@
 
 <style>
 	.orgo-item {
-		border-top: 1px solid #e2e8f0;
+		border-top: 1px solid var(--sc-border);
 		padding: 16px 0;
 	}
 	.orgo-item p {
@@ -142,7 +142,7 @@
 		font-weight: 700;
 	}
 	.evidence {
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.85rem;
 		overflow-wrap: anywhere;
 	}

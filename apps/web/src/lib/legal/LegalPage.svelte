@@ -41,7 +41,7 @@
 	}
 	article,
 	aside {
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 12px;
 		background: #fff;
 		padding: clamp(22px, 5vw, 48px);
@@ -70,11 +70,11 @@
 		margin: 0;
 		color: #166534;
 		font-size: 0.78rem;
-		font-weight: 900;
+		font-weight: 600;
 		text-transform: uppercase;
 	}
 	.updated {
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 	aside {
 		display: grid;

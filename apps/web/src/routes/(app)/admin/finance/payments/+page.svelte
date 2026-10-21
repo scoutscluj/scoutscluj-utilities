@@ -224,7 +224,7 @@
 	}
 	.member-id {
 		font-size: 0.8rem;
-		color: #64748b;
+		color: var(--sc-muted);
 	}
 	.stat :global(svg) {
 		color: #15803d;
@@ -248,7 +248,7 @@
 		flex-wrap: wrap;
 	}
 	.heading strong {
-		color: #334155;
+		color: var(--sc-ink);
 		font-size: 1.3rem;
 	}
 	dl {
@@ -258,7 +258,7 @@
 	}
 	dt,
 	small {
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.85rem;
 	}
 	dd {

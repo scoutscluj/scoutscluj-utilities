@@ -74,7 +74,7 @@ test('member registry keeps occasional actions collapsed and offers only groups 
 	await expect(
 		page.getByRole('complementary').getByText('Micro-stagii', { exact: true })
 	).toHaveCount(0);
-	await page.locator('summary').filter({ hasText: 'Adaugă membru' }).click();
+	await page.getByRole('button', { name: 'Adaugă membru', exact: true }).click();
 	await expect(page.getByLabel('Nume complet')).toBeVisible();
 	const group = page.getByRole('combobox', { name: 'Grupă', exact: true });
 	await expect(group).toBeDisabled();
@@ -119,7 +119,7 @@ test('structure filtering and initial classification keep unit choices consisten
 		.selectOption('floresti');
 	await expect(page.getByRole('link', { name: 'Copil Florești', exact: true })).toBeVisible();
 	await expect(page.getByRole('link', { name: 'Ana Popescu', exact: true })).not.toBeVisible();
-	await page.locator('summary').filter({ hasText: 'Adaugă membru' }).click();
+	await page.getByRole('button', { name: 'Adaugă membru', exact: true }).click();
 	const create = page
 		.locator('form')
 		.filter({ has: page.locator('input[name="action"][value="create"]') });
@@ -175,8 +175,13 @@ test('selects all inactive results across pages and opens the withdrawal preview
 	await history.locator('summary').first().click();
 	await history.getByRole('button', { name: 'Selectează toate rezultatele (52)' }).click();
 	await history.getByRole('button', { name: 'Modifică selecția', exact: true }).click();
-	await history.getByRole('button', { name: 'Previzualizează modificarea', exact: true }).click();
-	await expect(history.getByRole('button', { name: 'Aplică pentru 52 persoane' })).toBeVisible();
+	await page
+		.getByRole('dialog')
+		.getByRole('button', { name: 'Previzualizează modificarea', exact: true })
+		.click();
+	await expect(
+		page.getByRole('dialog').getByRole('button', { name: 'Aplică pentru 52 persoane' })
+	).toBeVisible();
 });
 
 test('opens fee details from the member menu and confirms only a local bank contribution', async ({
@@ -187,10 +192,8 @@ test('opens fee details from the member menu and confirms only a local bank cont
 	const row = page
 		.getByRole('row')
 		.filter({ has: page.getByRole('link', { name: 'Ana Popescu', exact: true }) });
-	await row.locator('summary').click();
-	await row
-		.getByRole('button', { name: 'Național achitat în Orgo / partea locală', exact: true })
-		.click();
+	await row.getByRole('button', { name: 'Acțiuni pentru Ana Popescu' }).click();
+	await page.getByRole('menuitem', { name: 'Cotizații', exact: true }).click();
 	await page
 		.locator('summary')
 		.filter({ hasText: 'Național achitat în Orgo — confirmă partea locală' })
@@ -206,4 +209,114 @@ test('opens fee details from the member menu and confirms only a local bank cont
 		reference: 'BT-local',
 		receivedOn: '2026-10-20'
 	});
+});
+
+test('member actions open a focused modal without expanding the row and return keyboard focus', async ({
+	page
+}, testInfo) => {
+	await page.goto('/units');
+	const trigger = page.getByRole('button', { name: 'Acțiuni pentru Ana Popescu', exact: true });
+	const row = page.getByRole('row').filter({ has: trigger });
+	const height = (await row.boundingBox())!.height;
+	await trigger.click();
+	await page.getByRole('menuitem', { name: 'Schimbă clasa', exact: true }).click();
+	const dialog = page.getByRole('dialog', { name: 'Schimbă clasa · Ana Popescu' });
+	await expect(dialog).toBeVisible();
+	await expect(dialog.getByRole('combobox', { name: 'Modificare', exact: true })).toHaveCount(0);
+	await expect(dialog.getByRole('spinbutton', { name: 'Clasa', exact: true })).toHaveValue('5');
+	expect((await row.boundingBox())!.height).toBe(height);
+	await page.screenshot({ path: testInfo.outputPath('member-action-dialog.png') });
+	await page.keyboard.press('Escape');
+	await expect(dialog).not.toBeVisible();
+	await expect(trigger).toBeFocused();
+});
+
+test('registry supports sorting, column visibility, page sizes and scoped selection', async ({
+	page
+}, testInfo) => {
+	await page.goto('/units');
+	const registry = page
+		.locator('section')
+		.filter({ has: page.getByRole('heading', { name: 'Registru', exact: true }) });
+	const nameHeader = registry
+		.getByRole('columnheader')
+		.filter({ has: page.getByRole('button', { name: /^Membru/ }) });
+	await expect(nameHeader).toHaveAttribute('aria-sort', 'ascending');
+	await nameHeader.getByRole('button').click();
+	await expect(nameHeader).toHaveAttribute('aria-sort', 'descending');
+	await registry.getByRole('combobox', { name: 'Rânduri pe pagină' }).selectOption('10');
+	await registry.locator('summary').filter({ hasText: 'Coloane' }).click();
+	await registry.getByRole('checkbox', { name: 'Clasa', exact: true }).uncheck();
+	await expect(registry.getByRole('columnheader').filter({ hasText: 'Clasa' })).toHaveCount(0);
+	await registry.getByRole('checkbox', { name: 'Selectează pagina curentă' }).check();
+	await expect(
+		registry.getByRole('button', { name: 'Modifică selecția', exact: true })
+	).toBeVisible();
+	await page.getByLabel('Caută membru', { exact: true }).fill('Nobody-matches');
+	await expect(
+		registry.getByRole('button', { name: 'Modifică selecția', exact: true })
+	).toHaveCount(0);
+	await expect(registry.getByText('Nu există membri pentru filtrele alese.')).toBeVisible();
+	await page.getByLabel('Caută membru', { exact: true }).fill('');
+	await registry.locator('summary').filter({ hasText: 'Coloane' }).click();
+	await page.screenshot({ path: testInfo.outputPath('registry-desktop.png'), fullPage: true });
+	await page.setViewportSize({ width: 390, height: 844 });
+	await expect
+		.poll(() =>
+			page
+				.getByRole('complementary', { includeHidden: true })
+				.evaluate((el) => el.getBoundingClientRect().right)
+		)
+		.toBeLessThanOrEqual(0);
+	await page.screenshot({ path: testInfo.outputPath('registry-mobile.png'), fullPage: true });
+	expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+});
+
+test('users table filters roles, searches identities, pages and opens role dialogs', async ({
+	page
+}, testInfo) => {
+	await page.goto('/admin/users');
+	await expect(page.getByRole('heading', { name: 'Voluntar 01', exact: true })).toBeVisible();
+	await page.getByRole('button', { name: 'Următor', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'Voluntar 26', exact: true })).toBeVisible();
+	await page.getByRole('combobox', { name: 'Rol', exact: true }).selectOption('finance_manager');
+	await expect(page.getByRole('heading', { name: 'Voluntar 01', exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Voluntar 02', exact: true })).toHaveCount(0);
+	await page.getByLabel('Caută utilizator').fill('voluntar3@example.test');
+	await expect(page.getByRole('heading', { name: 'Voluntar 03', exact: true })).toBeVisible();
+	await page.getByRole('button', { name: 'Acțiuni pentru Voluntar 03' }).click();
+	await page.getByRole('menuitem', { name: 'Schimbă rolurile' }).click();
+	await expect(page.getByRole('dialog')).toBeVisible();
+	await page.keyboard.press('Escape');
+	await page.getByLabel('Caută utilizator').fill('');
+	await page.screenshot({ path: testInfo.outputPath('users-desktop.png'), fullPage: true });
+	await page.setViewportSize({ width: 390, height: 844 });
+	await expect
+		.poll(() =>
+			page
+				.getByRole('complementary', { includeHidden: true })
+				.evaluate((el) => el.getBoundingClientRect().right)
+		)
+		.toBeLessThanOrEqual(0);
+	await page.screenshot({ path: testInfo.outputPath('users-mobile.png'), fullPage: true });
+	expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+});
+
+test('unit archiving requires a separate confirmation and cancellation keeps the unit', async ({
+	page,
+	request
+}) => {
+	await page.goto('/units');
+	await page.getByRole('button', { name: 'Unități și grupe', exact: true }).click();
+	await page.getByRole('button', { name: 'Acțiuni pentru Temerari', exact: true }).click();
+	await page.getByRole('menuitem', { name: 'Arhivează', exact: true }).click();
+	const confirmation = page.getByRole('dialog', { name: 'Arhivează Temerari', exact: true });
+	await expect(confirmation).toBeVisible();
+	await confirmation.getByRole('button', { name: 'Anulează', exact: true }).click();
+	await expect(confirmation).toHaveCount(0);
+	await expect(
+		page.getByRole('button', { name: 'Acțiuni pentru Temerari', exact: true })
+	).toBeVisible();
+	const submissions = await (await request.get('http://127.0.0.1:3015/test/submissions')).json();
+	expect(submissions).toHaveLength(0);
 });

@@ -53,11 +53,11 @@
 	}
 	dl div {
 		grid-template-columns: minmax(100px, 150px) 1fr;
-		border-bottom: 1px solid #e2e8f0;
+		border-bottom: 1px solid var(--sc-border);
 		padding: 12px 0;
 	}
 	dt {
-		font-weight: 800;
+		font-weight: 600;
 	}
 	dd {
 		margin: 0;

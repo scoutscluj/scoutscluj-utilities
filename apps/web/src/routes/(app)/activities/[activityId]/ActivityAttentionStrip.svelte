@@ -133,7 +133,7 @@
 
 	a,
 	span {
-		color: #334155;
+		color: var(--sc-ink);
 		font-size: 0.9rem;
 		font-weight: 760;
 	}

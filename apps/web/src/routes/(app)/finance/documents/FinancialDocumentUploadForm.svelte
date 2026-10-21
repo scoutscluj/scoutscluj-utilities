@@ -88,13 +88,13 @@
 
 	.panel-title {
 		font-size: 1rem;
-		font-weight: 900;
+		font-weight: 600;
 	}
 
 	.panel-subtitle,
 	.handoff-note {
 		margin-top: 4px;
-		color: #52616f;
+		color: var(--sc-muted);
 		font-size: 0.92rem;
 	}
 
@@ -102,13 +102,13 @@
 		border-left: 3px solid #0f766e;
 		background: #f0fdfa;
 		padding: 10px 12px;
-		font-weight: 800;
+		font-weight: 600;
 	}
 
 	label {
 		display: grid;
 		gap: 6px;
-		font-weight: 800;
+		font-weight: 600;
 	}
 
 	.fixed-activity {
@@ -116,14 +116,14 @@
 		gap: 4px;
 		border: 1px solid #dbe3ef;
 		border-radius: 8px;
-		background: #f8fafc;
+		background: var(--sc-canvas);
 		padding: 10px 12px;
-		color: #334155;
+		color: var(--sc-ink);
 	}
 
 	.fixed-activity span {
 		font-size: 0.78rem;
-		font-weight: 900;
+		font-weight: 600;
 		letter-spacing: 0;
 		text-transform: uppercase;
 	}
@@ -131,7 +131,7 @@
 	.fixed-activity strong {
 		min-width: 0;
 		overflow: hidden;
-		color: #0f172a;
+		color: var(--sc-ink);
 		font-size: 0.95rem;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -142,11 +142,11 @@
 	textarea {
 		width: 100%;
 		min-width: 0;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 10px 12px;
-		color: #17202a;
+		color: var(--sc-ink);
 	}
 
 	textarea {
@@ -160,15 +160,15 @@
 		justify-content: center;
 		border: 0;
 		border-radius: 8px;
-		background: #c81e1e;
+		background: var(--sc-accent);
 		padding: 0 14px;
-		color: #ffffff;
-		font-weight: 900;
+		color: var(--sc-surface);
+		font-weight: 600;
 		cursor: pointer;
 	}
 
 	button:hover {
-		background: #991b1b;
+		background: var(--sc-accent-hover);
 	}
 
 	@media (max-width: 620px) {

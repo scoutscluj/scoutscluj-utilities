@@ -109,7 +109,7 @@
 		width: 104px;
 		display: grid;
 		gap: 7px;
-		color: #334155;
+		color: var(--sc-ink);
 		text-align: center;
 	}
 
@@ -125,7 +125,7 @@
 
 	.preview-card:has(.preview-overlay:hover) .preview-frame,
 	.preview-card:has(.preview-overlay:focus-visible) .preview-frame {
-		border-color: #991b1b;
+		border-color: var(--sc-accent-hover);
 		box-shadow: 0 0 0 3px rgb(153 27 27 / 0.1);
 	}
 
@@ -155,9 +155,9 @@
 		display: grid;
 		place-items: center;
 		overflow: hidden;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
-		background: #f8fafc;
+		background: var(--sc-canvas);
 	}
 
 	.compact .preview-frame {
@@ -182,9 +182,9 @@
 		border-radius: 999px;
 		background: rgb(15 23 42 / 0.78);
 		padding: 4px 8px;
-		color: #ffffff;
+		color: var(--sc-surface);
 		font-size: 0.72rem;
-		font-weight: 900;
+		font-weight: 600;
 	}
 
 	.preview-badge {
@@ -203,7 +203,7 @@
 	.preview-label {
 		color: #475569;
 		font-size: 0.78rem;
-		font-weight: 850;
+		font-weight: 600;
 	}
 
 	.compact .preview-label {
@@ -236,7 +236,7 @@
 		grid-template-rows: auto minmax(0, 1fr);
 		overflow: hidden;
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		box-shadow: 0 24px 70px rgb(15 23 42 / 0.28);
 	}
 
@@ -246,7 +246,7 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 12px;
-		border-bottom: 1px solid #d8dee6;
+		border-bottom: 1px solid var(--sc-border);
 		padding: 12px 14px;
 	}
 
@@ -254,8 +254,8 @@
 		min-width: 0;
 		margin: 0;
 		overflow: hidden;
-		color: #0f172a;
-		font-weight: 900;
+		color: var(--sc-ink);
+		font-weight: 600;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
@@ -264,10 +264,10 @@
 		width: 36px;
 		height: 36px;
 		flex: 0 0 auto;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
-		background: #ffffff;
-		color: #334155;
+		background: var(--sc-surface);
+		color: var(--sc-ink);
 		font-size: 1.35rem;
 		line-height: 1;
 		cursor: pointer;
@@ -276,7 +276,7 @@
 	.preview-body {
 		min-height: 0;
 		display: grid;
-		background: #0f172a;
+		background: var(--sc-ink);
 	}
 
 	.preview-body.image-preview,
@@ -299,7 +299,7 @@
 		display: grid;
 		gap: 12px;
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 18px;
 		text-align: center;
 	}
@@ -311,6 +311,6 @@
 
 	.unsupported-preview a {
 		color: #2563eb;
-		font-weight: 900;
+		font-weight: 600;
 	}
 </style>

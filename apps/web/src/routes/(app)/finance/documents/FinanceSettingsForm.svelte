@@ -67,12 +67,12 @@
 
 	.panel-title {
 		font-size: 1rem;
-		font-weight: 900;
+		font-weight: 600;
 	}
 
 	.panel-subtitle,
 	.notice {
-		color: #52616f;
+		color: var(--sc-muted);
 	}
 
 	.panel-subtitle {
@@ -83,24 +83,24 @@
 	label {
 		display: grid;
 		gap: 6px;
-		font-weight: 800;
+		font-weight: 600;
 	}
 
 	select {
 		width: 100%;
 		min-width: 0;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 10px 12px;
-		color: #17202a;
+		color: var(--sc-ink);
 	}
 
 	.notice {
 		border-left: 3px solid #d97706;
 		background: #fffbeb;
 		padding: 10px 12px;
-		font-weight: 750;
+		font-weight: 600;
 	}
 
 	button {
@@ -110,15 +110,15 @@
 		justify-content: center;
 		border: 0;
 		border-radius: 8px;
-		background: #c81e1e;
+		background: var(--sc-accent);
 		padding: 0 14px;
-		color: #ffffff;
-		font-weight: 900;
+		color: var(--sc-surface);
+		font-weight: 600;
 		cursor: pointer;
 	}
 
 	button:hover {
-		background: #991b1b;
+		background: var(--sc-accent-hover);
 	}
 
 	@media (max-width: 620px) {

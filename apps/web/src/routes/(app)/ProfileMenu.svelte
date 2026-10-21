@@ -100,8 +100,8 @@
 
 	:global(.profile-trigger:hover),
 	:global(.profile-trigger[data-state='open']) {
-		border-color: #d8dee6;
-		background: #f8fafc;
+		border-color: var(--sc-border);
+		background: var(--sc-canvas);
 	}
 
 	:global(.profile-trigger:focus-visible),
@@ -116,10 +116,10 @@
 		display: grid;
 		place-items: center;
 		border-radius: 999px;
-		background: #c81e1e;
-		color: #ffffff;
+		background: var(--sc-accent);
+		color: var(--sc-surface);
 		font-size: 0.8rem;
-		font-weight: 900;
+		font-weight: 600;
 	}
 
 	.large-avatar {
@@ -134,7 +134,7 @@
 		bottom: 5px;
 		width: 11px;
 		height: 11px;
-		border: 2px solid #ffffff;
+		border: 2px solid var(--sc-surface);
 		border-radius: 999px;
 		background: #16a34a;
 	}
@@ -146,9 +146,9 @@
 	:global(.profile-menu-content) {
 		z-index: 60;
 		width: min(280px, calc(100vw - 24px));
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 6px;
 		box-shadow: 0 16px 40px rgb(15 23 42 / 0.14);
 	}
@@ -181,15 +181,15 @@
 	}
 
 	.profile-identity strong {
-		color: #17202a;
+		color: var(--sc-ink);
 		font-size: 0.95rem;
-		font-weight: 900;
+		font-weight: 600;
 	}
 
 	.profile-identity span {
-		color: #64748b;
+		color: var(--sc-muted);
 		font-size: 0.84rem;
-		font-weight: 750;
+		font-weight: 600;
 	}
 
 	.status-badge {
@@ -198,13 +198,13 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 7px;
-		border: 1px solid #cbd5e1;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 999px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 0 9px;
 		color: #475569;
 		font-size: 0.78rem;
-		font-weight: 850;
+		font-weight: 600;
 		white-space: nowrap;
 	}
 
@@ -228,7 +228,7 @@
 	:global(.profile-menu-separator) {
 		height: 1px;
 		margin: 4px 2px;
-		background: #edf1f5;
+		background: var(--sc-border);
 	}
 
 	.profile-logout-form {
@@ -244,26 +244,26 @@
 		border-radius: 6px;
 		background: transparent;
 		padding: 0 9px;
-		color: #17202a;
+		color: var(--sc-ink);
 		text-decoration: none;
 		font-size: 0.9rem;
-		font-weight: 850;
+		font-weight: 600;
 		cursor: pointer;
 	}
 
 	:global(.profile-menu-item:hover),
 	:global(.profile-menu-item[data-highlighted]) {
-		background: #fef2f2;
-		color: #991b1b;
+		background: var(--sc-accent-soft);
+		color: var(--sc-accent-hover);
 	}
 
 	:global(.profile-menu-item.danger) {
-		color: #334155;
+		color: var(--sc-ink);
 	}
 
 	:global(.profile-menu-item.danger:hover),
 	:global(.profile-menu-item.danger[data-highlighted]) {
-		background: #fef2f2;
-		color: #991b1b;
+		background: var(--sc-accent-soft);
+		color: var(--sc-accent-hover);
 	}
 </style>

@@ -1,0 +1,219 @@
+:root {
+	--sc-canvas: #f7f8fa;
+	--sc-surface: #ffffff;
+	--sc-inset: #f3f4f6;
+	--sc-border: #e2e5e9;
+	--sc-border-strong: #cbd0d8;
+	--sc-ink: #202630;
+	--sc-muted: #626c79;
+	--sc-accent: #b4232c;
+	--sc-accent-hover: #961e27;
+	--sc-accent-soft: #fceff0;
+	--sc-success: #216346;
+	--sc-success-soft: #edf7f0;
+	--sc-radius: 10px;
+	--sc-shadow: 0 8px 24px rgb(24 32 44 / 0.08), 0 2px 6px rgb(24 32 44 / 0.04);
+}
+
+body {
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
+}
+[hidden] {
+	display: none !important;
+}
+button,
+input,
+select,
+textarea {
+	font: inherit;
+}
+button,
+select,
+input:not([type='checkbox'], [type='radio']),
+textarea {
+	min-height: 38px;
+}
+button {
+	transition:
+		background-color 140ms ease,
+		border-color 140ms ease;
+}
+button:not(:disabled),
+summary {
+	cursor: pointer;
+}
+button:disabled {
+	cursor: not-allowed;
+	opacity: 0.5;
+}
+input[type='checkbox'],
+input[type='radio'] {
+	accent-color: var(--sc-accent);
+}
+:is(button, a, input, select, textarea, summary, [role='menuitem']):focus-visible {
+	outline: 2px solid var(--sc-accent);
+	outline-offset: 3px;
+}
+h1 {
+	letter-spacing: -0.035em;
+	line-height: 1.2;
+}
+h2,
+h3 {
+	letter-spacing: -0.02em;
+	line-height: 1.3;
+}
+table {
+	font-variant-numeric: tabular-nums;
+}
+
+.sc-icon-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	min-height: 36px;
+	flex-shrink: 0;
+	padding: 0;
+	border: 1px solid transparent;
+	border-radius: 7px;
+	background: transparent;
+	color: var(--sc-muted);
+	cursor: pointer;
+}
+.sc-icon-button:hover,
+.sc-icon-button[data-state='open'] {
+	background: var(--sc-inset);
+	border-color: var(--sc-border);
+	color: var(--sc-ink);
+}
+.sc-menu-content {
+	z-index: 80;
+	min-width: 224px;
+	max-width: calc(100vw - 24px);
+	padding: 5px;
+	border: 1px solid var(--sc-border);
+	border-radius: var(--sc-radius);
+	background: var(--sc-surface);
+	box-shadow: var(--sc-shadow);
+}
+.sc-menu-item {
+	display: flex;
+	align-items: center;
+	min-height: 36px;
+	padding: 7px 10px;
+	border-radius: 6px;
+	font-size: 14px;
+	color: var(--sc-ink);
+	cursor: pointer;
+	outline: none;
+}
+.sc-menu-item[data-highlighted] {
+	background: var(--sc-inset);
+}
+.sc-menu-item[data-destructive] {
+	color: var(--sc-accent);
+}
+.sc-menu-item[data-disabled] {
+	opacity: 0.5;
+	pointer-events: none;
+}
+.sc-dialog-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 70;
+	background: rgb(20 26 36 / 0.4);
+	backdrop-filter: blur(2px);
+}
+.sc-dialog-content {
+	position: fixed;
+	z-index: 80;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: min(600px, calc(100vw - 32px));
+	max-height: calc(100dvh - 48px);
+	overflow: auto;
+	border: 1px solid var(--sc-border);
+	border-radius: 14px;
+	background: var(--sc-surface);
+	box-shadow: 0 24px 80px rgb(20 26 36 / 0.22);
+}
+.sc-dialog-heading {
+	display: flex;
+	align-items: start;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 24px 24px 18px;
+	border-bottom: 1px solid var(--sc-border);
+}
+.sc-dialog-title {
+	margin: 0;
+	font-size: 20px;
+	font-weight: 600;
+	color: var(--sc-ink);
+}
+.sc-dialog-description {
+	margin: 6px 0 0;
+	font-size: 14px;
+	color: var(--sc-muted);
+}
+.sc-dialog-body {
+	padding: 24px;
+}
+.sc-dialog-body form {
+	display: grid;
+	gap: 16px;
+}
+.sc-dialog-body label {
+	display: grid;
+	gap: 6px;
+	font-size: 14px;
+	color: var(--sc-ink);
+}
+.sc-dialog-body
+	:is(input:not([type='checkbox'], [type='radio'], [type='hidden']), select, textarea) {
+	width: 100%;
+	border: 1px solid var(--sc-border-strong);
+	border-radius: 7px;
+	background: var(--sc-inset);
+	color: var(--sc-ink);
+	padding: 9px 12px;
+}
+.sc-dialog-body button:not(.sc-icon-button) {
+	min-height: 38px;
+	border: 1px solid var(--sc-border);
+	border-radius: 7px;
+	padding: 8px 14px;
+	background: var(--sc-surface);
+	color: var(--sc-ink);
+}
+.sc-dialog-body button[type='submit'] {
+	background: var(--sc-accent);
+	border-color: var(--sc-accent);
+	color: white;
+}
+.sc-dialog-body .check {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+@media (max-width: 620px) {
+	.sc-dialog-heading {
+		padding: 20px 16px 16px;
+	}
+	.sc-dialog-body {
+		padding: 16px;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		scroll-behavior: auto !important;
+		transition-duration: 0.01ms !important;
+		animation-duration: 0.01ms !important;
+	}
+}

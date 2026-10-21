@@ -48,21 +48,21 @@
 <style>
 	.calendars > summary {
 		min-height: 44px;
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		padding: 12px 16px;
-		color: #0f172a;
-		font-weight: 800;
+		color: var(--sc-ink);
+		font-weight: 600;
 		cursor: pointer;
 	}
 
 	.calendars > summary:hover {
-		background: #f8fafc;
+		background: var(--sc-canvas);
 	}
 
 	.calendars > summary:focus-visible {
-		outline: 2px solid #991b1b;
+		outline: 2px solid var(--sc-accent-hover);
 		outline-offset: 4px;
 	}
 
@@ -81,9 +81,9 @@
 		flex-direction: column;
 		min-width: 0;
 		height: max(360px, calc(100svh - 176px));
-		border: 1px solid #d8dee6;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
-		background: #ffffff;
+		background: var(--sc-surface);
 		overflow: hidden;
 	}
 
@@ -97,22 +97,22 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 4px 12px;
-		border-bottom: 1px solid #d8dee6;
+		border-bottom: 1px solid var(--sc-border);
 		padding: 12px 16px;
 	}
 
 	h2 {
 		margin: 0;
-		color: #0f172a;
+		color: var(--sc-ink);
 		font-size: 1rem;
-		font-weight: 800;
+		font-weight: 600;
 	}
 
 	a {
 		display: inline-flex;
 		align-items: center;
 		min-height: 44px;
-		color: #991b1b;
+		color: var(--sc-accent-hover);
 		font-size: 0.85rem;
 		font-weight: 700;
 		text-underline-offset: 3px;
@@ -123,7 +123,7 @@
 	}
 
 	a:focus-visible {
-		outline: 2px solid #991b1b;
+		outline: 2px solid var(--sc-accent-hover);
 		outline-offset: 4px;
 		border-radius: 2px;
 	}

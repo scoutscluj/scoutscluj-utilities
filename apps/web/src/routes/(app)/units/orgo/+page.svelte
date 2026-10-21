@@ -132,13 +132,13 @@
 	}
 	button {
 		padding: 12px;
-		background: #245b46;
+		background: var(--sc-accent);
 		color: white;
 		border: 0;
 		border-radius: 8px;
 		cursor: pointer;
 	}
 	a {
-		color: #216249;
+		color: var(--sc-accent);
 	}
 </style>

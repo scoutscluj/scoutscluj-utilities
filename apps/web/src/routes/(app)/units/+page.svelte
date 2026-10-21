@@ -3,6 +3,11 @@
 	import type { PageData, ActionData } from './$types';
 	import { branchLabels, syncLabels, unitName } from '$lib/members/types';
 	import MemberTable from '$lib/members/MemberTable.svelte';
+	import Modal from '$lib/components/ui/Modal.svelte';
+	import ActionMenu from '$lib/components/ui/ActionMenu.svelte';
+	import type { Unit } from '$lib/members/types';
+	let archiveUnit = $state<Unit>();
+	let archiveOpen = $state(false);
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	const activeSection = $derived(
 		form && 'section' in form && typeof form.section === 'string' ? form.section : ''
@@ -64,6 +69,22 @@
 		<p class="eyebrow">CENTRUL LOCAL CLUJ</p>
 		<h1>Unități și membri</h1>
 		<p>Grupe, responsabilități și fișele membrilor, într-un singur registru.</p>
+		<div class="workspace-actions">
+			{#if data.registry.canManage}<button type="button" onclick={() => (createOpen = true)}
+					>Adaugă membru</button
+				>{/if}
+			{#if data.registry.admin || data.registry.chiefUnitIds.length}<button
+					type="button"
+					class="secondary"
+					onclick={() => (structureOpen = true)}>Unități și grupe</button
+				>{/if}
+			{#if data.registry.admin}<ActionMenu
+					label="Mai multe acțiuni pentru registru"
+					items={[
+						{ label: 'Actualizarea anuală a membrilor', action: () => (progressionOpen = true) }
+					]}
+				/>{/if}
+		</div>
 	</header>
 	{#if form?.message}<p class="notice" role="status">{form.message}</p>{/if}
 	<div class="stats">
@@ -115,7 +136,13 @@
 				></label
 			>
 		</div>
-		<MemberTable members={visible} registry={data.registry} preview={bulkPreview} {feeMenu} />
+		<MemberTable
+			members={visible}
+			registry={data.registry}
+			message={form?.message}
+			preview={bulkPreview}
+			{feeMenu}
+		/>
 	</section>
 	<section>
 		<details>
@@ -136,100 +163,105 @@
 						status: m.status ?? 'review'
 					}))}
 				registry={data.registry}
+				message={form?.message}
 				preview={bulkPreview}
 				{feeMenu}
 				inactive
 			/>
 		</details>
 	</section>
-	{#if data.registry.canManage}<section>
-			<details bind:open={createOpen}>
-				<summary>Adaugă membru</summary>
-				<form method="POST" class="grid">
-					<input type="hidden" name="action" value="create" /><label
-						>Structură<select
-							name="structureId"
-							bind:value={newStructure}
-							onchange={() => (newMemberUnit = '')}
-							>{#each structures as st (st.id)}<option value={st.id}>{st.name}</option
-								>{/each}</select
-						></label
-					><label
-						>Tip membru<select name="kind" bind:value={newMemberKind}
-							><option value="beneficiary">Beneficiar</option><option value="adult"
-								>Voluntar adult</option
-							></select
-						></label
-					><label>Nume complet<input name="name" required maxlength="255" /></label><label
-						>Data nașterii<input type="date" name="birthDate" /></label
-					>{#if newMemberKind === 'beneficiary'}<label
-							>Clasa<input type="number" name="grade" min="1" max="12" /></label
-						>{/if}<label
-						>Unitate<select
-							name="unitId"
-							bind:value={newMemberUnit}
-							required={newMemberKind === 'beneficiary'}
-							><option value=""
-								>{newMemberKind === 'adult' ? 'Fără unitate' : 'Alege unitatea'}</option
-							>{#each units.filter((u) => (u.structureId ?? 'cluj') === newStructure) as u (u.id)}<option
-									value={u.id}>{u.name}</option
-								>{/each}</select
-						></label
-					><label
-						>Grupă<select name="groupId" disabled={!newMemberUnit}
-							><option value="">Colectiv comun / nerepartizat</option
-							>{#each data.registry.units.filter((u) => u.parentId === newMemberUnit && !u.archived) as u (u.id)}<option
-									value={u.id}>{name(u.parentId)} / {u.name}</option
-								>{/each}</select
-						></label
-					><button>Adaugă membru</button>
-				</form>
-				<p class="hint">Alege unitatea și, dacă este cazul, grupa în care va fi înscris membrul.</p>
-			</details>
-		</section>{/if}
-	{#if data.registry.admin || data.registry.chiefUnitIds.length}<section>
-			<details bind:open={structureOpen}>
-				<summary>Unități și grupe</summary>
-				<div class="unit-list">
-					{#each data.registry.units.filter((u) => !u.archived) as u (u.id)}<div>
-							<span
-								>{u.parentId ? '↳ ' : ''}<strong>{u.name}</strong> · {branchLabels[u.branch]}</span
-							>{#if data.registry.admin || data.registry.chiefUnitIds.includes(u.parentId ?? u.id)}<form
-									method="POST"
-								>
-									<input type="hidden" name="action" value="archive" /><input
-										type="hidden"
-										name="id"
-										value={u.id}
-									/><button class="secondary">Arhivează</button>
-								</form>{/if}
-						</div>{/each}
-				</div>
-				<form method="POST" class="grid">
-					<input type="hidden" name="action" value="unit" /><label
-						>Structură<select name="structureId" bind:value={unitStructure}
-							>{#each structures.filter((st) => data.registry.manageableStructureIds?.includes(st.id) || units.some((u) => (u.structureId ?? 'cluj') === st.id && data.registry.chiefUnitIds.includes(u.id))) as st (st.id)}<option
-									value={st.id}>{st.name}</option
-								>{/each}</select
-						></label
-					><label>Nume<input name="name" required /></label><label
-						>Creează în<select name="parentId"
-							>{#if data.registry.admin || data.registry.manageableStructureIds?.includes(unitStructure)}<option
-									value="">Unitate nouă</option
-								>{/if}{#each units.filter((u) => (u.structureId ?? 'cluj') === unitStructure && (data.registry.admin || data.registry.chiefUnitIds.includes(u.id))) as u (u.id)}<option
-									value={u.id}>{u.name}</option
-								>{/each}</select
-						></label
-					><label
-						>Ramură<select name="branch"
-							>{#each Object.entries(branchLabels) as [key, label] (key)}<option value={key}
-									>{label}</option
-								>{/each}</select
-						></label
-					><button>Salvează unitatea sau grupa</button>
-				</form>
-			</details>
-		</section>{/if}
+	{#if data.registry.canManage}<Modal
+			bind:open={createOpen}
+			title="Adaugă membru"
+			description="Înscrie un beneficiar sau un voluntar adult în structura potrivită."
+		>
+			<form method="POST" class="grid">
+				<input type="hidden" name="action" value="create" /><label
+					>Structură<select
+						name="structureId"
+						bind:value={newStructure}
+						onchange={() => (newMemberUnit = '')}
+						>{#each structures as st (st.id)}<option value={st.id}>{st.name}</option>{/each}</select
+					></label
+				><label
+					>Tip membru<select name="kind" bind:value={newMemberKind}
+						><option value="beneficiary">Beneficiar</option><option value="adult"
+							>Voluntar adult</option
+						></select
+					></label
+				><label>Nume complet<input name="name" required maxlength="255" /></label><label
+					>Data nașterii<input type="date" name="birthDate" /></label
+				>{#if newMemberKind === 'beneficiary'}<label
+						>Clasa<input type="number" name="grade" min="1" max="12" /></label
+					>{/if}<label
+					>Unitate<select
+						name="unitId"
+						bind:value={newMemberUnit}
+						required={newMemberKind === 'beneficiary'}
+						><option value=""
+							>{newMemberKind === 'adult' ? 'Fără unitate' : 'Alege unitatea'}</option
+						>{#each units.filter((u) => (u.structureId ?? 'cluj') === newStructure) as u (u.id)}<option
+								value={u.id}>{u.name}</option
+							>{/each}</select
+					></label
+				><label
+					>Grupă<select name="groupId" disabled={!newMemberUnit}
+						><option value="">Colectiv comun / nerepartizat</option
+						>{#each data.registry.units.filter((u) => u.parentId === newMemberUnit && !u.archived) as u (u.id)}<option
+								value={u.id}>{name(u.parentId)} / {u.name}</option
+							>{/each}</select
+					></label
+				><button type="submit">Adaugă membru</button>
+			</form>
+			<p class="hint">Alege unitatea și, dacă este cazul, grupa în care va fi înscris membrul.</p>
+		</Modal>{/if}
+	{#if data.registry.admin || data.registry.chiefUnitIds.length}<Modal
+			bind:open={structureOpen}
+			title="Unități și grupe"
+			description="Organizează unitățile și grupele centrului."
+		>
+			<div class="unit-list">
+				{#each data.registry.units.filter((u) => !u.archived) as u (u.id)}<div>
+						<span>{u.parentId ? '↳ ' : ''}<strong>{u.name}</strong> · {branchLabels[u.branch]}</span
+						>{#if data.registry.admin || data.registry.chiefUnitIds.includes(u.parentId ?? u.id)}<ActionMenu
+								label={`Acțiuni pentru ${u.name}`}
+								items={[
+									{
+										label: 'Arhivează',
+										destructive: true,
+										action: () => {
+											archiveUnit = u;
+											archiveOpen = true;
+										}
+									}
+								]}
+							/>{/if}
+					</div>{/each}
+			</div>
+			<form method="POST" class="grid">
+				<input type="hidden" name="action" value="unit" /><label
+					>Structură<select name="structureId" bind:value={unitStructure}
+						>{#each structures.filter((st) => data.registry.manageableStructureIds?.includes(st.id) || units.some((u) => (u.structureId ?? 'cluj') === st.id && data.registry.chiefUnitIds.includes(u.id))) as st (st.id)}<option
+								value={st.id}>{st.name}</option
+							>{/each}</select
+					></label
+				><label>Nume<input name="name" required /></label><label
+					>Creează în<select name="parentId"
+						>{#if data.registry.admin || data.registry.manageableStructureIds?.includes(unitStructure)}<option
+								value="">Unitate nouă</option
+							>{/if}{#each units.filter((u) => (u.structureId ?? 'cluj') === unitStructure && (data.registry.admin || data.registry.chiefUnitIds.includes(u.id))) as u (u.id)}<option
+								value={u.id}>{u.name}</option
+							>{/each}</select
+					></label
+				><label
+					>Ramură<select name="branch"
+						>{#each Object.entries(branchLabels) as [key, label] (key)}<option value={key}
+								>{label}</option
+							>{/each}</select
+					></label
+				><button type="submit">Salvează unitatea sau grupa</button>
+			</form>
+		</Modal>{/if}
 	{#if !data.registry.admin && data.registry.transitions.some((t) => t.state === 'review')}<section>
 			<h2>Treceri de ramură de verificat</h2>
 			{#each data.registry.transitions.filter((t) => t.state === 'review') as t (t.id)}<p>
@@ -243,29 +275,27 @@
 			<h2>Apartenența la Cluj și Florești</h2>
 			<a href={resolve('/units/structures')}>Verifică și confirmă repartizarea inițială</a>
 		</section>
-		<section>
-			<details bind:open={progressionOpen}>
-				<summary>Actualizarea anuală a membrilor</summary>
-				<p>
-					Clasele și ramurile avansează la 1 septembrie. Grupele stabile își păstrează identitatea
-					și adulții responsabili. Verifică clasele și repartizările inițiale înainte de activare.
-				</p>
-				<form method="POST">
-					<input type="hidden" name="action" value="progression" /><label class="check"
-						><input
-							type="checkbox"
-							name="enabled"
-							checked={data.registry.progressionEnabled}
-						/>Datele inițiale sunt verificate; activează actualizarea automată</label
-					><button>Salvează</button>
-				</form>
-				{#each data.registry.transitions.filter((t) => t.state === 'review') as t (t.id)}<p
-						class="notice"
-					>
-						<a href={resolve(`/units/${t.memberId}`)}>Verifică membrul</a> · {t.year}: {t.message}
-					</p>{/each}
-			</details>
-		</section>
+		<Modal
+			bind:open={progressionOpen}
+			title="Actualizarea anuală a membrilor"
+			description="Verifică repartizările înainte de activarea actualizării anuale."
+		>
+			<p>
+				Clasele și ramurile avansează la 1 septembrie. Grupele stabile își păstrează identitatea și
+				adulții responsabili. Verifică clasele și repartizările inițiale înainte de activare.
+			</p>
+			<form method="POST">
+				<input type="hidden" name="action" value="progression" /><label class="check"
+					><input type="checkbox" name="enabled" checked={data.registry.progressionEnabled} />Datele
+					inițiale sunt verificate; activează actualizarea automată</label
+				><button>Salvează</button>
+			</form>
+			{#each data.registry.transitions.filter((t) => t.state === 'review') as t (t.id)}<p
+					class="notice"
+				>
+					<a href={resolve(`/units/${t.memberId}`)}>Verifică membrul</a> · {t.year}: {t.message}
+				</p>{/each}
+		</Modal>
 		<section>
 			<details bind:open={orgoOpen}>
 				<summary>Legătura cu Orgo</summary>
@@ -293,7 +323,30 @@
 		</section>{/if}
 </div>
 
+<Modal
+	bind:open={archiveOpen}
+	title={`Arhivează ${archiveUnit?.name ?? 'unitatea'}`}
+	description="Unitatea va fi arhivată. Istoricul este păstrat. Verifică repartizările înainte de a continua."
+>
+	<form method="POST">
+		<input type="hidden" name="action" value="archive" /><input
+			type="hidden"
+			name="id"
+			value={archiveUnit?.id ?? ''}
+		/>
+		<button type="button" onclick={() => (archiveOpen = false)}>Anulează</button>
+		<button type="submit">Confirmă arhivarea</button>
+	</form>
+</Modal>
+
 <style>
+	.workspace-actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 10px;
+		margin-top: 20px;
+	}
 	summary {
 		cursor: pointer;
 		font-weight: 700;
@@ -304,11 +357,12 @@
 		margin-bottom: 20px;
 	}
 	.workspace {
+		min-width: 0;
 		max-width: 1200px;
 		margin: auto;
 		display: grid;
 		gap: 24px;
-		color: #172b28;
+		color: var(--sc-ink);
 	}
 	header h1 {
 		font-size: 2rem;
@@ -317,13 +371,14 @@
 	.eyebrow {
 		font-size: 0.75rem;
 		letter-spacing: 0.12em;
-		color: #487a68;
+		color: var(--sc-muted);
 		font-weight: 700;
 	}
 	section,
 	.stats article {
+		min-width: 0;
 		padding: 24px;
-		border: 1px solid #dce5df;
+		border: 1px solid var(--sc-border);
 		border-radius: 14px;
 		background: white;
 	}
@@ -343,7 +398,7 @@
 	.stats span,
 	.hint,
 	small {
-		color: #64756e;
+		color: var(--sc-muted);
 		font-size: 0.85rem;
 	}
 	small {
@@ -367,22 +422,22 @@
 	button {
 		font: inherit;
 		padding: 10px;
-		border: 1px solid #cbd8d0;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 7px;
 		min-width: 0;
 	}
 	button {
 		cursor: pointer;
-		background: #245b46;
+		background: var(--sc-accent);
 		color: white;
 		font-weight: 600;
 	}
 	.secondary {
-		background: #f6f9f7;
-		color: #245b46;
+		background: var(--sc-canvas);
+		color: var(--sc-accent);
 	}
 	a {
-		color: #216249;
+		color: var(--sc-accent);
 	}
 	p {
 		line-height: 1.6;
@@ -398,7 +453,7 @@
 		justify-content: space-between;
 		gap: 15px;
 		align-items: center;
-		border-bottom: 1px solid #e6ece8;
+		border-bottom: 1px solid var(--sc-border);
 		padding: 12px 0;
 	}
 	.unit-list {

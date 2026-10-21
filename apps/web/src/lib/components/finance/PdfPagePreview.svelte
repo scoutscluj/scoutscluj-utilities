@@ -108,7 +108,7 @@
 		display: block;
 		max-width: 100%;
 		max-height: 100%;
-		background: #ffffff;
+		background: var(--sc-surface);
 		box-shadow: 0 4px 16px rgb(15 23 42 / 0.18);
 	}
 
@@ -117,12 +117,12 @@
 		border-radius: 999px;
 		background: rgb(15 23 42 / 0.78);
 		padding: 4px 8px;
-		color: #ffffff;
+		color: var(--sc-surface);
 		font-size: 0.72rem;
-		font-weight: 900;
+		font-weight: 600;
 	}
 
 	.preview-state.error {
-		background: #991b1b;
+		background: var(--sc-accent-hover);
 	}
 </style>

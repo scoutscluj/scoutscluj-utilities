@@ -391,7 +391,7 @@
 	}
 	.transfer-confirmation {
 		margin-top: 24px;
-		border-top: 1px solid #e2e8f0;
+		border-top: 1px solid var(--sc-border);
 		padding-top: 12px;
 	}
 </style>

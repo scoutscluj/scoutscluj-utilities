@@ -40,7 +40,6 @@ export const menuItems: MenuItem[] = [
 		anyRole: ['moderator', 'admin', 'finance_manager', 'super_admin'],
 		children: [
 			{ label: 'Administrare', href: '/admin', minRole: 'moderator' },
-			{ label: 'Membri și unități', href: '/admin/members', minRole: 'moderator' },
 			{
 				label: 'Financiar',
 				href: '/admin/finance',

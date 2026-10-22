@@ -3,6 +3,8 @@ jest.mock('./entities/member.entity', () => ({
   ScoutAssignment: 'assignment',
   MemberSettings: 'settings',
   ScoutUnit: 'unit',
+  ScoutSubunit: 'subunit',
+  ScoutUnitSource: 'source',
   LocalStructure: 'structure',
   ScoutMember: 'member',
   MemberSync: 'sync',
@@ -21,6 +23,7 @@ jest.mock('./members.service', () => ({
 import type { EntityManager } from '@mikro-orm/postgresql';
 import { ConfigService } from '@nestjs/config';
 import { MemberOrgoService } from './orgo.service';
+import type { MembersService } from './members.service';
 import { emptyProfile } from './member.types';
 
 describe('Orgo import preview', () => {
@@ -37,10 +40,17 @@ describe('Orgo import preview', () => {
       structureId: 'cluj',
     };
     const em = {
-      findOneOrFail: () => Promise.resolve({ roles: ['admin'] }),
+      findOneOrFail: () =>
+        Promise.resolve({ id: 'fixed', branch: 'temerari', roles: ['admin'] }),
       findOne: () => Promise.resolve(null),
       find: (entity: unknown) =>
-        Promise.resolve(entity === 'unit' ? [unit] : []),
+        Promise.resolve(
+          entity === 'unit'
+            ? [unit]
+            : entity === 'source'
+              ? [{ id: 10, unitId: 'unit-local' }]
+              : [],
+        ),
       count: () => Promise.resolve(0),
       flush: async () => {},
       execute: () => Promise.resolve([]),
@@ -94,6 +104,7 @@ describe('Orgo import preview', () => {
         ORGO_LOCAL_CENTER_ID: '7',
         ORGO_OAUTH_BASE_URL: 'https://orgo.example.test',
       }),
+      { requireCentral: async () => {} } as unknown as MembersService,
     );
     await service.import(
       { id: 1, displayName: 'Admin', roles: [] },
@@ -112,7 +123,8 @@ describe('Orgo import preview', () => {
   it('imports selected units with confirmed branches and rejects a forged patrol selection', async () => {
     const created: Record<string, unknown>[] = [];
     const em = {
-      findOneOrFail: () => Promise.resolve({ roles: ['admin'] }),
+      findOneOrFail: () =>
+        Promise.resolve({ id: 'fixed', branch: 'temerari', roles: ['admin'] }),
       findOne: () => Promise.resolve(null),
       execute: () => Promise.resolve([]),
       flush: async () => {},
@@ -129,6 +141,7 @@ describe('Orgo import preview', () => {
         ORGO_LOCAL_CENTER_ID: '7',
         ORGO_OAUTH_BASE_URL: 'https://orgo.example.test',
       }),
+      { requireCentral: async () => {} } as unknown as MembersService,
     );
     global.fetch = jest.fn().mockImplementation((url: string) =>
       Promise.resolve(
@@ -178,7 +191,8 @@ describe('Orgo import preview', () => {
   });
   it('separates inactive members and excludes patrol types and descendants without matching unit names', async () => {
     const em = {
-      findOneOrFail: () => Promise.resolve({ roles: ['admin'] }),
+      findOneOrFail: () =>
+        Promise.resolve({ id: 'fixed', branch: 'temerari', roles: ['admin'] }),
       find: () => Promise.resolve([]),
     };
     const service = new MemberOrgoService(
@@ -188,6 +202,7 @@ describe('Orgo import preview', () => {
         ORGO_LOCAL_CENTER_ID: '7',
         ORGO_OAUTH_BASE_URL: 'https://orgo.example.test',
       }),
+      { requireCentral: async () => {} } as unknown as MembersService,
     );
     global.fetch = jest
       .fn<ReturnType<typeof global.fetch>, Parameters<typeof global.fetch>>()

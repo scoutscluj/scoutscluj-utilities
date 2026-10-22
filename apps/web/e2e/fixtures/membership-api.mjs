@@ -221,9 +221,11 @@ createServer(async (req, res) => {
 				{ id: 'cluj', name: 'Cluj' },
 				{ id: 'floresti', name: 'Florești' }
 			],
+			delegableRoles: ['helper', 'leader', 'chief', 'structure_admin', 'council'],
 			manageableStructureIds: ['cluj', 'floresti'],
 			admin: !req.headers.cookie?.includes('read-only'),
 			canFinance: !req.headers.cookie?.includes('read-only'),
+			canCreateMember: !req.headers.cookie?.includes('read-only'),
 			canManage: !req.headers.cookie?.includes('read-only'),
 			chiefUnitIds: [],
 			ownMemberId: null,
@@ -239,6 +241,9 @@ createServer(async (req, res) => {
 					branch: 'temerari',
 					parentId: null,
 					archived: false,
+					canCreateMember: !req.headers.cookie?.includes('read-only'),
+					canManage: !req.headers.cookie?.includes('read-only'),
+					delegateRoles: ['helper', 'leader', 'chief'],
 					grades: []
 				},
 				{
@@ -247,6 +252,9 @@ createServer(async (req, res) => {
 					branch: 'temerari',
 					parentId: null,
 					archived: false,
+					canCreateMember: !req.headers.cookie?.includes('read-only'),
+					canManage: !req.headers.cookie?.includes('read-only'),
+					delegateRoles: ['helper', 'leader', 'chief'],
 					grades: []
 				},
 				{
@@ -255,6 +263,9 @@ createServer(async (req, res) => {
 					branch: 'lupisori',
 					parentId: null,
 					archived: false,
+					canCreateMember: !req.headers.cookie?.includes('read-only'),
+					canManage: !req.headers.cookie?.includes('read-only'),
+					delegateRoles: ['helper', 'leader', 'chief'],
 					grades: []
 				},
 				{
@@ -263,6 +274,9 @@ createServer(async (req, res) => {
 					branch: 'temerari',
 					parentId: 'u1',
 					archived: false,
+					canCreateMember: !req.headers.cookie?.includes('read-only'),
+					canManage: !req.headers.cookie?.includes('read-only'),
+					delegateRoles: ['helper', 'leader', 'chief'],
 					grades: [5]
 				},
 				{
@@ -271,6 +285,9 @@ createServer(async (req, res) => {
 					branch: 'lupisori',
 					parentId: 'u2',
 					archived: false,
+					canCreateMember: !req.headers.cookie?.includes('read-only'),
+					canManage: !req.headers.cookie?.includes('read-only'),
+					delegateRoles: ['helper', 'leader', 'chief'],
 					grades: [3]
 				}
 			],
@@ -279,6 +296,7 @@ createServer(async (req, res) => {
 				name: `Istoric ${String(i + 1).padStart(2, '0')}`,
 				orgoId: 900 + i,
 				revision: 1,
+				access: { detail: true, edit: true, identity: true, transfer: true, fees: true },
 				status: 'review'
 			})),
 			members: [
@@ -291,6 +309,14 @@ createServer(async (req, res) => {
 					unitId: 'u3',
 					groupId: null,
 					grade: 5,
+					category: 'temerari',
+					access: {
+						detail: true,
+						edit: !req.headers.cookie?.includes('read-only'),
+						identity: true,
+						transfer: true,
+						fees: true
+					},
 					status: 'active'
 				},
 				{
@@ -301,12 +327,27 @@ createServer(async (req, res) => {
 					unitId: 'u1',
 					groupId: 'g1',
 					grade: 5,
+					category: 'temerari',
+					access: {
+						delegate: !req.headers.cookie?.includes('read-only'),
+						detail: true,
+						edit: !req.headers.cookie?.includes('read-only'),
+						identity: true,
+						transfer: true,
+						fees: true
+					},
 					status: 'active',
 					adultKind: null
 				}
 			]
 		});
 
+	if (req.url === '/api/members/m1/assignments' && req.method === 'POST') {
+		let raw = '';
+		for await (const chunk of req) raw += chunk;
+		submissions.push(JSON.parse(raw));
+		return respond(res, { ok: true });
+	}
 	if (req.url === '/api/members/bulk') {
 		let raw = '';
 		for await (const chunk of req) raw += chunk;
@@ -357,12 +398,13 @@ createServer(async (req, res) => {
 				{ id: 'cluj', name: 'Cluj' },
 				{ id: 'floresti', name: 'Florești' }
 			],
-			units: [{ id: 'u1', name: 'Temerari', structureId: 'cluj' }],
+			units: [],
 			members: [
 				{
 					id: 'm1',
 					name: 'Copil Florești',
 					revision: 1,
+					category: 'temerari',
 					unitId: 'u1',
 					structureId: 'floresti',
 					inactive: false

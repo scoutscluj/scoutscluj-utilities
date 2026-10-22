@@ -27,6 +27,8 @@ import {
 import {
   ScoutMember,
   ScoutUnit,
+  ScoutSubunit,
+  ScoutUnitSource,
   ScoutAssignment,
   ScoutNote,
   MemberSync,
@@ -37,7 +39,6 @@ import {
 } from './entities/member.entity';
 import {
   adultRoles,
-  branches,
   emptyProfile,
   permissions,
   targetYear,
@@ -45,9 +46,15 @@ import {
   localDate,
   isImportedInactive,
   structureOf,
-  proposedStructure,
   type AssignmentRole,
 } from './member.types';
+
+import {
+  activeMandates,
+  importedCategory,
+  isYouth,
+  type Category,
+} from './organization';
 
 export function bodyObject(input: unknown): Record<string, unknown> {
   if (!input || typeof input !== 'object' || Array.isArray(input))
@@ -88,19 +95,110 @@ export class MembersService {
       ? await tx.findOne(ScoutMember, { orgoId: connection.orgoUserId })
       : await tx.findOne(ScoutMember, { accountId: user.id });
     if (member && !member.accountId) member.accountId = user.id;
-    const assignments =
-      member?.status === 'active' && !account.memberAccessDisabled
-        ? await tx.find(ScoutAssignment, { memberId: member.id, endedAt: null })
-        : [];
+    const enabled =
+      !account.memberAccessDisabled && member?.status === 'active';
+    const allAssignments = enabled ? await tx.find(ScoutAssignment, {}) : [];
+    // A manually delegated root remains valid only while its issuer has a central mandate.
+    // Imported Orgo mandates are trusted source roots; all local descendants retain parent links.
+    const accounts = enabled ? await tx.find(User, {}) : [];
+    const identities = enabled ? await tx.find(ScoutMember, {}) : [];
+    const centralActors = new Set(
+      accounts
+        .filter(
+          (a) =>
+            !a.memberAccessDisabled &&
+            a.centralMemberAdmin &&
+            a.roles.some((r) =>
+              [UserRole.Admin, UserRole.SuperAdmin].includes(r),
+            ) &&
+            identities.some(
+              (m) =>
+                m.accountId === a.id &&
+                m.status === 'active' &&
+                structureOf(m) === 'cluj',
+            ),
+        )
+        .map((a) => a.id),
+    );
+    const validByTime = activeMandates(allAssignments);
+    let previousSize = -1;
+    while (previousSize !== centralActors.size) {
+      previousSize = centralActors.size;
+      for (const mandate of validByTime.filter((a) => a.role === 'council')) {
+        if (mandate.orgoRoleId == null && !centralActors.has(mandate.actorId))
+          continue;
+        const identity = identities.find(
+          (m) =>
+            m.id === mandate.memberId &&
+            m.status === 'active' &&
+            structureOf(m) === 'cluj',
+        );
+        if (
+          identity?.accountId &&
+          accounts.some(
+            (a) => a.id === identity.accountId && !a.memberAccessDisabled,
+          )
+        )
+          centralActors.add(identity.accountId);
+      }
+    }
+    const activeAssignments = activeMandates(
+      allAssignments.filter(
+        (a) =>
+          a.parentAssignmentId ||
+          a.role === 'beneficiary' ||
+          a.orgoRoleId != null ||
+          centralActors.has(a.actorId),
+      ),
+    );
+    let assignments = activeAssignments.filter(
+      (a) => a.memberId === member?.id,
+    );
+    const homeStructureId = enabled && member ? structureOf(member) : null;
     const admin =
-      !account.memberAccessDisabled &&
-      (account.roles.includes(UserRole.Admin) ||
-        account.roles.includes(UserRole.SuperAdmin) ||
+      homeStructureId === 'cluj' &&
+      ((account.centralMemberAdmin &&
+        account.roles.some((r) =>
+          [UserRole.Admin, UserRole.SuperAdmin].includes(r),
+        )) ||
         assignments.some((a) => a.role === 'council'));
+    const assignedUnits = await tx.find(ScoutUnit, {});
+    assignments = assignments.filter(
+      (a) =>
+        !a.unitId ||
+        admin ||
+        assignedUnits.some(
+          (u) => u.id === a.unitId && structureOf(u) === homeStructureId,
+        ),
+    );
     const structureIds = assignments
-      .filter((a) => a.role === 'structure_admin' && a.structureId)
+      .filter(
+        (a) =>
+          a.role === 'structure_admin' && a.structureId === homeStructureId,
+      )
       .map((a) => a.structureId!);
-    return { admin, member, assignments, structureIds };
+    const adult =
+      !!enabled &&
+      !!member &&
+      (['lideri', 'voluntari', 'scouteri'].includes(member.category ?? '') ||
+        (!!member.birthDate &&
+          member.birthDate <=
+            `${Number(localDate(new Date()).slice(0, 4)) - 18}${localDate(new Date()).slice(4)}`));
+    return {
+      admin,
+      member,
+      assignments,
+      structureIds,
+      homeStructureId,
+      adult,
+      activeAssignments,
+    };
+  }
+  private inStructure(
+    ctx: Awaited<ReturnType<MembersService['context']>>,
+    structureId: string,
+  ) {
+    return ctx.admin || ctx.homeStructureId === structureId;
   }
   async access(
     tx: EntityManager,
@@ -109,96 +207,49 @@ export class MembersService {
     snapshot?: {
       ctx: Awaited<ReturnType<MembersService['context']>>;
       assignments: ScoutAssignment[];
-      units: ScoutUnit[];
+      units: { id: string; structureId: string }[];
     },
   ) {
     const ctx = snapshot?.ctx ?? (await this.context(tx, user));
-    const responsibilities = snapshot
-      ? snapshot.assignments.filter(
-          (a) => a.memberId === member.id && a.role !== 'beneficiary',
-        )
-      : await tx.find(ScoutAssignment, {
-          memberId: member.id,
-          endedAt: null,
-          role: { $ne: 'beneficiary' },
-        });
-    const basicAdultRead = responsibilities.some((target) =>
-      ctx.assignments.some(
-        (actor) =>
-          actor.unitId &&
-          actor.unitId === target.unitId &&
-          (['leader', 'chief'].includes(actor.role) ||
-            (actor.role === 'helper' && actor.groupId === target.groupId)),
-      ),
-    );
+    const own = ctx.member?.id === member.id;
+    const allowed = this.inStructure(ctx, structureOf(member));
     const scoped = permissions(
-      ctx.admin || ctx.structureIds.includes(structureOf(member)),
-      ctx.member?.id === member.id,
-      ctx.assignments,
+      allowed && (ctx.admin || ctx.structureIds.includes(structureOf(member))),
+      allowed && own,
+      allowed ? ctx.assignments : [],
       member,
     );
-    if (!member.unitId)
-      for (const target of responsibilities) {
-        const targetUnit = target.unitId
-          ? snapshot
-            ? snapshot.units.find((u) => u.id === target.unitId)
-            : await tx.findOne(ScoutUnit, { id: target.unitId })
-          : null;
-        const grant = permissions(
-          ctx.admin ||
-            (!!targetUnit &&
-              ctx.structureIds.includes(structureOf(targetUnit))),
-          ctx.member?.id === member.id,
-          ctx.assignments,
-          { id: member.id, unitId: target.unitId, groupId: target.groupId },
-        );
-        for (const key of Object.keys(scoped) as (keyof typeof scoped)[])
-          scoped[key] = scoped[key] || grant[key];
-      }
-    // Visiting adults keep their primary identity and global lifecycle under their home structure.
-    const actorUnits =
-      snapshot?.units ??
-      (await tx.find(ScoutUnit, {
-        id: {
-          $in: ctx.assignments.filter((a) => a.unitId).map((a) => a.unitId!),
-        },
-      }));
-    const homeAssignments = ctx.assignments.filter((a) =>
-      actorUnits.some(
-        (u) => u.id === a.unitId && structureOf(u) === structureOf(member),
-      ),
-    );
-    const homeAdmin =
-      ctx.admin || ctx.structureIds.includes(structureOf(member));
-    const home = permissions(homeAdmin, false, homeAssignments, member);
-    if (!member.unitId)
-      for (const target of responsibilities) {
-        const grant = permissions(homeAdmin, false, homeAssignments, {
-          id: member.id,
-          unitId: target.unitId,
-          groupId: target.groupId,
-        });
-        home.identity ||= grant.identity;
-        home.transfer ||= grant.transfer;
-        home.edit ||= grant.edit;
-      }
-    scoped.identity &&= home.identity;
-    scoped.transfer &&= home.transfer;
+    for (const key of Object.keys(scoped) as (keyof typeof scoped)[])
+      scoped[key] &&= allowed;
     return {
       ...scoped,
-      ...(basicAdultRead ? { read: true } : {}),
-      own: ctx.member?.id === member.id,
-      withdraw: scoped.edit && home.edit,
+      read: allowed && (ctx.admin || ctx.adult || own),
+      detail: allowed && scoped.read,
+      delegate:
+        !!member.birthDate &&
+        member.birthDate <=
+          `${Number(localDate(new Date()).slice(0, 4)) - 18}${localDate(new Date()).slice(4)}` &&
+        allowed &&
+        (ctx.admin ||
+          ctx.structureIds.includes(structureOf(member)) ||
+          ctx.assignments.some((a) => a.role === 'chief')),
+      own: allowed && own,
+      withdraw: scoped.edit,
     };
   }
   private async chief(tx: EntityManager, user: CurrentUser, unitId: string) {
     const ctx = await this.context(tx, user);
     const unit = await tx.findOne(ScoutUnit, { id: unitId });
     return (
-      ctx.admin ||
-      (!!unit && ctx.structureIds.includes(structureOf(unit))) ||
-      ctx.assignments.some((a) => a.role === 'chief' && a.unitId === unitId)
+      !!unit &&
+      this.inStructure(ctx, structureOf(unit)) &&
+      (ctx.admin ||
+        (!!unit && ctx.structureIds.includes(structureOf(unit))) ||
+        ctx.assignments.some((a) => a.role === 'chief' && a.unitId === unitId))
     );
+  }
+  async requireCentral(tx: EntityManager, user: CurrentUser) {
+    await this.admin(tx, user);
   }
   private async admin(tx: EntityManager, user: CurrentUser) {
     if (!(await this.context(tx, user)).admin) denied();
@@ -216,11 +267,12 @@ export class MembersService {
       id: unitId,
       archived: false,
       parentId: null,
+      fixed: true,
     });
     if (!unit) throw new BadRequestException('Unitate invalidă.');
     if (
       groupId &&
-      !(await tx.findOne(ScoutUnit, {
+      !(await tx.findOne(ScoutSubunit, {
         id: groupId,
         parentId: unitId,
         archived: false,
@@ -339,6 +391,7 @@ export class MembersService {
           await tx.findOneOrFail(LocalStructure, { id: structureId });
           if (structureOf(m) !== structureId) {
             const previous = structureOf(m);
+            const category = m.category;
             if (m.unitId) {
               const unit = await tx.findOne(ScoutUnit, { id: m.unitId });
               m.branch = unit?.branch ?? m.branch;
@@ -346,6 +399,14 @@ export class MembersService {
             }
             m.structureId = structureId;
             m.structureConfirmed = true;
+            const destination = category
+              ? await tx.findOne(ScoutUnit, {
+                  fixed: true,
+                  structureId,
+                  branch: category,
+                })
+              : null;
+            await this.place(tx, m, destination?.id ?? null, null, user.id);
             if (m.orgoId)
               for (const o of await tx.find(MembershipObligation, {
                 orgoUserId: m.orgoId,
@@ -413,14 +474,15 @@ export class MembersService {
       {},
       { orderBy: { name: 'asc' } },
     );
-    const allAssignments = await this.em.find(ScoutAssignment, {
-      endedAt: null,
-    });
-    const allUnits = await this.em.find(
-      ScoutUnit,
-      {},
-      { orderBy: { name: 'asc' } },
-    );
+    const allAssignments = ctx.activeAssignments;
+    const allUnits = [
+      ...(await this.em.find(
+        ScoutUnit,
+        { fixed: true },
+        { orderBy: { name: 'asc' } },
+      )),
+      ...(await this.em.find(ScoutSubunit, {}, { orderBy: { name: 'asc' } })),
+    ];
     const visible: ScoutMember[] = [];
     const grants = new Map<
       string,
@@ -440,9 +502,8 @@ export class MembersService {
     const units = allUnits
       .filter(
         (u) =>
-          ctx.admin ||
-          ctx.structureIds.includes(structureOf(u)) ||
-          unitIds.has(u.parentId ?? u.id),
+          this.inStructure(ctx, structureOf(u)) &&
+          (ctx.admin || ctx.adult || unitIds.has(u.parentId ?? u.id)),
       )
       .map((u) => ({
         id: u.id,
@@ -452,6 +513,37 @@ export class MembersService {
         parentId: u.parentId ?? null,
         orgoId: u.orgoId ?? null,
         archived: u.archived,
+        canCreateMember:
+          this.inStructure(ctx, structureOf(u)) &&
+          (ctx.admin ||
+            ctx.structureIds.includes(structureOf(u)) ||
+            ctx.assignments.some(
+              (a) =>
+                a.unitId === (u.parentId ?? u.id) &&
+                (a.role === 'chief' ||
+                  (!!u.parentId &&
+                    a.groupId === u.id &&
+                    (a.role === 'leader' || a.canEdit))),
+            )),
+        delegateRoles:
+          !u.parentId && this.inStructure(ctx, structureOf(u))
+            ? ctx.admin
+              ? ['chief', 'leader', 'helper']
+              : ctx.structureIds.includes(structureOf(u))
+                ? ['chief']
+                : ctx.assignments.some(
+                      (a) => a.role === 'chief' && a.unitId === u.id,
+                    )
+                  ? ['leader', 'helper']
+                  : []
+            : [],
+        canManage:
+          this.inStructure(ctx, structureOf(u)) &&
+          (ctx.admin ||
+            ctx.structureIds.includes(structureOf(u)) ||
+            ctx.assignments.some(
+              (a) => a.role === 'chief' && a.unitId === (u.parentId ?? u.id),
+            )),
         grades: [
           ...new Set(
             all
@@ -500,17 +592,21 @@ export class MembersService {
           )
         : [];
     return {
-      structures: (await this.em.find(LocalStructure, {})).filter(
-        (s) =>
-          ctx.admin ||
-          ctx.structureIds.includes(s.id) ||
-          structureOf(ctx.member ?? {}) === s.id ||
-          units.some((u) => u.structureId === s.id),
+      structures: (await this.em.find(LocalStructure, {})).filter((s) =>
+        this.inStructure(ctx, s.id),
       ),
       manageableStructureIds: ctx.admin
         ? (await this.em.find(LocalStructure, {})).map((s) => s.id)
         : ctx.structureIds,
       notices,
+      homeStructureId: ctx.homeStructureId,
+      delegableRoles: ctx.admin
+        ? ['helper', 'leader', 'chief', 'structure_admin', 'council']
+        : ctx.structureIds.length
+          ? ['chief']
+          : ctx.assignments.some((a) => a.role === 'chief')
+            ? ['helper', 'leader']
+            : [],
       admin: ctx.admin,
       canFinance: user.roles.some((r) =>
         [UserRole.Admin, UserRole.SuperAdmin, UserRole.FinanceManager].includes(
@@ -546,25 +642,59 @@ export class MembersService {
       members: visible
         .filter((m) => !isImportedInactive(m))
         .map((m) => ({
+          responsibilities: allAssignments
+            .filter(
+              (a) =>
+                a.memberId === m.id &&
+                a.role !== 'beneficiary' &&
+                (ctx.admin ||
+                  (a.role === 'chief'
+                    ? units.some(
+                        (u) =>
+                          u.id === a.unitId &&
+                          ctx.structureIds.includes(u.structureId),
+                      )
+                    : ['leader', 'helper'].includes(a.role) &&
+                      ctx.assignments.some(
+                        (actor) =>
+                          actor.role === 'chief' && actor.unitId === a.unitId,
+                      ))),
+            )
+            .map((a) => ({
+              id: a.id,
+              role: a.role,
+              unitId: a.unitId,
+              groupId: a.groupId,
+            })),
           responsibilityUnitIds: [
             ...new Set(
               allAssignments
-                .filter((a) => a.memberId === m.id && a.unitId)
+                .filter(
+                  (a) =>
+                    a.memberId === m.id &&
+                    a.unitId &&
+                    units.some((u) => u.id === a.unitId),
+                )
                 .map((a) => a.unitId!),
             ),
           ],
           responsibilityGroupIds: [
             ...new Set(
               allAssignments
-                .filter((a) => a.memberId === m.id && a.groupId)
+                .filter(
+                  (a) =>
+                    a.memberId === m.id &&
+                    a.groupId &&
+                    units.some((u) => u.id === a.groupId),
+                )
                 .map((a) => a.groupId!),
             ),
           ],
           id: m.id,
           name: m.name,
           structureId: structureOf(m),
-          orgoId: m.orgoId,
-          grade: m.grade,
+          orgoId: grants.get(m.id)?.detail ? m.orgoId : null,
+          grade: grants.get(m.id)?.detail ? m.grade : null,
           unitId: m.unitId,
           groupId: m.groupId,
           status: m.status,
@@ -576,14 +706,17 @@ export class MembersService {
                 .map((a) => a.role),
             ),
           ],
-          orgoType:
-            typeof (m.orgoProfile?.type as { name?: unknown } | undefined)
-              ?.name === 'string'
+          orgoType: grants.get(m.id)?.detail
+            ? typeof (m.orgoProfile?.type as { name?: unknown } | undefined)
+                ?.name === 'string'
               ? (m.orgoProfile.type as { name: string }).name
-              : null,
+              : null
+            : null,
           revision: m.revision,
           access: grants.get(m.id),
           branch: m.branch,
+          category: m.category,
+          categoryReview: m.categoryReview,
         })),
       ownMemberId: ctx.member?.id ?? null,
       progressionEnabled: settings?.progressionEnabled ?? false,
@@ -601,7 +734,7 @@ export class MembersService {
   async detail(user: CurrentUser, id: string) {
     const m = await this.get(this.em, id);
     const access = await this.access(this.em, user, m);
-    if (!access.read) denied();
+    if (!access.detail) denied();
     const profile = { ...m.profile };
     if (!access.sensitive) {
       profile.medical = '';
@@ -617,18 +750,22 @@ export class MembersService {
           { orderBy: { createdAt: 'desc' } },
         )
       : [];
-    const assignments = await this.em.find(
-      ScoutAssignment,
-      { memberId: id },
-      { orderBy: { startedAt: 'desc' } },
-    );
-    access.fees = access.read;
-    const fees = await this.fees(m);
-    const sync = await this.em.find(
-      MemberSync,
-      { memberId: id },
-      { orderBy: { createdAt: 'desc' }, limit: 20 },
-    );
+    const assignments =
+      access.identity || access.own
+        ? await this.em.find(
+            ScoutAssignment,
+            { memberId: id },
+            { orderBy: { startedAt: 'desc' } },
+          )
+        : [];
+    const fees = access.fees ? await this.fees(m) : [];
+    const sync = access.identity
+      ? await this.em.find(
+          MemberSync,
+          { memberId: id },
+          { orderBy: { createdAt: 'desc' }, limit: 20 },
+        )
+      : [];
     return {
       member: {
         id: m.id,
@@ -644,6 +781,8 @@ export class MembersService {
         promiseDate: m.promiseDate,
         promiseSource: m.promiseSource,
         branch: m.branch,
+        category: m.category,
+        categoryReview: m.categoryReview,
         orgoProfile: (access.sensitive
           ? {
               ...m.orgoProfile,
@@ -753,25 +892,28 @@ export class MembersService {
     const b = bodyObject(input);
     return this.mutate(user, 'structure', async (tx) => {
       const parentId = b.parentId ? stringValue(b.parentId) : null;
-      if (parentId) {
-        if (!(await this.chief(tx, user, parentId))) denied();
-      }
-      const parent = parentId ? await this.unit(tx, parentId, null) : null;
-      const structureId = parent
-        ? structureOf(parent)
-        : stringValue(b.structureId ?? 'cluj');
-      const ctx = await this.context(tx, user);
-      if (!parent && !ctx.admin && !ctx.structureIds.includes(structureId))
-        denied();
-      await tx.findOneOrFail(LocalStructure, { id: structureId });
-      const branch = parent?.branch ?? stringValue(b.branch);
-      if (!branches.includes(branch as (typeof branches)[number]))
-        throw new BadRequestException('Ramură invalidă.');
+      if (!parentId)
+        throw new BadRequestException(
+          'Unitatile sunt fixe. Alege unitatea pentru subunitate.',
+        );
+      if (!(await this.chief(tx, user, parentId))) denied();
+      const parent = await this.unit(tx, parentId, null);
+      const structureId = structureOf(parent!);
+      const branch = parent!.branch;
       const name = stringValue(b.name);
       if (!name) throw new BadRequestException('Numele este obligatoriu.');
-      const unit = tx.create(ScoutUnit, {
+      if (b.id) {
+        const existing = await tx.findOneOrFail(ScoutSubunit, {
+          id: stringValue(b.id),
+          parentId,
+          archived: false,
+        });
+        existing.name = name;
+        return { id: existing.id, result: existing };
+      }
+      const unit = tx.create(ScoutSubunit, {
         name,
-        branch: branch as (typeof branches)[number],
+        branch,
         parentId,
         structureId,
         structureConfirmed: true,
@@ -781,10 +923,9 @@ export class MembersService {
   }
   async archiveUnit(user: CurrentUser, id: string) {
     return this.mutate(user, 'archive', async (tx) => {
-      const u = await tx.findOneOrFail(ScoutUnit, { id });
-      if (u.parentId) {
-        if (!(await this.chief(tx, user, u.parentId))) denied();
-      } else if (!(await this.chief(tx, user, id))) denied();
+      const u = await tx.findOne(ScoutSubunit, { id });
+      if (!u) throw new BadRequestException('Unitatile fixe nu se arhiveaza.');
+      if (!(await this.chief(tx, user, u.parentId))) denied();
       if (
         (await tx.count(
           ScoutMember,
@@ -797,7 +938,7 @@ export class MembersService {
           ...(u.parentId ? { groupId: id } : {}),
           endedAt: null,
         })) ||
-        (await tx.count(ScoutUnit, { parentId: id, archived: false }))
+        (await tx.count(ScoutSubunit, { parentId: id, archived: false }))
       )
         throw new ConflictException(
           'Repartizează membrii și adulții și arhivează subgrupele înainte de arhivare.',
@@ -821,6 +962,7 @@ export class MembersService {
       if (b.kind === 'beneficiary' && !unitId)
         throw new BadRequestException('Alege unitatea beneficiarului.');
       const ctx = await this.context(tx, user);
+      if (!this.inStructure(ctx, structureId)) denied();
       if (
         !permissions(
           ctx.admin || ctx.structureIds.includes(structureId),
@@ -837,7 +979,9 @@ export class MembersService {
       const name = stringValue(b.name);
       if (!name) throw new BadRequestException('Numele este obligatoriu.');
       const birthDate = b.birthDate ? dateValue(b.birthDate) : null;
-      const adult = b.kind === 'adult' || !unitId;
+      const adult = !!destination && !isYouth(destination.branch);
+      if (!destination)
+        throw new BadRequestException('Alege categoria principala.');
       if (
         adult &&
         birthDate &&
@@ -864,8 +1008,10 @@ export class MembersService {
         structureConfirmed: true,
         birthDate,
         grade: adult ? null : grade,
-        unitId: adult ? null : unitId,
-        groupId: adult ? null : groupId,
+        unitId,
+        groupId,
+        category: destination.branch,
+        categoryReview: false,
         profile: emptyProfile(),
         adultKind: adult ? 'volunteer' : null,
         branch: adult ? null : (destination?.branch ?? null),
@@ -874,7 +1020,7 @@ export class MembersService {
       // Scalar foreign keys do not give the ORM an insert dependency graph.
       // Persist the identity before its assignments and outbox, in this same transaction.
       await tx.flush();
-      if (unitId)
+      if (unitId && !adult)
         tx.create(ScoutAssignment, {
           memberId: m.id,
           unitId,
@@ -1036,6 +1182,17 @@ export class MembersService {
         : structureOf(m);
     const ctx = await this.context(tx, user);
     if (structureId !== structureOf(m) && !ctx.admin) denied();
+    if (!this.inStructure(ctx, structureId)) denied();
+    if (
+      destination &&
+      !permissions(
+        ctx.admin || ctx.structureIds.includes(structureId),
+        false,
+        ctx.assignments,
+        { id: m.id, unitId, groupId },
+      ).edit
+    )
+      denied();
     if (destination && structureOf(destination) !== structureId)
       throw new BadRequestException('Unitatea aparține altei structuri.');
     await tx.findOneOrFail(LocalStructure, { id: structureId });
@@ -1110,14 +1267,30 @@ export class MembersService {
       endedAt: null,
     });
     for (const assignment of old) assignment.endedAt = new Date();
-    // Close the old row before inserting a replacement under the partial unique index.
-    await tx.flush();
+    // Update the identity before flushing so structure/category constraints see the complete move.
     m.unitId = unitId;
     m.groupId = groupId;
-    if (unitId)
-      m.branch =
-        (await tx.findOne(ScoutUnit, { id: unitId }))?.branch ?? m.branch;
-    if (unitId)
+    if (unitId) {
+      const unit = await tx.findOneOrFail(ScoutUnit, {
+        id: unitId,
+        fixed: true,
+      });
+      m.category = unit.branch;
+      m.categoryReview = false;
+      m.branch = isYouth(unit.branch) ? unit.branch : null;
+      m.adultKind = isYouth(unit.branch)
+        ? null
+        : unit.branch === 'scouteri'
+          ? 'scouter'
+          : 'volunteer';
+    } else {
+      m.category = null;
+      m.categoryReview = true;
+      m.branch = null;
+    }
+    // Close the old assignment before inserting under the partial unique index.
+    await tx.flush();
+    if (unitId && m.category && isYouth(m.category))
       tx.create(ScoutAssignment, {
         memberId: m.id,
         unitId,
@@ -1175,6 +1348,7 @@ export class MembersService {
           'Reactivează în aceeași structură, apoi folosește transferul.',
         );
       const ctx = await this.context(tx, user);
+      if (!this.inStructure(ctx, structureOf(m))) denied();
       if (
         !permissions(
           ctx.admin || ctx.structureIds.includes(structureOf(m)),
@@ -1260,6 +1434,7 @@ export class MembersService {
     const b = bodyObject(input);
     return this.mutate(user, 'responsibility', async (tx) => {
       const m = await this.get(tx, id);
+      if (!(await this.access(tx, user, m)).read) denied();
       if (m.status !== 'active')
         throw new BadRequestException('Membrul este retras.');
       const role = stringValue(b.role) as AssignmentRole;
@@ -1273,6 +1448,22 @@ export class MembersService {
       if (structureId)
         await tx.findOneOrFail(LocalStructure, { id: structureId });
       const ctx = await this.context(tx, user);
+      if (!this.inStructure(ctx, structureOf(m))) denied();
+      if (role === 'council' && structureOf(m) !== 'cluj') denied();
+      if (structureId && structureId !== structureOf(m)) denied();
+      if (['leader', 'helper'].includes(role) && !groupId)
+        throw new BadRequestException('Alege subunitatea responsabilitatii.');
+      const parentMandate = ctx.admin
+        ? (ctx.assignments.find((a) => a.role === 'council') ?? null)
+        : ctx.assignments.find((a) =>
+            role === 'chief'
+              ? a.role === 'structure_admin' &&
+                a.structureId === structureOf(unit ?? m)
+              : ['leader', 'helper'].includes(role)
+                ? a.role === 'chief' && a.unitId === unitId
+                : false,
+          );
+      if (!ctx.admin && !parentMandate) denied();
       if (unit && structureOf(unit) !== structureOf(m) && !ctx.admin) denied();
       if (
         role === 'chief' &&
@@ -1351,6 +1542,18 @@ export class MembersService {
           structureId,
           actorId: user.id,
         });
+      a.parentAssignmentId = parentMandate?.id ?? null;
+      const expiresAt = b.expiresAt ? new Date(dateValue(b.expiresAt)) : null;
+      if (expiresAt && expiresAt <= new Date())
+        throw new BadRequestException('Expirarea trebuie sa fie in viitor.');
+      if (
+        parentMandate?.expiresAt &&
+        (!expiresAt || expiresAt > parentMandate.expiresAt)
+      )
+        throw new BadRequestException(
+          'Mandatul depaseste durata mandatului tau.',
+        );
+      a.expiresAt = expiresAt;
       a.canEdit = b.canEdit === true;
       a.canSeeFees = b.canSeeFees === true;
       a.canSeeSensitive = b.canSeeSensitive === true;
@@ -1358,8 +1561,7 @@ export class MembersService {
         const account = await tx.findOneOrFail(User, { id: m.accountId });
         account.councilAdmin = true;
       }
-      if (role === 'scouter') m.adultKind = 'scouter';
-      else if (!m.unitId) m.adultKind = 'volunteer';
+      // Responsibilities never change the primary category.
       this.queue(tx, m, user.id, 'roles', { assignmentId: a.id });
       return { id, result: { ok: true } };
     });
@@ -1367,6 +1569,7 @@ export class MembersService {
   async endAssignment(user: CurrentUser, id: string, assignmentId: string) {
     return this.mutate(user, 'end-responsibility', async (tx) => {
       const m = await this.get(tx, id);
+      if (!(await this.access(tx, user, m)).read) denied();
       const a = await tx.findOneOrFail(ScoutAssignment, {
         id: assignmentId,
         memberId: id,
@@ -1414,19 +1617,18 @@ export class MembersService {
     return {
       structures: await this.em.find(LocalStructure, {}),
       units: (
-        await this.em.find(ScoutUnit, {
-          parentId: null,
-          structureConfirmed: false,
-        })
+        await this.em.find(ScoutUnit, { fixed: false, parentId: null })
       ).map((u) => ({
         id: u.id,
         name: u.name,
-        structureId: proposedStructure(u.name),
+        structureId: structureOf(u),
+        branch: u.branch,
+        convert: false,
       })),
       members: (
         await this.em.find(
           ScoutMember,
-          { structureConfirmed: false },
+          { $or: [{ structureConfirmed: false }, { categoryReview: true }] },
           { orderBy: { name: 'asc' } },
         )
       ).map((m) => ({
@@ -1434,8 +1636,10 @@ export class MembersService {
         name: m.name,
         revision: m.revision,
         unitId: m.unitId,
+        category: m.category ?? importedCategory(m.orgoProfile),
+        categoryReview: m.categoryReview,
         inactive: isImportedInactive(m),
-        structureId: proposedStructure(m.name),
+        structureId: structureOf(m),
       })),
     };
   }
@@ -1446,71 +1650,52 @@ export class MembersService {
       if (
         b.confirm !== true ||
         !Array.isArray(b.members) ||
-        !Array.isArray(b.units)
+        b.members.length > 1500
       )
-        throw new BadRequestException('Verifică și confirmă repartizarea.');
-      const structures = new Set(
-        (await tx.find(LocalStructure, {})).map((s) => s.id),
-      );
-      const units = await tx.find(ScoutUnit, {});
-      const seenUnits = new Set<string>(),
-        seenMembers = new Set<string>();
-      for (const input of b.units) {
-        const row = bodyObject(input),
-          u = units.find((u) => u.id === row.id && !u.parentId);
-        if (
-          !u ||
-          u.structureConfirmed ||
-          seenUnits.has(u.id) ||
-          !structures.has(String(row.structureId))
-        )
-          throw new ConflictException(
-            'Unitățile s-au schimbat. Reîncarcă previzualizarea.',
-          );
-        seenUnits.add(u.id);
-        u.structureId = String(row.structureId);
-        u.structureConfirmed = true;
-        for (const g of units.filter((g) => g.parentId === u.id)) {
-          g.structureId = u.structureId;
-          g.structureConfirmed = true;
-        }
-      }
+        throw new BadRequestException('Verifica si confirma repartizarea.');
+      const seen = new Set<string>();
       for (const input of b.members) {
         const row = bodyObject(input),
           m = await this.get(tx, stringValue(row.id));
         if (
-          m.structureConfirmed ||
+          (m.structureConfirmed && !m.categoryReview) ||
           m.revision !== Number(row.revision) ||
-          seenMembers.has(m.id) ||
-          !structures.has(String(row.structureId))
+          seen.has(m.id)
         )
-          throw new ConflictException(
-            'Membrii s-au schimbat. Reîncarcă previzualizarea.',
-          );
-        seenMembers.add(m.id);
-        const unitId = row.unitId ? stringValue(row.unitId) : null;
-        if (m.unitId && !unitId)
-          throw new BadRequestException(
-            'Păstrează o unitate pentru beneficiar.',
-          );
-        if (
-          unitId &&
-          structureOf(units.find((u) => u.id === unitId) ?? {}) !==
-            row.structureId
-        )
-          throw new BadRequestException(
-            `Unitatea și apartenența trebuie să coincidă pentru ${m.name}.`,
-          );
-        if (unitId !== (m.unitId ?? null)) {
-          await this.unit(tx, unitId, null);
-          if (m.status === 'active')
-            await this.place(tx, m, unitId, null, user.id);
-          else {
-            m.unitId = unitId;
-            m.groupId = null;
-          }
-        }
-        if (!m.structureConfirmed && m.orgoId) {
+          throw new ConflictException('Reincarca previzualizarea.');
+        seen.add(m.id);
+        const structureId = stringValue(row.structureId);
+        await tx.findOneOrFail(LocalStructure, { id: structureId });
+        const category = row.category
+          ? (stringValue(row.category) as Category)
+          : null;
+        const unit = category
+          ? await tx.findOne(ScoutUnit, {
+              fixed: true,
+              structureId,
+              branch: category,
+            })
+          : null;
+        if (category && !unit)
+          throw new BadRequestException('Categorie invalida.');
+        const before = {
+          structureId: structureOf(m),
+          category: m.category,
+          unitId: m.unitId,
+          groupId: m.groupId,
+        };
+        m.structureId = structureId;
+        m.structureConfirmed = true;
+        const group = m.groupId
+          ? await tx.findOne(ScoutSubunit, {
+              id: m.groupId,
+              parentId: unit?.id ?? '',
+              archived: false,
+            })
+          : null;
+        await this.place(tx, m, unit?.id ?? null, group?.id ?? null, user.id);
+        m.categoryReview = !category;
+        if (m.orgoId && before.structureId !== structureId) {
           const obligations = await tx.find(MembershipObligation, {
             orgoUserId: m.orgoId,
           });
@@ -1522,18 +1707,100 @@ export class MembersService {
             }))
               c.reviewRequired = true;
         }
-        m.structureId = String(row.structureId);
-        m.structureConfirmed = true;
-        this.queue(tx, m, user.id, 'local-profile', {
-          structureId: m.structureId,
+        tx.create(AuditEntry, {
+          actorId: user.id,
+          action: 'members.organization-confirm',
+          entityType: 'Member',
+          entityId: m.id,
+          metadata: {
+            before,
+            after: {
+              structureId,
+              category,
+              unitId: m.unitId,
+              groupId: m.groupId,
+            },
+          },
         });
+        this.queue(tx, m, user.id, 'local-profile', { structureId, category });
       }
-      for (const m of await tx.find(ScoutMember, { unitId: { $ne: null } })) {
-        const u = units.find((u) => u.id === m.unitId);
-        if (u && structureOf(u) !== structureOf(m))
+      if (b.units !== undefined && !Array.isArray(b.units))
+        throw new BadRequestException('Mapari invalide.');
+      for (const input of (b.units ?? []) as unknown[]) {
+        const row = bodyObject(input);
+        if (row.convert !== true) continue;
+        const legacy = await tx.findOneOrFail(ScoutUnit, {
+          id: stringValue(row.id),
+          fixed: false,
+          parentId: null,
+        });
+        const parent = await this.unit(tx, stringValue(row.parentId), null);
+        if (!parent || parent.branch !== legacy.branch)
           throw new BadRequestException(
-            `Repartizarea lui ${m.name} nu corespunde unității.`,
+            'Pastreaza categoria sursei importate.',
           );
+        const existing = await tx.findOne(ScoutSubunit, { id: legacy.id });
+        if (existing) {
+          if (existing.parentId !== parent.id)
+            throw new ConflictException(
+              'Subunitatea a fost deja reconciliata.',
+            );
+          else continue;
+        }
+        tx.create(ScoutSubunit, {
+          id: legacy.id,
+          name: legacy.name,
+          branch: parent.branch,
+          parentId: parent.id,
+          structureId: parent.structureId,
+          structureConfirmed: true,
+          orgoId: legacy.orgoId,
+        });
+        await tx.flush();
+        if (legacy.orgoId) {
+          const source = await tx.findOne(ScoutUnitSource, {
+            id: legacy.orgoId,
+          });
+          if (source) {
+            source.unitId = parent.id;
+            source.groupId = legacy.id;
+          }
+        }
+        const original = await tx.execute<{ source_id: string }[]>(
+          "select source_id from member_organization_migration where source_table='scout_members' and original->>'unit_id'=?",
+          [legacy.id],
+        );
+        for (const previous of original) {
+          const member = await this.get(tx, previous.source_id);
+          if (
+            member.unitId !== parent.id ||
+            member.groupId ||
+            member.category !== parent.branch ||
+            structureOf(member) !== parent.structureId
+          )
+            continue;
+          member.groupId = legacy.id;
+          for (const assignment of await tx.find(ScoutAssignment, {
+            memberId: member.id,
+            role: 'beneficiary',
+            endedAt: null,
+          }))
+            assignment.groupId = legacy.id;
+          this.queue(tx, member, user.id, 'local-profile', {
+            groupId: legacy.id,
+          });
+        }
+        tx.create(AuditEntry, {
+          actorId: user.id,
+          action: 'members.legacy-subunit-confirm',
+          entityType: 'Subunit',
+          entityId: legacy.id,
+          metadata: {
+            legacyUnitId: legacy.id,
+            parentId: parent.id,
+            structureId: parent.structureId,
+          },
+        });
       }
       return { id: 'structures', result: { ok: true } };
     });
@@ -1565,6 +1832,7 @@ export class MembersService {
         )
           return;
         const unit = await tx.findOneOrFail(ScoutUnit, { id: m.unitId });
+        if (!isYouth(unit.branch)) return;
         const result = progression(m.grade, unit.branch, m.birthDate, year);
         const transition =
           (await tx.findOne(MemberTransition, { memberId: m.id, year })) ??
@@ -1593,6 +1861,7 @@ export class MembersService {
           const destinations = result.branch
             ? await tx.find(ScoutUnit, {
                 branch: result.branch,
+                fixed: true,
                 structureId: structureOf(m),
                 parentId: null,
                 archived: false,
@@ -1604,7 +1873,9 @@ export class MembersService {
             return;
           }
           if (unit.branch === 'temerari' && m.groupId) {
-            const group = await tx.findOneOrFail(ScoutUnit, { id: m.groupId });
+            const group = await tx.findOneOrFail(ScoutSubunit, {
+              id: m.groupId,
+            });
             group.graduationYear = year;
           }
           await this.place(tx, m, destinations[0]?.id ?? null, null, 0);
@@ -1639,7 +1910,7 @@ export class MembersService {
     // Empty graduated cohorts can close only after all beneficiaries have moved.
     await em.fork().transactional(async (tx) => {
       await tx.execute('select pg_advisory_xact_lock(19102026)');
-      for (const group of await tx.find(ScoutUnit, {
+      for (const group of await tx.find(ScoutSubunit, {
         parentId: { $ne: null },
         branch: 'temerari',
         archived: false,

@@ -215,14 +215,14 @@ An adult who has taken the leader promise, works with beneficiaries, and is atta
 _Avoid_: Scouter
 
 **Unitate**:
-A local scouting group belonging to a ramură de vârstă, with its own lideri and adult helpers. Centrul Local Cluj currently has one unit per age branch.
+An immutable primary category within one structure. Cluj and Florești each have exactly seven units: Lupișori, Temerari, Exploratori, Seniori, Lideri, Voluntari adulți and Scouteri. A member has one primary category; responsibilities never change that category or grant authority through it.
 _Avoid_: Patrolă, branch
 
 **Șef de unitate**:
 The adult representative responsible for a unit.
 _Avoid_: Unit leader
 
-**Subgrupă de unitate**:
+**Subunitate (subgrupă de unitate)**:
 A configurable stable group within a unit, with one or more responsible adults. A Temerari cohort retains its identity and responsible adults as its school grade advances. A beneficiary has at most one current subgroup. Units can also work as one common collective.
 _Avoid_: Treating the school grade as the group's identity
 
@@ -248,8 +248,10 @@ _Avoid_: Organization
 
 ## Local structures and admission evidence
 
-Cluj and Florești are explicit local structures within the same configured Orgo center. Members own one primary structure; unit subgroups inherit their unit's structure. Adults may serve units across structures, granted by Council, independently of their primary affiliation. Council alone transfers primary affiliation and grants structure administrator mandates. Structure administrators manage their own structure and chiefs, without global administrator or finance privileges. Visiting adult engagements can end locally; their global withdrawal remains with home-scope management or Council. Annual progression searches only within the primary structure and queues missing destinations for manual review.
+Cluj and Florești are explicit local structures within the same configured Orgo center. Each member has one persisted primary structure and one primary category, plus at most one primary subunit. Only subunits are configurable. Adults see the basic roster in their own structure; private profiles, medical data, contacts, notes and fees require separate grants. Only explicit central Cluj administrators or active Cluj Council mandates can see both structures. Responsibilities in another structure never bypass the server's structure gate. Council alone transfers primary affiliation.
 
-Legacy affiliations remain unconfirmed until Council reviews /units/structures. Name-based Florești matching proposes initial classification only. Import excludes Orgo patrol types and descendants; selected units require explicit branch and structure. Inactive history stays separate. Existing Orgo identifiers and raw names remain unchanged.
+Delegation follows central administration/Council → structure responsible → unit chief → designated subunit leader/helper. Structure responsibles appoint chiefs; chiefs appoint leaders/helpers within their own units. Leaders/helpers cannot delegate. Parent mandates and expiry are checked on each request, and ending a parent removes dependent authority. The main `/units` workspace owns all permitted management actions, including responsibility dialogs on member rows and subunit menus in the unit table. Former `/admin/members` page links redirect there.
 
-Manual admission allocations are a distinct ledger linked to actual bank/cash receipts and canonical Orgo identity. Receipt availability sums membership and admission allocations and subtracts refunds. All financial writes share advisory lock 9212026; transfers and classification take this lock before member lock 19102026. Historical manual admission can be recorded independently of the six-month online eligibility rule. Partial admission can be completed online; checkout snapshots the expected integral amount to prevent a later manual correction turning the remainder into an integral admission. Confirmed explicit affiliation determines new admission tariffs; unconfirmed legacy members keep the original name-based tariff until reviewed. Paid evidence and documented historical amounts remain stable across names and periods.
+Initial affiliation is persisted once using accent-insensitive Florești matching on Orgo names, with remaining names assigned to Cluj. Unconfirmed values can be corrected in `/units/structures`; later renames and sync never reclassify structure. Explicit Orgo categories work without subunit assignment. Missing/contradictory categories are marked De verificat, not inferred from age or responsibilities. The migration retains original rows in `member_organization_migration`; legacy root units remain as source/history records rather than editable catalog entries. Existing subgroups move to `ScoutSubunit`, and Orgo source aliases are stored separately. Duplicate chief mandates and incompatible cross-structure assignments require central reconciliation. Import excludes Orgo patrol types and descendants; selected source units become explicitly chosen subunits of fixed units. Inactive history stays separate. Annual progression remains disabled unless explicitly enabled; it uses only the four youth branches in the same structure and queues unclear destinations for review.
+
+Manual admission allocations are a distinct ledger linked to actual bank/cash receipts and canonical Orgo identity. Receipt availability sums membership and admission allocations and subtracts refunds. All financial writes share advisory lock 9212026; transfers and classification take this lock before member lock 19102026. Historical manual admission can be recorded independently of the six-month online eligibility rule. Partial admission can be completed online; checkout snapshots the expected integral amount to prevent a later manual correction turning the remainder into an integral admission. Persisted affiliation determines new admission tariffs, including initially classified members awaiting confirmation; name-based pricing is used only when no local member record exists. Paid evidence and documented historical amounts remain stable across names and periods.

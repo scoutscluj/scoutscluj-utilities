@@ -6,6 +6,8 @@ jest.mock('./entities/member.entity', () => ({
   LocalStructure: 'structure',
   ScoutMember: 'member',
   ScoutUnit: 'unit',
+  ScoutSubunit: 'subunit',
+  ScoutUnitSource: 'source',
   ScoutAssignment: 'assignment',
   ScoutNote: 'note',
   MemberSync: 'sync',
@@ -51,8 +53,9 @@ type Row = Record<string, unknown>;
 function fixture() {
   const tables: Record<string, Row[]> = {};
   const list = (name: string) => tables[name] ?? (tables[name] = []);
-  const matches = (row: Row, filter: Row) =>
+  const matches = (row: Row, filter: Row): boolean =>
     Object.entries(filter).every(([key, value]) => {
+      if (key === '$or') return (value as Row[]).some((f) => matches(row, f));
       const actual =
         row[key] ??
         (key === 'structureId'
@@ -74,8 +77,11 @@ function fixture() {
       return actual === value;
     });
   const em = {
-    find: (name: string, filter: Row = {}) =>
-      Promise.resolve(list(name).filter((r) => matches(r, filter))),
+    find: (name: string, filter: Row = {}) => {
+      if (name === 'assignment')
+        for (const row of list(name)) row.actorId ??= 2;
+      return Promise.resolve(list(name).filter((r) => matches(r, filter)));
+    },
     findOne: (name: string, filter: Row) =>
       Promise.resolve(list(name).find((r) => matches(r, filter)) ?? null),
     findOneOrFail: (name: string, filter: Row) => {
@@ -145,7 +151,12 @@ describe('member HTTP scope and lifecycle', () => {
     otherId = randomUUID();
     f.list('user').push(
       { id: 1, roles: [], councilAdmin: false },
-      { id: 2, roles: ['admin'], councilAdmin: false },
+      {
+        id: 2,
+        roles: ['admin'],
+        centralMemberAdmin: true,
+        councilAdmin: false,
+      },
       { id: 3, roles: [] },
     );
     f.list('connection').push(
@@ -154,11 +165,24 @@ describe('member HTTP scope and lifecycle', () => {
     );
     f.list('member').push(
       {
+        id: randomUUID(),
+        accountId: 2,
+        status: 'active',
+        structureId: 'cluj',
+        category: 'lideri',
+        name: 'Central admin',
+        birthDate: '1990-01-01',
+        profile: emptyProfile(),
+        remote: {},
+      },
+      {
         id: adultId,
         orgoId: 100,
         accountId: 1,
         status: 'active',
         name: 'Adult',
+        birthDate: '1990-01-01',
+        category: 'lideri',
         profile: emptyProfile(),
         revision: 1,
         remote: {},
@@ -190,11 +214,43 @@ describe('member HTTP scope and lifecycle', () => {
       },
     );
     f.list('unit').push(
-      { id: unitId, parentId: null, branch: 'temerari', archived: false },
-      { id: groupA, parentId: unitId, branch: 'temerari', archived: false },
-      { id: groupB, parentId: unitId, branch: 'temerari', archived: false },
-      { id: otherUnit, parentId: null, branch: 'exploratori', archived: false },
+      {
+        id: unitId,
+        parentId: null,
+        branch: 'temerari',
+        fixed: true,
+        archived: false,
+      },
+      {
+        id: groupA,
+        parentId: unitId,
+        branch: 'temerari',
+        fixed: true,
+        archived: false,
+      },
+      {
+        id: groupB,
+        parentId: unitId,
+        branch: 'temerari',
+        fixed: true,
+        archived: false,
+      },
+      {
+        id: otherUnit,
+        parentId: null,
+        branch: 'exploratori',
+        fixed: true,
+        archived: false,
+      },
     );
+    f.list('subunit').push({
+      id: groupB + '-other',
+      parentId: otherUnit,
+      branch: 'exploratori',
+      archived: false,
+    });
+    f.list('subunit').push(...f.list('unit').filter((u) => !!u.parentId));
+    f.tables.unit = f.list('unit').filter((u) => !u.parentId);
     f.list('assignment').push({
       id: randomUUID(),
       memberId: adultId,
@@ -326,7 +382,7 @@ describe('member HTTP scope and lifecycle', () => {
     expect(f.list('member').find((m) => m.id === childId)?.grade).toBe(5);
     expect(f.list('sync')).toHaveLength(0);
   });
-  it('lets a visible-member reader see fees without receiving financial write access', async () => {
+  it('keeps fees private from readers without an explicit financial grant', async () => {
     f.tables.assignment = [
       {
         memberId: adultId,
@@ -345,7 +401,7 @@ describe('member HTTP scope and lifecycle', () => {
           access: { fees: boolean; edit: boolean };
         }
       ).access,
-    ).toMatchObject({ fees: true, edit: false });
+    ).toMatchObject({ fees: false, edit: false });
     await http()
       .get('/members/' + otherId)
       .expect(403);
@@ -371,7 +427,7 @@ describe('member HTTP scope and lifecycle', () => {
     await http()
       .post(`/members/${adultId}/assignments`)
       .set('x-actor', '2')
-      .send({ role: 'helper', unitId: otherUnit })
+      .send({ role: 'helper', unitId: otherUnit, groupId: groupB + '-other' })
       .expect(201);
     f.list('obligation').push({ id: 'o-admission', orgoUserId: 100 });
     f.list('checkout').push({
@@ -392,13 +448,20 @@ describe('member HTTP scope and lifecycle', () => {
     expect(f.list('checkout')[0].reviewRequired).toBe(true);
     expect(adult.structureId).toBe('floresti');
   });
-  it('keeps unit responsibilities independent of the acting adult’s home affiliation', async () => {
+  it('does not let a responsibility bypass the primary structure boundary', async () => {
     f.list('unit').find((u) => u.id === unitId)!.structureId = 'floresti';
     f.list('member').find((m) => m.id === childId)!.structureId = 'floresti';
+    await http().get(`/members/${childId}`).expect(403);
     await http()
       .post(`/members/${childId}/lifecycle`)
       .send({ action: 'withdraw' })
-      .expect(201);
+      .expect(403);
+    const roster = await http().get('/members').expect(200);
+    expect(
+      (JSON.parse(roster.text) as { members: { id: string }[] }).members.some(
+        (m) => m.id === childId,
+      ),
+    ).toBe(false);
   });
   it('gives local administrators only their structure and no global admin role', async () => {
     localAdmin();
@@ -419,14 +482,14 @@ describe('member HTTP scope and lifecycle', () => {
     await http()
       .post('/members/units')
       .send({
-        name: 'Lupișori Florești',
-        branch: 'lupisori',
+        name: 'Subunitate Florești',
+        parentId: unitId,
         structureId: 'floresti',
       })
       .expect(201);
     await http()
       .post('/members/units')
-      .send({ name: 'Unitate Cluj', branch: 'lupisori', structureId: 'cluj' })
+      .send({ name: 'Subunitate Cluj', parentId: otherUnit })
       .expect(403);
     await http()
       .post(`/members/${childId}/transfer`)
@@ -438,6 +501,7 @@ describe('member HTTP scope and lifecycle', () => {
       .expect(403);
   });
   it('allows only council to grant a local mandate and does not require a leader promise', async () => {
+    f.list('member').find((m) => m.id === adultId)!.structureId = 'floresti';
     const adult = f.list('member').find((m) => m.id === adultId)!;
     adult.birthDate = '1990-01-01';
     await http()
@@ -455,56 +519,17 @@ describe('member HTTP scope and lifecycle', () => {
       .send({ role: 'structure_admin', structureId: 'cluj' })
       .expect(403);
   });
-  it('does not combine a local mandate and unrelated home-unit leadership into global rights over a visiting adult', async () => {
-    localAdmin();
-    f.list('assignment').push({
-      id: randomUUID(),
-      memberId: adultId,
-      role: 'leader',
-      unitId: otherUnit,
-      groupId: null,
-    });
-    const guestId = randomUUID();
-    f.list('member').push({
-      id: guestId,
-      name: 'Adult Cluj vizitator',
-      structureId: 'cluj',
-      birthDate: '1990-01-01',
-      status: 'active',
-      profile: emptyProfile(),
-      revision: 1,
-      remote: {},
-    });
-    await http()
-      .post(`/members/${guestId}/assignments`)
-      .set('x-actor', '2')
-      .send({ role: 'helper', unitId })
-      .expect(201);
-    await http().get(`/members/${guestId}`).expect(200);
-    await http()
-      .post(`/members/${guestId}/lifecycle`)
-      .send({ action: 'withdraw' })
-      .expect(403);
-    await http()
-      .post(`/members/${guestId}`)
-      .send({ revision: 2, name: 'Identitate schimbată' })
-      .expect(403);
-    // A home-unit leader still cannot borrow the local mandate's identity privilege.
-    await http()
-      .post(`/members/${guestId}/assignments`)
-      .set('x-actor', '2')
-      .send({ role: 'helper', unitId: otherUnit })
-      .expect(201);
-    await http()
-      .post(`/members/${guestId}`)
-      .send({ revision: 3, name: 'Identitate schimbată' })
-      .expect(403);
-    await http()
-      .post(`/members/${guestId}/lifecycle`)
-      .send({ action: 'withdraw' })
-      .expect(201);
+  it('shows a basic same-structure roster while keeping unrelated profiles private', async () => {
+    f.tables.assignment = [];
+    const roster = await http().get('/members').expect(200);
+    expect(
+      (JSON.parse(roster.text) as { members: { id: string }[] }).members.some(
+        (m) => m.id === otherId,
+      ),
+    ).toBe(true);
+    await http().get(`/members/${otherId}`).expect(403);
   });
-  it('lets visiting adults work in both structures but lets local managers end only their local engagement', async () => {
+  it('denies a local manager direct and delegated access to visitors from another structure', async () => {
     localAdmin();
     const guestId = randomUUID();
     f.list('member').push({
@@ -515,36 +540,16 @@ describe('member HTTP scope and lifecycle', () => {
       status: 'active',
       profile: emptyProfile(),
       revision: 1,
-      remote: {},
     });
+    await http().get(`/members/${guestId}`).expect(403);
     await http()
       .post(`/members/${guestId}/assignments`)
-      .send({ role: 'helper', unitId })
+      .send({ role: 'helper', unitId, groupId: groupA })
       .expect(403);
-    await http()
-      .post(`/members/${guestId}/assignments`)
-      .set('x-actor', '2')
-      .send({ role: 'helper', unitId })
-      .expect(201);
-    await http().get(`/members/${guestId}`).expect(200);
     await http()
       .post(`/members/${guestId}/lifecycle`)
       .send({ action: 'withdraw' })
       .expect(403);
-    await http()
-      .post(`/members/${guestId}/transfer`)
-      .send({ unitId: otherUnit })
-      .expect(403);
-    const assignment = f
-      .list('assignment')
-      .find((a) => a.memberId === guestId)!;
-    await http()
-      .post(`/members/${guestId}/assignments/${String(assignment.id)}/end`)
-      .send({})
-      .expect(201);
-    expect(f.list('member').find((m) => m.id === guestId)?.status).toBe(
-      'active',
-    );
   });
   it('retains Florești progression for manual resolution if no local destination exists', async () => {
     localAdmin();
@@ -566,7 +571,17 @@ describe('member HTTP scope and lifecycle', () => {
   });
   it('confirms initial membership once and preserves it when the name changes', async () => {
     const m = f.list('member').find((m) => m.id === childId)!;
+    f.list('unit').push({
+      id: randomUUID(),
+      name: 'Temerari Floresti',
+      branch: 'temerari',
+      fixed: true,
+      parentId: null,
+      structureId: 'floresti',
+      archived: false,
+    });
     m.name = 'Copil Florești';
+    m.structureId = 'floresti';
     for (const u of f.list('unit')) u.name = 'Unitate test';
     const preview = await http()
       .get('/members/structures/preview')
@@ -590,7 +605,7 @@ describe('member HTTP scope and lifecycle', () => {
           id,
           revision: 1,
           structureId: 'floresti',
-          unitId,
+          category: 'temerari',
         })),
       })
       .expect(201);
@@ -653,17 +668,15 @@ describe('member HTTP scope and lifecycle', () => {
     expect(
       (JSON.parse(scoped.text) as { inactiveMembers: unknown[] })
         .inactiveMembers,
-    ).toEqual([]);
+    ).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'historical' })]),
+    );
   });
-  it('allows a leader to read another cohort, including health, but denies its updates', async () => {
-    const read = await http().get(`/members/${otherId}`).expect(200);
-    expect(
-      (JSON.parse(read.text) as { member: { profile: { medical: string } } })
-        .member.profile.medical,
-    ).toBe('medical-secret-b');
+  it('denies private health details and updates outside the designated subunit', async () => {
+    await http().get(`/members/${otherId}`).expect(403);
     await http()
       .post(`/members/${otherId}`)
-      .send({ revision: 1, grade: 7 })
+      .send({ revision: 1, profile: { medical: 'Changed' } })
       .expect(403);
   });
   it('rejects elevated identity edits by a group leader', async () => {
@@ -775,8 +788,10 @@ describe('member HTTP scope and lifecycle', () => {
     });
     await new MembersService(f.em).annual(new Date('2027-09-01T10:00:00Z'));
     expect(child).toMatchObject({ grade: 9, unitId: otherUnit, groupId: null });
-    expect(f.list('unit').find((u) => u.id === groupA)?.archived).toBe(true);
-    expect(f.list('unit').find((u) => u.id === groupB)?.archived).toBe(false);
+    expect(f.list('subunit').find((u) => u.id === groupA)?.archived).toBe(true);
+    expect(f.list('subunit').find((u) => u.id === groupB)?.archived).toBe(
+      false,
+    );
     expect(
       f.list('assignment').find((a) => a.memberId === adultId)?.endedAt,
     ).toBeInstanceOf(Date);
@@ -863,7 +878,12 @@ describe('member HTTP scope and lifecycle', () => {
     await http()
       .post(`/members/${childId}/assignments`)
       .set('x-actor', '2')
-      .send({ role: 'leader', unitId, promiseDate: '2025-01-01' })
+      .send({
+        role: 'leader',
+        unitId,
+        groupId: groupA,
+        promiseDate: '2025-01-01',
+      })
       .expect(400);
   });
   it('derives admin access from a council mandate and revokes it while the account remains signed in', async () => {
@@ -878,7 +898,7 @@ describe('member HTTP scope and lifecycle', () => {
     await http()
       .post('/members/units')
       .set('x-actor', '3')
-      .send({ name: 'Unit', branch: 'lupisori' })
+      .send({ name: 'Subunitate', parentId: unitId })
       .expect(201);
     const mandate = f
       .list('assignment')
@@ -891,8 +911,101 @@ describe('member HTTP scope and lifecycle', () => {
     await http()
       .post('/members/units')
       .set('x-actor', '3')
-      .send({ name: 'Forbidden', branch: 'lupisori' })
+      .send({ name: 'Forbidden', parentId: unitId })
       .expect(403);
     expect(f.list('user').find((u) => u.id === 3)?.roles).toEqual([]);
+  });
+  it('bounds delegation to a chief mandate and invalidates the helper when its parent ends', async () => {
+    const recipient = f.list('member').find((m) => m.id === childId)!;
+    Object.assign(recipient, {
+      birthDate: '1990-01-01',
+      category: 'lideri',
+      unitId: null,
+      groupId: null,
+    });
+    await http()
+      .post(`/members/${childId}/assignments`)
+      .send({ role: 'helper', unitId, groupId: groupA, canEdit: true })
+      .expect(403);
+    const chief = f.list('assignment')[0];
+    Object.assign(chief, { role: 'chief', groupId: null });
+    await http()
+      .post(`/members/${childId}/assignments`)
+      .send({ role: 'helper', unitId, groupId: groupA, canEdit: true })
+      .expect(201);
+    const helper = f.list('assignment').find((a) => a.memberId === childId)!;
+    expect(helper.parentAssignmentId).toBe(chief.id);
+    expect(recipient.category).toBe('lideri');
+    const target = f.list('member').find((m) => m.id === otherId)!;
+    target.groupId = groupA;
+    await http()
+      .post(`/members/${otherId}`)
+      .set('x-actor', '3')
+      .send({ revision: 1, grade: 7 })
+      .expect(201);
+    await http()
+      .post(`/members/${adultId}/assignments/${String(chief.id)}/end`)
+      .set('x-actor', '2')
+      .send({})
+      .expect(201);
+    await http()
+      .post(`/members/${otherId}`)
+      .set('x-actor', '3')
+      .send({ revision: target.revision, grade: 8 })
+      .expect(403);
+  });
+  it('protects fixed units even from central administrators', async () => {
+    await http()
+      .post('/members/units')
+      .set('x-actor', '2')
+      .send({ name: 'Extra', branch: 'temerari' })
+      .expect(400);
+    await http()
+      .post(`/members/units/${unitId}/archive`)
+      .set('x-actor', '2')
+      .send({})
+      .expect(400);
+  });
+  it('reconciles a named legacy root as a subunit only after explicit central confirmation', async () => {
+    const legacyId = randomUUID();
+    f.list('unit').push({
+      id: legacyId,
+      name: 'Vechea grupa numita',
+      branch: 'temerari',
+      structureId: 'cluj',
+      parentId: null,
+      fixed: false,
+      archived: false,
+      orgoId: 777,
+    });
+    f.list('source').push({ id: 777, unitId, groupId: null });
+    const body = {
+      confirm: true,
+      members: [],
+      units: [{ id: legacyId, convert: false, parentId: unitId }],
+    };
+    await http()
+      .post('/members/structures/confirm')
+      .set('x-actor', '2')
+      .send(body)
+      .expect(201);
+    expect(f.list('subunit').some((g) => g.id === legacyId)).toBe(false);
+    body.units[0].convert = true;
+    await http()
+      .post('/members/structures/confirm')
+      .set('x-actor', '2')
+      .send(body)
+      .expect(201);
+    await http()
+      .post('/members/structures/confirm')
+      .set('x-actor', '2')
+      .send(body)
+      .expect(201);
+    expect(f.list('subunit').filter((g) => g.id === legacyId)).toHaveLength(1);
+    expect(f.list('source').find((s) => s.id === 777)).toMatchObject({
+      unitId,
+      groupId: legacyId,
+    });
+    expect(f.list('unit').find((u) => u.id === legacyId)?.fixed).toBe(false);
   });
 });

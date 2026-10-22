@@ -51,10 +51,14 @@ and row expansions that move the rest of the register.
   wrap controls at mobile widths. Controls are 36px tall, labels 12px, gaps
   10–12px. Footer shows the current range, filtered total and loaded total when
   different. Offer 10, 25, 50, 100, 250, 500 and “Toate (total)” page sizes.
-- `/units` is the compact browsing view. Creation, bulk changes, units/groups,
-  annual progression, initial classification and Orgo administration live under
-  `/admin/members`. Keep API-owned permissions, including delegated unit leaders.
-  Add a member with an accessible plus button in the management table toolbar.
+- `/units` is the single browsing and management workspace. Per-row API capabilities
+  control profile, fee, mutation and responsibility actions. Delegation uses a focused
+  dialog on the member row; the unit table has plus buttons on fixed units and
+  rename/archive menus only on configurable subunits. Management has no separate
+  admin submenu. Old `/admin/members` links redirect to this workspace.
+- Filter primary category independently of subunit, including Nerepartizat and
+  De verificat. Show structure and category beneath the member name. Basic roster
+  rows without private-profile access have plain names rather than broken links.
 - Avoid redundant eyebrows, subtitles and “Registru” headings on the member
   screens. Use one page title and a compact inline member/unit summary.
 

@@ -1,6 +1,7 @@
 import { defineEntity, p, type InferEntity } from '@mikro-orm/core';
 import { randomUUID } from 'node:crypto';
-import type { AssignmentRole, Branch, Profile } from '../member.types';
+import type { AssignmentRole, Profile } from '../member.types';
+import type { Category } from '../organization';
 const id = () =>
   p
     .uuid()
@@ -23,7 +24,8 @@ export const ScoutUnit = defineEntity({
   properties: {
     id: id(),
     name: p.string(),
-    branch: p.string().$type<Branch>(),
+    branch: p.string().$type<Category>(),
+    fixed: p.boolean().default(false),
     structureId: p.string().default('cluj'),
     structureConfirmed: p.boolean().default(false),
     parentId: p.uuid().nullable(),
@@ -34,6 +36,32 @@ export const ScoutUnit = defineEntity({
   },
 });
 export type ScoutUnit = InferEntity<typeof ScoutUnit>;
+export const ScoutSubunit = defineEntity({
+  name: 'ScoutSubunit',
+  tableName: 'scout_subunits',
+  properties: {
+    id: id(),
+    name: p.string(),
+    branch: p.string().$type<Category>(),
+    structureId: p.string(),
+    structureConfirmed: p.boolean().default(true),
+    parentId: p.uuid(),
+    graduationYear: p.integer().nullable(),
+    orgoId: p.integer().nullable().unique(),
+    archived: p.boolean().default(false),
+    createdAt: created(),
+  },
+});
+export type ScoutSubunit = InferEntity<typeof ScoutSubunit>;
+export const ScoutUnitSource = defineEntity({
+  name: 'ScoutUnitSource',
+  tableName: 'scout_unit_sources',
+  properties: {
+    id: p.integer().primary(),
+    unitId: p.uuid(),
+    groupId: p.uuid().nullable(),
+  },
+});
 export const ScoutMember = defineEntity({
   name: 'ScoutMember',
   tableName: 'scout_members',
@@ -53,6 +81,8 @@ export const ScoutMember = defineEntity({
     promiseDate: p.string().nullable(),
     promiseSource: p.string().nullable(),
     branch: p.string().nullable(),
+    category: p.string().$type<Category>().nullable(),
+    categoryReview: p.boolean().default(false),
     orgoProfile: p.json<Record<string, unknown>>().onCreate(() => ({})),
     orgoBase: p.json<Record<string, unknown>>().onCreate(() => ({})),
     orgoConflicts: p
@@ -79,6 +109,8 @@ export const ScoutAssignment = defineEntity({
     structureId: p.string().nullable(),
     groupId: p.uuid().nullable(),
     role: p.string().$type<AssignmentRole>(),
+    parentAssignmentId: p.uuid().nullable(),
+    expiresAt: p.datetime().nullable(),
     orgoRoleId: p.integer().nullable(),
     canEdit: p.boolean().default(false),
     canSeeFees: p.boolean().default(false),
@@ -156,6 +188,8 @@ export const MemberNotice = defineEntity({
 export const MEMBER_ENTITIES = [
   LocalStructure,
   ScoutUnit,
+  ScoutSubunit,
+  ScoutUnitSource,
   ScoutMember,
   ScoutAssignment,
   ScoutNote,

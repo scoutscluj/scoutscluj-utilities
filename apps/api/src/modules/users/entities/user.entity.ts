@@ -17,6 +17,7 @@ export const User = defineEntity({
       .array()
       .default([])
       .nativeEnumName('user_role'),
+    centralMemberAdmin: p.boolean().default(false),
     councilAdmin: p.boolean().default(false).fieldName('council_admin'),
     memberAccessDisabled: p
       .boolean()

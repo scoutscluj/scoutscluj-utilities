@@ -1,17 +1,29 @@
 export type Structure = { id: string; name: string; forming: boolean };
 export type StructurePreview = {
 	structures: Structure[];
-	units: { id: string; name: string; structureId: string }[];
+	units: {
+		id: string;
+		name: string;
+		structureId: string;
+		branch?: string;
+		convert?: boolean;
+		parentId?: string;
+	}[];
 	members: {
 		id: string;
 		name: string;
 		revision: number;
 		unitId: string | null;
 		inactive: boolean;
+		category?: string | null;
+		categoryReview?: boolean;
 		structureId: string;
 	}[];
 };
 export type Unit = {
+	canCreateMember?: boolean;
+	delegateRoles?: string[];
+	canManage?: boolean;
 	structureId?: string;
 	grades: number[];
 	id: string;
@@ -21,11 +33,17 @@ export type Unit = {
 	archived: boolean;
 };
 export type Member = {
+	responsibilities?: { id: string; role: string; unitId: string | null; groupId: string | null }[];
+	category?: string | null;
+	categoryReview?: boolean;
 	roles?: string[];
 	orgoType?: string | null;
 	revision?: number;
 	branch?: string | null;
 	access?: {
+		delegate?: boolean;
+		detail?: boolean;
+		fees?: boolean;
 		edit: boolean;
 		transfer: boolean;
 		withdraw?: boolean;
@@ -53,6 +71,8 @@ export type Sync = {
 	createdAt: string;
 };
 export type Registry = {
+	delegableRoles?: string[];
+	homeStructureId?: string | null;
 	canFinance?: boolean;
 	structures?: Structure[];
 	manageableStructureIds?: string[];
@@ -130,7 +150,10 @@ export const branchLabels: Record<string, string> = {
 	lupisori: 'Lupișori',
 	temerari: 'Temerari',
 	exploratori: 'Exploratori',
-	seniori: 'Seniori'
+	seniori: 'Seniori',
+	lideri: 'Lideri',
+	voluntari: 'Voluntari adulți',
+	scouteri: 'Scouteri'
 };
 export const roleLabels: Record<string, string> = {
 	beneficiary: 'Beneficiar',

@@ -13,9 +13,11 @@ export async function memberRead<T>(event: RequestEvent, path: string): Promise<
 export async function memberAction(event: RequestEvent) {
 	const form = await event.request.formData();
 	const action = String(form.get('action'));
-	const id = event.params.memberId;
+	const id =
+		event.params.memberId ?? (form.get('targetId') ? String(form.get('targetId')) : undefined);
 	const body: Record<string, unknown> = Object.fromEntries(form);
 	delete body.action;
+	delete body.targetId;
 	if (form.has('keepLocal')) body.keepLocal = form.get('keepLocal') === 'on';
 	let path: string;
 	if (action === 'fee-menu') {

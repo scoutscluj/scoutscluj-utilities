@@ -10,7 +10,6 @@
 		transferUnit = $state(''),
 		transferGroup = $state('');
 	let role = $state('helper'),
-		roleStructure = $state('cluj'),
 		roleUnit = $state(''),
 		roleGroup = $state('');
 	let returnUnit = $state(''),
@@ -20,12 +19,16 @@
 		transferUnit = m.unitId ?? '';
 		transferGroup = m.groupId ?? '';
 	});
+	$effect(() => {
+		if (!data.registry.delegableRoles?.includes(role))
+			role = data.registry.delegableRoles?.[0] ?? 'helper';
+	});
 	const structures = $derived(data.registry.structures ?? []);
 	const units = $derived(data.registry.units.filter((u) => !u.parentId && !u.archived));
 	const name = (id: string | null) => unitName(data.registry.units, id, 'Centru / fără unitate');
 	const money = (b: number) =>
 		new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON' }).format(b / 100);
-	const chief = $derived(data.registry.admin || data.registry.chiefUnitIds.length > 0);
+	const chief = $derived((data.registry.delegableRoles?.length ?? 0) > 0);
 	const dietaryChoices = $derived(
 		Object.values(
 			(
@@ -267,7 +270,7 @@
 				<input type="hidden" name="action" value="assignment" />
 				<div class="grid">
 					{#if role === 'structure_admin'}<label
-							>Structură<select name="structureId" bind:value={roleStructure}
+							>Structură<select name="structureId" value={m.structureId ?? 'cluj'}
 								>{#each structures as st (st.id)}<option value={st.id}>{st.name}</option
 									>{/each}</select
 							></label
@@ -280,14 +283,9 @@
 								roleUnit = '';
 								roleGroup = '';
 							}}
-							><option value="helper">Voluntar adult / ajutor de lider</option><option
-								value="leader">Lider</option
-							>{#if data.registry.admin || data.registry.manageableStructureIds?.includes(m.structureId ?? 'cluj')}<option
-									value="chief">Șef de unitate</option
-								>{/if}{#if data.registry.admin}<option value="structure_admin"
-									>Responsabil de structură</option
-								><option value="scouter">Scouter</option><option value="council">Consiliu</option
-								>{/if}</select
+							>{#each (data.registry.delegableRoles ?? []).filter((r) => r !== 'council' || m.structureId !== 'floresti') as r (r)}<option
+									value={r}>{roleLabels[r]}</option
+								>{/each}</select
 						></label
 					><label
 						>Unitate<select
@@ -296,7 +294,7 @@
 							disabled={['structure_admin', 'council', 'scouter'].includes(role)}
 							onchange={() => (roleGroup = '')}
 							><option value="">La nivel de centru</option
-							>{#each units.filter((u) => data.registry.admin || ((u.structureId ?? 'cluj') === (m.structureId ?? 'cluj') && data.registry.chiefUnitIds.includes(u.id))) as u (u.id)}<option
+							>{#each units.filter((u) => u.delegateRoles?.includes(role) && (data.registry.admin || (u.structureId ?? 'cluj') === (m.structureId ?? 'cluj'))) as u (u.id)}<option
 									value={u.id}>{u.name}</option
 								>{/each}</select
 						></label
@@ -305,6 +303,7 @@
 							name="groupId"
 							bind:value={roleGroup}
 							disabled={!roleUnit || role === 'chief'}
+							required={['leader', 'helper'].includes(role)}
 							><option value="">Colectiv comun / întreaga unitate</option
 							>{#each data.registry.units.filter((u) => u.parentId === roleUnit && !u.archived) as u (u.id)}<option
 									value={u.id}>{name(u.parentId)} / {u.name}</option
@@ -359,7 +358,7 @@
 		margin: auto;
 		display: grid;
 		gap: 24px;
-		color: #172b28;
+		color: var(--sc-ink);
 	}
 	header {
 		display: flex;
@@ -373,9 +372,9 @@
 	}
 	section {
 		padding: 24px;
-		border: 1px solid #dce5df;
+		border: 1px solid var(--sc-border);
 		border-radius: 14px;
-		background: white;
+		background: var(--sc-surface);
 	}
 	h2 {
 		margin-top: 0;
@@ -414,7 +413,7 @@
 		margin-top: 16px;
 	}
 	.secondary {
-		background: white;
+		background: var(--sc-surface);
 		color: var(--sc-accent);
 	}
 	.danger {

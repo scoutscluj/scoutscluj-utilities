@@ -19,14 +19,14 @@ const assignment = (
 });
 describe('member scope policies', () => {
   const child = { id: 'child', unitId: 'temerari', groupId: 'group-b' };
-  it('allows unit-wide leader reads while denying writes to a different cohort', () => {
+  it('denies private details outside the designated leader subunit', () => {
     expect(
       permissions(false, false, [assignment('leader')], child),
     ).toMatchObject({
-      read: true,
-      sensitive: true,
-      notes: true,
-      fees: true,
+      read: false,
+      sensitive: false,
+      notes: false,
+      fees: false,
       edit: false,
       identity: false,
     });
@@ -89,13 +89,13 @@ describe('member scope policies', () => {
       identity: false,
     });
   });
-  it('permits leaders of a shared collective to edit that collective', () => {
+  it('requires a designated subunit before leadership grants editing rights', () => {
     expect(
       permissions(false, false, [assignment('leader', null)], {
         ...child,
         groupId: null,
       }).edit,
-    ).toBe(true);
+    ).toBe(false);
   });
 });
 describe('September progression', () => {

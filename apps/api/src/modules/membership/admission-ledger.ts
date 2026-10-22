@@ -24,7 +24,7 @@ export function memberAdmissionTariff(
     | undefined,
   name: string,
 ) {
-  return member?.structureConfirmed
+  return member?.structureId
     ? member.structureId === 'floresti'
       ? 10500
       : 5500

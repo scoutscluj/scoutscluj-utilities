@@ -28,4 +28,4 @@
 - [x] 4.2 Teste de securitate: acces direct prin ID, date/count/export din altă structură, lot mixt, delegare excesivă, expirare/revocare, mandatele centrale explicite.
 - [x] 4.3 Teste pentru catalogul imuabil, categoria fără subunitate, cele șapte categorii și regresiile sincronizării/progresiei.
 - [x] 4.4 Verificări browser pentru principalele roluri, meniuri/dialoguri, filtre și layout desktop/mobil; verificări proiect relevante.
-- [ ] 4.5 PR cu rezultate de validare și pașii de migrare/activare; livrare conform instrucțiunilor utilizatorului.
+- [x] 4.5 PR cu rezultate de validare și pașii de migrare/activare. Publicarea urmează fluxul documentat în rollout.md.

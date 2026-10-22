@@ -409,3 +409,34 @@ test('fixed units offer subunit creation and only subunits offer rename or archi
 		fullPage: true
 	});
 });
+
+test('responsibilities are assigned from a member row without changing primary category', async ({
+	page,
+	request
+}) => {
+	await page.goto('/units');
+	await page.getByRole('button', { name: 'Acțiuni pentru Ana Popescu', exact: true }).click();
+	await page.getByRole('menuitem', { name: 'Responsabilități', exact: true }).click();
+	const dialog = page.getByRole('dialog', { name: 'Responsabilități · Ana Popescu' });
+	await dialog
+		.getByRole('combobox', { name: 'Responsabilitate', exact: true })
+		.selectOption('helper');
+	await dialog.getByRole('combobox', { name: 'Unitate', exact: true }).selectOption('u1');
+	await dialog.getByRole('combobox', { name: 'Subunitate', exact: true }).selectOption('g1');
+	await dialog.getByRole('checkbox', { name: 'Poate modifica membrii', exact: true }).check();
+	await dialog.getByRole('button', { name: 'Salvează responsabilitatea', exact: true }).click();
+	await expect(page.getByRole('status')).toContainText(
+		'Responsabilitatea și drepturile de acces au fost salvate.'
+	);
+	const submissions = await (await request.get('http://127.0.0.1:3015/test/submissions')).json();
+	expect(submissions.at(-1)).toMatchObject({
+		role: 'helper',
+		unitId: 'u1',
+		groupId: 'g1',
+		canEdit: true,
+		canSeeFees: false,
+		canSeeSensitive: false
+	});
+	expect(submissions.at(-1)).not.toHaveProperty('category');
+	expect(submissions.at(-1)).not.toHaveProperty('targetId');
+});

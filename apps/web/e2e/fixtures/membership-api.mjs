@@ -329,6 +329,7 @@ createServer(async (req, res) => {
 					grade: 5,
 					category: 'temerari',
 					access: {
+						delegate: !req.headers.cookie?.includes('read-only'),
 						detail: true,
 						edit: !req.headers.cookie?.includes('read-only'),
 						identity: true,
@@ -341,6 +342,12 @@ createServer(async (req, res) => {
 			]
 		});
 
+	if (req.url === '/api/members/m1/assignments' && req.method === 'POST') {
+		let raw = '';
+		for await (const chunk of req) raw += chunk;
+		submissions.push(JSON.parse(raw));
+		return respond(res, { ok: true });
+	}
 	if (req.url === '/api/members/bulk') {
 		let raw = '';
 		for await (const chunk of req) raw += chunk;

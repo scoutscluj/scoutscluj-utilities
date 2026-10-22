@@ -98,6 +98,8 @@ test('period progress survives filtering and payment tooltips open with keyboard
 	await expect(page.getByRole('cell', { name: /^Andrei Ionescu ID Orgo/ })).not.toBeVisible();
 	await expect(progress).toHaveAttribute('value', '53');
 	await page.keyboard.press('Tab');
+	await expect(page.getByRole('combobox', { name: 'Rânduri pe pagină' })).toBeFocused();
+	await page.keyboard.press('Tab');
 	await expect(
 		page.getByRole('button', { name: 'Detalii plată pentru Ana Popescu' })
 	).toBeFocused();

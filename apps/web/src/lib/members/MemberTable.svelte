@@ -2,7 +2,10 @@
 	import { resolve } from '$app/paths';
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
-	import { tick } from 'svelte';
+	import { tick, type Snippet } from 'svelte';
+	import TableToolbar from '$lib/components/ui/TableToolbar.svelte';
+	import TablePageSize from '$lib/components/ui/TablePageSize.svelte';
+	import TablePagination from '$lib/components/ui/TablePagination.svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import ActionMenu from '$lib/components/ui/ActionMenu.svelte';
@@ -19,7 +22,11 @@
 		preview,
 		feeMenu,
 		inactive = false,
-		message = ''
+		message = '',
+		filterContent,
+		controls,
+		management = true,
+		loadedTotal = members.length
 	}: {
 		members: Member[];
 		registry: Registry;
@@ -27,6 +34,10 @@
 		feeMenu?: { id: string; name: string; fees: Detail['fees'] };
 		inactive?: boolean;
 		message?: string;
+		filterContent?: Snippet;
+		controls?: Snippet;
+		management?: boolean;
+		loadedTotal?: number;
 	} = $props();
 	let selected = $state<string[]>([]),
 		editing = $state(false),
@@ -76,9 +87,12 @@
 			return descending ? -result : result;
 		})
 	);
-	const pageCount = $derived(Math.max(1, Math.ceil(sorted.length / pageSize)));
+	const effectiveSize = $derived(pageSize || Math.max(1, filtered.length));
+	const pageCount = $derived(Math.max(1, Math.ceil(sorted.length / effectiveSize)));
 	const currentPage = $derived(Math.min(page, pageCount - 1));
-	const pageRows = $derived(sorted.slice(currentPage * pageSize, (currentPage + 1) * pageSize));
+	const pageRows = $derived(
+		sorted.slice(currentPage * effectiveSize, (currentPage + 1) * effectiveSize)
+	);
 	const allPageSelected = $derived(
 		pageRows.length > 0 && pageRows.every((m) => selected.includes(m.id))
 	);
@@ -149,7 +163,7 @@
 					void loadFees(m);
 				}
 			},
-			...(registry.canManage
+			...(management && registry.canManage
 				? [
 						...(!inactive
 							? [
@@ -202,18 +216,8 @@
 	}
 </script>
 
-{#if inactive}<label
-		>Caută în istoricul Orgo<input
-			bind:value={inactiveSearch}
-			placeholder="Nume"
-			oninput={() => (page = 0)}
-		/></label
-	>{/if}
-{#if registry.canManage}
+{#if management && registry.canManage && chosen.length}
 	<div class="toolbar">
-		<button type="button" onclick={() => (selected = filtered.map((m) => m.id))}
-			>Selectează toate rezultatele ({filtered.length})</button
-		>
 		{#if selected.length}<span>{chosen.length} selectați</span><button
 				type="button"
 				onclick={() => {
@@ -330,16 +334,17 @@
 		</form>
 	{/if}
 </Modal>
-<div class="table-controls">
-	<span class="result-count" aria-live="polite"
-		>{filtered.length} membri{chosen.length ? ` · ${chosen.length} selectați` : ''}</span
-	>
-	<label
-		>Rânduri pe pagină<select bind:value={pageSize} onchange={() => (page = 0)}
-			><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option
-			><option value={100}>100</option></select
-		></label
-	>
+<TableToolbar>
+	{#snippet filters()}
+		{#if inactive}<label
+				>Caută în istoricul Orgo<input
+					bind:value={inactiveSearch}
+					placeholder="Nume"
+					oninput={() => (page = 0)}
+				/></label
+			>{:else if filterContent}{@render filterContent()}{/if}
+	{/snippet}
+	<TablePageSize bind:value={pageSize} total={filtered.length} onchange={() => (page = 0)} />
 	{#if !inactive}<details class="column-picker">
 			<summary>Coloane</summary>
 			<div>
@@ -348,12 +353,14 @@
 				><label><input type="checkbox" bind:checked={showStatus} />Status</label>
 			</div>
 		</details>{/if}
-</div>
+
+	{#if controls}{@render controls()}{/if}
+</TableToolbar>
 <div class="table">
 	<table>
 		<thead
 			><tr>
-				{#if registry.canManage}<th
+				{#if management && registry.canManage}<th
 						><input
 							type="checkbox"
 							aria-label="Selectează pagina curentă"
@@ -394,7 +401,7 @@
 			</tr></thead
 		><tbody>
 			{#each pageRows as m (m.id)}<tr class:selected={selected.includes(m.id)}>
-					{#if registry.canManage}<td
+					{#if management && registry.canManage}<td
 							><input
 								type="checkbox"
 								aria-label={`Selectează ${m.name}`}
@@ -431,7 +438,7 @@
 				</tr>{:else}<tr
 					><td
 						colspan={2 +
-							Number(registry.canManage) +
+							Number(management && registry.canManage) +
 							(inactive ? 0 : Number(showUnit) + Number(showGrade) + Number(showStatus))}
 						>Nu există membri pentru filtrele alese.</td
 					></tr
@@ -439,16 +446,13 @@
 		</tbody>
 	</table>
 </div>
-<nav aria-label="Paginile registrului" class="toolbar">
-	<button type="button" disabled={currentPage <= 0} onclick={() => (page = currentPage - 1)}
-		>Anterior</button
-	><span>Pagina {Math.min(page, pageCount - 1) + 1} din {pageCount} · {filtered.length} membri</span
-	><button
-		type="button"
-		disabled={currentPage >= pageCount - 1}
-		onclick={() => (page = currentPage + 1)}>Următor</button
-	>
-</nav>
+<TablePagination
+	bind:page
+	{pageSize}
+	total={filtered.length}
+	{loadedTotal}
+	label="Paginile registrului"
+/>
 <Modal
 	bind:open={feesOpen}
 	title={`Cotizații · ${displayedFees?.name ?? 'Membru'}`}
@@ -469,7 +473,7 @@
 							? ' · achitat direct în Orgo'
 							: ''}. Încasat de centru: {money(fee.localPaidBani ?? fee.paidBani)}.
 					</p>
-					{#if registry.canFinance && fee.obligationId}<details>
+					{#if management && registry.canFinance && fee.obligationId}<details>
 							<summary>Național achitat în Orgo — confirmă partea locală</summary>
 							<form method="POST" use:enhance={submitFee}>
 								<input type="hidden" name="action" value="direct-national" /><input
@@ -506,23 +510,6 @@
 </Modal>
 
 <style>
-	.table-controls {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 16px;
-		margin: 16px 0;
-		color: var(--sc-muted);
-		font-size: 13px;
-	}
-	.table-controls > label {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-	}
-	.result-count {
-		margin-right: auto;
-	}
 	.column-picker {
 		position: relative;
 	}
@@ -582,6 +569,7 @@
 		height: 16px;
 	}
 	.table {
+		position: relative;
 		border: 1px solid var(--sc-border);
 		border-radius: 8px;
 	}

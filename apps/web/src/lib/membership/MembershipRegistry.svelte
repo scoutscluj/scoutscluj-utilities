@@ -1,4 +1,10 @@
 <script lang="ts">
+	import TableToolbar from '$lib/components/ui/TableToolbar.svelte';
+	import TablePageSize from '$lib/components/ui/TablePageSize.svelte';
+	import TablePagination from '$lib/components/ui/TablePagination.svelte';
+	let page = $state(0),
+		pageSize = $state(25);
+
 	import type { Dashboard, Obligation } from './types';
 	import { onMount } from 'svelte';
 	import { money } from './types';
@@ -75,6 +81,13 @@
 					.includes(search.toUpperCase())
 		)
 	);
+	const effectiveSize = $derived(pageSize || Math.max(1, filtered.length));
+	const activePage = $derived(
+		Math.min(page, Math.max(0, Math.ceil(filtered.length / effectiveSize) - 1))
+	);
+	const pageRows = $derived(
+		filtered.slice(activePage * effectiveSize, (activePage + 1) * effectiveSize)
+	);
 	const batchTotal = $derived(
 		obligations.filter((o) => selected.includes(o.id)).reduce((sum, o) => sum + o.nationalBani, 0)
 	);
@@ -118,39 +131,45 @@
 {/if}
 
 <section aria-label={transfers ? 'Selecția membrilor pentru transfer' : 'Registrul membrilor'}>
-	<div class="filters">
-		<label
-			>Perioadă<select
-				value={periodFilter || activePeriod?.id}
-				onchange={(e) => {
-					periodFilter = e.currentTarget.value;
-					selected = [];
-				}}
+	<TableToolbar>
+		{#snippet filters()}
+			<label
+				>Perioadă<select
+					value={periodFilter || activePeriod?.id}
+					onchange={(e) => {
+						periodFilter = e.currentTarget.value;
+						page = 0;
+						selected = [];
+						page = 0;
+					}}
+				>
+					{#each ledger.periods as p (p.id)}<option value={p.id}>{p.name}</option>{/each}
+				</select></label
 			>
-				{#each ledger.periods as p (p.id)}<option value={p.id}>{p.name}</option>{/each}
-			</select></label
-		>
-		<label
-			>Starea cotizației<select
-				bind:value={paymentFilter}
-				onchange={() => {
-					selected = [];
-				}}
+			<label
+				>Starea cotizației<select
+					bind:value={paymentFilter}
+					onchange={() => {
+						selected = [];
+						page = 0;
+					}}
+				>
+					<option value="all">Toate</option><option value="paid">Plătit</option><option
+						value="partial">Parțial</option
+					><option value="unpaid">Neplătit</option><option value="review">De verificat</option>
+				</select></label
 			>
-				<option value="all">Toate</option><option value="paid">Plătit</option><option
-					value="partial">Parțial</option
-				><option value="unpaid">Neplătit</option><option value="review">De verificat</option>
-			</select></label
-		>
-		<label
-			>Caută nume sau ID<input
-				type="search"
-				bind:value={search}
-				placeholder="Nume, ID ORGO sau ID Card"
-			/></label
-		>
-	</div>
-	<p>{filtered.length} membri afișați.</p>
+			<label
+				>Caută nume sau ID<input
+					type="search"
+					bind:value={search}
+					oninput={() => (page = 0)}
+					placeholder="Nume, ID ORGO sau ID Card"
+				/></label
+			>
+		{/snippet}
+		<TablePageSize bind:value={pageSize} total={filtered.length} onchange={() => (page = 0)} />
+	</TableToolbar>
 	{#if transfers}<p>
 			Selectează membrii cu cotizația integral achitată pentru a înregistra transferul național.
 		</p>{/if}
@@ -167,13 +186,12 @@
 					></thead
 				>
 				<tbody>
-					{#each filtered as o (o.id)}
+					{#each pageRows as o (o.id)}
 						{@const item = ledger.nationalItems.find((n) => n.obligationId === o.id)}
 						<tr>
 							{#if transfers}<td
 									>{#if !item && !o.nationalDirectBani && paid(o.id) >= o.totalBani}<input
 											type="checkbox"
-											name="obligationIds"
 											value={o.id}
 											bind:group={selected}
 											aria-label={`Include ${o.memberName}`}
@@ -246,6 +264,7 @@
 	{#if transfers}
 		<form method="POST">
 			<input type="hidden" name="action" value="batch" />
+			{#each selected as id (id)}<input type="hidden" name="obligationIds" value={id} />{/each}
 			{@render memberRows()}
 			<div class="transfer-confirmation">
 				<p>
@@ -267,6 +286,13 @@
 			</div>
 		</form>
 	{:else}{@render memberRows()}{/if}
+	<TablePagination
+		bind:page
+		{pageSize}
+		total={filtered.length}
+		loadedTotal={obligations.length}
+		label="Paginile cotizațiilor"
+	/>
 </section>
 
 {#if !transfers}<ManualReceiptDialog {ledger} obligation={receiptMember} bind:open={receiptOpen} />

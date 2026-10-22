@@ -39,12 +39,24 @@ and row expansions that move the rest of the register.
   confirmations, preserving the table beneath it.
 - Member changes retain server preview, revision/version checks, explicit
   confirmation, and existing permissions. Opening a menu never submits a change.
-- Table selection applies to visible filtered results, including selected
-  pages; changing filters removes hidden selections. Distinguish current-page
-  selection from selecting every filtered result.
+- Table selection uses the header checkbox for the current page; there is no
+  duplicate select-all-results button. Changing filters removes hidden member
+  selections. Select the “Toate (total)” page size before selecting all matches.
 - Member tables: sortable headers with `aria-sort`, page-size controls,
   optional columns, selected-row tint, explicit empty state and pagination.
 - Users: searchable identities, role filter, name sorting and pagination.
+- `TableToolbar.svelte`, `TablePageSize.svelte`, and `TablePagination.svelte`
+  define the shared table layout for members, users, cotizații and receipts.
+  Put filters, page size, columns and optional plus action on one desktop row;
+  wrap controls at mobile widths. Controls are 36px tall, labels 12px, gaps
+  10–12px. Footer shows the current range, filtered total and loaded total when
+  different. Offer 10, 25, 50, 100, 250, 500 and “Toate (total)” page sizes.
+- `/units` is the compact browsing view. Creation, bulk changes, units/groups,
+  annual progression, initial classification and Orgo administration live under
+  `/admin/members`. Keep API-owned permissions, including delegated unit leaders.
+  Add a member with an accessible plus button in the management table toolbar.
+- Avoid redundant eyebrows, subtitles and “Registru” headings on the member
+  screens. Use one page title and a compact inline member/unit summary.
 
 ## Implementation
 

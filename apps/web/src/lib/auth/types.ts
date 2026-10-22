@@ -6,6 +6,7 @@ export type AppHref =
 	| '/'
 	| '/profile'
 	| '/admin'
+	| '/admin/members'
 	| '/admin/finance'
 	| '/admin/finance/membership'
 	| '/admin/finance/receipts'

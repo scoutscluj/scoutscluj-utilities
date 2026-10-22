@@ -14,6 +14,16 @@
 	<h1>Administrare</h1>
 	<p>Alege zona pe care vrei să o configurezi.</p>
 
+	{#if hasRole(data.user, 'moderator')}
+		<div class="admin-section">
+			<h2>Membri și unități</h2>
+			<a class="module-card" href={resolve('/admin/members')}
+				><strong>Administrare membri și unități</strong><span
+					>Membri, unități, grupe, repartizări și legătura cu Orgo.</span
+				></a
+			>
+		</div>
+	{/if}
 	{#if hasRole(data.user, 'admin') || hasRole(data.user, 'finance_manager')}
 		<div class="admin-section">
 			<h2>Financiar</h2>

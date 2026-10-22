@@ -1,4 +1,10 @@
 <script lang="ts">
+	import TableToolbar from '$lib/components/ui/TableToolbar.svelte';
+	import TablePageSize from '$lib/components/ui/TablePageSize.svelte';
+	import TablePagination from '$lib/components/ui/TablePagination.svelte';
+	let page = $state(0),
+		pageSize = $state(25);
+
 	import BankAdmissions from '$lib/membership/BankAdmissions.svelte';
 	import MembershipAdminPage from '$lib/membership/MembershipAdminPage.svelte';
 	import { onMount } from 'svelte';
@@ -36,6 +42,13 @@
 					.toLocaleLowerCase('ro')
 					.includes(search.toLocaleLowerCase('ro'))
 		)
+	);
+	const effectiveSize = $derived(pageSize || Math.max(1, visible.length));
+	const activePage = $derived(
+		Math.min(page, Math.max(0, Math.ceil(visible.length / effectiveSize) - 1))
+	);
+	const pageRows = $derived(
+		visible.slice(activePage * effectiveSize, (activePage + 1) * effectiveSize)
 	);
 </script>
 
@@ -85,25 +98,29 @@
 				<p>Banii primiți, documentele de referință și sumele de alocat.</p>
 			</div>
 		</div>
-		<div class="receipt-filters">
-			<label
-				>Caută încasare<input
-					type="search"
-					bind:value={search}
-					placeholder="Referință, dată sau detalii"
-				/></label
-			><label
-				>Metoda de plată<select bind:value={methodFilter}
-					><option value="all">Toate metodele</option><option value="bank">Transfer bancar</option
-					><option value="cash">Numerar</option><option value="card">Card</option></select
-				></label
-			>
-		</div>
+		<TableToolbar>
+			{#snippet filters()}
+				<label
+					>Caută încasare<input
+						type="search"
+						bind:value={search}
+						oninput={() => (page = 0)}
+						placeholder="Referință, dată sau detalii"
+					/></label
+				><label
+					>Metoda de plată<select bind:value={methodFilter} onchange={() => (page = 0)}
+						><option value="all">Toate metodele</option><option value="bank">Transfer bancar</option
+						><option value="cash">Numerar</option><option value="card">Card</option></select
+					></label
+				>
+			{/snippet}
+			<TablePageSize bind:value={pageSize} total={visible.length} onchange={() => (page = 0)} />
+		</TableToolbar>
 		<div class="scroll">
 			<table>
 				<thead><tr><th>Încasare</th><th>Sumă</th><th>Nealocat</th><th>Detalii</th></tr></thead
 				><tbody>
-					{#each visible as r (r.id)}{@const checkout = ledger.checkouts.find(
+					{#each pageRows as r (r.id)}{@const checkout = ledger.checkouts.find(
 							(c) => c.id === r.checkoutId
 						)}<tr
 							><td
@@ -150,6 +167,13 @@
 				</tbody>
 			</table>
 		</div>
+		<TablePagination
+			bind:page
+			{pageSize}
+			total={visible.length}
+			loadedTotal={ledger.receipts.length}
+			label="Paginile încasărilor"
+		/>
 		<details>
 			<summary>Alocă o încasare existentă unui membru</summary>
 			<form method="POST" class="grid">
@@ -309,12 +333,6 @@
 		background: #f0fdf4 !important;
 		border-color: #cee7d5 !important;
 	}
-	.receipt-filters {
-		display: grid;
-		grid-template-columns: 2fr 1fr;
-		gap: 16px;
-		margin-top: 22px;
-	}
 	.receipt-state {
 		margin-top: 7px;
 	}
@@ -323,8 +341,5 @@
 		margin-bottom: 10px;
 	}
 	@media (max-width: 600px) {
-		.receipt-filters {
-			grid-template-columns: 1fr;
-		}
 	}
 </style>

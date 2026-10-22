@@ -1,4 +1,7 @@
 <script lang="ts">
+	import TableToolbar from '$lib/components/ui/TableToolbar.svelte';
+	import TablePageSize from '$lib/components/ui/TablePageSize.svelte';
+	import TablePagination from '$lib/components/ui/TablePagination.svelte';
 	import { enhance } from '$app/forms';
 	import { Dialog, DropdownMenu } from 'bits-ui';
 	import { toast } from 'svelte-sonner';
@@ -23,10 +26,15 @@
 			)
 			.sort((a, b) => (sortDescending ? -1 : 1) * a.displayName.localeCompare(b.displayName, 'ro'))
 	);
-	const pageCount = $derived(Math.max(1, Math.ceil(filteredUsers.length / pageSize)));
+	const pageCount = $derived(
+		Math.max(1, Math.ceil(filteredUsers.length / (pageSize || Math.max(1, filteredUsers.length))))
+	);
 	const activePage = $derived(Math.min(currentPage, pageCount - 1));
 	const visibleUsers = $derived(
-		filteredUsers.slice(activePage * pageSize, (activePage + 1) * pageSize)
+		filteredUsers.slice(
+			activePage * (pageSize || filteredUsers.length),
+			(activePage + 1) * (pageSize || filteredUsers.length)
+		)
 	);
 	let roleDialogOpen = $state(false);
 	let selectedUserId = $state<number | null>(null);
@@ -123,28 +131,29 @@
 		<div class="count-pill">{data.users.length} utilizatori</div>
 	</div>
 
-	<div class="table-tools">
-		<label
-			>Caută utilizator<input
-				bind:value={search}
-				oninput={() => (currentPage = 0)}
-				placeholder="Nume, email sau ID Orgo"
-			/></label
-		>
-		<label
-			>Rol<select bind:value={roleFilter} onchange={() => (currentPage = 0)}
-				><option value="">Toate rolurile</option>{#each data.roleOrder as role (role)}<option
-						value={role}>{formatRole(role)}</option
-					>{/each}</select
-			></label
-		>
-		<label
-			>Rânduri pe pagină<select bind:value={pageSize} onchange={() => (currentPage = 0)}
-				><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option
-				></select
-			></label
-		>
-	</div>
+	<TableToolbar>
+		{#snippet filters()}
+			<label
+				>Caută utilizator<input
+					bind:value={search}
+					oninput={() => (currentPage = 0)}
+					placeholder="Nume, email sau ID Orgo"
+				/></label
+			>
+			<label
+				>Rol<select bind:value={roleFilter} onchange={() => (currentPage = 0)}
+					><option value="">Toate rolurile</option>{#each data.roleOrder as role (role)}<option
+							value={role}>{formatRole(role)}</option
+						>{/each}</select
+				></label
+			>
+		{/snippet}
+		<TablePageSize
+			bind:value={pageSize}
+			total={filteredUsers.length}
+			onchange={() => (currentPage = 0)}
+		/>
+	</TableToolbar>
 	{#if filteredUsers.length}
 		<div class="user-table" role="table" aria-label="Utilizatori">
 			<div class="table-header" role="row">
@@ -254,19 +263,13 @@
 			</p>
 		</div>
 	{/if}
-	<nav class="table-pagination" aria-label="Paginile utilizatorilor">
-		<span aria-live="polite"
-			>{filteredUsers.length} utilizatori · Pagina {activePage + 1} din {pageCount}</span
-		>
-		<button type="button" disabled={activePage === 0} onclick={() => (currentPage = activePage - 1)}
-			>Anterior</button
-		>
-		<button
-			type="button"
-			disabled={activePage === pageCount - 1}
-			onclick={() => (currentPage = activePage + 1)}>Următor</button
-		>
-	</nav>
+	<TablePagination
+		bind:page={currentPage}
+		{pageSize}
+		total={filteredUsers.length}
+		loadedTotal={data.users.length}
+		label="Paginile utilizatorilor"
+	/>
 </section>
 
 <Dialog.Root bind:open={roleDialogOpen}>
@@ -321,49 +324,6 @@
 </Dialog.Root>
 
 <style>
-	.table-tools {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 16px;
-		align-items: end;
-	}
-	.table-tools label {
-		display: grid;
-		gap: 6px;
-		font-size: 13px;
-		font-weight: 500;
-		color: var(--sc-muted);
-	}
-	.table-tools label:first-child {
-		flex: 1;
-		min-width: min(260px, 100%);
-	}
-	.table-tools input,
-	.table-tools select {
-		min-width: 0;
-		padding: 8px 12px;
-		border: 1px solid var(--sc-border-strong);
-		border-radius: 7px;
-		background: var(--sc-surface);
-		color: var(--sc-ink);
-	}
-	.table-pagination {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 10px;
-		font-size: 13px;
-		color: var(--sc-muted);
-	}
-	.table-pagination span {
-		margin-right: auto;
-	}
-	.table-pagination button,
-	.sort-button {
-		background: transparent;
-		color: var(--sc-muted);
-		border: 1px solid var(--sc-border);
-	}
 	.sort-button {
 		padding: 0;
 		border: 0;

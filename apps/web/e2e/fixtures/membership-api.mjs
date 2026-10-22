@@ -209,7 +209,11 @@ createServer(async (req, res) => {
 			}))
 		);
 	if (req.url === '/api/auth/me')
-		return respond(res, { id: 1, displayName: 'Responsabil financiar', roles: ['super_admin'] });
+		return respond(res, {
+			id: 1,
+			displayName: 'Responsabil financiar',
+			roles: req.headers.cookie?.includes('read-only') ? [] : ['super_admin']
+		});
 	if (req.url === '/api/activities') return respond(res, []);
 	if (req.url === '/api/members')
 		return respond(res, {
@@ -218,9 +222,9 @@ createServer(async (req, res) => {
 				{ id: 'floresti', name: 'Florești' }
 			],
 			manageableStructureIds: ['cluj', 'floresti'],
-			admin: true,
-			canFinance: true,
-			canManage: true,
+			admin: !req.headers.cookie?.includes('read-only'),
+			canFinance: !req.headers.cookie?.includes('read-only'),
+			canManage: !req.headers.cookie?.includes('read-only'),
 			chiefUnitIds: [],
 			ownMemberId: null,
 			progressionEnabled: false,

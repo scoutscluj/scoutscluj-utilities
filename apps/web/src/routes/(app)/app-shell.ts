@@ -49,6 +49,8 @@ export const menuHref = (href: AppHref) => {
 			return resolve('/');
 		case '/profile':
 			return resolve('/profile');
+		case '/admin/members':
+			return resolve('/admin/members');
 		case '/admin':
 			return resolve('/admin');
 		case '/admin/finance':
@@ -183,6 +185,7 @@ export const routeTitle = (pathname: string) => {
 	if (pathname.startsWith('/audit')) return 'Audit';
 	if (pathname.startsWith('/admin/notifications')) return 'Notificări';
 	if (pathname.startsWith('/admin/parental-consent')) return 'Acorduri parentale';
+	if (pathname.startsWith('/admin/members')) return 'Membri și unități';
 	if (pathname.startsWith('/admin/users')) return 'Utilizatori';
 	if (pathname.startsWith('/admin/finance/payment-processor')) return 'Procesatori de plăți';
 	if (pathname.startsWith('/admin/finance/guide')) return 'Ghid financiar';

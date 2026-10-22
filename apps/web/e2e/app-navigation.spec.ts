@@ -67,8 +67,8 @@ test('mobile menu locks background scrolling, contains keyboard focus and closes
 test('member registry keeps occasional actions collapsed and offers only groups in the chosen unit', async ({
 	page
 }) => {
-	await page.goto('/units');
-	await expect(page.getByRole('heading', { name: 'Unități și membri', exact: true })).toBeVisible();
+	await page.goto('/admin/members');
+	await expect(page.getByRole('heading', { name: 'Membri și unități', exact: true })).toBeVisible();
 	await expect(page.getByRole('link', { name: 'Ana Popescu' })).toBeVisible();
 	await expect(page.getByLabel('Nume complet')).not.toBeVisible();
 	await expect(
@@ -92,7 +92,7 @@ test('member registry keeps occasional actions collapsed and offers only groups 
 });
 
 test('inactive Orgo history stays separate and supports paging and search', async ({ page }) => {
-	await page.goto('/units');
+	await page.goto('/admin/members');
 	await page.getByRole('combobox', { name: 'Status', exact: true }).selectOption('');
 	await expect(page.getByRole('link', { name: 'Istoric 01', exact: true })).toHaveCount(0);
 	await page.locator('summary').filter({ hasText: 'Istoric Orgo: membri inactivi (52)' }).click();
@@ -112,7 +112,7 @@ test('structure filtering and initial classification keep unit choices consisten
 	page,
 	request
 }) => {
-	await page.goto('/units');
+	await page.goto('/admin/members');
 	await page
 		.getByRole('combobox', { name: 'Structură', exact: true })
 		.first()
@@ -127,7 +127,7 @@ test('structure filtering and initial classification keep unit choices consisten
 	await expect(
 		create.getByRole('combobox', { name: 'Unitate', exact: true }).locator('option')
 	).toHaveText(['Alege unitatea', 'Temerari Florești']);
-	await page.goto('/units/structures');
+	await page.goto('/admin/members/structures');
 	const confirm = page.getByRole('button', { name: 'Confirmă repartizarea' });
 	await expect(confirm).toBeDisabled();
 	await page.getByRole('combobox', { name: 'Unitate', exact: true }).selectOption('u3');
@@ -147,10 +147,13 @@ test('selects filtered Floresti members and confirms the bulk change after previ
 	page,
 	request
 }) => {
-	await page.goto('/units');
+	await page.goto('/admin/members');
 	await page.getByLabel('Caută membru', { exact: true }).fill('floresti');
 	await expect(page.getByRole('link', { name: 'Copil Florești', exact: true })).toBeVisible();
-	await page.getByRole('button', { name: 'Selectează toate rezultatele (1)', exact: true }).click();
+	await page
+		.getByRole('region', { name: 'Registrul membrilor', exact: true })
+		.getByRole('checkbox', { name: 'Selectează pagina curentă' })
+		.check();
 	await page.getByRole('button', { name: 'Modifică selecția', exact: true }).click();
 	await page.getByRole('combobox', { name: 'Modificare', exact: true }).selectOption('structure');
 	await page.getByRole('button', { name: 'Previzualizează modificarea', exact: true }).click();
@@ -168,12 +171,13 @@ test('selects filtered Floresti members and confirms the bulk change after previ
 test('selects all inactive results across pages and opens the withdrawal preview', async ({
 	page
 }) => {
-	await page.goto('/units');
+	await page.goto('/admin/members');
 	const history = page.locator('section').filter({
 		has: page.locator('summary').filter({ hasText: 'Istoric Orgo: membri inactivi (52)' })
 	});
 	await history.locator('summary').first().click();
-	await history.getByRole('button', { name: 'Selectează toate rezultatele (52)' }).click();
+	await history.getByRole('combobox', { name: 'Rânduri pe pagină' }).selectOption('0');
+	await history.getByRole('checkbox', { name: 'Selectează pagina curentă' }).check();
 	await history.getByRole('button', { name: 'Modifică selecția', exact: true }).click();
 	await page
 		.getByRole('dialog')
@@ -188,7 +192,7 @@ test('opens fee details from the member menu and confirms only a local bank cont
 	page,
 	request
 }) => {
-	await page.goto('/units');
+	await page.goto('/admin/members');
 	const row = page
 		.getByRole('row')
 		.filter({ has: page.getByRole('link', { name: 'Ana Popescu', exact: true }) });
@@ -214,7 +218,7 @@ test('opens fee details from the member menu and confirms only a local bank cont
 test('member actions open a focused modal without expanding the row and return keyboard focus', async ({
 	page
 }, testInfo) => {
-	await page.goto('/units');
+	await page.goto('/admin/members');
 	const trigger = page.getByRole('button', { name: 'Acțiuni pentru Ana Popescu', exact: true });
 	const row = page.getByRole('row').filter({ has: trigger });
 	const height = (await row.boundingBox())!.height;
@@ -234,10 +238,8 @@ test('member actions open a focused modal without expanding the row and return k
 test('registry supports sorting, column visibility, page sizes and scoped selection', async ({
 	page
 }, testInfo) => {
-	await page.goto('/units');
-	const registry = page
-		.locator('section')
-		.filter({ has: page.getByRole('heading', { name: 'Registru', exact: true }) });
+	await page.goto('/admin/members');
+	const registry = page.getByRole('region', { name: 'Registrul membrilor', exact: true });
 	const nameHeader = registry
 		.getByRole('columnheader')
 		.filter({ has: page.getByRole('button', { name: /^Membru/ }) });
@@ -306,7 +308,7 @@ test('unit archiving requires a separate confirmation and cancellation keeps the
 	page,
 	request
 }) => {
-	await page.goto('/units');
+	await page.goto('/admin/members');
 	await page.getByRole('button', { name: 'Unități și grupe', exact: true }).click();
 	await page.getByRole('button', { name: 'Acțiuni pentru Temerari', exact: true }).click();
 	await page.getByRole('menuitem', { name: 'Arhivează', exact: true }).click();
@@ -319,4 +321,55 @@ test('unit archiving requires a separate confirmation and cancellation keeps the
 	).toBeVisible();
 	const submissions = await (await request.get('http://127.0.0.1:3015/test/submissions')).json();
 	expect(submissions).toHaveLength(0);
+});
+
+test('browsing stays compact and management lives in Admin', async ({ page }, testInfo) => {
+	await page.setViewportSize({ width: 1440, height: 1000 });
+	await page.goto('/units');
+	const registry = page.getByRole('region', { name: 'Registrul membrilor', exact: true });
+	await expect(page.getByText('CENTRUL LOCAL CLUJ', { exact: true })).toHaveCount(0);
+	await expect(page.getByRole('heading', { name: 'Registru', exact: true })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: /Selectează toate rezultatele/ })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Adaugă membru', exact: true })).toHaveCount(0);
+	const filters = registry.getByRole('combobox');
+	const boxes = await filters.evaluateAll((nodes) =>
+		nodes.map((node) => node.getBoundingClientRect().bottom)
+	);
+	expect(Math.max(...boxes) - Math.min(...boxes)).toBeLessThanOrEqual(1);
+	await expect(registry.getByRole('navigation')).toContainText('1–2 din 2');
+	await expect(registry.getByRole('option', { name: '500', exact: true })).toHaveCount(1);
+	await expect(registry.getByRole('option', { name: 'Toate (2)', exact: true })).toHaveCount(1);
+	await page.screenshot({
+		path: testInfo.outputPath('compact-directory-desktop.png'),
+		fullPage: true
+	});
+	await page.getByRole('link', { name: 'Administrare', exact: true }).last().click();
+	await expect(page).toHaveURL(/\/admin\/members$/);
+	await page.getByRole('button', { name: 'Adaugă membru', exact: true }).click();
+	await expect(page.getByRole('dialog', { name: 'Adaugă membru', exact: true })).toBeVisible();
+	await page.keyboard.press('Escape');
+	await page.setViewportSize({ width: 390, height: 844 });
+	await expect
+		.poll(() =>
+			page
+				.getByRole('complementary', { includeHidden: true })
+				.evaluate((el) => el.getBoundingClientRect().right)
+		)
+		.toBeLessThanOrEqual(0);
+	expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+	await page.screenshot({
+		path: testInfo.outputPath('compact-management-mobile.png'),
+		fullPage: true
+	});
+});
+
+test('read-only members can browse but cannot open member administration', async ({ page }) => {
+	await page
+		.context()
+		.addCookies([{ name: 'scoutscluj_session', value: 'read-only', url: 'http://127.0.0.1:5182' }]);
+	await page.goto('/units');
+	await expect(page.getByRole('link', { name: 'Ana Popescu', exact: true })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Administrare', exact: true })).toHaveCount(0);
+	const response = await page.goto('/admin/members');
+	expect(response?.status()).toBe(403);
 });

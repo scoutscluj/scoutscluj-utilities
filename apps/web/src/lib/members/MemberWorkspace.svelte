@@ -1,18 +1,28 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import type { PageData, ActionData } from '../../routes/(app)/units/$types';
-	import { branchLabels, syncLabels, unitName } from '$lib/members/types';
+	import { branchLabels, roleLabels, syncLabels, unitName } from '$lib/members/types';
+	import TableToolbar from '$lib/components/ui/TableToolbar.svelte';
+	import TablePageSize from '$lib/components/ui/TablePageSize.svelte';
+	import TablePagination from '$lib/components/ui/TablePagination.svelte';
 	import MemberTable from '$lib/members/MemberTable.svelte';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import ActionMenu from '$lib/components/ui/ActionMenu.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
-	import type { Unit } from '$lib/members/types';
+	import type { Unit, Member } from '$lib/members/types';
+	let responsibilityOpen = $state(false);
+	let responsibilityMember = $state<Member>();
+	let responsibilityRole = $state('helper');
+	let responsibilityUnit = $state('');
 	let archiveUnit = $state<Unit>();
 	let archiveOpen = $state(false);
+	let subunitOpen = $state(false);
+	let subunitEdit = $state<Unit>();
+	let subunitParent = $state('');
 	let {
 		data,
 		form,
-		management = false
+		management = true
 	}: { data: PageData; form: ActionData; management?: boolean } = $props();
 	const activeSection = $derived(
 		form && 'section' in form && typeof form.section === 'string' ? form.section : ''
@@ -23,19 +33,23 @@
 		orgoOpen = $state(false);
 	$effect(() => {
 		if (activeSection === 'create') createOpen = true;
+		if (activeSection === 'assignment' && responsibilityMember) responsibilityOpen = true;
 		if (['unit', 'archive'].includes(activeSection)) structureOpen = true;
+		if (activeSection === 'unit' && form?.message && !form.message.includes('adăugată'))
+			subunitOpen = true;
 		if (activeSection === 'progression') progressionOpen = true;
 		if (['retry', 'import'].includes(activeSection)) orgoOpen = true;
 	});
 	let structureFilter = $state('');
+	let categoryFilter = $state('');
+	$effect(() => {
+		if (!data.registry.admin && data.registry.homeStructureId)
+			structureFilter = data.registry.homeStructureId;
+	});
 	let newStructure = $state('');
-	let unitStructure = $state('');
 	$effect(() => {
 		if (!newStructure)
 			newStructure =
-				data.registry.manageableStructureIds?.[0] ?? data.registry.structures?.[0]?.id ?? 'cluj';
-		if (!unitStructure)
-			unitStructure =
 				data.registry.manageableStructureIds?.[0] ?? data.registry.structures?.[0]?.id ?? 'cluj';
 	});
 	const structures = $derived(data.registry.structures ?? []);
@@ -45,6 +59,13 @@
 	let newMemberUnit = $state(''),
 		newMemberKind = $state('beneficiary');
 	const units = $derived(data.registry.units.filter((u) => !u.parentId && !u.archived));
+	const createUnits = $derived(
+		units.filter(
+			(u) =>
+				u.canCreateMember ||
+				data.registry.units.some((g) => g.parentId === u.id && g.canCreateMember)
+		)
+	);
 	const normalize = (value: string) =>
 		value
 			.normalize('NFD')
@@ -55,17 +76,36 @@
 			(m) =>
 				(!structureFilter || (m.structureId ?? 'cluj') === structureFilter) &&
 				(!search || normalize(m.name).includes(normalize(search))) &&
+				(!categoryFilter ||
+					(categoryFilter === 'review' ? m.categoryReview : m.category === categoryFilter)) &&
 				(!unitFilter ||
-					m.unitId === unitFilter ||
-					m.groupId === unitFilter ||
-					m.responsibilityUnitIds?.includes(unitFilter) ||
-					m.responsibilityGroupIds?.includes(unitFilter)) &&
+					(unitFilter === 'unassigned'
+						? !m.groupId
+						: m.unitId === unitFilter ||
+							m.groupId === unitFilter ||
+							m.responsibilityUnitIds?.includes(unitFilter) ||
+							m.responsibilityGroupIds?.includes(unitFilter))) &&
 				(!status || m.status === status)
 		)
 	);
 	const bulkPreview = $derived(form && 'bulkPreview' in form ? form.bulkPreview : undefined);
 	const feeMenu = $derived(form && 'feeMenu' in form ? form.feeMenu : undefined);
 	const name = (id: string | null) => unitName(data.registry.units, id);
+	let unitSearch = $state(''),
+		unitPageSize = $state(25),
+		unitPage = $state(0);
+	const unitRows = $derived(
+		data.registry.units.filter(
+			(u) =>
+				!u.archived &&
+				(!structureFilter || (u.structureId ?? 'cluj') === structureFilter) &&
+				normalize(`${u.name} ${name(u.parentId)}`).includes(normalize(unitSearch))
+		)
+	);
+	const unitEffectiveSize = $derived(unitPageSize || Math.max(1, unitRows.length));
+	const unitCurrentPage = $derived(
+		Math.min(unitPage, Math.max(0, Math.ceil(unitRows.length / unitEffectiveSize) - 1))
+	);
 </script>
 
 <svelte:head
@@ -76,21 +116,30 @@
 	<header>
 		<h1>{management ? 'Membri și unități' : 'Unități și membri'}</h1>
 		<div class="workspace-actions">
-			{#if management}
-				{#if data.registry.admin || data.registry.chiefUnitIds.length}<button
-						type="button"
-						class="secondary"
-						onclick={() => (structureOpen = true)}>Unități și grupe</button
-					>{/if}
-				{#if data.registry.admin}<ActionMenu
-						label="Mai multe acțiuni pentru registru"
-						items={[
-							{ label: 'Actualizarea anuală a membrilor', action: () => (progressionOpen = true) }
-						]}
-					/>{/if}
-			{:else if data.registry.canManage || data.registry.admin || data.registry.chiefUnitIds.length}
-				<a class="manage-link" href={resolve('/admin/members')}>Administrare</a>
-			{/if}
+			<button
+				type="button"
+				class="secondary"
+				aria-pressed={structureOpen}
+				onclick={() => (structureOpen = !structureOpen)}>Unități și subunități</button
+			>
+			{#if data.registry.admin}<ActionMenu
+					label="Mai multe acțiuni pentru registru"
+					items={[
+						{ label: 'Actualizarea anuală a membrilor', action: () => (progressionOpen = true) },
+						{
+							label: 'Verifică apartenențele',
+							action: () => {
+								window.location.href = resolve('/units/structures');
+							}
+						},
+						{
+							label: 'Legătura cu Orgo',
+							action: () => {
+								window.location.href = resolve('/units/orgo');
+							}
+						}
+					]}
+				/>{/if}
 		</div>
 	</header>
 	{#if form?.message}<p class="notice" role="status">{form.message}</p>{/if}
@@ -119,10 +168,19 @@
 						>{/each}</select
 				></label
 			>
-			<label>Caută membru<input bind:value={search} placeholder="Nume" /></label><label
-				>Unitate / grupă<select bind:value={unitFilter}
-					><option value="">Toate</option
-					>{#each data.registry.units.filter((u) => !u.archived && (!structureFilter || (u.structureId ?? 'cluj') === structureFilter)) as u (u.id)}<option
+			<label>Caută membru<input bind:value={search} placeholder="Nume" /></label>
+			<label
+				>Categorie<select bind:value={categoryFilter}
+					><option value="">Toate categoriile</option>
+					{#each Object.entries(branchLabels) as [key, label] (key)}<option value={key}
+							>{label}</option
+						>{/each}
+					<option value="review">De verificat</option></select
+				></label
+			><label
+				>Subunitate<select bind:value={unitFilter}
+					><option value="">Toate</option><option value="unassigned">Nerepartizat</option
+					>{#each data.registry.units.filter((u) => u.parentId && !u.archived && (!categoryFilter || u.branch === categoryFilter) && (!structureFilter || (u.structureId ?? 'cluj') === structureFilter)) as u (u.id)}<option
 							value={u.id}>{u.parentId ? '↳ ' : ''}{u.name}</option
 						>{/each}</select
 				></label
@@ -150,6 +208,12 @@
 			loadedTotal={data.registry.members.length}
 			filterContent={registryFilters}
 			controls={registryControls}
+			onResponsibilities={(member) => {
+				responsibilityMember = member;
+				responsibilityRole = data.registry.delegableRoles?.[0] ?? 'helper';
+				responsibilityUnit = '';
+				responsibilityOpen = true;
+			}}
 			registry={data.registry}
 			message={form?.message}
 			preview={bulkPreview}
@@ -198,7 +262,10 @@
 						>{#each structures as st (st.id)}<option value={st.id}>{st.name}</option>{/each}</select
 					></label
 				><label
-					>Tip membru<select name="kind" bind:value={newMemberKind}
+					>Tip membru<select
+						name="kind"
+						bind:value={newMemberKind}
+						onchange={() => (newMemberUnit = '')}
 						><option value="beneficiary">Beneficiar</option><option value="adult"
 							>Voluntar adult</option
 						></select
@@ -208,20 +275,20 @@
 				>{#if newMemberKind === 'beneficiary'}<label
 						>Clasa<input type="number" name="grade" min="1" max="12" /></label
 					>{/if}<label
-					>Unitate<select
-						name="unitId"
-						bind:value={newMemberUnit}
-						required={newMemberKind === 'beneficiary'}
-						><option value=""
-							>{newMemberKind === 'adult' ? 'Fără unitate' : 'Alege unitatea'}</option
-						>{#each units.filter((u) => (u.structureId ?? 'cluj') === newStructure) as u (u.id)}<option
+					>Unitate<select name="unitId" bind:value={newMemberUnit} required
+						><option value="">Alege categoria principală</option
+						>{#each createUnits.filter((u) => (u.structureId ?? 'cluj') === newStructure && (newMemberKind === 'adult' ? ['lideri', 'voluntari', 'scouteri'].includes(u.branch) : !['lideri', 'voluntari', 'scouteri'].includes(u.branch))) as u (u.id)}<option
 								value={u.id}>{u.name}</option
 							>{/each}</select
 					></label
 				><label
-					>Grupă<select name="groupId" disabled={!newMemberUnit}
+					>Grupă<select
+						name="groupId"
+						disabled={!newMemberUnit}
+						required={!!newMemberUnit &&
+							!units.find((u) => u.id === newMemberUnit)?.canCreateMember}
 						><option value="">Colectiv comun / nerepartizat</option
-						>{#each data.registry.units.filter((u) => u.parentId === newMemberUnit && !u.archived) as u (u.id)}<option
+						>{#each data.registry.units.filter((u) => u.parentId === newMemberUnit && !u.archived && u.canCreateMember) as u (u.id)}<option
 								value={u.id}>{name(u.parentId)} / {u.name}</option
 							>{/each}</select
 					></label
@@ -229,53 +296,97 @@
 			</form>
 			<p class="hint">Alege unitatea și, dacă este cazul, grupa în care va fi înscris membrul.</p>
 		</Modal>{/if}
-	{#if management && (data.registry.admin || data.registry.chiefUnitIds.length)}<Modal
-			bind:open={structureOpen}
-			title="Unități și grupe"
-			description="Organizează unitățile și grupele centrului."
-		>
-			<div class="unit-list">
-				{#each data.registry.units.filter((u) => !u.archived) as u (u.id)}<div>
-						<span>{u.parentId ? '↳ ' : ''}<strong>{u.name}</strong> · {branchLabels[u.branch]}</span
-						>{#if data.registry.admin || data.registry.chiefUnitIds.includes(u.parentId ?? u.id)}<ActionMenu
-								label={`Acțiuni pentru ${u.name}`}
-								items={[
-									{
-										label: 'Arhivează',
-										destructive: true,
-										action: () => {
-											archiveUnit = u;
-											archiveOpen = true;
-										}
-									}
-								]}
-							/>{/if}
-					</div>{/each}
+	{#if structureOpen}<section aria-label="Unități și subunități">
+			<h2>Unități și subunități</h2>
+			{#snippet unitFilters()}<label
+					>Caută unitate sau subunitate<input
+						bind:value={unitSearch}
+						oninput={() => (unitPage = 0)}
+						placeholder="Nume"
+					/></label
+				>{/snippet}
+			<TableToolbar filters={unitFilters}
+				><TablePageSize
+					bind:value={unitPageSize}
+					total={unitRows.length}
+					onchange={() => (unitPage = 0)}
+				/></TableToolbar
+			>
+			<div class="unit-table">
+				<table>
+					<thead
+						><tr
+							><th>Structură</th><th>Unitate</th><th>Subunitate</th><th
+								><span class="sr-only">Acțiuni</span></th
+							></tr
+						></thead
+					><tbody>
+						{#each unitRows.slice(unitCurrentPage * unitEffectiveSize, (unitCurrentPage + 1) * unitEffectiveSize) as u (u.id)}<tr
+							>
+								<td>{structures.find((st) => st.id === (u.structureId ?? 'cluj'))?.name}</td>
+								<td>{u.parentId ? name(u.parentId) : u.name}</td><td>{u.parentId ? u.name : '—'}</td
+								>
+								<td
+									>{#if u.canManage}
+										{#if !u.parentId}<button
+												type="button"
+												class="sc-icon-button"
+												aria-label={`Adaugă subunitate în ${u.name}`}
+												onclick={() => {
+													subunitEdit = undefined;
+													subunitParent = u.id;
+													subunitOpen = true;
+												}}><Plus size={18} /></button
+											>
+										{:else}<ActionMenu
+												label={`Acțiuni pentru ${u.name}`}
+												items={[
+													{
+														label: 'Redenumește',
+														action: () => {
+															subunitEdit = u;
+															subunitParent = u.parentId ?? '';
+															subunitOpen = true;
+														}
+													},
+													{
+														label: 'Arhivează',
+														destructive: true,
+														action: () => {
+															archiveUnit = u;
+															archiveOpen = true;
+														}
+													}
+												]}
+											/>{/if}
+									{/if}</td
+								>
+							</tr>{/each}
+					</tbody>
+				</table>
 			</div>
-			<form method="POST" class="grid">
-				<input type="hidden" name="action" value="unit" /><label
-					>Structură<select name="structureId" bind:value={unitStructure}
-						>{#each structures.filter((st) => data.registry.manageableStructureIds?.includes(st.id) || units.some((u) => (u.structureId ?? 'cluj') === st.id && data.registry.chiefUnitIds.includes(u.id))) as st (st.id)}<option
-								value={st.id}>{st.name}</option
-							>{/each}</select
-					></label
-				><label>Nume<input name="name" required /></label><label
-					>Creează în<select name="parentId"
-						>{#if data.registry.admin || data.registry.manageableStructureIds?.includes(unitStructure)}<option
-								value="">Unitate nouă</option
-							>{/if}{#each units.filter((u) => (u.structureId ?? 'cluj') === unitStructure && (data.registry.admin || data.registry.chiefUnitIds.includes(u.id))) as u (u.id)}<option
-								value={u.id}>{u.name}</option
-							>{/each}</select
-					></label
-				><label
-					>Ramură<select name="branch"
-						>{#each Object.entries(branchLabels) as [key, label] (key)}<option value={key}
-								>{label}</option
-							>{/each}</select
-					></label
-				><button type="submit">Salvează unitatea sau grupa</button>
-			</form>
-		</Modal>{/if}
+			<TablePagination
+				bind:page={unitPage}
+				pageSize={unitEffectiveSize}
+				total={unitRows.length}
+				loadedTotal={data.registry.units.filter((u) => !u.archived).length}
+			/>
+		</section>{/if}
+	<Modal
+		bind:open={subunitOpen}
+		title={subunitEdit ? 'Redenumește subunitatea' : 'Adaugă subunitate'}
+		description="Unitățile sunt fixe. Subunitățile se gestionează în cadrul lor."
+	>
+		<form method="POST" class="grid">
+			<input type="hidden" name="action" value="unit" />
+			{#if subunitEdit}<input type="hidden" name="id" value={subunitEdit.id} />{/if}
+			<input type="hidden" name="parentId" value={subunitParent} />
+			<label
+				>Nume<input name="name" value={subunitEdit?.name ?? ''} required maxlength="255" /></label
+			>
+			<button type="submit">Salvează subunitatea</button>
+		</form>
+	</Modal>
 	{#if management && !data.registry.admin && data.registry.transitions.some((t) => t.state === 'review')}<section
 		>
 			<h2>Treceri de ramură de verificat</h2>
@@ -286,10 +397,7 @@
 					· {t.message}
 				</p>{/each}
 		</section>{/if}
-	{#if management && data.registry.admin}<section>
-			<h2>Apartenența la Cluj și Florești</h2>
-			<a href={resolve('/admin/members/structures')}>Verifică și confirmă repartizarea inițială</a>
-		</section>
+	{#if management && data.registry.admin}
 		<Modal
 			bind:open={progressionOpen}
 			title="Actualizarea anuală a membrilor"
@@ -314,7 +422,7 @@
 		<section>
 			<details bind:open={orgoOpen}>
 				<summary>Legătura cu Orgo</summary>
-				<a href={resolve('/admin/members/orgo')}>Verifică accesul și previzualizează importul</a>
+				<a href={resolve('/units/orgo')}>Verifică accesul și previzualizează importul</a>
 				<p class="hint">Modificările locale sunt păstrate chiar dacă Orgo nu le poate confirma.</p>
 				{#each data.registry.sync.filter((s) => !['synced', 'superseded', 'local-only'].includes(s.state)) as s (s.id)}<div
 						class="sync"
@@ -337,6 +445,72 @@
 			</details>
 		</section>{/if}
 </div>
+
+<Modal
+	bind:open={responsibilityOpen}
+	title={`Responsabilități · ${responsibilityMember?.name ?? ''}`}
+	description="Categoria principală rămâne aceeași. Drepturile se acordă numai în aria mandatului tău."
+>
+	{#each responsibilityMember?.responsibilities ?? [] as assignment (assignment.id)}
+		<form method="POST" class="responsibility-row">
+			<input type="hidden" name="action" value="end" /><input
+				type="hidden"
+				name="targetId"
+				value={responsibilityMember?.id ?? ''}
+			/><input type="hidden" name="assignmentId" value={assignment.id} />
+			<span>{roleLabels[assignment.role]} · {name(assignment.groupId ?? assignment.unitId)}</span>
+			<button type="submit" class="secondary">Încheie responsabilitatea</button>
+		</form>
+	{/each}
+
+	<form method="POST" class="grid">
+		<input type="hidden" name="action" value="assignment" />
+		<input type="hidden" name="targetId" value={responsibilityMember?.id ?? ''} />
+		<input type="hidden" name="structureId" value={responsibilityMember?.structureId ?? 'cluj'} />
+		<label
+			>Responsabilitate<select
+				name="role"
+				bind:value={responsibilityRole}
+				onchange={() => (responsibilityUnit = '')}
+			>
+				{#each (data.registry.delegableRoles ?? []).filter((role) => role !== 'council' || responsibilityMember?.structureId !== 'floresti') as role (role)}<option
+						value={role}>{roleLabels[role]}</option
+					>{/each}
+			</select></label
+		>
+		{#if !['council', 'structure_admin'].includes(responsibilityRole)}
+			<label
+				>Unitate<select name="unitId" bind:value={responsibilityUnit} required
+					><option value="">Alege unitatea</option>
+					{#each units.filter((u) => u.delegateRoles?.includes(responsibilityRole) && (data.registry.admin || (u.structureId ?? 'cluj') === (responsibilityMember?.structureId ?? 'cluj'))) as u (u.id)}<option
+							value={u.id}
+							>{structures.find((s) => s.id === (u.structureId ?? 'cluj'))?.name} · {u.name}</option
+						>{/each}
+				</select></label
+			>
+			{#if ['leader', 'helper'].includes(responsibilityRole)}<label
+					>Subunitate<select name="groupId" required
+						><option value="">Alege subunitatea</option
+						>{#each data.registry.units.filter((u) => u.parentId === responsibilityUnit && !u.archived) as u (u.id)}<option
+								value={u.id}>{u.name}</option
+							>{/each}</select
+					></label
+				>{/if}
+		{/if}
+		{#if ['leader', 'chief'].includes(responsibilityRole)}<label
+				>Data promisiunii de lider<input type="date" name="promiseDate" /></label
+			>{/if}
+		{#if responsibilityRole === 'helper'}
+			<label class="check"><input type="checkbox" name="canEdit" />Poate modifica membrii</label>
+			<label class="check"><input type="checkbox" name="canSeeFees" />Poate vedea cotizațiile</label
+			>
+			<label class="check"
+				><input type="checkbox" name="canSeeSensitive" />Poate vedea date medicale și notițe</label
+			>
+		{/if}
+		<button type="submit">Salvează responsabilitatea</button>
+	</form>
+</Modal>
 
 <Modal
 	bind:open={archiveOpen}
@@ -377,10 +551,6 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
-	}
-	.manage-link {
-		font-size: 14px;
-		color: var(--sc-muted);
 	}
 	.registry-summary {
 		display: flex;
@@ -445,7 +615,7 @@
 		border-radius: 7px;
 		background: var(--sc-success-soft);
 	}
-	.unit-list > div,
+	.responsibility-row,
 	.sync {
 		display: flex;
 		justify-content: space-between;
@@ -454,8 +624,31 @@
 		padding: 12px 0;
 		border-bottom: 1px solid var(--sc-border);
 	}
-	.unit-list {
-		margin-bottom: 16px;
+	.unit-table {
+		overflow-x: auto;
+	}
+	table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 14px;
+	}
+	th,
+	td {
+		text-align: left;
+		padding: 10px 12px;
+		border-bottom: 1px solid var(--sc-border);
+	}
+	th {
+		font-weight: 500;
+		color: var(--sc-muted);
+		background: var(--sc-canvas);
+	}
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
 	}
 	.check {
 		display: flex;

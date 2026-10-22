@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { branchLabels } from '$lib/members/types';
 	import { resolve } from '$app/paths';
 	import type { PageData, ActionData } from './$types';
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -19,15 +20,6 @@
 		)
 	);
 	const visible = $derived(matches.slice(page * 25, (page + 1) * 25));
-	const conflicts = $derived(
-		members.filter(
-			(m) =>
-				m.unitId &&
-				(units.find((u) => u.id === m.unitId)?.structureId ??
-					data.registry.units.find((u) => u.id === m.unitId)?.structureId ??
-					'cluj') !== m.structureId
-		)
-	);
 </script>
 
 <svelte:head><title>Repartizare Cluj și Florești</title></svelte:head>
@@ -35,8 +27,8 @@
 	<a href={resolve('/units')}>← Unități și membri</a>
 	<h1>Repartizare Cluj și Florești</h1>
 	<p>
-		Numele din Orgo propune apartenența inițială. Verifică unitățile și membrii înainte de
-		confirmare. Schimbarea ulterioară a numelui nu va modifica apartenența.
+		Numele din Orgo propune apartenența inițială. Verifică structura și categoria fiecărui membru
+		înainte de confirmare. Schimbarea ulterioară a numelui nu va modifica apartenența.
 	</p>
 	{#if form?.message}<p role="status">{form.message}</p>{/if}
 	{#if !data.preview.members.length && !data.preview.units.length}<p>
@@ -46,22 +38,31 @@
 			<input type="hidden" name="action" value="classify" />
 			<input type="hidden" name="members" value={JSON.stringify(members)} />
 			<input type="hidden" name="units" value={JSON.stringify(units)} />
+			{#if units.length}<section>
+					<h2>Surse Orgo și subunități</h2>
+					<p>
+						Unitățile sunt fixe. Păstrează sursa ca legătură Orgo sau confirmă explicit că numele
+						vechi reprezintă o subunitate. Membrii compatibili din sursa veche vor fi repartizați în
+						ea; apartenența lor principală rămâne aceeași.
+					</p>
+					{#each units as unit (unit.id)}<article>
+							<label class="check"
+								><input type="checkbox" bind:checked={unit.convert} />Transformă „{unit.name}” în
+								subunitate</label
+							>
+							{#if unit.convert}<label
+									>Unitate părinte<select bind:value={unit.parentId} required
+										><option value="">Alege unitatea</option
+										>{#each data.registry.units.filter((u) => !u.parentId && u.branch === unit.branch) as parent (parent.id)}<option
+												value={parent.id}
+												>{data.preview.structures.find((s) => s.id === parent.structureId)?.name} · {parent.name}</option
+											>{/each}</select
+									></label
+								>{/if}
+						</article>{/each}
+				</section>{/if}
 			<section>
-				<h2>1. Unități</h2>
-				<p>
-					Subgrupele moștenesc structura unității. Dacă o unitate veche amestecă membri din ambele
-					structuri, creează mai întâi unitățile locale din registru, apoi repartizează membrii
-					aici.
-				</p>
-				{#each units as unit (unit.id)}<label
-						>{unit.name}<select bind:value={unit.structureId}
-							>{#each data.preview.structures as st (st.id)}<option value={st.id}>{st.name}</option
-								>{/each}</select
-						></label
-					>{:else}<p>Unitățile sunt deja confirmate.</p>{/each}
-			</section>
-			<section>
-				<h2>2. Membri</h2>
+				<h2>Membri</h2>
 				<p>{members.length} apartenențe de verificat. Istoricul inactiv este separat.</p>
 				<label>Caută membru<input bind:value={search} oninput={() => (page = 0)} /></label>
 				<label class="check"
@@ -78,17 +79,15 @@
 										>{/each}</select
 								></label
 							>
-							{#if m.unitId}<label
-									>Unitate<select bind:value={m.unitId}
-										>{#each data.registry.units.filter((u) => !u.parentId) as u (u.id)}<option
-												value={u.id}>{u.name}</option
-											>{/each}</select
-									></label
-								>{/if}
+							<label
+								>Categorie principală<select bind:value={m.category}>
+									<option value={null}>De verificat</option>
+									{#each Object.entries(branchLabels) as [key, label] (key)}<option value={key}
+											>{label}</option
+										>{/each}
+								</select></label
+							>
 						</div>
-						{#if conflicts.some((c) => c.id === m.id)}<p class="error">
-								Alege o unitate din aceeași structură sau corectează apartenența.
-							</p>{/if}
 					</article>{:else}<p>Nu există membri pentru filtrul ales.</p>{/each}
 				<div class="pages">
 					<button type="button" disabled={page === 0} onclick={() => page--}>Înapoi</button><span
@@ -98,14 +97,11 @@
 					>
 				</div>
 			</section>
-			{#if conflicts.length}<p class="error">
-					{conflicts.length} repartizări nu corespund unității. Verifică inclusiv istoricul inactiv.
-				</p>{/if}
 			<label class="check"
 				><input type="checkbox" name="confirm" required />Am verificat toate repartizările, inclusiv
 				membrii inactivi.</label
 			>
-			<button disabled={conflicts.length > 0}>Confirmă repartizarea</button>
+			<button>Confirmă repartizarea</button>
 		</form>{/if}
 </div>
 
@@ -113,13 +109,13 @@
 	.setup {
 		max-width: 1000px;
 		margin: auto;
-		color: #172b28;
+		color: var(--sc-ink);
 	}
 	section {
-		background: white;
+		background: var(--sc-surface);
 		padding: 24px;
 		margin: 24px 0;
-		border: 1px solid #dce5df;
+		border: 1px solid var(--sc-border);
 		border-radius: 14px;
 	}
 	label {
@@ -145,7 +141,7 @@
 		cursor: default;
 	}
 	article {
-		border-bottom: 1px solid #dce5df;
+		border-bottom: 1px solid var(--sc-border);
 		padding: 16px 0;
 	}
 	.fields {
@@ -158,9 +154,6 @@
 		display: flex;
 		align-items: center;
 		gap: 12px;
-	}
-	.error {
-		color: #9f352e;
 	}
 	p {
 		line-height: 1.6;

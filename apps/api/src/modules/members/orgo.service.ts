@@ -23,19 +23,27 @@ import {
 } from '@nestjs/common';
 import type { CurrentUser } from '../users/users.types';
 import { User } from '../users/entities/user.entity';
-import { UserRole } from '../users/entities/user-role.enum';
 import { OrgoConnection } from '../users/entities/orgo-connection.entity';
 import { AuditEntry } from '../audit/entities/audit-entry.entity';
 import {
   ScoutMember,
   ScoutUnit,
+  ScoutSubunit,
+  ScoutUnitSource,
   LocalStructure,
   ScoutAssignment,
   MemberSettings,
   MemberSync,
 } from './entities/member.entity';
 import { bodyObject, stringValue } from './members.service';
-import { emptyProfile, targetYear, branches } from './member.types';
+import {
+  emptyProfile,
+  targetYear,
+  branches,
+  proposedStructure,
+} from './member.types';
+
+import { importedCategory, categoryLabels, categories } from './organization';
 
 const obj = (v: unknown): Record<string, unknown> =>
   v && typeof v === 'object' && !Array.isArray(v)
@@ -186,12 +194,54 @@ export class MemberOrgoService {
       )
       .digest('hex');
   }
+  private async projectCategory(
+    tx: EntityManager,
+    m: ScoutMember,
+    r: Record<string, unknown>,
+  ) {
+    const incomingCategory = importedCategory(r);
+    if (m.category && incomingCategory && m.category !== incomingCategory) {
+      m.categoryReview = true;
+      m.orgoProfile = {
+        ...m.orgoProfile,
+        type: {
+          id: 38 + categories.indexOf(m.category),
+          name: categoryLabels[m.category],
+        },
+      };
+      m.orgoConflicts = {
+        ...m.orgoConflicts,
+        type: {
+          local: {
+            id: 38 + categories.indexOf(m.category),
+            name: categoryLabels[m.category],
+          },
+          remote: cleanProfile(r).type,
+        },
+      };
+    } else if (!m.category && incomingCategory && !m.categoryReview) {
+      m.category = incomingCategory;
+    }
+    if (!incomingCategory) m.categoryReview = true;
+    const fixedUnit = m.category
+      ? await tx.findOne(ScoutUnit, {
+          fixed: true,
+          structureId: m.structureId,
+          branch: m.category,
+        })
+      : null;
+    if (fixedUnit && m.unitId !== fixedUnit.id) {
+      m.unitId = fixedUnit.id;
+      m.groupId = null;
+    }
+  }
   private async applyImportedRoles(
     tx: EntityManager,
     m: ScoutMember,
     r: Record<string, unknown>,
     actorId: number,
   ) {
+    await this.projectCategory(tx, m, r);
     const incomingBranch = branchFor(r);
     if (m.branch && incomingBranch && m.branch !== incomingBranch) {
       const ids: Record<string, number> = {
@@ -219,7 +269,8 @@ export class MemberOrgoService {
         new Date(new Date().setUTCFullYear(new Date().getUTCFullYear() - 18))
           .toISOString()
           .slice(0, 10);
-    const units = await tx.find(ScoutUnit, { archived: false, parentId: null });
+    const units = await tx.find(ScoutUnit, { archived: false, fixed: true });
+    const sources = await tx.find(ScoutUnitSource, {});
     const roles = this.rolePreview(r);
     for (const old of await tx.find(ScoutAssignment, {
       memberId: m.id,
@@ -232,7 +283,9 @@ export class MemberOrgoService {
           (role) =>
             role.id === old.orgoRoleId &&
             (old.unitId
-              ? role.unitId === oldUnit?.orgoId
+              ? sources.some(
+                  (s) => s.id === role.unitId && s.unitId === oldUnit?.id,
+                )
               : !role.unitId || role.unitId === this.settings().center),
         )
       )
@@ -259,7 +312,9 @@ export class MemberOrgoService {
       }
     }
     for (const role of roles) {
-      const unit = units.find((u) => u.orgoId === role.unitId);
+      const unit = units.find((u) =>
+        sources.some((s) => s.id === role.unitId && s.unitId === u.id),
+      );
       const mapped =
         role.id === 8 || role.id === 3
           ? 'council'
@@ -271,6 +326,9 @@ export class MemberOrgoService {
                 ? 'helper'
                 : null;
       if (!mapped || !adult || (mapped !== 'council' && !unit)) continue;
+      if (mapped === 'council' && m.structureId !== 'cluj') continue;
+      if (unit && unit.structureId !== m.structureId) continue;
+      // Imported leader/helper roles without a verified subunit do not grant unit-wide rights.
       if (
         ['chief', 'leader'].includes(mapped) &&
         ((!m.promiseDate && m.promiseSource !== 'orgo-leader') ||
@@ -359,6 +417,7 @@ export class MemberOrgoService {
         const before = JSON.stringify({
           profile: m.orgoProfile,
           conflicts: m.orgoConflicts,
+          categoryReview: m.categoryReview,
         });
         m.orgoProfile = {
           ...result.values,
@@ -381,9 +440,14 @@ export class MemberOrgoService {
           )
             m.remote = { ...m.remote, [key]: simple[key] };
         this.projectProfile(m);
+        await this.projectCategory(tx, m, r);
         if (
           before !==
-          JSON.stringify({ profile: m.orgoProfile, conflicts: m.orgoConflicts })
+          JSON.stringify({
+            profile: m.orgoProfile,
+            conflicts: m.orgoConflicts,
+            categoryReview: m.categoryReview,
+          })
         ) {
           m.revision++;
           m.updatedAt = new Date();
@@ -701,19 +765,8 @@ export class MemberOrgoService {
     });
   }
   private async admin(user: CurrentUser, em = this.em) {
-    const account = await em.findOneOrFail(
-      User,
-      { id: user.id },
-      { refresh: true },
-    );
-    if (
-      account.memberAccessDisabled ||
-      (!account.councilAdmin &&
-        !account.roles.some((r) =>
-          [UserRole.Admin, UserRole.SuperAdmin].includes(r),
-        ))
-    )
-      throw new ForbiddenException('Acces rezervat administratorilor.');
+    if (!this.members) throw new ServiceUnavailableException();
+    await this.members.requireCentral(em, user);
   }
   private settings() {
     const token = this.config.get<string>('ORGO_API_TOKEN')?.trim();
@@ -834,9 +887,9 @@ export class MemberOrgoService {
           type: object(r.type).name ?? null,
           roles: this.rolePreview(r),
         })),
-      importedUnitIds: (
-        await this.em.find(ScoutUnit, { orgoId: { $ne: null } })
-      ).map((u) => u.orgoId),
+      importedUnitIds: (await this.em.find(ScoutUnitSource, {})).map(
+        (u) => u.id,
+      ),
       units: withoutPatrols(units).map((r) => ({
         id: r.id,
         name: r.name,
@@ -882,7 +935,7 @@ export class MemberOrgoService {
           throw new BadRequestException(
             'Unitatea nu poate fi importată din centrul configurat.',
           );
-        if (await tx.findOne(ScoutUnit, { orgoId: Number(remote.id) }))
+        if (await tx.findOne(ScoutUnitSource, { id: Number(remote.id) }))
           continue;
         const branch = stringValue(row.branch);
         if (!branches.includes(branch as (typeof branches)[number]))
@@ -891,12 +944,24 @@ export class MemberOrgoService {
           );
         const structureId = stringValue(row.structureId);
         await tx.findOneOrFail(LocalStructure, { id: structureId });
-        tx.create(ScoutUnit, {
-          orgoId: Number(remote.id),
-          name: stringValue(remote.name),
-          branch: branch as (typeof branches)[number],
+        const parent = await tx.findOneOrFail(ScoutUnit, {
+          fixed: true,
           structureId,
+          branch: branch as (typeof branches)[number],
+        });
+        const group = tx.create(ScoutSubunit, {
+          name: stringValue(remote.name),
+          parentId: parent.id,
+          branch: parent.branch,
+          structureId,
+          orgoId: Number(remote.id),
           structureConfirmed: true,
+        });
+        await tx.flush();
+        tx.create(ScoutUnitSource, {
+          id: Number(remote.id),
+          unitId: parent.id,
+          groupId: group.id,
         });
         unitsAdded++;
       }
@@ -929,6 +994,9 @@ export class MemberOrgoService {
             orgoId: Number(r.id),
             accountId: connection?.user.id ?? null,
             name,
+            structureId: proposedStructure(name),
+            category: importedCategory(r),
+            categoryReview: !importedCategory(r),
             birthDate:
               typeof r.dateBirth === 'string' &&
               /^\d{4}-\d{2}-\d{2}/.test(r.dateBirth)

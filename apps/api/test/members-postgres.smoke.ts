@@ -20,6 +20,7 @@ import { UserRole } from '../src/modules/users/entities/user-role.enum';
 import { MembersService } from '../src/modules/members/members.service';
 import {
   ScoutMember,
+  ScoutUnit,
   ScoutAssignment,
   MemberSync,
 } from '../src/modules/members/entities/member.entity';
@@ -40,6 +41,30 @@ async function main() {
     const account = em.create(User, {
       displayName: 'Test administrator',
       roles: [UserRole.Admin],
+      centralMemberAdmin: true,
+    });
+    await em.flush();
+    em.create(ScoutMember, {
+      accountId: account.id,
+      name: 'Test central administrator',
+      structureId: 'cluj',
+      structureConfirmed: true,
+      category: 'lideri',
+      profile: {
+        email: '',
+        phone: '',
+        parentName: '',
+        parentPhone: '',
+        parentEmail: '',
+        emergencyName: '',
+        emergencyPhone: '',
+        medical: '',
+        allergies: '',
+        medication: '',
+        dietary: '',
+        needs: '',
+      },
+      birthDate: '1990-01-01',
     });
     await em.flush();
     const actor = {
@@ -48,10 +73,15 @@ async function main() {
       roles: account.roles,
     };
     const service = () => new MembersService(orm.em.fork());
-    const unit = await service().createUnit(actor, {
-      name: 'Temerari test',
+    const unit = await em.findOneOrFail(ScoutUnit, {
+      fixed: true,
+      structureId: 'cluj',
       branch: 'temerari',
     });
+    assert.equal(await em.count(ScoutUnit, { fixed: true }), 14);
+    await assert.rejects(
+      service().createUnit(actor, { name: 'No new unit', branch: 'temerari' }),
+    );
     const group = await service().createUnit(actor, {
       name: 'Grupa test',
       parentId: unit.id,
@@ -135,10 +165,10 @@ async function main() {
       }),
       1,
     );
-    const floresti = await service().createUnit(actor, {
-      name: 'Temerari Florești',
-      branch: 'temerari',
+    const floresti = await em.findOneOrFail(ScoutUnit, {
+      fixed: true,
       structureId: 'floresti',
+      branch: 'temerari',
     });
     await service().transfer(actor, member.id, {
       unitId: floresti.id,
@@ -156,6 +186,13 @@ async function main() {
     await reader.flush();
     const localMember = await service().createMember(actor, {
       name: 'Adult Florești test',
+      unitId: (
+        await em.findOneOrFail(ScoutUnit, {
+          fixed: true,
+          structureId: 'floresti',
+          branch: 'voluntari',
+        })
+      ).id,
       kind: 'adult',
       birthDate: '1990-01-01',
       structureId: 'floresti',

@@ -126,11 +126,12 @@ test('structure filtering and initial classification keep unit choices consisten
 	await create.getByLabel('Structură').selectOption('floresti');
 	await expect(
 		create.getByRole('combobox', { name: 'Unitate', exact: true }).locator('option')
-	).toHaveText(['Alege unitatea', 'Temerari Florești']);
+	).toHaveText(['Alege categoria principală', 'Temerari Florești']);
 	await page.goto('/admin/members/structures');
 	const confirm = page.getByRole('button', { name: 'Confirmă repartizarea' });
-	await expect(confirm).toBeDisabled();
-	await page.getByRole('combobox', { name: 'Unitate', exact: true }).selectOption('u3');
+	await page
+		.getByRole('combobox', { name: 'Categorie principală', exact: true })
+		.selectOption('temerari');
 	await page
 		.getByRole('checkbox', { name: 'Am verificat toate repartizările, inclusiv membrii inactivi.' })
 		.check();
@@ -139,7 +140,7 @@ test('structure filtering and initial classification keep unit choices consisten
 	const submissions = await (await request.get('http://127.0.0.1:3015/test/submissions')).json();
 	expect(submissions.at(-1)).toMatchObject({
 		confirm: true,
-		members: [{ id: 'm1', structureId: 'floresti', unitId: 'u3' }]
+		members: [{ id: 'm1', structureId: 'floresti', category: 'temerari' }]
 	});
 });
 
@@ -309,28 +310,30 @@ test('unit archiving requires a separate confirmation and cancellation keeps the
 	request
 }) => {
 	await page.goto('/admin/members');
-	await page.getByRole('button', { name: 'Unități și grupe', exact: true }).click();
-	await page.getByRole('button', { name: 'Acțiuni pentru Temerari', exact: true }).click();
+	await page.getByRole('button', { name: 'Unități și subunități', exact: true }).click();
+	await page.getByRole('button', { name: 'Acțiuni pentru Grupa temerari', exact: true }).click();
 	await page.getByRole('menuitem', { name: 'Arhivează', exact: true }).click();
-	const confirmation = page.getByRole('dialog', { name: 'Arhivează Temerari', exact: true });
+	const confirmation = page.getByRole('dialog', { name: 'Arhivează Grupa temerari', exact: true });
 	await expect(confirmation).toBeVisible();
 	await confirmation.getByRole('button', { name: 'Anulează', exact: true }).click();
 	await expect(confirmation).toHaveCount(0);
 	await expect(
-		page.getByRole('button', { name: 'Acțiuni pentru Temerari', exact: true })
+		page.getByRole('button', { name: 'Acțiuni pentru Grupa temerari', exact: true })
 	).toBeVisible();
 	const submissions = await (await request.get('http://127.0.0.1:3015/test/submissions')).json();
 	expect(submissions).toHaveLength(0);
 });
 
-test('browsing stays compact and management lives in Admin', async ({ page }, testInfo) => {
+test('the shared registry stays compact and exposes permitted actions in context', async ({
+	page
+}, testInfo) => {
 	await page.setViewportSize({ width: 1440, height: 1000 });
 	await page.goto('/units');
 	const registry = page.getByRole('region', { name: 'Registrul membrilor', exact: true });
 	await expect(page.getByText('CENTRUL LOCAL CLUJ', { exact: true })).toHaveCount(0);
 	await expect(page.getByRole('heading', { name: 'Registru', exact: true })).toHaveCount(0);
 	await expect(page.getByRole('button', { name: /Selectează toate rezultatele/ })).toHaveCount(0);
-	await expect(page.getByRole('button', { name: 'Adaugă membru', exact: true })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Adaugă membru', exact: true })).toBeVisible();
 	const filters = registry.getByRole('combobox');
 	const boxes = await filters.evaluateAll((nodes) =>
 		nodes.map((node) => node.getBoundingClientRect().bottom)
@@ -343,8 +346,7 @@ test('browsing stays compact and management lives in Admin', async ({ page }, te
 		path: testInfo.outputPath('compact-directory-desktop.png'),
 		fullPage: true
 	});
-	await page.getByRole('link', { name: 'Administrare', exact: true }).last().click();
-	await expect(page).toHaveURL(/\/admin\/members$/);
+	await expect(page.getByRole('link', { name: 'Membri și unități', exact: true })).toHaveCount(0);
 	await page.getByRole('button', { name: 'Adaugă membru', exact: true }).click();
 	await expect(page.getByRole('dialog', { name: 'Adaugă membru', exact: true })).toBeVisible();
 	await page.keyboard.press('Escape');
@@ -363,7 +365,7 @@ test('browsing stays compact and management lives in Admin', async ({ page }, te
 	});
 });
 
-test('read-only members can browse but cannot open member administration', async ({ page }) => {
+test('read-only members share the workspace with management controls hidden', async ({ page }) => {
 	await page
 		.context()
 		.addCookies([{ name: 'scoutscluj_session', value: 'read-only', url: 'http://127.0.0.1:5182' }]);
@@ -371,5 +373,39 @@ test('read-only members can browse but cannot open member administration', async
 	await expect(page.getByRole('link', { name: 'Ana Popescu', exact: true })).toBeVisible();
 	await expect(page.getByRole('link', { name: 'Administrare', exact: true })).toHaveCount(0);
 	const response = await page.goto('/admin/members');
-	expect(response?.status()).toBe(403);
+	expect(response?.status()).toBe(200);
+	await expect(page).toHaveURL(/\/units$/);
+	await expect(page.getByRole('button', { name: 'Adaugă membru', exact: true })).toHaveCount(0);
+});
+
+test('category filters include members without a subunit', async ({ page }) => {
+	await page.goto('/units');
+	await page.getByRole('combobox', { name: 'Categorie', exact: true }).selectOption('temerari');
+	await page.getByRole('combobox', { name: 'Subunitate', exact: true }).selectOption('unassigned');
+	await expect(page.getByRole('link', { name: 'Copil Florești', exact: true })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Ana Popescu', exact: true })).toHaveCount(0);
+	await page.getByRole('combobox', { name: 'Categorie', exact: true }).selectOption('lideri');
+	await expect(page.getByText('Nu există membri pentru filtrele alese.')).toBeVisible();
+});
+
+test('fixed units offer subunit creation and only subunits offer rename or archive', async ({
+	page
+}, testInfo) => {
+	await page.goto('/units');
+	await page.getByRole('button', { name: 'Unități și subunități', exact: true }).click();
+	await expect(
+		page.getByRole('button', { name: 'Acțiuni pentru Temerari', exact: true })
+	).toHaveCount(0);
+	await page.getByRole('button', { name: 'Adaugă subunitate în Temerari', exact: true }).click();
+	await expect(page.getByRole('dialog', { name: 'Adaugă subunitate', exact: true })).toBeVisible();
+	await page.keyboard.press('Escape');
+	await page.getByRole('button', { name: 'Acțiuni pentru Grupa temerari', exact: true }).click();
+	await page.getByRole('menuitem', { name: 'Redenumește', exact: true }).click();
+	await expect(page.getByRole('dialog').getByLabel('Nume', { exact: true })).toHaveValue(
+		'Grupa temerari'
+	);
+	await page.screenshot({
+		path: testInfo.outputPath('subunit-rename-desktop.png'),
+		fullPage: true
+	});
 });

@@ -25,6 +25,7 @@
 		message = '',
 		filterContent,
 		controls,
+		onResponsibilities,
 		management = true,
 		loadedTotal = members.length
 	}: {
@@ -36,6 +37,7 @@
 		message?: string;
 		filterContent?: Snippet;
 		controls?: Snippet;
+		onResponsibilities?: (member: Member) => void;
 		management?: boolean;
 		loadedTotal?: number;
 	} = $props();
@@ -45,6 +47,7 @@
 		grade = $state(''),
 		unitId = $state(''),
 		groupId = $state('');
+	let destinationStructure = $state('floresti');
 	let pageSize = $state(25);
 	let sort = $state('name');
 	let descending = $state(false);
@@ -94,7 +97,8 @@
 		sorted.slice(currentPage * effectiveSize, (currentPage + 1) * effectiveSize)
 	);
 	const allPageSelected = $derived(
-		pageRows.length > 0 && pageRows.every((m) => selected.includes(m.id))
+		pageRows.length > 0 &&
+			pageRows.filter((m) => m.access?.edit).every((m) => selected.includes(m.id))
 	);
 	function sortBy(column: string) {
 		descending = sort === column ? !descending : false;
@@ -151,24 +155,37 @@
 	}
 	function rowActions(m: Member) {
 		return [
-			{
-				label: 'Deschide fișa',
-				action: () => {
-					void goto(resolve(`/units/${m.id}`));
-				}
-			},
-			{
-				label: 'Cotizații',
-				action: () => {
-					void loadFees(m);
-				}
-			},
-			...(management && registry.canManage
+			...(m.access?.delegate && onResponsibilities
+				? [{ label: 'Responsabilități', action: () => onResponsibilities?.(m) }]
+				: []),
+			...(m.access?.detail
+				? [
+						{
+							label: 'Deschide fișa',
+							action: () => {
+								void goto(resolve(`/units/${m.id}`));
+							}
+						}
+					]
+				: []),
+			...(m.access?.fees
+				? [
+						{
+							label: 'Cotizații',
+							action: () => {
+								void loadFees(m);
+							}
+						}
+					]
+				: []),
+			...(management && m.access?.edit
 				? [
 						...(!inactive
 							? [
 									{ label: labels.grade, action: () => rowEdit(m, 'grade') },
-									{ label: labels.transfer, action: () => rowEdit(m, 'transfer') },
+									...(m.access?.transfer
+										? [{ label: labels.transfer, action: () => rowEdit(m, 'transfer') }]
+										: []),
 									...(m.status !== 'active'
 										? [{ label: labels.reactivate, action: () => rowEdit(m, 'reactivate') }]
 										: [])
@@ -191,7 +208,7 @@
 		...(kind === 'grade'
 			? { grade }
 			: kind === 'structure'
-				? { structureId: 'floresti' }
+				? { structureId: destinationStructure }
 				: { unitId, groupId })
 	});
 	const money = (b: number) =>
@@ -200,7 +217,7 @@
 	const labels: Record<string, string> = {
 		grade: 'Schimbă clasa',
 		transfer: 'Mută în unitate / grupă',
-		structure: 'Trece la Florești',
+		structure: 'Schimbă structura',
 		withdraw: 'Confirmă retragerea din activitate',
 		reactivate: 'Reactivează'
 	};
@@ -264,7 +281,7 @@
 						{#if !inactive}<option value="grade">Schimbă clasa</option><option value="transfer"
 								>Mută în unitate / grupă</option
 							>{/if}
-						{#if registry.admin}<option value="structure">Trece la Florești</option>{/if}
+						{#if registry.admin}<option value="structure">Schimbă structura</option>{/if}
 						<option value="withdraw">Confirmă retragerea din activitate</option>
 						{#if !inactive}<option value="reactivate">Reactivează</option>{/if}
 					</select></label
@@ -291,9 +308,16 @@
 					></label
 				>
 			{/if}
-			{#if kind === 'structure'}<p>
-					Apartenența devine Florești. Repartizările beneficiarilor în unitățile vechi se încheie;
-					alegerea noii unități se face separat. Responsabilitățile adulților se păstrează.
+			{#if kind === 'structure'}<label
+					>Structură destinație<select bind:value={destinationStructure}
+						>{#each registry.structures ?? [] as structure (structure.id)}<option
+								value={structure.id}>{structure.name}</option
+							>{/each}</select
+					></label
+				>
+				<p>
+					Categoria principală se păstrează. Subunitatea se repartizează în structura destinație;
+					istoricul responsabilităților rămâne disponibil.
 				</p>{/if}
 			{#if kind === 'withdraw'}<p>
 					Retragerea încheie toate responsabilitățile persoanei. Istoricul și plățile se păstrează.
@@ -369,7 +393,12 @@
 							onchange={() => {
 								selected = allPageSelected
 									? selected.filter((id) => !pageRows.some((m) => m.id === id))
-									: [...new Set([...selected, ...pageRows.map((m) => m.id)])];
+									: [
+											...new Set([
+												...selected,
+												...pageRows.filter((m) => m.access?.edit).map((m) => m.id)
+											])
+										];
 							}}
 						/></th
 					>{/if}
@@ -404,18 +433,24 @@
 					{#if management && registry.canManage}<td
 							><input
 								type="checkbox"
+								disabled={!m.access?.edit}
 								aria-label={`Selectează ${m.name}`}
 								value={m.id}
 								bind:group={selected}
 							/></td
 						>{/if}
 					<td
-						><a href={resolve(`/units/${m.id}`)}>{m.name}</a><small
-							>{registry.structures?.find((s) => s.id === (m.structureId ?? 'cluj'))?.name}{m.branch
-								? ` · ${branchLabels[m.branch] ?? m.branch}`
+						>{#if m.access?.detail}<a href={resolve(`/units/${m.id}`)}>{m.name}</a>{:else}<strong
+								>{m.name}</strong
+							>{/if}<small
+							>{registry.structures?.find((s) => s.id === (m.structureId ?? 'cluj'))
+								?.name}{(m.category ?? m.branch)
+								? ` · ${branchLabels[m.category ?? m.branch ?? ''] ?? 'De verificat'}`
 								: m.orgoType
 									? ` · ${m.orgoType}`
-									: ''}
+									: m.categoryReview
+										? ' · De verificat'
+										: ''}
 							{(m.roles ?? [])
 								.filter((role) => role !== 'beneficiary')
 								.map((role) => roleLabels[role] ?? role)
@@ -426,7 +461,9 @@
 								>{m.unitId
 									? unitName(registry.units, m.unitId)
 									: m.responsibilityUnitIds?.map((id) => unitName(registry.units, id)).join(', ') ||
-										'—'}{m.groupId ? ` / ${unitName(registry.units, m.groupId)}` : ''}</td
+										'—'}{m.groupId
+									? ` / ${unitName(registry.units, m.groupId)}`
+									: ' / Nerepartizat'}</td
 							>{/if}{#if showGrade}<td>{m.grade ?? '—'}</td>{/if}{#if showStatus}<td
 								>{m.status === 'active'
 									? 'Activ'
@@ -434,7 +471,12 @@
 										? 'Retras din activitate'
 										: 'De verificat'}</td
 							>{/if}{/if}
-					<td><ActionMenu label={`Acțiuni pentru ${m.name}`} items={rowActions(m)} /></td>
+					<td
+						>{#if rowActions(m).length}<ActionMenu
+								label={`Acțiuni pentru ${m.name}`}
+								items={rowActions(m)}
+							/>{/if}</td
+					>
 				</tr>{:else}<tr
 					><td
 						colspan={2 +

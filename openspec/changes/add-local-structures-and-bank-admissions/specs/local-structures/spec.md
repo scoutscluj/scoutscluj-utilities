@@ -1,3 +1,5 @@
+> Organization and access rules superseded by the approved `refactor-member-organization` change: seven immutable units per structure, configurable subunits, primary category separate from responsibility, strict server-side structure isolation and contextual role-based management. Historical requirements below remain applicable only where compatible.
+
 ## ADDED Requirements
 
 ### Requirement: Explicit local structure membership

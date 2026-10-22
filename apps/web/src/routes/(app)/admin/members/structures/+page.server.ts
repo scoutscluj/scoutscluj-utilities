@@ -1,5 +1,4 @@
-import type { PageServerLoad, Actions } from './$types';
-import { loadMemberStructures } from '$lib/server/member-administration';
+import { redirect } from '@sveltejs/kit';
 import { memberAction } from '$lib/server/members';
-export const load: PageServerLoad = loadMemberStructures;
-export const actions: Actions = { default: memberAction };
+export const load = () => redirect(303, '/units/structures');
+export const actions = { default: memberAction };

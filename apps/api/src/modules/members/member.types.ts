@@ -87,9 +87,13 @@ export function permissions(
     (a) => a.unitId && a.unitId === target.unitId,
   );
   const chief = unit.some((a) => a.role === 'chief');
-  const leaders = unit.filter((a) => a.role === 'leader' || a.role === 'chief');
+  const leaders = unit.filter(
+    (a) =>
+      a.role === 'chief' ||
+      (a.role === 'leader' && !!a.groupId && a.groupId === target.groupId),
+  );
   const direct = unit.filter(
-    (a) => a.groupId === target.groupId || a.role === 'chief',
+    (a) => (!!a.groupId && a.groupId === target.groupId) || a.role === 'chief',
   );
   const read =
     admin ||

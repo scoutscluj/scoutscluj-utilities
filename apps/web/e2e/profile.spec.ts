@@ -48,6 +48,10 @@ test('creates through a dialog and preserves the objective after reload', async 
 	await page.goto('/profile');
 	const details = page.getByRole('region', { name: 'Informații personale' });
 	const orgo = page.getByRole('region', { name: 'Conexiune Orgo' });
+	const warning = page.getByRole('complementary', { name: 'Cotizația a expirat' });
+	await expect(warning).toBeVisible();
+	await expect(warning.getByRole('link', { name: 'Plătește cotizația' })).toBeVisible();
+	await expect(details.getByRole('link', { name: 'Plătește cotizația' })).toHaveCount(0);
 	await expect(details.getByRole('heading', { name: 'Roluri în aplicație' })).toBeVisible();
 	await expect(details.getByText('FT678')).toBeVisible();
 	await expect(orgo.getByText('FT678')).toHaveCount(0);
@@ -77,9 +81,13 @@ test('creates through a dialog and preserves the objective after reload', async 
 	const card = await details.boundingBox();
 	const objectives = await page.getByRole('region', { name: 'Obiective personale' }).boundingBox();
 	const orgoCard = await orgo.boundingBox();
+	const warningBox = await warning.boundingBox();
+	expect(warningBox!.y + warningBox!.height).toBeLessThan(card!.y);
+	expect(Math.abs(warningBox!.x - card!.x)).toBeLessThanOrEqual(1);
+	expect(Math.abs(warningBox!.width - objectives!.width)).toBeLessThanOrEqual(1);
 	expect(orgoCard!.x).toBeGreaterThan(card!.x + card!.width);
 	expect(Math.abs(card!.y - orgoCard!.y)).toBeLessThanOrEqual(1);
-	expect(Math.abs(card!.width - orgoCard!.width)).toBeLessThanOrEqual(1);
+	expect(Math.abs(card!.width - 2 * orgoCard!.width)).toBeLessThanOrEqual(1);
 	expect(Math.abs(card!.height - orgoCard!.height)).toBeLessThanOrEqual(1);
 	expect(card!.height).toBeLessThan(300);
 	expect(Math.abs(orgoCard!.x + orgoCard!.width - card!.x - objectives!.width)).toBeLessThanOrEqual(
@@ -125,6 +133,10 @@ test('creates through a dialog and preserves the objective after reload', async 
 			animations: 'disabled'
 		});
 	}
+	const payFee = page.getByRole('link', { name: 'Plătește cotizația', exact: true });
+	await expect(payFee).toHaveAttribute('href', '/cotizatie');
+	await payFee.click();
+	await expect(page).toHaveURL(/\/cotizatie$/);
 });
 
 test('cancel and Escape save nothing and restore keyboard focus', async ({ page }) => {
@@ -327,3 +339,53 @@ test('denied notification permission does not prompt and disables enable', async
 	await expect(page.getByText(/Permisiunea a fost refuzată/)).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Activează notificările' })).toBeDisabled();
 });
+
+for (const { name, paidBani, date, failMembership, expected } of [
+	{ name: 'unpaid current fee', paidBani: 0, date: '2099-09-30', expected: true },
+	{ name: 'partially paid current fee', paidBani: 10000, date: '2099-09-30', expected: true },
+	{ name: 'fully paid current fee', paidBani: 30500, date: '2099-09-30', expected: false },
+	{ name: 'no recorded fee validity', paidBani: undefined, date: undefined, expected: true },
+	{ name: 'paid fee with a missing Orgo date', paidBani: 30500, date: undefined, expected: false },
+	{
+		name: 'unavailable balance with valid Orgo date',
+		paidBani: 0,
+		date: '2099-09-30',
+		failMembership: true,
+		expected: false
+	}
+]) {
+	test(`profile payment link: ${name}`, async ({ page, request }) => {
+		const catalog = await request.get(`${api}/api/membership/catalog`);
+		const { period } = (await catalog.json()) as { period: { id: string } };
+		const own = { id: 'own', periodId: period.id, orgoUserId: 517, totalBani: 30500, paidBani };
+		await request.post(`${api}/test/profile`, {
+			data: {
+				user: { orgoConnection: { orgoUserId: 517, profile: { feeValidUntilDate: date } } },
+				membershipObligations:
+					paidBani === undefined
+						? []
+						: [
+								own,
+								{ ...own, id: 'old', periodId: 'past-period', paidBani: 0 },
+								{ ...own, id: 'other-member', orgoUserId: 999, paidBani: 0 }
+							],
+				failMembership: failMembership ?? false
+			}
+		});
+		await page.goto('/profile');
+		const payFee = page.getByRole('link', { name: 'Plătește cotizația', exact: true });
+		const warning = page.getByRole('complementary', {
+			name: /Cotizația a expirat|Ai o cotizație de achitat|Verifică situația cotizației/
+		});
+		if (expected) {
+			await expect(warning).toBeVisible();
+			await expect(warning.getByRole('link', { name: 'Plătește cotizația' })).toBeVisible();
+			await expect(payFee).toBeVisible();
+			await payFee.click();
+			await expect(page).toHaveURL(/\/cotizatie$/);
+		} else {
+			await expect(warning).toHaveCount(0);
+			await expect(payFee).toHaveCount(0);
+		}
+	});
+}

@@ -32,7 +32,7 @@ SHALL place notification settings and logout actions together at its right edge.
 - **AND** the notification settings icon and logout action appear together at the right
 - **AND** the left card shows personal details, card ID, and labeled role badges
 - **AND** the right card shows Orgo connection status, Orgo ID, connection date, and last login
-- **AND** the two cards have equal width and height on desktop with compact columns and spacing
+- **AND** the personal card uses two-thirds of the desktop width and the Orgo card uses one-third, with equal heights and compact spacing
 - **AND** the last login is formatted as a readable Romanian date and time
 - **AND** the header and stacked information cards fit narrow screens without horizontal overflow.
 
@@ -58,6 +58,20 @@ SHALL place notification settings and logout actions together at its right edge.
 - **GIVEN** the user's Orgo profile photo is missing or fails to load
 - **WHEN** the identity header renders
 - **THEN** the avatar falls back to the user's initial without a broken image or layout shift.
+
+#### Scenario: User can pay an expired or unpaid fee from the profile
+
+- **GIVEN** the user's fee validity has expired, no fee validity is recorded without a confirmed full payment, or their current-period obligation has an outstanding balance
+- **WHEN** the profile renders
+- **THEN** a warning banner above both profile cards includes a `Plătește cotizația` link styled as a button
+- **AND** selecting it navigates to `/cotizatie`.
+
+#### Scenario: Valid fully paid fee does not request another payment
+
+- **GIVEN** the user's current fee is paid and the stored validity has not expired
+- **WHEN** the profile renders
+- **THEN** the profile does not show the fee warning banner or pay-fee button
+- **AND** unpaid obligations from other periods or other members do not trigger it.
 
 #### Scenario: Current-user response limits stored profile data
 

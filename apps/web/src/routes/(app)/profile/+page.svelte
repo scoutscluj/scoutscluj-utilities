@@ -44,7 +44,7 @@
 	</div>
 </header>
 
-<ProfileInformation {user} />
+<ProfileInformation {user} feePaymentDue={data.feePaymentDue} />
 
 <PersonalObjectives objectives={data.objectives} error={data.objectivesError} />
 

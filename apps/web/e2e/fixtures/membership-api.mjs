@@ -504,7 +504,10 @@ createServer(async (req, res) => {
 			environment: 'sandbox',
 			activeProvider: 'netopia'
 		});
-	if (req.url === '/api/membership/mine') return respond(res, []);
+	if (req.url === '/api/membership/mine')
+		return profileOptions.failMembership
+			? respond(res, { message: 'Indisponibil' }, 503)
+			: respond(res, profileOptions.membershipObligations ?? []);
 	if (req.url?.startsWith('/api/membership/status/'))
 		return respond(res, { message: 'No payment' }, 404);
 	if (req.url === '/api/membership/guest-lookup') {

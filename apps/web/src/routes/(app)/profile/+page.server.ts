@@ -2,22 +2,50 @@ import { fail, redirect } from '@sveltejs/kit';
 import { apiFetch } from '$lib/server/api';
 import { SESSION_COOKIE_NAME } from '$lib/server/cookies';
 import type { PersonalObjective } from '$lib/profile/types';
+import type { Obligation } from '$lib/membership/types';
 import type { Actions, PageServerLoad } from './$types';
+
+const loadFeePaymentDue = async (token: string, orgoUserId?: number): Promise<boolean | null> => {
+	if (!orgoUserId) return null;
+	try {
+		const [catalogResponse, obligationsResponse] = await Promise.all([
+			apiFetch('/api/membership/catalog'),
+			apiFetch('/api/membership/mine', {
+				headers: { cookie: `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}` }
+			})
+		]);
+		if (!catalogResponse.ok || !obligationsResponse.ok) return null;
+		const catalog = (await catalogResponse.json()) as { period?: { id: string } };
+		const obligations = (await obligationsResponse.json()) as Obligation[];
+		const own = obligations.find(
+			(item) => item.periodId === catalog.period?.id && item.orgoUserId === orgoUserId
+		);
+		return own ? own.totalBani > (own.paidBani ?? 0) : null;
+	} catch {
+		return null;
+	}
+};
 
 export const load: PageServerLoad = async ({ cookies, locals, depends }) => {
 	depends('app:personal-objectives');
 	const token = cookies.get(SESSION_COOKIE_NAME);
 	if (!locals.user || !token) redirect(303, '/login?redirectTo=%2Fprofile');
+	const feePaymentDue = loadFeePaymentDue(token, locals.user.orgoConnection?.orgoUserId);
 	try {
 		const response = await apiFetch('/api/personal-objectives', {
 			headers: { cookie: `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}` }
 		});
 		if (!response.ok) throw new Error('Objective list unavailable');
-		return { objectives: (await response.json()) as PersonalObjective[], objectivesError: '' };
+		return {
+			objectives: (await response.json()) as PersonalObjective[],
+			objectivesError: '',
+			feePaymentDue: await feePaymentDue
+		};
 	} catch {
 		return {
 			objectives: [] as PersonalObjective[],
-			objectivesError: 'Obiectivele nu au putut fi încărcate. Încearcă din nou.'
+			objectivesError: 'Obiectivele nu au putut fi încărcate. Încearcă din nou.',
+			feePaymentDue: await feePaymentDue
 		};
 	}
 };

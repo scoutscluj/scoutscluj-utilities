@@ -7,7 +7,7 @@
 2. Two information cards: personal details on the left (email, card ID, Orgo
    membership status, date of birth, date joined, fee valid until, and application
    roles) and connection details on the right (connection status, Orgo ID,
-   connection date, and last login). Use equal desktop widths and heights, 16px
+   connection date, and last login). Use a two-thirds/one-third desktop width split with equal heights, 16px
    card padding, compact information columns, and an inline role row. Present fee
    validity as a regular detail rather than a separate inset panel. Stack the
    cards on narrow screens.
@@ -98,3 +98,14 @@ Application-role badges use labeled purple (super admin), blue (admin), amber
 (finance manager), and teal (moderator) treatments. Membership and connection
 success use green; expired fee validity uses an explicit amber `Expirată` label.
 Missing fields display `Indisponibil`.
+
+A full-width amber warning banner above both profile cards offers a
+`Plătește cotizația` link to `/cotizatie` when
+validity has expired or the current-period obligation has an outstanding balance.
+Use the existing catalog and authenticated `membership/mine` endpoints, loaded
+alongside objectives, to identify the current user's current-period balance.
+If no validity is recorded, offer the link unless current-period payment is
+confirmed in full. A failed balance request is unknown, not evidence of debt.
+The banner keeps its action beside the warning on desktop and wraps below the
+message on mobile. The fee date and status remain in the personal card.
+Navigation opens the existing fee page; payment uses its existing flow.

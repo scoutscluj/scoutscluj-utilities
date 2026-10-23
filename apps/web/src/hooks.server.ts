@@ -7,5 +7,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	event.locals.user = sessionToken ? await fetchCurrentUser(sessionToken) : null;
 
-	return resolve(event);
+	const response = await resolve(event);
+	if (event.route.id?.startsWith('/(app)')) {
+		response.headers.set('cache-control', 'private, no-store');
+	}
+	return response;
 };

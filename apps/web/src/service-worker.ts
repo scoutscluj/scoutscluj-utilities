@@ -13,7 +13,7 @@ const RUNTIME_CACHE = `${CACHE_PREFIX}-runtime-${version}`;
 const OFFLINE_URL = '/offline';
 const ASSETS = [...build, ...files, ...prerendered];
 const ASSET_SET = new Set(ASSETS);
-const AUTH_PATH_PREFIXES = ['/api', '/auth', '/login'];
+const AUTH_PATH_PREFIXES = ['/api', '/auth', '/login', '/calendar-data'];
 
 const isNoStore = (response: Response) =>
 	response.headers.get('cache-control')?.toLowerCase().includes('no-store') ?? false;
@@ -59,16 +59,25 @@ const staleWhileRevalidate = async (request: Request) => {
 
 const navigationFallback = async (request: Request) => {
 	const cache = await caches.open(RUNTIME_CACHE);
+	const url = new URL(request.url);
+	// Calendar pages must never fall back to authenticated HTML snapshots,
+	// including entries left by an older service worker.
+	const isCalendarPage = ['/', '/info/calendar', '/sediu/orar'].includes(url.pathname);
+	if (isCalendarPage) await cache.delete(request);
 
 	try {
 		const response = await fetch(request);
-		const url = new URL(request.url);
-		if (canCacheResponse(response) && isSameOrigin(url) && !isAuthOrApiPath(url.pathname)) {
+		if (
+			!isCalendarPage &&
+			canCacheResponse(response) &&
+			isSameOrigin(url) &&
+			!isAuthOrApiPath(url.pathname)
+		) {
 			await cache.put(request, response.clone());
 		}
 		return response;
 	} catch (error) {
-		const cached = await cache.match(request);
+		const cached = isCalendarPage ? undefined : await cache.match(request);
 		if (cached) {
 			return cached;
 		}

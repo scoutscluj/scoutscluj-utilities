@@ -7,6 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { CalendarEventDto, CalendarPageDto } from './calendar.dto';
+import { calendarDescription } from './calendar-description';
 
 type Source = 'events' | 'headquarters';
 type Cursor = {
@@ -64,15 +65,14 @@ export function normalizeCalendarEvent(
     (!allDay && Date.parse(end) <= Date.parse(start))
   )
     return null;
+  const description = calendarDescription(event.description);
   return {
     id: event.id,
     title: text(event.summary) || 'Ocupat',
     allDay,
     start,
     end,
-    ...(text(event.description)
-      ? { description: text(event.description) }
-      : {}),
+    ...(description ? { description } : {}),
     ...(text(event.location) ? { location: text(event.location) } : {}),
   };
 }

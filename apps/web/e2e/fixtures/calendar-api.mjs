@@ -109,5 +109,71 @@ createServer(async (req, res) => {
 			page.nextCursor = 'headquarters-page-two';
 		}
 	}
+	if (options.showcase && source === 'events') {
+		const day = today();
+		page.items = [
+			{
+				id: 'showcase-1',
+				title: 'AG Vest Cluj',
+				allDay: false,
+				start: `${addDays(day, 8)}T10:30:00+02:00`,
+				end: `${addDays(day, 8)}T15:00:00+02:00`,
+				location: 'Scouts Cluj · Piața Mihai Viteazu 25, Cluj-Napoca',
+				description: 'AG Vest Cluj'
+			},
+			{
+				id: 'showcase-2',
+				title: 'Microstagiu de Introducere în Cercetășie',
+				allDay: false,
+				start: `${addDays(day, 9)}T10:30:00+02:00`,
+				end: `${addDays(day, 9)}T13:30:00+02:00`,
+				description: 'Pregătim împreună activitățile noului an cercetășesc.'
+			},
+			{
+				id: 'showcase-3',
+				title: 'Roverhood (seniori) · Măguri Răcătău',
+				allDay: true,
+				start: addDays(day, 35),
+				end: addDays(day, 40),
+				description: 'Roverhood (seniori) · Măguri Răcătău'
+			}
+		];
+		delete page.nextCursor;
+	}
+	if (options.showcase && source === 'headquarters') {
+		const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Bucharest' }).format(
+			new Date(from)
+		);
+		page.items = [
+			'Întâlnire lupișori Cluj Vest',
+			'Întâlnire temerari · clasa a VII-a',
+			'Explo Vest C1 & C2',
+			'C3 Teme a VI-a Vest',
+			'Întâlnire eXplo Nord',
+			'Întâlnire teme Vest a V-a'
+		].map((title, index) => {
+			const date = addDays(day, Math.min(index, 4));
+			return {
+				id: `showcase-booking-${index}`,
+				title,
+				allDay: false,
+				start: `${date}T18:30:00+03:00`,
+				end: `${date}T20:00:00+03:00`,
+				...(index === 1 ? { location: 'Camera 1' } : {})
+			};
+		});
+	}
+	if (options.dense && source === 'events') {
+		page.items = page.items.map((event) => ({
+			...event,
+			description: 'Informații despre participare și programul activității.'
+		}));
+	}
+	if (options.formattedDescription && page.items[0]) {
+		page.items[0].description =
+			'<p><strong>Program</strong> &amp; <em>echipament</em><br /><u>Important</u></p>' +
+			'<ul><li>Bocanci</li><li>Apă</li></ul><ol><li>Înscriere</li></ol>' +
+			'<p><a href="https://example.test/inscriere" target="_blank" rel="noopener noreferrer">Formular</a></p>';
+	}
 	return reply(res, page);
 }).listen(3016, '127.0.0.1');

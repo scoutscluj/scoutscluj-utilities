@@ -45,8 +45,8 @@ must become private, revise the integration to use authorized credentials.
 - Include events currently in progress; exclude ended or cancelled entries.
 - Headquarters opens on the current week. Provide previous/next period,
   `Astăzi`, and week/month switching that preserves the selected date.
-- Show event title, date/time or `Toată ziua`, location when present, and plain
-  text details in an accessible disclosure. Do not expose attendee lists.
+- Show event title, date/time or `Toată ziua`, location when present, and sanitized
+  formatted HTML details in an accessible disclosure. Do not expose attendee lists.
 - Existing full-calendar routes and links remain available; replacing the
   embeds on `/info/calendar` and `/sediu/orar` is outside this dashboard change.
 

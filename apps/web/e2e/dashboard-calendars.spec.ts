@@ -32,6 +32,10 @@ test('paginates the agenda, retries the same cursor, and advances beyond empty w
 	const agenda = page.getByRole('region', { name: 'Următoarele evenimente' });
 	await expect(agenda.getByRole('heading', { name: 'Drumeție de toamnă' })).toHaveCount(1);
 	await expect(agenda.getByText('În desfășurare')).toBeVisible();
+	const details = agenda.getByRole('button', { name: /^Detalii pentru / });
+	await expect(details).toHaveAttribute('aria-expanded', 'false');
+	await details.click();
+	await expect(agenda.getByText('Pregătim traseul împreună.')).toBeVisible();
 	await request.post(`${api}/test/settings`, { data: { eventsFailure: true } });
 	await agenda.getByRole('button', { name: 'Încarcă mai multe' }).click();
 	await expect(agenda.getByRole('alert')).toBeVisible();
@@ -52,6 +56,182 @@ test('paginates the agenda, retries the same cursor, and advances beyond empty w
 	expect(calls[1].query.cursor).toBe(calls[2].query.cursor);
 	expect(calls[3].query.from).toBe(calls[2].query.to);
 	expect(calls[4].query.from).toBe(calls[3].query.to);
+});
+
+test('shows clear event indicators without repeated titles at responsive sizes', async ({
+	page,
+	request
+}, info) => {
+	await request.post(`${api}/test/settings`, { data: { showcase: true } });
+	for (const width of [1440, 1024, 768, 375]) {
+		await page.setViewportSize({ width, height: 1000 });
+		await page.goto('/');
+		const agenda = page.getByRole('region', { name: 'Următoarele evenimente' });
+		await expect(agenda.getByRole('heading', { name: 'AG Vest Cluj', exact: true })).toBeVisible();
+		await expect(agenda.getByRole('button', { name: /^Detalii pentru / })).toHaveCount(1);
+		await expect(agenda.getByRole('button', { name: /^Detalii pentru / })).toHaveAttribute(
+			'aria-expanded',
+			'false'
+		);
+		await expect(agenda.locator('.event-time svg')).toHaveCount(3);
+		for (const card of await agenda.locator('.has-details').all()) {
+			const time = (await card.locator('.event-time svg').boundingBox())!;
+			const info = (await card.locator('.details-toggle > svg').first().boundingBox())!;
+			expect(Math.abs(info.y + info.height / 2 - (time.y + time.height / 2))).toBeLessThan(1);
+		}
+		const range = agenda.locator('.agenda-day').filter({ hasText: 'Roverhood' });
+		const endpoints = range.locator('.date-badge');
+		await expect(endpoints).toHaveCount(2);
+		await expect(range.locator('.date-connector')).toBeVisible();
+		await expect(range.locator('.end-date')).toHaveCount(0);
+		const expected = await page.evaluate(() => {
+			const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Bucharest' }).format(
+				new Date()
+			);
+			return [35, 39].map((offset) => {
+				const date = new Date(`${today}T12:00:00Z`);
+				date.setUTCDate(date.getUTCDate() + offset);
+				return String(date.getUTCDate());
+			});
+		});
+		await expect(endpoints.locator('strong')).toHaveText(expected);
+		const firstDate = (await endpoints.first().boundingBox())!;
+		const lastDate = (await endpoints.last().boundingBox())!;
+		const connector = (await range.locator('.date-connector').boundingBox())!;
+		expect(firstDate.width).toBe(44);
+		expect(lastDate.x).toBe(firstDate.x);
+		expect(lastDate.y).toBeGreaterThan(firstDate.y + firstDate.height);
+		expect(connector.y).toBeCloseTo(firstDate.y + firstDate.height, 0);
+		expect(connector.y + connector.height).toBeCloseTo(lastDate.y, 0);
+		const rangeCard = (await range.locator('.event-card').boundingBox())!;
+		expect(rangeCard.y).toBeCloseTo(firstDate.y, 0);
+		expect(rangeCard.y + rangeCard.height).toBeCloseTo(lastDate.y + lastDate.height, 0);
+		await expect(agenda.locator('.agenda-day').first().locator('.date-badge')).toHaveCount(1);
+		if (width === 1440) {
+			const card = agenda.locator('.event-card').first();
+			const title = await card.locator('h4').boundingBox();
+			const time = await card.locator('.event-meta').boundingBox();
+			expect(time!.x).toBeGreaterThan(title!.x + title!.width);
+			expect(Math.abs(time!.y - title!.y)).toBeLessThan(18);
+			expect((await card.boundingBox())!.height).toBeLessThan(90);
+			const booking = page.locator('.week-agenda .event-card').first();
+			expect((await booking.boundingBox())!.height).toBeLessThan(65);
+		}
+		await expect(page.getByRole('region', { name: 'Calendar Sediu', exact: true })).toBeVisible();
+		expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+			width
+		);
+		await page.evaluate(() => window.scrollTo(0, 0));
+		await page.screenshot({
+			path: info.outputPath(`calendar-redesign-${width}.png`),
+			fullPage: true
+		});
+	}
+	await request.post(`${api}/test/settings`, { data: { dense: true } });
+	await page.setViewportSize({ width: 1653, height: 1000 });
+	await page.goto('/');
+	const withDetails = page.getByRole('region', { name: 'Următoarele evenimente' });
+	await expect(withDetails.getByRole('button', { name: /^Detalii pentru / })).toHaveCount(3);
+	for (const row of await withDetails.locator('.agenda-day').all()) {
+		const time = (await row.locator('.event-time svg').boundingBox())!;
+		const info = (await row.locator('.details-toggle > svg').first().boundingBox())!;
+		expect(Math.abs(info.y + info.height / 2 - (time.y + time.height / 2))).toBeLessThan(1);
+		const card = (await row.locator('.event-card').boundingBox())!;
+		const dateRail = (await row.locator('.date-rail').boundingBox())!;
+		if ((await row.locator('.date-badge').count()) === 1) expect(card.height).toBeLessThan(95);
+		else {
+			expect(card.y).toBeCloseTo(dateRail.y, 0);
+			expect(card.height).toBeCloseTo(dateRail.height, 0);
+		}
+	}
+	await page.screenshot({ path: info.outputPath('calendar-compact-1653.png'), fullPage: true });
+});
+
+test('renders formatted calendar descriptions in both widgets', async ({ page, request }) => {
+	await request.post(`${api}/test/settings`, {
+		data: { showcase: true, formattedDescription: true }
+	});
+	await page.goto('/');
+	for (const widget of [
+		page.locator('.events-widget'),
+		page.getByRole('region', { name: 'Calendar Sediu', exact: true })
+	]) {
+		const card = widget.locator('.event-card').first();
+		const toggle = card.getByRole('button', { name: /^Detalii pentru / });
+		await toggle.click();
+		const description = card.locator('.description');
+		await expect(description).toBeVisible();
+		await expect(description.locator('strong')).toHaveText('Program');
+		await expect(description.locator('em')).toHaveText('echipament');
+		await expect(description.locator('ul > li')).toHaveText(['Bocanci', 'Apă']);
+		await expect(description.locator('ol > li')).toHaveText(['Înscriere']);
+		await expect(description.getByRole('link', { name: 'Formular' })).toHaveAttribute(
+			'href',
+			'https://example.test/inscriere'
+		);
+		await expect(description).not.toContainText('<p>');
+		await toggle.click();
+		await expect(description).toBeHidden();
+	}
+});
+
+test('opens details from the whole card and keeps map links independent', async ({
+	page,
+	request,
+	context
+}) => {
+	await request.post(`${api}/test/settings`, {
+		data: { showcase: true, formattedDescription: true }
+	});
+	await context.route('https://www.google.com/maps/**', (route) =>
+		route.fulfill({ body: 'Map preview' })
+	);
+	await context.route('https://example.test/**', (route) => route.fulfill({ body: 'Event link' }));
+	for (const width of [1440, 375]) {
+		await page.setViewportSize({ width, height: 1000 });
+		await page.goto('/');
+		for (const widget of [
+			page.locator('.events-widget'),
+			page.getByRole('region', { name: 'Calendar Sediu', exact: true })
+		]) {
+			const card = widget.locator('.event-card').first();
+			const toggle = card.getByRole('button', { name: /^Detalii pentru / });
+			await expect(card).toHaveCSS('cursor', 'pointer');
+			await card.click({ position: { x: 12, y: 12 } });
+			await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+			await expect(card.locator('.description')).toBeVisible();
+			await card.click({ position: { x: 12, y: 12 } });
+			await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+			await toggle.focus();
+			await page.keyboard.press('Enter');
+			await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+			await page.keyboard.press('Space');
+			await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+		}
+		const card = page.locator('.events-widget .event-card').first();
+		const toggle = card.getByRole('button', { name: /^Detalii pentru / });
+		const location = card.getByRole('link', { name: /în Google Maps/ });
+		await expect(location).toHaveCSS('cursor', 'pointer');
+		await expect(location).toHaveAttribute('target', '_blank');
+		await expect(location).toHaveAttribute('rel', 'noopener noreferrer');
+		const mapOpened = page.waitForEvent('popup');
+		await location.click();
+		const map = await mapOpened;
+		await map.waitForLoadState();
+		expect(new URL(map.url()).searchParams.get('query')).toBe(
+			'Scouts Cluj · Piața Mihai Viteazu 25, Cluj-Napoca'
+		);
+		await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+		await map.close();
+		await toggle.click();
+		const linkOpened = page.waitForEvent('popup');
+		await card.getByRole('link', { name: 'Formular', exact: true }).click();
+		const link = await linkOpened;
+		await link.waitForLoadState();
+		expect(link.url()).toBe('https://example.test/inscriere');
+		await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+		await link.close();
+	}
 });
 
 test('shows a vertical week and month overflow, preserves date selection, and navigates periods', async ({

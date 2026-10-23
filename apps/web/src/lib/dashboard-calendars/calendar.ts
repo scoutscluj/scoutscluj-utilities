@@ -2,6 +2,7 @@ export const zone = 'Europe/Bucharest';
 export type CalendarEvent = {
 	id: string;
 	title: string;
+	/** Sanitized HTML from the calendar API. Never raw provider HTML. */
 	description?: string;
 	location?: string;
 	allDay: boolean;
@@ -129,6 +130,46 @@ export function shortDate(day: string): string {
 		year: 'numeric',
 		timeZone: 'UTC'
 	}).format(new Date(`${day}T12:00Z`));
+}
+
+export function weekdayLabel(day: string): string {
+	return new Intl.DateTimeFormat('ro-RO', { weekday: 'long', timeZone: 'UTC' }).format(
+		new Date(`${day}T12:00Z`)
+	);
+}
+
+export function monthLabel(day: string): string {
+	return new Intl.DateTimeFormat('ro-RO', { month: 'short', timeZone: 'UTC' })
+		.format(new Date(`${day}T12:00Z`))
+		.replace('.', '');
+}
+
+export function periodLabel(first: string, last: string): string {
+	return new Intl.DateTimeFormat('ro-RO', {
+		day: 'numeric',
+		month: 'short',
+		year: 'numeric',
+		timeZone: 'UTC'
+	}).formatRange(new Date(`${first}T12:00Z`), new Date(`${last}T12:00Z`));
+}
+
+export function eventDetails(event: CalendarEvent): string {
+	const normalized = (value: string) =>
+		value
+			.replace(/<[^>]*>/g, ' ')
+			.replace(/&nbsp;|&#160;/gi, ' ')
+			.replace(/&amp;/gi, '&')
+			.replace(/&lt;/gi, '<')
+			.replace(/&gt;/gi, '>')
+			.replace(/\s+/g, ' ')
+			.trim()
+			.toLocaleLowerCase('ro-RO');
+	const repeated = new Set([event.title, event.location ?? ''].map(normalized));
+	return (event.description ?? '')
+		.split(/\r?\n/)
+		.filter((line) => !repeated.has(normalized(line)))
+		.join('\n')
+		.trim();
 }
 export function eventTime(event: CalendarEvent): string {
 	if (event.allDay)

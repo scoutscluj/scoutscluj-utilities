@@ -108,7 +108,7 @@ The dashboard SHALL provide a switchable Monday-first month grid, previous/next 
 
 ### Requirement: Calendar Date And Content Semantics
 
-The system SHALL use Romanian labels and `Europe/Bucharest` display dates/times, preserve date-only all-day values and exclusive end dates, and render external descriptions as plain text without attendee lists or raw provider payloads.
+The system SHALL use Romanian labels and `Europe/Bucharest` display dates/times, preserve date-only all-day values and exclusive end dates, and render external descriptions as sanitized HTML with paragraphs, lists, emphasis, and safe links without attendee lists or raw provider payloads.
 
 #### Scenario: All-day event ends on the following date
 
@@ -125,7 +125,7 @@ The system SHALL use Romanian labels and `Europe/Bucharest` display dates/times,
 #### Scenario: Description contains markup
 
 - **WHEN** a provider description includes HTML or executable content
-- **THEN** the interface displays safe plain text and executes no provider content.
+- **THEN** the API removes scripts, embedded content, event handlers, inline styles, and unsafe link protocols; the interface preserves allowed formatting and safe links and executes no provider content.
 
 ### Requirement: Bounded Cache And Resilient Calendar Widgets
 

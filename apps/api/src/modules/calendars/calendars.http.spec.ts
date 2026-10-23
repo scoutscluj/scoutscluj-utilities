@@ -101,7 +101,7 @@ describe('calendar API authentication, pagination and provider boundary', () => 
       {
         id: event.id,
         title: 'Întâlnire',
-        description: 'Detalii',
+        description: '<p>Detalii</p>',
         allDay: true,
         start: '2026-10-24',
         end: '2026-10-25',

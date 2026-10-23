@@ -3,6 +3,7 @@ import {
 	addDays,
 	daysRange,
 	eventTime,
+	eventDetails,
 	initialRange,
 	localDay,
 	midnight,
@@ -23,6 +24,19 @@ const allDay: CalendarEvent = {
 	end: '2026-10-25'
 };
 describe('Bucharest calendar dates and windows', () => {
+	it('removes repeated event title/location lines while preserving useful details', () => {
+		const event = {
+			...allDay,
+			location: 'Cluj-Napoca',
+			description: 'Tabără\nCluj-Napoca\nAducem echipamentul.\nÎntâlnire la intrare.'
+		};
+		expect(eventDetails(event)).toBe('Aducem echipamentul.\nÎntâlnire la intrare.');
+		expect(eventDetails({ ...event, description: '  TABĂRĂ  ' })).toBe('');
+		expect(eventDetails({ ...event, description: '<p><strong>Tabără</strong></p>' })).toBe('');
+		expect(
+			eventDetails({ ...event, description: '<p><strong>Aducem echipamentul.</strong></p>' })
+		).toBe('<p><strong>Aducem echipamentul.</strong></p>');
+	});
 	it('keeps an earlier stale warning when a continuation page is fresh', () => {
 		const range = { from: '2026-10-23T00:00:00Z', to: '2026-11-23T00:00:00Z' };
 		const earlier = { items: [], range, stale: true, fetchedAt: '2026-10-23T09:00:00Z' };

@@ -48,119 +48,156 @@
 
 {#if expired}<p role="alert">Sesiunea a expirat. Se deschide pagina de autentificare…</p>
 {:else if !suspended}
-	<details class="calendars" open>
-		<summary>Calendare</summary>
+	<div class="calendars">
 		<div class="calendar-grid">
 			<UpcomingAgenda
 				initial={events}
 				initialRange={eventsRange}
 				{now}
 				{expire}
-			/><HeadquartersCalendar initial={headquarters} today={currentDay} {expire} />
+			/><HeadquartersCalendar initial={headquarters} today={currentDay} {now} {expire} />
 		</div>
-	</details>
+	</div>
 {/if}
 
 <style>
-	.calendars > summary {
-		cursor: pointer;
-		border: 1px solid var(--sc-border);
-		border-radius: 8px;
-		background: var(--sc-surface);
-		padding: 14px 16px;
-		min-height: 48px;
-		font-weight: 650;
-	}
 	.calendar-grid {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
 		gap: 20px;
-		margin-top: 18px;
 		align-items: start;
 	}
 	.calendars :global(.calendar-widget) {
 		min-width: 0;
 		border: 1px solid var(--sc-border);
-		border-radius: 12px;
+		border-radius: 14px;
 		background: var(--sc-surface);
-		overflow: hidden;
 		color: var(--sc-ink);
+		overflow: hidden;
+		box-shadow: 0 2px 4px #10182803;
 	}
-	.calendars :global(header) {
+	.calendars :global(.widget-header) {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 8px 12px;
+		gap: 8px 14px;
 		align-items: center;
 		justify-content: space-between;
-		padding: 18px 20px;
+		padding: 10px 16px;
 		border-bottom: 1px solid var(--sc-border);
 	}
-	.calendars :global(h2) {
-		font-size: 1.05rem;
-		line-height: 1.4;
-		margin: 3px 0 0;
+	.calendars :global(.widget-title) {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		min-width: 0;
 	}
-	.calendars :global(.eyebrow) {
-		font-size: 0.68rem;
-		text-transform: uppercase;
-		letter-spacing: 0.09em;
-		color: var(--sc-muted);
-		margin: 0;
-	}
-	.calendars :global(header a) {
+	.calendars :global(.widget-icon) {
 		display: inline-flex;
 		align-items: center;
-		min-height: 44px;
+		justify-content: center;
+		width: 38px;
+		height: 38px;
+		flex-shrink: 0;
+		border-radius: 10px;
+	}
+	.calendars :global(.events-icon) {
+		background: var(--sc-accent-soft);
 		color: var(--sc-accent);
-		font-size: 0.8rem;
-		text-underline-offset: 4px;
+	}
+	.calendars :global(.headquarters-icon) {
+		background: #eaf5f0;
+		color: #0f766e;
+	}
+	.calendars :global(h2) {
+		font-size: 1rem;
+		line-height: 1.4;
+		letter-spacing: -0.015em;
+		margin: 0;
+		font-weight: 650;
+	}
+	.calendars :global(.count-badge) {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 24px;
+		height: 24px;
+		padding: 0 6px;
+		background: #f2f4f7;
+		color: #475467;
+		border-radius: 7px;
+		font-size: 0.72rem;
+		font-weight: 600;
+	}
+	.calendars :global(.calendar-link) {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		min-height: 44px;
+		font-size: 0.72rem;
+		color: #667085;
+		text-decoration: none;
+		transition: color 160ms ease;
+		white-space: nowrap;
+	}
+	.calendars :global(.calendar-link:hover) {
+		color: var(--sc-accent);
 	}
 	.calendars :global(.calendar-body) {
-		padding: 18px 20px;
+		padding: 14px 16px;
 	}
-	.calendars :global(.agenda-day) {
-		margin-bottom: 20px;
+	.calendars :global(.timeline-day) {
+		display: grid;
+		grid-template-columns: 44px minmax(0, 1fr);
+		align-items: start;
+		column-gap: 10px;
 	}
-	.calendars :global(h3) {
-		font-size: 0.8rem;
+	.calendars :global(.day-content) {
+		min-width: 0;
+	}
+	.calendars :global(:where(h3)) {
+		display: flex;
+		align-items: center;
+		margin: 3px 0 10px;
+		color: #475467;
+		font-size: 0.78rem;
 		font-weight: 650;
-		margin: 0 0 10px;
-		text-transform: capitalize;
+	}
+	.calendars :global(h3::first-letter) {
+		text-transform: uppercase;
+	}
+	.calendars :global(.day-year) {
+		margin-left: auto;
+		color: #667085;
+		font-size: 0.68rem;
+		font-weight: 400;
 	}
 	.calendars :global(.bookings) {
+		container-type: inline-size;
+		container-name: bookings;
 		display: grid;
-		gap: 8px;
+		gap: 5px;
 	}
-	.calendars :global(.range),
-	.calendars :global(.progress) {
-		color: var(--sc-muted);
-		font-size: 0.75rem;
-		line-height: 1.6;
-		margin: 0 0 18px;
-	}
-	.calendars :global(.progress) {
-		margin: 10px 0 0;
-	}
-	.calendars :global(.empty) {
-		color: var(--sc-muted);
-		font-size: 0.85rem;
-		padding: 12px 0;
-		margin: 0;
-		line-height: 1.6;
-	}
-	.calendars :global(button) {
+	.calendars :global(:where(button)) {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 7px;
 		min-height: 44px;
 		border: 1px solid var(--sc-border);
 		border-radius: 7px;
-		background: var(--sc-surface);
-		color: var(--sc-ink);
+		background: #fff;
+		color: #344054;
 		padding: 8px 12px;
 		font: inherit;
-		font-size: 0.8rem;
+		font-size: 0.78rem;
 		cursor: pointer;
+		transition:
+			background 160ms ease,
+			border-color 160ms ease;
 	}
 	.calendars :global(button:hover:not(:disabled)) {
-		background: var(--sc-canvas);
+		background: #f5f7f9;
+		border-color: #cbd3dc;
 	}
 	.calendars :global(button:disabled) {
 		cursor: wait;
@@ -168,25 +205,60 @@
 	}
 	.calendars :global(.load-more) {
 		width: 100%;
-		margin-top: 12px;
-		color: var(--sc-accent);
-		font-weight: 650;
+		font-weight: 600;
+		color: #46556a;
 	}
 	.calendars :global(.notice) {
-		font-size: 0.85rem;
-		line-height: 1.6;
-		background: #fff7e6;
+		display: flex;
+		align-items: flex-start;
+		gap: 8px;
+		font-size: 0.78rem;
+		line-height: 1.65;
+		background: #fff8e9;
 		color: #795817;
-		border: 1px solid #e7d7ad;
-		padding: 12px;
+		border: 1px solid #ead8af;
+		padding: 11px 12px;
 		border-radius: 8px;
+		margin: 0 0 18px;
+	}
+	.calendars :global(.notice > svg) {
+		margin-top: 3px;
+		flex-shrink: 0;
+	}
+	.calendars :global(.notice-action) {
+		display: flex;
+		border: 0;
+		min-height: 44px;
+		margin-top: 2px;
+		background: transparent;
+		color: inherit;
+		padding: 5px 0;
+		font-weight: 600;
+		text-decoration: underline;
+		text-underline-offset: 3px;
 	}
 	.calendars :global(.error) {
 		background: #fff1ef;
 		color: #96392f;
 		border-color: #edc9c3;
 	}
-	.calendars > summary:focus-visible,
+	.calendars :global(.progress) {
+		color: #667085;
+		font-size: 0.73rem;
+		line-height: 1.6;
+		margin: 10px 0 0;
+	}
+	.calendars :global(.sr-only) {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+		border: 0;
+	}
 	.calendars :global(button:focus-visible),
 	.calendars :global(a:focus-visible) {
 		outline: 2px solid var(--sc-accent);
@@ -194,13 +266,47 @@
 	}
 	@media (min-width: 1100px) {
 		.calendar-grid {
-			grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
 		}
 	}
 	@media (max-width: 480px) {
-		.calendars :global(header),
+		.calendars :global(.widget-header),
 		.calendars :global(.calendar-body) {
-			padding: 14px;
+			padding: 12px;
+		}
+		.calendars :global(.calendar-link) {
+			width: 44px;
+			justify-content: center;
+			flex-shrink: 0;
+		}
+		.calendars :global(.calendar-link span) {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+			white-space: nowrap;
+		}
+		.calendars :global(.widget-title) {
+			gap: 8px;
+		}
+		.calendars :global(.widget-icon) {
+			width: 32px;
+			height: 32px;
+			border-radius: 8px;
+		}
+		.calendars :global(h2) {
+			font-size: 0.91rem;
+		}
+		.calendars :global(.timeline-day) {
+			grid-template-columns: 44px minmax(0, 1fr);
+			column-gap: 9px;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.calendars :global(button),
+		.calendars :global(.calendar-link) {
+			transition: none;
 		}
 	}
 </style>

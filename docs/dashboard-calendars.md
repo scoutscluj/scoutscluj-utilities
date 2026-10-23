@@ -124,3 +124,5 @@ protection for authenticated calendar responses.
 Sources: [credentials](https://support.google.com/googleapi/answer/6158857?hl=en),
 [events API](https://developers.google.com/workspace/calendar/api/v3/reference/events/list),
 [quotas and pricing](https://developers.google.com/workspace/calendar/api/guides/quota).
+
+Calendar descriptions preserve basic HTML formatting (paragraphs, lists, emphasis, and links). The API sanitizes descriptions with an allowlist before returning them; the dashboard renders only that sanitized HTML. Scripts, embeds, images, inline styles, event handlers, and unsafe link protocols are removed. Links open in a new tab with `noopener noreferrer`.

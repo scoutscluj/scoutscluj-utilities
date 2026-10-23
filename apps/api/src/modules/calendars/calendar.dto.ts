@@ -3,7 +3,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CalendarEventDto {
   @ApiProperty() id!: string;
   @ApiProperty() title!: string;
-  @ApiPropertyOptional() description?: string;
+  @ApiPropertyOptional({
+    description: 'Sanitized HTML with safe formatting and links',
+  })
+  description?: string;
   @ApiPropertyOptional() location?: string;
   @ApiProperty() allDay!: boolean;
   @ApiProperty({ description: 'ISO instant, or YYYY-MM-DD for all-day events' })

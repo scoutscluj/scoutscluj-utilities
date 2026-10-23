@@ -47,8 +47,8 @@ Headquarters requests include any adjacent dates visible in the month grid.
 Do not accept arbitrary calendar IDs or upstream URLs. Bind opaque continuation
 cursors to their source and date range; reject mismatched or malformed cursors.
 
-Return a minimal event DTO: instance identity, title, optional plain text
-description/location, and either date-only all-day boundaries or timed start/end
+Return a minimal event DTO: instance identity, title, optional sanitized HTML
+description and plain text location, and either date-only all-day boundaries or timed start/end
 instants. Include `range`, `nextCursor`, `fetchedAt`, and `stale` metadata. Private
 Google entries with hidden details must not gain fabricated titles/details.
 Do not forward raw Google payloads, attendee data, credentials, or provider error
@@ -131,7 +131,7 @@ Use Romanian labels and `Europe/Bucharest` time, including daylight saving
 changes. Preserve all-day dates without converting them to UTC; Google's all-day
 end date is exclusive. Timed multi-day events show their actual date span and
 display within each overlapping headquarters day. Render external description
-content as plain text, never trusted HTML. Keep both widgets available on narrow
+content as allowlisted HTML sanitized at the API boundary; never render raw provider HTML. Keep both widgets available on narrow
 screens; month dates and overflow controls must remain keyboard/touch usable.
 Loading, empty, stale, and error states are independent between widgets. Keep
 the existing full-calendar navigation links. Support visible keyboard focus,

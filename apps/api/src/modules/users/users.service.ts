@@ -13,6 +13,7 @@ import { OrgoConnection } from './entities/orgo-connection.entity';
 import { UserRole } from './entities/user-role.enum';
 import { User } from './entities/user.entity';
 import { OrgoProfile, CurrentUser } from './users.types';
+import { orgoProfileDetails, profileImageUrl } from './orgo-profile-details';
 
 const ROLE_ORDER = [
   UserRole.Moderator,
@@ -181,7 +182,9 @@ export class UsersService {
       displayName: user.displayName,
       firstName: user.firstName ?? undefined,
       lastName: user.lastName ?? undefined,
-      avatarUrl: user.avatarUrl ?? undefined,
+      avatarUrl:
+        profileImageUrl(connection?.profile?.profileImage) ??
+        profileImageUrl(user.avatarUrl),
       roles: user.memberAccessDisabled
         ? []
         : [
@@ -197,6 +200,7 @@ export class UsersService {
             email: connection.email ?? undefined,
             connectedAt: connection.connectedAt?.toISOString(),
             lastLoginAt: connection.lastLoginAt?.toISOString(),
+            profile: orgoProfileDetails(connection.profile),
           }
         : undefined,
     };

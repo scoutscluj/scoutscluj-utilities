@@ -2,16 +2,24 @@
 
 ## Profile Layout
 
-1. Identity header: avatar, display name, and email.
-2. Responsive overview cards: roles, Orgo connection, and notifications.
+1. Identity header: Orgo profile photo (initials fallback), display name, and email on the left; a notification
+   settings icon and logout action on the right.
+2. Two information cards: personal details on the left (email, card ID, Orgo
+   membership status, date of birth, date joined, fee valid until, and application
+   roles) and connection details on the right (connection status, Orgo ID,
+   connection date, and last login). Use equal desktop widths and heights, 16px
+   card padding, compact information columns, and an inline role row. Present fee
+   validity as a regular detail rather than a separate inset panel. Stack the
+   cards on narrow screens.
 3. Full-width `Obiective personale` section with an `Adaugă obiectiv` button.
-4. Existing logout action.
 
-The notification summary contains a short current-device status, the number of
-active devices, and a button styled link to `/profile/notifications`. Loading and
-failed requests have distinct states; a failed request must not appear as zero
-active devices. Unsupported browsers still receive a readable summary and can
-open the settings page. Reading the summary never requests browser permission.
+The notification icon links to `/profile/notifications`. A crossed bell indicates
+that notifications are not ready on this device; a bell with a green check
+requires browser support, granted permission, server configuration, and an active
+subscription on the current device. Loading and failed requests have distinct
+states with accessible status text and tooltips. The link remains available in
+all states. Reading status never requests browser permission. On narrow screens
+logout retains an accessible label while its visible text gives way to its icon.
 
 The objective list displays each title, description, and localized deadline.
 Descriptions preserve line breaks and long content wraps on narrow screens.
@@ -72,3 +80,21 @@ administrative broadcasts retain their current API and permissions.
 
 Implementation is based on `origin/main` at `522ab50` and reuses its shared
 UI conventions. Existing unrelated proposal artifacts were left untouched.
+
+## Orgo Personal Details
+
+The current-user serializer returns only email, membership status, date of birth,
+date joined, and fee-validity date from the stored Orgo profile. Normalize the
+nested Orgo date objects to validated `YYYY-MM-DD` strings. Format these calendar
+dates without timezone shifts. Login/connection timestamps use Europe/Bucharest.
+Do not expand the administrative user-list payload with these personal fields.
+
+Prefer the stored Orgo profile image for the avatar and fall back to the account
+avatar, accepting HTTPS URLs. If no image is available or loading fails, show the
+user's initial. Keep image dimensions fixed so loading does not shift the header.
+
+Retain the existing Scouts design tokens, white surfaces, and red actions.
+Application-role badges use labeled purple (super admin), blue (admin), amber
+(finance manager), and teal (moderator) treatments. Membership and connection
+success use green; expired fee validity uses an explicit amber `Expirată` label.
+Missing fields display `Indisponibil`.

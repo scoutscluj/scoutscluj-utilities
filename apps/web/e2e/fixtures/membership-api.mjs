@@ -291,7 +291,8 @@ createServer(async (req, res) => {
 		return respond(res, {
 			id: 1,
 			displayName: 'Responsabil financiar',
-			roles: req.headers.cookie?.includes('read-only') ? [] : ['super_admin']
+			roles: req.headers.cookie?.includes('read-only') ? [] : ['super_admin'],
+			...profileOptions.user
 		});
 	if (req.url === '/api/activities') return respond(res, []);
 	if (req.url === '/api/members')

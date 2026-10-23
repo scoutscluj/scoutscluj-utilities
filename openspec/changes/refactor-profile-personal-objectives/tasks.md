@@ -13,10 +13,10 @@
 ## 3. Frontend
 
 - [x] Move current notification controls to `/profile/notifications` and register the route title.
-- [x] Replace the profile controls with a summary card and settings navigation.
+- [x] Place notification settings and logout in the identity header, with crossed-bell and green-check states.
 - [x] Add authenticated objective loading/creation and the responsive objectives list.
 - [x] Add the accessible creation dialog with validation, pending, success, and failure behavior.
-- [x] Verify notification status refresh when returning to the profile.
+- [x] Verify notification status refresh when returning to the profile header.
 
 ## 4. Validation
 
@@ -44,3 +44,29 @@
 
 Apply `Migration20261023000100` with the normal API migration process before
 running this feature against an existing environment.
+
+## Profile Header Refinement
+
+- [x] Combine roles and Orgo details in one full-width information card.
+- [x] Move notification settings and logout to the right of the identity header.
+- [x] Show a crossed bell when notifications are not ready and a green check when ready on this device.
+- [x] Format the Orgo login timestamp as a readable Romanian date and time.
+- [x] Verify header placement, notification states, and desktop/mobile layouts. All 8 profile browser tests passed; desktop/mobile screenshots inspected; Svelte checks, lint, formatting, and production build passed.
+
+## Personal Profile Details Refinement
+
+- [x] Return an allowlisted personal-profile view from the current-user API.
+- [x] Normalize Orgo calendar dates and prefer the stored profile photo.
+- [x] Split personal and connection information into responsive cards.
+- [x] Add labeled role colors, membership status, and fee-validity treatment.
+- [x] Add photo error handling with an initials fallback.
+- [x] Test personal-field serialization, invalid dates, and exclusion of private fields.
+- [x] Verify browser data display, photo fallback, and responsive screenshots at 375, 768, 1024, and 1440 px. All 8 profile browser tests and 8 user-service tests passed; type checks, lint, formatting, API/web builds, and Svelte autofixer passed.
+
+## Compact Profile Cards
+
+- [x] Make desktop information cards equal in width and height.
+- [x] Reduce headings, padding, gaps, and metadata spacing.
+- [x] Move fee validity into the details grid and keep roles in a compact inline row.
+- [x] Keep the objectives section unchanged, as requested.
+- [x] Verify equal dimensions, compact height, and responsive layouts. All 8 profile browser tests passed; desktop/mobile screenshots inspected; Svelte checks, lint, formatting, and production build passed.

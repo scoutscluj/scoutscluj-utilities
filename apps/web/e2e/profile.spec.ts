@@ -13,9 +13,78 @@ test.beforeEach(async ({ page, request }) => {
 });
 
 test('creates through a dialog and preserves the objective after reload', async ({
-	page
+	page,
+	request
 }, testInfo) => {
+	await page.route('https://images.example.test/profile.jpg', (route) =>
+		route.fulfill({
+			contentType: 'image/svg+xml',
+			body: '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" fill="#e9edf5"/><circle cx="32" cy="23" r="11" fill="#64748b"/><path d="M10 64v-6a22 22 0 0 1 44 0v6" fill="#64748b"/></svg>'
+		})
+	);
+	await request.post(`${api}/test/profile`, {
+		data: {
+			notificationConfigured: false,
+			user: {
+				displayName: 'Florin Tomozei',
+				email: 'florin@example.test',
+				avatarUrl: 'https://images.example.test/profile.jpg',
+				orgoConnection: {
+					cardId: 'FT678',
+					orgoUserId: 517,
+					connectedAt: '2026-06-01T08:00:00Z',
+					profile: {
+						email: 'florin@example.test',
+						status: 'ACTIVE',
+						dateOfBirth: '1993-03-09',
+						dateJoined: '2007-11-20',
+						feeValidUntilDate: '2026-09-30'
+					},
+					lastLoginAt: '2026-10-23T08:42:24.373Z'
+				}
+			}
+		}
+	});
 	await page.goto('/profile');
+	const details = page.getByRole('region', { name: 'Informații personale' });
+	const orgo = page.getByRole('region', { name: 'Conexiune Orgo' });
+	await expect(details.getByRole('heading', { name: 'Roluri în aplicație' })).toBeVisible();
+	await expect(details.getByText('FT678')).toBeVisible();
+	await expect(orgo.getByText('FT678')).toHaveCount(0);
+	await expect(details.getByText('9 martie 1993')).toBeVisible();
+	await expect(details.getByText('20 noiembrie 2007')).toBeVisible();
+	await expect(details.getByText('30 septembrie 2026')).toBeVisible();
+	await expect(details.getByText('Activ', { exact: true })).toBeVisible();
+	await expect(details.getByRole('link', { name: 'florin@example.test' })).toBeVisible();
+	await expect(orgo.getByText('517', { exact: true })).toBeVisible();
+	await expect(orgo.getByText('23 oct. 2026, 11:42')).toBeVisible();
+	const photo = page.getByAltText('Fotografie de profil: Florin Tomozei');
+	await expect(photo).toBeVisible();
+	expect(await photo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+	const notifications = page.getByRole('link', { name: 'Setări notificări' });
+	await expect(notifications).toHaveAccessibleName(
+		'Setări notificări: Notificările nu sunt configurate'
+	);
+	await expect(notifications.locator('svg')).toHaveCount(1);
+	const name = await page
+		.getByRole('heading', { name: 'Florin Tomozei', exact: true })
+		.boundingBox();
+	const bell = await notifications.boundingBox();
+	const logout = await page.getByRole('button', { name: 'Deconectare', exact: true }).boundingBox();
+	expect(bell!.x).toBeGreaterThan(name!.x + name!.width);
+	expect(logout!.x).toBeGreaterThan(bell!.x + bell!.width);
+	expect(Math.abs(logout!.y - bell!.y)).toBeLessThanOrEqual(1);
+	const card = await details.boundingBox();
+	const objectives = await page.getByRole('region', { name: 'Obiective personale' }).boundingBox();
+	const orgoCard = await orgo.boundingBox();
+	expect(orgoCard!.x).toBeGreaterThan(card!.x + card!.width);
+	expect(Math.abs(card!.y - orgoCard!.y)).toBeLessThanOrEqual(1);
+	expect(Math.abs(card!.width - orgoCard!.width)).toBeLessThanOrEqual(1);
+	expect(Math.abs(card!.height - orgoCard!.height)).toBeLessThanOrEqual(1);
+	expect(card!.height).toBeLessThan(300);
+	expect(Math.abs(orgoCard!.x + orgoCard!.width - card!.x - objectives!.width)).toBeLessThanOrEqual(
+		1
+	);
 	await expect(page.getByText('Nu ai adăugat încă niciun obiectiv personal.')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Activează notificările' })).toHaveCount(0);
 	await page.getByRole('button', { name: 'Adaugă obiectiv', exact: true }).click();
@@ -30,11 +99,32 @@ test('creates through a dialog and preserves the objective after reload', async 
 	await page.getByRole('button', { name: 'Salvează obiectiv' }).click();
 	await expect(dialog).toHaveCount(0);
 	await expect(page.getByRole('heading', { name: 'Organizez o drumeție' })).toBeVisible();
-	await expect(page.locator('time')).toHaveAttribute('datetime', '2026-11-15');
+	await expect(page.locator('.objectives time')).toHaveAttribute('datetime', '2026-11-15');
 	await page.reload();
 	await expect(page.getByRole('heading', { name: 'Organizez o drumeție' })).toBeVisible();
 	await expect(page.getByText('Pregătesc traseul.\nVerific echipamentul.')).toBeVisible();
-	await page.screenshot({ path: testInfo.outputPath('desktop-profile.png') });
+	await page.evaluate(() => window.scrollTo(0, 0));
+	await page.screenshot({
+		path: testInfo.outputPath('desktop-profile.png'),
+		fullPage: true,
+		animations: 'disabled'
+	});
+	for (const width of [375, 768, 1024, 1440]) {
+		await page.setViewportSize({ width, height: 900 });
+		await page.goto('/profile');
+		await expect(
+			page.getByRole('heading', { name: 'Informații personale', exact: true })
+		).toBeVisible();
+		await page.evaluate(() => window.scrollTo(0, 0));
+		expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(
+			false
+		);
+		await page.screenshot({
+			path: testInfo.outputPath(`profile-${width}.png`),
+			fullPage: true,
+			animations: 'disabled'
+		});
+	}
 });
 
 test('cancel and Escape save nothing and restore keyboard focus', async ({ page }) => {
@@ -119,8 +209,19 @@ test('mobile objectives remain within the viewport and dates stay stable across 
 		{ name: 'scoutscluj_session', value: 'synthetic-finance-session', url: 'http://127.0.0.1:5182' }
 	]);
 	const page = await context.newPage();
+	await page.route('https://images.example.test/missing.jpg', (route) => route.abort());
+	await request.post(`${api}/test/profile`, {
+		data: { user: { avatarUrl: 'https://images.example.test/missing.jpg' } }
+	});
 	await page.goto('/profile');
-	await expect(page.locator('time')).toHaveText('15 ianuarie 2020');
+	await expect(page.locator('.profile-identity .avatar img')).toHaveCount(0);
+	await expect(page.locator('.profile-identity .avatar')).toHaveText('R');
+	const personalCard = await page
+		.getByRole('region', { name: 'Informații personale' })
+		.boundingBox();
+	const orgoCard = await page.getByRole('region', { name: 'Conexiune Orgo' }).boundingBox();
+	expect(orgoCard!.y).toBeGreaterThan(personalCard!.y + personalCard!.height);
+	await expect(page.locator('.objectives time')).toHaveText('15 ianuarie 2020');
 	await expect(page.getByText('Termen depășit', { exact: true })).toBeVisible();
 	expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
 	await page.screenshot({ path: testInfo.outputPath('mobile-profile.png'), fullPage: true });
@@ -160,7 +261,9 @@ test('notification settings retain all controls and refresh the profile summary 
 		});
 	});
 	await page.goto('/profile');
-	await expect(page.getByText('Inactive pe acest dispozitiv')).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Setări notificări' })).toHaveAccessibleName(
+		'Setări notificări: Notificările sunt inactive pe acest dispozitiv'
+	);
 	await page.getByRole('link', { name: 'Setări notificări' }).click();
 	await expect(page).toHaveURL(/\/profile\/notifications$/);
 	await page.getByRole('button', { name: 'Activează notificările' }).click();
@@ -168,15 +271,24 @@ test('notification settings retain all controls and refresh the profile summary 
 	await page.getByRole('button', { name: 'Trimite test' }).click();
 	await expect(page.getByText('Test procesat: 1 trimise, 0 eșuate.')).toBeVisible();
 	await page.getByRole('link', { name: 'Înapoi la profil' }).click();
-	await expect(page.getByText('Active pe acest dispozitiv', { exact: true })).toBeVisible();
-	await expect(page.getByText('1 dispozitiv activ')).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Setări notificări' })).toHaveAccessibleName(
+		'Setări notificări: Notificările sunt active pe acest dispozitiv'
+	);
+	await expect(
+		page.getByRole('link', { name: 'Setări notificări' }).locator('.status-badge')
+	).toBeVisible();
 	await page.getByRole('link', { name: 'Setări notificări' }).click();
 	await page.getByRole('button', { name: 'Dezactivează acest dispozitiv' }).click();
 	await expect(page.getByRole('button', { name: 'Trimite test' })).toBeDisabled();
 	await page.getByRole('button', { name: 'Activează notificările' }).click();
 	await page.getByRole('button', { name: 'Dezactivează toate', exact: true }).click();
 	await page.getByRole('link', { name: 'Înapoi la profil' }).click();
-	await expect(page.getByText('0 dispozitive active')).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Setări notificări' })).toHaveAccessibleName(
+		'Setări notificări: Notificările sunt inactive pe acest dispozitiv'
+	);
+	await expect(
+		page.getByRole('link', { name: 'Setări notificări' }).locator('.status-badge')
+	).toHaveCount(0);
 });
 
 test('unsupported browsers and notification failures stay readable', async ({ page, request }) => {
@@ -184,14 +296,20 @@ test('unsupported browsers and notification failures stay readable', async ({ pa
 		Reflect.deleteProperty(window, 'PushManager');
 	});
 	await page.goto('/profile');
-	await expect(page.getByText('Push nesuportat în acest browser')).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Setări notificări' })).toHaveAccessibleName(
+		'Setări notificări: Push nesuportat în acest browser'
+	);
 	await page.getByRole('link', { name: 'Setări notificări' }).click();
 	await expect(page.getByText('Browserul nu suportă notificări push.')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Activează notificările' })).toBeDisabled();
 	await request.post(`${api}/test/profile`, { data: { failNotifications: true } });
 	await page.getByRole('link', { name: 'Înapoi la profil' }).click();
-	await expect(page.getByText('Statusul notificărilor nu este disponibil.')).toBeVisible();
-	await expect(page.getByText('0 dispozitive active')).toHaveCount(0);
+	await expect(page.getByRole('link', { name: 'Setări notificări' })).toHaveAccessibleName(
+		'Setări notificări: Statusul notificărilor nu este disponibil'
+	);
+	await expect(
+		page.getByRole('link', { name: 'Setări notificări' }).locator('.status-badge')
+	).toHaveCount(0);
 });
 
 test('denied notification permission does not prompt and disables enable', async ({ page }) => {
@@ -202,7 +320,9 @@ test('denied notification permission does not prompt and disables enable', async
 		};
 	});
 	await page.goto('/profile');
-	await expect(page.getByText('Permisiune refuzată în browser')).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Setări notificări' })).toHaveAccessibleName(
+		'Setări notificări: Permisiune refuzată în browser'
+	);
 	await page.getByRole('link', { name: 'Setări notificări' }).click();
 	await expect(page.getByText(/Permisiunea a fost refuzată/)).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Activează notificările' })).toBeDisabled();

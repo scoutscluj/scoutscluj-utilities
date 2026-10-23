@@ -3,7 +3,7 @@
 ### Requirement: Dedicated Personal Notification Settings
 
 The web app SHALL provide an authenticated `/profile/notifications` page for
-personal notification controls and link to it from the profile summary.
+personal notification controls and link to it from the profile header icon.
 
 #### Scenario: User manages notifications from the dedicated page
 
@@ -32,5 +32,5 @@ personal notification controls and link to it from the profile summary.
 
 - **GIVEN** a user has changed subscription state on the settings page
 - **WHEN** they return to `/profile`
-- **THEN** the notification summary reloads the status
-- **AND** shows the current subscription state and active-device count.
+- **THEN** the notification header icon reloads the status
+- **AND** reflects whether notifications are ready on the current device.

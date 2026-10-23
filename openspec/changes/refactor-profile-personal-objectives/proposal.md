@@ -9,8 +9,14 @@ objectives with a title, description, and deadline.
 ## What Changes
 
 - Keep identity, roles, Orgo connection information, and logout on `/profile`.
-- Replace the notification controls with one short summary card showing the
-  current device state and active-device count, plus a `Setări notificări` button.
+- Split profile details into a personal-information card on the left and an Orgo
+  connection card on the right, stacking them on mobile. Show email, card ID,
+  membership status, date of birth, date joined, fee-validity date, and colored
+  application-role badges in the personal card.
+- Use the stored Orgo profile image for the avatar, with an initials fallback.
+- Place an icon-only `Setări notificări` link and the logout action at the right
+  of the identity header. Use a crossed bell when notifications are not ready
+  and a bell with a green check when they are active on this device.
 - Move enable, test, disable-current-device, and disable-all-device controls to
   `/profile/notifications`, with a `Înapoi la profil` link.
 - Add an `Obiective personale` section on `/profile`, listing the signed-in

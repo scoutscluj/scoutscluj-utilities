@@ -65,8 +65,16 @@ running this feature against an existing environment.
 
 ## Compact Profile Cards
 
-- [x] Make desktop information cards equal in width and height.
+- [x] Use a two-thirds/one-third desktop width split with equal card heights.
 - [x] Reduce headings, padding, gaps, and metadata spacing.
 - [x] Move fee validity into the details grid and keep roles in a compact inline row.
 - [x] Keep the objectives section unchanged, as requested.
-- [x] Verify equal dimensions, compact height, and responsive layouts. All 8 profile browser tests passed; desktop/mobile screenshots inspected; Svelte checks, lint, formatting, and production build passed.
+- [x] Verify proportional widths, equal heights, and responsive layouts. All 8 profile browser tests passed; desktop/mobile screenshots inspected; Svelte checks, lint, formatting, and production build passed.
+
+## Fee Payment Navigation
+
+- [x] Read the current user's current-period balance using existing payment APIs.
+- [x] Show a full-width warning banner above both profile cards with a pay-fee link for expired, unpaid, or unrecorded fee validity.
+- [x] Link to `/cotizatie` and retain the existing payment flow.
+- [x] Verify the warning spans both cards, contains the payment action, and wraps on mobile; confirm the personal card no longer contains the action.
+- [x] Verify expired, unpaid, partial, paid, missing-date, and unavailable-balance states. All 14 profile browser tests passed, including navigation to `/cotizatie`; responsive screenshots, Svelte checks, lint, formatting, and production build passed.

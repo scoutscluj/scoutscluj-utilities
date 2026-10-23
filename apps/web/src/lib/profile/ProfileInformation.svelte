@@ -1,12 +1,16 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { resolve } from '$app/paths';
+	import CreditCard from '@lucide/svelte/icons/credit-card';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import UserRound from '@lucide/svelte/icons/user-round';
 	import Check from '@lucide/svelte/icons/check';
 	import { formatRole } from '$lib/auth/roles';
 	import type { CurrentUser } from '$lib/auth/types';
 	import { formatProfileDate, formatProfileTimestamp } from './types';
 
-	let { user }: { user: CurrentUser } = $props();
+	let { user, feePaymentDue = null }: { user: CurrentUser; feePaymentDue?: boolean | null } =
+		$props();
 	const connection = $derived(user.orgoConnection);
 	const profile = $derived(connection?.profile);
 	const email = $derived(profile?.email ?? user.email ?? connection?.email);
@@ -22,6 +26,11 @@
 	const feeExpired = $derived(
 		Boolean(today && profile?.feeValidUntilDate && profile.feeValidUntilDate < today)
 	);
+	const showFeePayment = $derived(
+		feeExpired ||
+			feePaymentDue === true ||
+			Boolean(connection && !profile?.feeValidUntilDate && feePaymentDue !== false)
+	);
 	onMount(() => {
 		const updateDate = () => {
 			today = new Intl.DateTimeFormat('en-CA', {
@@ -36,6 +45,29 @@
 		return () => clearInterval(interval);
 	});
 </script>
+
+{#if showFeePayment}
+	<aside class="fee-warning" aria-labelledby="fee-warning-title">
+		<TriangleAlert size={20} aria-hidden="true" />
+		<div class="fee-warning-copy">
+			<h2 id="fee-warning-title">
+				{feeExpired
+					? 'Cotizația a expirat'
+					: feePaymentDue === true
+						? 'Ai o cotizație de achitat'
+						: 'Verifică situația cotizației'}
+			</h2>
+			<p>
+				{feeExpired || feePaymentDue === true
+					? 'Achită cotizația pentru a fi la zi cu plata.'
+					: 'Valabilitatea cotizației nu este înregistrată. Verifică detaliile și opțiunile de plată.'}
+			</p>
+		</div>
+		<a class="fee-payment-link" href={resolve('/cotizatie')}>
+			<CreditCard size={16} aria-hidden="true" />Plătește cotizația
+		</a>
+	</aside>
+{/if}
 
 <div class="profile-cards">
 	<section class="profile-card personal-card" aria-labelledby="personal-information-title">
@@ -72,10 +104,11 @@
 			</div>
 			<div class="fee-field">
 				<dt>Cotizație valabilă până la</dt>
-				<dd class={['fee-value', { expired: feeExpired }]}>
+				<dd class={['fee-value', { expired: feeExpired || feePaymentDue === true }]}>
 					<span>{formatProfileDate(profile?.feeValidUntilDate)}</span>
-					{#if profile?.feeValidUntilDate && today}<span class="fee-status"
-							>{feeExpired ? 'Expirată' : 'Valabilă'}</span
+					{#if today && (profile?.feeValidUntilDate || feePaymentDue === true)}<span
+							class="fee-status"
+							>{feeExpired ? 'Expirată' : feePaymentDue === true ? 'De achitat' : 'Valabilă'}</span
 						>{/if}
 				</dd>
 			</div>
@@ -127,9 +160,39 @@
 </div>
 
 <style>
+	.fee-warning {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin-top: 20px;
+		padding: 14px 16px;
+		border: 1px solid #fde68a;
+		border-radius: var(--sc-radius);
+		background: #fffbeb;
+		color: #92400e;
+	}
+	.fee-warning > :global(svg) {
+		flex-shrink: 0;
+	}
+	.fee-warning-copy {
+		flex: 1;
+		min-width: 0;
+	}
+	.fee-warning h2 {
+		color: inherit;
+		font-size: 14px;
+	}
+	.fee-warning p {
+		margin: 3px 0 0;
+		font-size: 13px;
+		line-height: 1.5;
+	}
+	.fee-warning + .profile-cards {
+		margin-top: 12px;
+	}
 	.profile-cards {
 		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
+		grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
 		align-items: stretch;
 		gap: 16px;
 		margin-top: 20px;
@@ -219,6 +282,33 @@
 		font-size: 12px;
 		font-weight: 500;
 		line-height: 1.5;
+	}
+	.fee-payment-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		max-width: 100%;
+		flex-shrink: 0;
+		min-height: 38px;
+		padding: 8px 12px;
+		border: 1px solid var(--sc-accent);
+		border-radius: 6px;
+		background: var(--sc-accent);
+		color: white;
+		font-size: 13px;
+		font-weight: 500;
+		text-decoration: none;
+	}
+	.fee-payment-link:hover {
+		background: var(--sc-accent-hover);
+		border-color: var(--sc-accent-hover);
+	}
+	.fee-payment-link:focus-visible {
+		outline: 2px solid var(--sc-accent);
+		outline-offset: 3px;
+	}
+	.fee-payment-link :global(svg) {
+		flex-shrink: 0;
 	}
 	.member-status,
 	.connection-status {
@@ -315,6 +405,16 @@
 		}
 	}
 	@media (max-width: 740px) {
+		.fee-warning {
+			align-items: flex-start;
+			flex-wrap: wrap;
+		}
+		.fee-warning-copy {
+			flex-basis: calc(100% - 32px);
+		}
+		.fee-payment-link {
+			margin-left: 32px;
+		}
 		.profile-cards {
 			grid-template-columns: minmax(0, 1fr);
 			margin-top: 20px;

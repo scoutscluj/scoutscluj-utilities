@@ -196,6 +196,7 @@ export const routeTitle = (pathname: string) => {
 	if (pathname.startsWith('/admin/finance/membership')) return 'Membri și cotizații';
 	if (pathname.startsWith('/admin/finance')) return 'Administrare financiară';
 	if (pathname.startsWith('/admin')) return 'Administrare';
+	if (pathname.startsWith('/profile/notifications')) return 'Setări notificări';
 	if (pathname.startsWith('/profile')) return 'Profil';
 	if (pathname.startsWith('/units')) return 'Unități și membri';
 	if (pathname.startsWith('/info/calendar')) return 'Calendar';

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CalendarsModule } from './modules/calendars/calendars.module';
 import { MembershipModule } from './modules/membership/membership.module';
 import { MembersModule } from './modules/members/members.module';
 import { ConfigModule } from '@nestjs/config';
@@ -26,6 +27,7 @@ import { PersonalObjectivesModule } from './modules/personal-objectives/personal
     }),
     MikroOrmModule.forRoot(createMikroOrmOptions()),
     HealthModule,
+    CalendarsModule,
     AuthModule,
     UsersAdminModule,
     AuditModule,

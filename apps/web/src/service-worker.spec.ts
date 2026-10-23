@@ -28,3 +28,53 @@ it('returns the actual worker build identifier to the page', async () => {
 	);
 	expect(worker.skipWaiting).toHaveBeenCalledOnce();
 });
+
+it('never restores a dashboard HTML snapshot offline and bypasses calendar data', async () => {
+	vi.resetModules();
+	const worker = Object.assign(new EventTarget(), {
+		location: { origin: 'https://app.example.test' }
+	});
+	const cache = {
+		delete: vi.fn().mockResolvedValue(true),
+		match: vi.fn().mockResolvedValue(new Response('private calendar data'))
+	};
+	vi.stubGlobal('self', worker);
+	vi.stubGlobal('caches', {
+		open: vi.fn().mockResolvedValue(cache),
+		match: vi.fn().mockResolvedValue(new Response('Offline'))
+	});
+	vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
+	const workerModule = './service-worker';
+	await import(workerModule);
+	let response: Promise<Response> | undefined;
+	const respondWith = vi.fn((value: Promise<Response>) => {
+		response = value;
+	});
+	worker.dispatchEvent(
+		Object.assign(new Event('fetch'), {
+			request: {
+				method: 'GET',
+				url: 'https://app.example.test/',
+				mode: 'navigate',
+				headers: new Headers()
+			},
+			respondWith
+		})
+	);
+	expect(await (await response!).text()).toBe('Offline');
+	expect(cache.delete).toHaveBeenCalledOnce();
+	expect(cache.match).not.toHaveBeenCalled();
+	respondWith.mockClear();
+	worker.dispatchEvent(
+		Object.assign(new Event('fetch'), {
+			request: {
+				method: 'GET',
+				url: 'https://app.example.test/calendar-data/events',
+				mode: 'cors',
+				headers: new Headers()
+			},
+			respondWith
+		})
+	);
+	expect(respondWith).not.toHaveBeenCalled();
+});

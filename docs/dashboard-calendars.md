@@ -43,6 +43,26 @@ migration, or separate cache service is required for this public-source setup.
 If sources must become private, use a separately reviewed authorized integration;
 an API key cannot provide that access.
 
+### AWS production
+
+Production uses AWS Secrets Manager in `eu-central-1`. Open the existing
+`scoutscluj/production/app` secret, choose **Retrieve secret value → Edit**, and
+add the four `GOOGLE_CALENDAR_*` settings above while preserving all existing
+entries. Save the updated secret. Do not add the key to GitHub, the web service,
+or a `PUBLIC_*` variable.
+
+Deploy the updated `deploy/ec2-deploy.sh` through the normal **Deploy production**
+GitHub Actions workflow. The script reads the secret and writes these settings
+only to the API container's environment file. Saving the secret or restarting
+the existing container alone does not refresh its environment; a deployment
+must recreate it with the updated settings.
+
+In Google Cloud, restrict the key to **Google Calendar API** and application
+type **IP addresses**, using the production EC2 host's Elastic IP (the stack's
+`AppHostPublicIp` output). Website/referrer restrictions do not apply to this backend
+integration. For local development, use a separate key restricted to your
+current public outbound IP; `localhost` is not a supported IP restriction.
+
 ## Behavior
 
 - Events start with a 90-day window and expand through provider pages and later

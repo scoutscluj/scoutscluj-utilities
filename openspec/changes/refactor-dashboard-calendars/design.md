@@ -142,8 +142,8 @@ accessible view-button state, and announcements when the active period changes.
 First approve the proposal, then implement the backend adapter and fixtures,
 then the dashboard views. Document source-sharing verification, key restrictions,
 deployment secrets, quota configuration, and rollback. Rollback restores the
-previous dashboard embeds and disables the new endpoints; full-calendar routes
-already remain unchanged. No database changes or data migration are required.
+previous embeds on the dashboard and dedicated calendar routes and disables the
+new endpoints. No database changes or data migration are required.
 
 Test authentication on cold and warm cache, cursor/range validation, multi-page
 results, recurring exceptions, cancellations, boundaries, timezone/DST behavior,
@@ -152,3 +152,12 @@ mocked provider calls for automated tests. Browser verification covers agenda
 continuation, week/month navigation, overflow, both responsive layouts, keyboard
 access, session expiry/logout, and offline-cache isolation. A manually configured
 live smoke check verifies both Google sources without committing credentials.
+
+## Dedicated calendar pages
+
+`/info/calendar` reuses `UpcomingAgenda`; `/sediu/orar` reuses
+`HeadquartersCalendar`. Each server loader authenticates and retrieves only its
+source. `CalendarFrame` shares the styles, live clock, session expiry, and browser
+history protection between all three pages. Dedicated pages use the available
+content width and omit links back to themselves. The service worker never stores
+or restores calendar HTML at any of these routes, including older cache entries.

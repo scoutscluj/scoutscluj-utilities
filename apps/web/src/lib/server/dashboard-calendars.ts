@@ -1,6 +1,14 @@
+import { redirect, type RequestEvent } from '@sveltejs/kit';
 import { apiFetch } from './api';
 import { SESSION_COOKIE_NAME } from './cookies';
-import type { CalendarResult, Range } from '$lib/dashboard-calendars/calendar';
+import {
+	daysRange,
+	initialRange,
+	localDay,
+	visibleDays,
+	type CalendarResult,
+	type Range
+} from '$lib/dashboard-calendars/calendar';
 
 export async function loadCalendar(
 	source: 'events' | 'headquarters',
@@ -34,4 +42,20 @@ export async function loadCalendar(
 			result: { page: null, error: 'Calendarul este temporar indisponibil. Încearcă din nou.' }
 		};
 	}
+}
+
+/** Load only the source used by a standalone calendar page. */
+export async function loadCalendarPage(
+	{ locals, cookies, setHeaders }: Pick<RequestEvent, 'locals' | 'cookies' | 'setHeaders'>,
+	source: 'events' | 'headquarters'
+) {
+	setHeaders({ 'cache-control': 'private, no-store' });
+	const token = cookies.get(SESSION_COOKIE_NAME);
+	if (!locals.user || !token) redirect(303, '/login');
+	const now = new Date();
+	const range =
+		source === 'events' ? initialRange(now) : daysRange(visibleDays(localDay(now), 'week'));
+	const calendar = await loadCalendar(source, range, token);
+	if (calendar.status === 401) redirect(303, '/login');
+	return { calendar: calendar.result, range, now: now.toISOString() };
 }

@@ -60,15 +60,15 @@ const staleWhileRevalidate = async (request: Request) => {
 const navigationFallback = async (request: Request) => {
 	const cache = await caches.open(RUNTIME_CACHE);
 	const url = new URL(request.url);
-	// The dashboard must never fall back to an authenticated HTML snapshot,
+	// Calendar pages must never fall back to authenticated HTML snapshots,
 	// including entries left by an older service worker.
-	const isDashboard = url.pathname === '/';
-	if (isDashboard) await cache.delete(request);
+	const isCalendarPage = ['/', '/info/calendar', '/sediu/orar'].includes(url.pathname);
+	if (isCalendarPage) await cache.delete(request);
 
 	try {
 		const response = await fetch(request);
 		if (
-			!isDashboard &&
+			!isCalendarPage &&
 			canCacheResponse(response) &&
 			isSameOrigin(url) &&
 			!isAuthOrApiPath(url.pathname)
@@ -77,7 +77,7 @@ const navigationFallback = async (request: Request) => {
 		}
 		return response;
 	} catch (error) {
-		const cached = isDashboard ? undefined : await cache.match(request);
+		const cached = isCalendarPage ? undefined : await cache.match(request);
 		if (cached) {
 			return cached;
 		}

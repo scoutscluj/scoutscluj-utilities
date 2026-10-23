@@ -75,7 +75,9 @@ current public outbound IP; `localhost` is not a supported IP restriction.
   remaining bookings. Partial-result days are labelled accordingly.
 - Both widgets are available on mobile. Display dates and times use Romanian
   formatting and `Europe/Bucharest`; all-day end dates are exclusive.
-- The full-calendar routes retain their existing embeds.
+- `/info/calendar` uses the same events agenda; `/sediu/orar` uses the same
+  headquarters week/month calendar. Both require sign-in and load only their
+  matching source, without embeds or self-referencing calendar links.
 
 ## Quotas and costs
 
@@ -136,7 +138,7 @@ Perform the configured live-source smoke check separately after supplying
 deployment credentials. The implementation does not provision Cloud projects,
 change calendar sharing, or deploy credentials on the owner's behalf.
 
-To roll back, restore the prior dashboard page with its two iframe embeds,
+To roll back, restore the prior embeds on the dashboard and dedicated calendar pages,
 remove the `CalendarsModule` registration, and remove/revoke the API key if no
 other consumer uses it. No database rollback is required. Keep the no-store
 protection for authenticated calendar responses.

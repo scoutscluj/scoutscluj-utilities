@@ -166,3 +166,25 @@ The application SHALL mark calendar-bearing API, HTML, and SvelteKit data respon
 - **WHEN** a calendar continuation or period-navigation request returns `401`
 - **THEN** the UI removes calendar data and invokes the existing login flow
 - **AND** does not substitute stale calendar data for authentication failure.
+
+### Requirement: Dedicated Calendar Pages
+
+The system SHALL reuse the events agenda at `/info/calendar` and the headquarters week/month calendar at `/sediu/orar` instead of Google Calendar embeds. Both pages SHALL require sign-in and share the dashboard's date semantics, details, navigation, and private no-store protections. Each page SHALL fetch only its matching calendar source and omit a link to itself.
+
+#### Scenario: Member opens the events calendar from Informații
+
+- **WHEN** a signed-in member opens `/info/calendar`
+- **THEN** the events agenda fills the page's content area with progressive event loading
+- **AND** no headquarters source is requested and no calendar iframe is rendered.
+
+#### Scenario: Member opens the headquarters calendar from Sediu
+
+- **WHEN** a signed-in member opens `/sediu/orar`
+- **THEN** the headquarters calendar opens in vertical week view and supports month view and period navigation
+- **AND** no events source is requested and no calendar iframe is rendered.
+
+#### Scenario: Dedicated calendar page is opened offline after logout
+
+- **WHEN** an unauthenticated or expired session opens either dedicated page
+- **THEN** no calendar data is exposed
+- **AND** the service worker does not restore any authenticated calendar HTML snapshot.

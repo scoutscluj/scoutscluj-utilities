@@ -30,8 +30,15 @@
 		initial,
 		today,
 		now,
-		expire
-	}: { initial: CalendarResult; today: string; now: number; expire: () => void } = $props();
+		expire,
+		showCalendarLink = true
+	}: {
+		initial: CalendarResult;
+		today: string;
+		now: number;
+		expire: () => void;
+		showCalendarLink?: boolean;
+	} = $props();
 	let result = $state(untrack(() => initial));
 	let selected = $state(untrack(() => today));
 	let anchor = $state(untrack(() => today));
@@ -92,9 +99,11 @@
 					>{items.length}{result.page.nextCursor ? '+' : ''}</span
 				>{/if}
 		</div>
-		<a href={resolve('/sediu/orar')} class="calendar-link" title="Calendarul complet al sediului"
-			><span>Calendar complet</span><ExternalLink size={14} aria-hidden="true" /></a
-		>
+		{#if showCalendarLink}
+			<a href={resolve('/sediu/orar')} class="calendar-link" title="Calendarul complet al sediului"
+				><span>Calendar complet</span><ExternalLink size={14} aria-hidden="true" /></a
+			>
+		{/if}
 	</header>
 	<div class="calendar-body">
 		<div class="calendar-toolbar">

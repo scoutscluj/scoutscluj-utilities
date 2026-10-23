@@ -35,6 +35,13 @@
 - [x] Document deployment quotas, expected traffic, credential setup, and rollback in `docs/dashboard-calendars.md`.
 - [ ] Perform a configured smoke check against both existing Google calendars after the owner supplies the API key. No key is configured in this workspace.
 
+## 5. Dedicated Calendar Pages
+
+- [x] Reuse the event agenda on `/info/calendar` and headquarters week/month view on `/sediu/orar`, with source-specific authenticated loading.
+- [x] Share styles, live time, session expiry, and history protection; remove embeds and self-links.
+- [x] Extend service-worker snapshot protection to both dedicated calendar pages.
+- [x] Verify source isolation, continuation, week/month views, dashboard links, responsive layouts, expired sessions, and offline/logout behavior.
+
 ## Verification Results
 
 - User approved implementation on October 23, 2026.
@@ -55,3 +62,13 @@
 - OpenSpec strict validation and whitespace checks passed.
 - Live Google source access is not claimed: API-key provisioning and the live
   smoke check remain deployment prerequisites. No sharing settings were changed.
+
+### Dedicated page follow-up verification
+
+- Web formatting, lint, Svelte/TypeScript checks, and all 42 unit tests passed.
+- Production web build and official Svelte component checks passed.
+- All 14 calendar browser scenarios passed. Source assertions allow SvelteKit's
+  same-source prefetches while rejecting requests for the other calendar.
+- Inspected event and headquarters pages at 1440px and 375px; verified dashboard
+  navigation, continuation, month selection, session expiry, and real service
+  worker logout/offline isolation for all three calendar routes.

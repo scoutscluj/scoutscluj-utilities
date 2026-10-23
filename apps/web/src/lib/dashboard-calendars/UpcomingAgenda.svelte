@@ -27,8 +27,15 @@
 		initial,
 		initialRange,
 		now,
-		expire
-	}: { initial: CalendarResult; initialRange: Range; now: number; expire: () => void } = $props();
+		expire,
+		showCalendarLink = true
+	}: {
+		initial: CalendarResult;
+		initialRange: Range;
+		now: number;
+		expire: () => void;
+		showCalendarLink?: boolean;
+	} = $props();
 	let result = $state(untrack(() => initial));
 	let range = $state(untrack(() => initialRange));
 	let items = $state(untrack(() => initial.page?.items ?? []));
@@ -79,12 +86,14 @@
 			<h2 id="events-heading">Următoarele evenimente</h2>
 			<span class="count-badge" aria-label={`${visible.length} evenimente`}>{visible.length}</span>
 		</div>
-		<a
-			href={resolve('/info/calendar')}
-			class="calendar-link"
-			title="Calendarul complet de evenimente"
-			><span>Calendar complet</span><ExternalLink size={14} aria-hidden="true" /></a
-		>
+		{#if showCalendarLink}
+			<a
+				href={resolve('/info/calendar')}
+				class="calendar-link"
+				title="Calendarul complet de evenimente"
+				><span>Calendar complet</span><ExternalLink size={14} aria-hidden="true" /></a
+			>
+		{/if}
 	</header>
 	<div class="calendar-body">
 		{#if loadedThrough}<p class="coverage">

@@ -14,8 +14,10 @@ test.beforeEach(async ({ page, request }) => {
 
 test('requires sign-in for both the dashboard and continuation endpoint', async ({ page }) => {
 	await page.context().clearCookies();
-	await page.goto('/');
-	await expect(page).toHaveURL(/\/login/);
+	for (const path of ['/', '/info/calendar', '/sediu/orar']) {
+		await page.goto(path);
+		await expect(page).toHaveURL(/\/login/);
+	}
 	const response = await page.request.get(
 		'/calendar-data/events?from=2026-10-23T00:00:00Z&to=2026-11-23T00:00:00Z'
 	);
@@ -145,6 +147,92 @@ test('shows clear event indicators without repeated titles at responsive sizes',
 		}
 	}
 	await page.screenshot({ path: info.outputPath('calendar-compact-1653.png'), fullPage: true });
+});
+
+test('reuses the matching calendar on each dedicated page without loading the other source', async ({
+	page,
+	request
+}, info) => {
+	for (const width of [1440, 375]) {
+		await page.setViewportSize({ width, height: 1000 });
+		await request.post(`${api}/test/reset`);
+		const eventsResponse = await page.goto('/info/calendar');
+		expect(eventsResponse!.headers()['cache-control']).toContain('no-store');
+		await expect(page).toHaveTitle('Calendar Evenimente | Scouts Cluj Utilities');
+		await expect(page.locator('.events-widget')).toBeVisible();
+		await expect(page.locator('.headquarters-widget, iframe, .calendar-link')).toHaveCount(0);
+		await expect(page.getByRole('heading', { name: 'Drumeție de toamnă' })).toBeVisible();
+		await page.getByRole('button', { name: 'Încarcă mai multe' }).click();
+		await expect(page.getByRole('heading', { name: 'Atelier de orientare' })).toBeVisible();
+		const eventsState = await (await request.get(`${api}/test/state`)).json();
+		expect(eventsState.calls.length).toBeGreaterThanOrEqual(2);
+		expect(new Set(eventsState.calls.map((call: { source: string }) => call.source))).toEqual(
+			new Set(['events'])
+		);
+		expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+			width
+		);
+		await page.screenshot({ path: info.outputPath(`events-page-${width}.png`), fullPage: true });
+
+		await request.post(`${api}/test/reset`);
+		const headquartersResponse = await page.goto('/sediu/orar');
+		expect(headquartersResponse!.headers()['cache-control']).toContain('no-store');
+		await expect(page.locator('.headquarters-widget')).toBeVisible();
+		await expect(page.locator('.events-widget, iframe, .calendar-link')).toHaveCount(0);
+		await expect(page.locator('.week-agenda > section')).toHaveCount(7);
+		await page.getByRole('button', { name: 'Lună', exact: true }).click();
+		await expect(page.locator('.month-grid')).toBeVisible();
+		await page.locator('.month-day.current').click();
+		await expect(
+			page.locator('.selected-day').getByRole('heading', { name: 'Atelier la sediu 4' })
+		).toBeVisible();
+		const headquartersState = await (await request.get(`${api}/test/state`)).json();
+		expect(headquartersState.calls.length).toBeGreaterThanOrEqual(2);
+		expect(new Set(headquartersState.calls.map((call: { source: string }) => call.source))).toEqual(
+			new Set(['headquarters'])
+		);
+		expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+			width
+		);
+		await page.screenshot({
+			path: info.outputPath(`headquarters-page-${width}.png`),
+			fullPage: true
+		});
+	}
+	await page.goto('/');
+	await page.locator('.events-widget .calendar-link').click();
+	await expect(page).toHaveURL(/\/info\/calendar$/);
+	await expect(page.locator('.events-widget')).toBeVisible();
+	await page.goto('/');
+	await page.locator('.headquarters-widget .calendar-link').click();
+	await expect(page).toHaveURL(/\/sediu\/orar$/);
+	await expect(page.locator('.headquarters-widget')).toBeVisible();
+});
+
+test('clears dedicated calendars when their continuation session expires', async ({
+	page,
+	request
+}) => {
+	for (const source of ['events', 'headquarters']) {
+		await request.post(`${api}/test/reset`);
+		await page.context().addCookies([
+			{
+				name: 'scoutscluj_session',
+				value: 'synthetic-calendar-session',
+				url: 'http://127.0.0.1:5183'
+			}
+		]);
+		await page.goto(source === 'events' ? '/info/calendar' : '/sediu/orar');
+		await request.post(`${api}/test/settings`, { data: { expired: true } });
+		await page
+			.getByRole('button', {
+				name: source === 'events' ? 'Încarcă mai multe' : 'Lună',
+				exact: true
+			})
+			.click();
+		await expect(page).toHaveURL(/\/login/);
+		await expect(page.locator('.event-card')).toHaveCount(0);
+	}
 });
 
 test('renders formatted calendar descriptions in both widgets', async ({ page, request }) => {
@@ -318,38 +406,41 @@ test('clears calendar content on session expiry', async ({ page, request }) => {
 	await expect(page.getByText('Drumeție de toamnă')).toHaveCount(0);
 });
 
-test('logout and the service worker cannot restore authenticated calendar snapshots offline', async ({
-	page
-}) => {
-	await page.goto('/');
-	await page.evaluate(async () => {
-		await navigator.serviceWorker.register('/service-worker.js');
-		await navigator.serviceWorker.ready;
-	});
-	await expect
-		.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
-		.toBe(true);
-	await page.reload();
-	await expect(page.getByRole('heading', { name: 'Drumeție de toamnă' })).toBeVisible();
-	await page.request.post('/auth/logout');
-	await page.goto('/');
-	await expect(page).toHaveURL(/\/login/);
-	const cachedCalendar = await page.evaluate(async () => {
-		for (const name of await caches.keys()) {
-			const cache = await caches.open(name);
-			for (const request of await cache.keys()) {
-				const response = await cache.match(request);
-				if (
-					response?.headers.get('content-type')?.includes('text/html') &&
-					(await response.text()).includes('Drumeție de toamnă')
-				)
-					return true;
+for (const path of ['/', '/info/calendar', '/sediu/orar']) {
+	test(`logout and the service worker cannot restore calendar snapshots offline at ${path}`, async ({
+		page
+	}) => {
+		const privateTitle = path === '/sediu/orar' ? 'Atelier la sediu 1' : 'Drumeție de toamnă';
+		await page.goto(path);
+		await page.evaluate(async () => {
+			await navigator.serviceWorker.register('/service-worker.js');
+			await navigator.serviceWorker.ready;
+		});
+		await expect
+			.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
+			.toBe(true);
+		await page.reload();
+		await expect(page.getByRole('heading', { name: privateTitle })).toBeVisible();
+		await page.request.post('/auth/logout');
+		await page.goto(path);
+		await expect(page).toHaveURL(/\/login/);
+		const cachedCalendar = await page.evaluate(async (privateTitle) => {
+			for (const name of await caches.keys()) {
+				const cache = await caches.open(name);
+				for (const request of await cache.keys()) {
+					const response = await cache.match(request);
+					if (
+						response?.headers.get('content-type')?.includes('text/html') &&
+						(await response.text()).includes(privateTitle)
+					)
+						return true;
+				}
 			}
-		}
-		return false;
+			return false;
+		}, privateTitle);
+		expect(cachedCalendar).toBe(false);
+		await page.context().setOffline(true);
+		await page.goto(path).catch(() => null);
+		await expect(page.getByText(privateTitle)).toHaveCount(0);
 	});
-	expect(cachedCalendar).toBe(false);
-	await page.context().setOffline(true);
-	await page.goto('/').catch(() => null);
-	await expect(page.getByText('Drumeție de toamnă')).toHaveCount(0);
-});
+}

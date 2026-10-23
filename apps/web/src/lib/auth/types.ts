@@ -43,6 +43,13 @@ export type CurrentUser = {
 		email?: string;
 		connectedAt?: string;
 		lastLoginAt?: string;
+		profile?: {
+			email?: string;
+			status?: string;
+			dateOfBirth?: string;
+			dateJoined?: string;
+			feeValidUntilDate?: string;
+		};
 	};
 };
 

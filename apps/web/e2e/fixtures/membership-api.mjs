@@ -184,15 +184,94 @@ const fixture = () => ({
 });
 let ledger = fixture();
 let submissions = [];
+let objectives = [];
+let profileOptions = {};
+let subscribedDevices = new Set();
 const respond = (res, value, status = 200) => {
 	res.writeHead(status, { 'Content-Type': 'application/json' });
 	res.end(JSON.stringify(value));
 };
 createServer(async (req, res) => {
+	res.setHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:5182');
+	res.setHeader('Access-Control-Allow-Credentials', 'true');
+	res.setHeader('Access-Control-Allow-Headers', 'content-type');
+	res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+	if (req.method === 'OPTIONS') {
+		res.writeHead(204);
+		return res.end();
+	}
 	if (req.url === '/test/reset') {
 		ledger = fixture();
 		submissions = [];
+		objectives = [];
+		profileOptions = {};
+		subscribedDevices = new Set();
 		return respond(res, {});
+	}
+	if (req.url === '/test/profile' && req.method === 'POST') {
+		let raw = '';
+		for await (const chunk of req) raw += chunk;
+		Object.assign(profileOptions, JSON.parse(raw));
+		return respond(res, {});
+	}
+	if (req.url === '/api/personal-objectives') {
+		if (req.method === 'POST') {
+			let raw = '';
+			for await (const chunk of req) raw += chunk;
+			const body = JSON.parse(raw);
+			if (profileOptions.saveDelay)
+				await new Promise((resolve) => setTimeout(resolve, profileOptions.saveDelay));
+			if (profileOptions.failSave)
+				return respond(res, { message: 'Salvarea nu este disponibilă momentan.' }, 503);
+			const objective = { ...body, id: objectives.length + 1, createdAt: new Date().toISOString() };
+			objectives.push(objective);
+			return respond(res, objective, 201);
+		}
+		if (profileOptions.failList) return respond(res, { message: 'Indisponibil' }, 503);
+		return respond(
+			res,
+			[...objectives].sort((a, b) => a.deadline.localeCompare(b.deadline) || b.id - a.id)
+		);
+	}
+	if (req.url?.startsWith('/api/notifications/me')) {
+		if (profileOptions.failNotifications)
+			return respond(res, { message: 'Statusul notificărilor nu este disponibil.' }, 503);
+		const deviceId = new URL(req.url, 'http://localhost').searchParams.get('deviceId');
+		return respond(res, {
+			configured: profileOptions.notificationConfigured ?? true,
+			publicKey: 'AQID',
+			activeDeviceCount: subscribedDevices.size,
+			currentDeviceSubscribed: subscribedDevices.has(deviceId)
+		});
+	}
+	if (req.url === '/api/notifications/subscribe' && req.method === 'POST') {
+		let raw = '';
+		for await (const chunk of req) raw += chunk;
+		subscribedDevices.add(JSON.parse(raw).deviceId);
+		return respond(res, {
+			success: true,
+			message: 'Notificările au fost activate.',
+			activeDeviceCount: subscribedDevices.size,
+			currentDeviceSubscribed: true
+		});
+	}
+	if (req.url === '/api/notifications/test')
+		return respond(res, {
+			success: true,
+			totalDevices: subscribedDevices.size,
+			successCount: subscribedDevices.size,
+			failureCount: 0
+		});
+	if (req.url?.startsWith('/api/notifications/subscriptions') && req.method === 'DELETE') {
+		const deviceId = req.url.split('/')[4];
+		if (deviceId) subscribedDevices.delete(decodeURIComponent(deviceId));
+		else subscribedDevices.clear();
+		return respond(res, {
+			success: true,
+			message: 'Notificările au fost dezactivate.',
+			activeDeviceCount: subscribedDevices.size,
+			currentDeviceSubscribed: false
+		});
 	}
 	if (req.url === '/test/submissions') return respond(res, submissions);
 	if (req.url === '/api/users')
@@ -212,7 +291,8 @@ createServer(async (req, res) => {
 		return respond(res, {
 			id: 1,
 			displayName: 'Responsabil financiar',
-			roles: req.headers.cookie?.includes('read-only') ? [] : ['super_admin']
+			roles: req.headers.cookie?.includes('read-only') ? [] : ['super_admin'],
+			...profileOptions.user
 		});
 	if (req.url === '/api/activities') return respond(res, []);
 	if (req.url === '/api/members')

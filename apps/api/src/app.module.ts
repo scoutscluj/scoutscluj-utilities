@@ -16,6 +16,7 @@ import { UsersAdminModule } from './modules/users/users-admin.module';
 import { KitchenModule } from './modules/kitchen/kitchen.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ParentalConsentModule } from './modules/parental-consent/parental-consent.module';
+import { PersonalObjectivesModule } from './modules/personal-objectives/personal-objectives.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { ParentalConsentModule } from './modules/parental-consent/parental-conse
     KitchenModule,
     NotificationsModule,
     ParentalConsentModule,
+    PersonalObjectivesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

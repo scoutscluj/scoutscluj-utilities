@@ -30,6 +30,14 @@ export type OrgoProfile = {
   profileImage?: string;
 };
 
+export type OrgoProfileDetails = {
+  email?: string;
+  status?: string;
+  dateOfBirth?: string;
+  dateJoined?: string;
+  feeValidUntilDate?: string;
+};
+
 export type CurrentUser = {
   id: number;
   email?: string;
@@ -44,5 +52,6 @@ export type CurrentUser = {
     email?: string;
     connectedAt?: string;
     lastLoginAt?: string;
+    profile?: OrgoProfileDetails;
   };
 };

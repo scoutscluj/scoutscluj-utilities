@@ -60,6 +60,7 @@ type TestUser = {
     email?: string | null;
     connectedAt?: Date;
     lastLoginAt?: Date;
+    profile?: Record<string, unknown>;
   } | null;
   lastLoginAt: Date | null;
   createdAt: Date;
@@ -123,6 +124,80 @@ const createService = (
 };
 
 describe('UsersService role administration', () => {
+  it('returns only requested Orgo personal fields and uses the stored profile photo', () => {
+    const user = createUser({
+      avatarUrl: 'https://images.example.test/older.jpg',
+      orgoConnection: {
+        cardId: 'FT678',
+        orgoUserId: 517,
+        profile: {
+          email: 'florin@example.test',
+          status: 'ACTIVE',
+          dateOfBirth: { date: '1993-03-09 00:00:00.000000', timezone: 'UTC' },
+          dateJoined: { date: '2007-11-20 00:00:00.000000', timezone: 'UTC' },
+          feeValidUntilDate: {
+            date: '2026-09-30 00:00:00.000000',
+            timezone: 'UTC',
+          },
+          profileImage: 'https://images.example.test/current.jpg',
+          accessToken: 'must-not-leak',
+          privateField: 'also-private',
+        },
+      },
+    });
+    const { service } = createService(user);
+    const result = service.serialize(user as never);
+    expect(result.orgoConnection?.profile).toEqual({
+      email: 'florin@example.test',
+      status: 'ACTIVE',
+      dateOfBirth: '1993-03-09',
+      dateJoined: '2007-11-20',
+      feeValidUntilDate: '2026-09-30',
+    });
+    expect(result.avatarUrl).toBe('https://images.example.test/current.jpg');
+    expect(JSON.stringify(result)).not.toContain('must-not-leak');
+    expect(JSON.stringify(result)).not.toContain('also-private');
+    expect(
+      service.serializeAdminUser(user as never).orgoConnection,
+    ).not.toHaveProperty('profile');
+  });
+
+  it('handles missing or malformed profile fields without broken dates or image URLs', () => {
+    const { service } = createService();
+    const user = createUser({
+      avatarUrl: 'https://images.example.test/fallback.jpg',
+      orgoConnection: {
+        profile: {
+          dateOfBirth: { date: '2026-02-30 00:00:00.000000' },
+          dateJoined: { date: 'not-a-date' },
+          feeValidUntilDate: { date: null },
+          email: { token: 'private' },
+          status: ['ACTIVE'],
+          profileImage: 'javascript:alert(1)',
+        },
+      },
+    });
+    const result = service.serialize(user as never);
+    expect(result.orgoConnection?.profile).toEqual({
+      dateOfBirth: undefined,
+      dateJoined: undefined,
+      feeValidUntilDate: undefined,
+      email: undefined,
+      status: undefined,
+    });
+    expect(result.avatarUrl).toBe('https://images.example.test/fallback.jpg');
+    expect(
+      service.serialize(createUser() as never).orgoConnection,
+    ).toBeUndefined();
+    expect(
+      service.serialize(
+        createUser({
+          avatarUrl: 'http://insecure.example.test/photo',
+        }) as never,
+      ).avatarUrl,
+    ).toBeUndefined();
+  });
+
   it('lists admin-safe user payloads with Orgo hints', async () => {
     const { service, subscriptionsRepository } = createService(
       createUser({

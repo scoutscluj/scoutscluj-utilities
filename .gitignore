@@ -16,3 +16,4 @@ old_app
 cdk.out
 .codebase-memory/
 data
+.roam

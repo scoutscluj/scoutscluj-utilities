@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-const api = 'http://127.0.0.1:3015';
+const api = process.env.MEMBERSHIP_TEST_API_URL ?? 'http://127.0.0.1:3015';
 test.beforeEach(async ({ page, request }) => {
 	await request.post(`${api}/test/reset`);
 	await page.context().addCookies([
 		{
 			name: 'scoutscluj_session',
 			value: 'synthetic-finance-session',
-			url: 'http://127.0.0.1:5182'
+			url: test.info().project.use.baseURL!
 		}
 	]);
 });
@@ -16,6 +16,9 @@ test('creates through a dialog and preserves the objective after reload', async 
 	page,
 	request
 }, testInfo) => {
+	await page.addInitScript(() => {
+		Object.defineProperty(Notification, 'permission', { configurable: true, get: () => 'default' });
+	});
 	await page.route('https://images.example.test/profile.jpg', (route) =>
 		route.fulfill({
 			contentType: 'image/svg+xml',
@@ -48,9 +51,11 @@ test('creates through a dialog and preserves the objective after reload', async 
 	await page.goto('/profile');
 	const details = page.getByRole('region', { name: 'Informații personale' });
 	const orgo = page.getByRole('region', { name: 'Conexiune Orgo' });
-	const warning = page.getByRole('complementary', { name: 'Cotizația a expirat' });
+	const warning = page.getByRole('complementary', {
+		name: 'Situația cotizației nu este disponibilă'
+	});
 	await expect(warning).toBeVisible();
-	await expect(warning.getByRole('link', { name: 'Plătește cotizația' })).toBeVisible();
+	await expect(warning.getByRole('link', { name: 'Vezi cotizația' })).toBeVisible();
 	await expect(details.getByRole('link', { name: 'Plătește cotizația' })).toHaveCount(0);
 	await expect(details.getByRole('heading', { name: 'Roluri în aplicație' })).toBeVisible();
 	await expect(details.getByText('FT678')).toBeVisible();
@@ -133,7 +138,7 @@ test('creates through a dialog and preserves the objective after reload', async 
 			animations: 'disabled'
 		});
 	}
-	const payFee = page.getByRole('link', { name: 'Plătește cotizația', exact: true });
+	const payFee = page.getByRole('link', { name: 'Vezi cotizația', exact: true });
 	await expect(payFee).toHaveAttribute('href', '/cotizatie');
 	await payFee.click();
 	await expect(page).toHaveURL(/\/cotizatie$/);
@@ -218,7 +223,11 @@ test('mobile objectives remain within the viewport and dates stay stable across 
 		timezoneId: 'America/Los_Angeles'
 	});
 	await context.addCookies([
-		{ name: 'scoutscluj_session', value: 'synthetic-finance-session', url: 'http://127.0.0.1:5182' }
+		{
+			name: 'scoutscluj_session',
+			value: 'synthetic-finance-session',
+			url: test.info().project.use.baseURL!
+		}
 	]);
 	const page = await context.newPage();
 	await page.route('https://images.example.test/missing.jpg', (route) => route.abort());
@@ -344,14 +353,20 @@ for (const { name, paidBani, date, failMembership, expected } of [
 	{ name: 'unpaid current fee', paidBani: 0, date: '2099-09-30', expected: true },
 	{ name: 'partially paid current fee', paidBani: 10000, date: '2099-09-30', expected: true },
 	{ name: 'fully paid current fee', paidBani: 30500, date: '2099-09-30', expected: false },
-	{ name: 'no recorded fee validity', paidBani: undefined, date: undefined, expected: true },
+	{
+		name: 'paid local fee with expired Orgo date',
+		paidBani: 30500,
+		date: '2020-09-30',
+		expected: false
+	},
+	{ name: 'no recorded fee validity', paidBani: undefined, date: undefined, expected: null },
 	{ name: 'paid fee with a missing Orgo date', paidBani: 30500, date: undefined, expected: false },
 	{
 		name: 'unavailable balance with valid Orgo date',
 		paidBani: 0,
 		date: '2099-09-30',
 		failMembership: true,
-		expected: false
+		expected: null
 	}
 ]) {
 	test(`profile payment link: ${name}`, async ({ page, request }) => {
@@ -375,9 +390,13 @@ for (const { name, paidBani, date, failMembership, expected } of [
 		await page.goto('/profile');
 		const payFee = page.getByRole('link', { name: 'Plătește cotizația', exact: true });
 		const warning = page.getByRole('complementary', {
-			name: /Cotizația a expirat|Ai o cotizație de achitat|Verifică situația cotizației/
+			name: /Ai o cotizație de achitat|Situația cotizației nu este disponibilă/
 		});
-		if (expected) {
+		if (expected === null) {
+			await expect(warning).toBeVisible();
+			await expect(warning.getByRole('link', { name: 'Vezi cotizația' })).toBeVisible();
+			await expect(payFee).toHaveCount(0);
+		} else if (expected) {
 			await expect(warning).toBeVisible();
 			await expect(warning.getByRole('link', { name: 'Plătește cotizația' })).toBeVisible();
 			await expect(payFee).toBeVisible();

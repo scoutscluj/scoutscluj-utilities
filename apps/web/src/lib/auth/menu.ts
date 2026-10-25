@@ -55,6 +55,11 @@ export const menuItems: MenuItem[] = [
 				]
 			},
 			{ label: 'Acorduri parentale', href: '/admin/parental-consent', minRole: 'admin' },
+			{
+				label: 'Documente adulți',
+				href: '/admin/adult-documents',
+				requiresAdultDocumentsAdmin: true
+			},
 			{ label: 'Utilizatori', href: '/admin/users', minRole: 'super_admin' },
 			{ label: 'Audit', href: '/audit', minRole: 'super_admin' },
 			{ label: 'Notificări', href: '/admin/notifications', minRole: 'super_admin' }

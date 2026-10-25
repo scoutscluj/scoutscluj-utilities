@@ -1,4 +1,11 @@
 export const actionTitles: Record<string, string> = {
+	'adult_document.uploaded': 'Document adult încărcat',
+	'adult_document.replaced': 'Document adult înlocuit',
+	'adult_document.validated': 'Document adult validat',
+	'adult_document.rejected': 'Document adult respins',
+	'adult_document.viewed': 'Dosar adult consultat',
+	'adult_document.workspace_viewed': 'Lista documentelor adulților consultată',
+	'adult_document.downloaded': 'Document adult descărcat',
 	'membership.bank.received': 'Încasare bancară înregistrată',
 	'membership.cash.received': 'Încasare în numerar înregistrată',
 	'membership.receipt.allocated': 'Plată alocată unui membru',
@@ -32,6 +39,7 @@ export const actionTitles: Record<string, string> = {
 };
 
 export const entityLabels: Record<string, string> = {
+	adult_document: 'Document adult',
 	activity: 'Activitate',
 	financial_document: 'Document financiar',
 	kitchen_ingredient: 'Ingredient',

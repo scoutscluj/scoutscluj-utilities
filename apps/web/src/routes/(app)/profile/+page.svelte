@@ -3,6 +3,7 @@
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import NotificationStatusIcon from '$lib/profile/NotificationStatusIcon.svelte';
 	import PersonalObjectives from '$lib/profile/PersonalObjectives.svelte';
+	import ProfileDocuments from '$lib/adult-documents/ProfileDocuments.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -45,6 +46,8 @@
 </header>
 
 <ProfileInformation {user} feePaymentDue={data.feePaymentDue} />
+
+<ProfileDocuments documents={data.adultDocuments} />
 
 <PersonalObjectives objectives={data.objectives} error={data.objectivesError} />
 

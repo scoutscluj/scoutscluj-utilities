@@ -26,11 +26,7 @@
 	const feeExpired = $derived(
 		Boolean(today && profile?.feeValidUntilDate && profile.feeValidUntilDate < today)
 	);
-	const showFeePayment = $derived(
-		feeExpired ||
-			feePaymentDue === true ||
-			Boolean(connection && !profile?.feeValidUntilDate && feePaymentDue !== false)
-	);
+	const showFeePayment = $derived(feePaymentDue !== false);
 	onMount(() => {
 		const updateDate = () => {
 			today = new Intl.DateTimeFormat('en-CA', {
@@ -51,20 +47,20 @@
 		<TriangleAlert size={20} aria-hidden="true" />
 		<div class="fee-warning-copy">
 			<h2 id="fee-warning-title">
-				{feeExpired
-					? 'Cotizația a expirat'
-					: feePaymentDue === true
-						? 'Ai o cotizație de achitat'
-						: 'Verifică situația cotizației'}
+				{feePaymentDue === true
+					? 'Ai o cotizație de achitat'
+					: 'Situația cotizației nu este disponibilă'}
 			</h2>
 			<p>
-				{feeExpired || feePaymentDue === true
+				{feePaymentDue === true
 					? 'Achită cotizația pentru a fi la zi cu plata.'
-					: 'Valabilitatea cotizației nu este înregistrată. Verifică detaliile și opțiunile de plată.'}
+					: 'Nu am putut determina situația din evidența locală. Verifică detaliile cotizației.'}
 			</p>
 		</div>
 		<a class="fee-payment-link" href={resolve('/cotizatie')}>
-			<CreditCard size={16} aria-hidden="true" />Plătește cotizația
+			<CreditCard size={16} aria-hidden="true" />{feePaymentDue === true
+				? 'Plătește cotizația'
+				: 'Vezi cotizația'}
 		</a>
 	</aside>
 {/if}

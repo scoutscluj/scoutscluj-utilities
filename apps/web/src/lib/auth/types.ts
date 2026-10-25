@@ -7,6 +7,7 @@ export type AppHref =
 	| '/profile'
 	| '/admin'
 	| '/admin/members'
+	| '/admin/adult-documents'
 	| '/admin/finance'
 	| '/admin/finance/membership'
 	| '/admin/finance/receipts'
@@ -37,6 +38,7 @@ export type CurrentUser = {
 	lastName?: string;
 	avatarUrl?: string;
 	roles: UserRole[];
+	canManageAdultDocuments?: boolean;
 	orgoConnection?: {
 		orgoUserId?: number;
 		cardId?: string;
@@ -58,6 +60,7 @@ export type MenuItem = {
 	href?: AppHref;
 	minRole?: UserRole;
 	anyRole?: UserRole[];
+	requiresAdultDocumentsAdmin?: boolean;
 	disabled?: boolean;
 	children?: MenuItem[];
 };

@@ -4,6 +4,7 @@ import { SESSION_COOKIE_NAME } from '$lib/server/cookies';
 import type { PersonalObjective } from '$lib/profile/types';
 import type { Obligation } from '$lib/membership/types';
 import type { Actions, PageServerLoad } from './$types';
+import { loadOwnDocuments } from '$lib/server/adult-documents';
 
 const loadFeePaymentDue = async (token: string, orgoUserId?: number): Promise<boolean | null> => {
 	if (!orgoUserId) return null;
@@ -28,9 +29,11 @@ const loadFeePaymentDue = async (token: string, orgoUserId?: number): Promise<bo
 
 export const load: PageServerLoad = async ({ cookies, locals, depends }) => {
 	depends('app:personal-objectives');
+	depends('app:adult-documents');
 	const token = cookies.get(SESSION_COOKIE_NAME);
 	if (!locals.user || !token) redirect(303, '/login?redirectTo=%2Fprofile');
 	const feePaymentDue = loadFeePaymentDue(token, locals.user.orgoConnection?.orgoUserId);
+	const adultDocuments = loadOwnDocuments(token);
 	try {
 		const response = await apiFetch('/api/personal-objectives', {
 			headers: { cookie: `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}` }
@@ -39,13 +42,15 @@ export const load: PageServerLoad = async ({ cookies, locals, depends }) => {
 		return {
 			objectives: (await response.json()) as PersonalObjective[],
 			objectivesError: '',
-			feePaymentDue: await feePaymentDue
+			feePaymentDue: await feePaymentDue,
+			adultDocuments: await adultDocuments
 		};
 	} catch {
 		return {
 			objectives: [] as PersonalObjective[],
 			objectivesError: 'Obiectivele nu au putut fi încărcate. Încearcă din nou.',
-			feePaymentDue: await feePaymentDue
+			feePaymentDue: await feePaymentDue,
+			adultDocuments: await adultDocuments
 		};
 	}
 };

@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { highlightSearch } from '$lib/components/ui/table-search';
+	import TablePagination from '$lib/components/ui/TablePagination.svelte';
+	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
 	import { resolve } from '$app/paths';
 	import {
@@ -147,9 +150,7 @@
 	});
 
 	const currentPage = $derived(data.inventory.page);
-	const totalPages = $derived(
-		Math.max(1, Math.ceil(data.inventory.total / data.inventory.pageSize))
-	);
+
 	const totalQuantity = $derived(
 		data.inventory.items.reduce(
 			(sum, item) => sum + (Number.isFinite(item.quantity) ? item.quantity : 0),
@@ -292,13 +293,13 @@
 		);
 	}
 
-	function paginationFields(page: number) {
-		return Object.entries(data.filters)
-			.map(([name, value]) => ({
-				name,
-				value: name === 'page' ? String(page) : String(value)
-			}))
-			.filter((field) => field.value);
+	function changeInventoryPage(page: number, pageSize: number) {
+		const params = new SvelteURLSearchParams();
+		for (const [key, value] of Object.entries(data.filters))
+			if (value !== '') params.set(key, String(value));
+		params.set('page', String(page + 1));
+		params.set('pageSize', String(pageSize));
+		void goto(resolve(`/sediu/inventar?${params}`), { keepFocus: true, noScroll: true });
 	}
 
 	function openCreate() {
@@ -547,14 +548,11 @@
 				<span>în inventar</span>
 			</div>
 			<details class="column-picker">
-				<summary class="secondary-button">
-					<Columns3 size={16} aria-hidden="true" />
-					<span>Coloane</span>
-					<span class="control-count">{visibleColumns.length}/{optionalColumns.length}</span>
-					<span class="disclosure-chevron">
-						<ChevronDown size={15} aria-hidden="true" />
-					</span>
-				</summary>
+				<summary
+					class="sc-table-column-trigger"
+					aria-label="Alege coloanele"
+					title="Alege coloanele"><Columns3 size={18} aria-hidden="true" /></summary
+				>
 				<div class="column-menu">
 					<div class="column-menu-heading">
 						<div>
@@ -576,7 +574,7 @@
 		</div>
 
 		<div class="table-shell">
-			<table>
+			<table use:highlightSearch={data.filters.search}>
 				<thead>
 					<tr>
 						<th>Nume</th>
@@ -673,7 +671,7 @@
 			</table>
 		</div>
 
-		<div class="card-list">
+		<div class="card-list" use:highlightSearch={data.filters.search}>
 			{#each data.inventory.items as item (item.id)}
 				<article class="inventory-card">
 					<div class="card-image">
@@ -732,23 +730,14 @@
 			{/each}
 		</div>
 
-		<div class="pagination">
-			<form method="GET">
-				{#each paginationFields(Math.max(1, currentPage - 1)) as field (field.name)}
-					<input type="hidden" name={field.name} value={field.value} />
-				{/each}
-				<button class="secondary-button" type="submit" disabled={currentPage <= 1}>Înapoi</button>
-			</form>
-			<span>Pagina {currentPage} din {totalPages}</span>
-			<form method="GET">
-				{#each paginationFields(Math.min(totalPages, currentPage + 1)) as field (field.name)}
-					<input type="hidden" name={field.name} value={field.value} />
-				{/each}
-				<button class="secondary-button" type="submit" disabled={currentPage >= totalPages}>
-					Înainte
-				</button>
-			</form>
-		</div>
+		<TablePagination
+			page={currentPage - 1}
+			pageSize={data.inventory.pageSize}
+			total={data.inventory.total}
+			onchange={changeInventoryPage}
+			allowAll={false}
+			pageSizes={[10, 25, 50, 100]}
+		/>
 	{:else}
 		<section class="empty-state">
 			<Boxes size={38} aria-hidden="true" />
@@ -1569,22 +1558,6 @@
 
 	.card-notes {
 		line-height: 1.45;
-	}
-
-	.pagination {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 12px;
-	}
-
-	.pagination form {
-		margin: 0;
-	}
-
-	.pagination button:disabled {
-		cursor: not-allowed;
-		opacity: 0.45;
 	}
 
 	.empty-state {

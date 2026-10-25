@@ -1,4 +1,5 @@
 <script lang="ts">
+	import TableView from '$lib/components/ui/TableView.svelte';
 	import { resolve } from '$app/paths';
 
 	let { data } = $props();
@@ -75,30 +76,32 @@
 			<p class="eyebrow">Necesar ingrediente</p>
 			<h2>Totaluri calculate</h2>
 		</div>
-		<table>
-			<thead>
-				<tr>
-					<th>Ingredient</th>
-					<th>Categorie</th>
-					<th>Necesar</th>
-					<th>Aprovizionat</th>
-					<th>Rămas</th>
-					<th>Cost estimat</th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each data.overview.ingredientNeeds as need (need.ingredientId)}
+		<TableView label="Caută în raport" paginated={false}
+			><table>
+				<thead>
 					<tr>
-						<td>{need.ingredientName}</td>
-						<td>{need.category}</td>
-						<td>{formatQuantity(need.neededQuantity)} {need.unit}</td>
-						<td>{formatQuantity(need.procuredQuantity)} {need.unit}</td>
-						<td>{formatQuantity(need.remainingQuantity)} {need.unit}</td>
-						<td>{formatQuantity(need.estimatedCost)} lei</td>
+						<th>Ingredient</th>
+						<th>Categorie</th>
+						<th>Necesar</th>
+						<th>Aprovizionat</th>
+						<th>Rămas</th>
+						<th>Cost estimat</th>
 					</tr>
-				{/each}
-			</tbody>
-		</table>
+				</thead>
+				<tbody>
+					{#each data.overview.ingredientNeeds as need (need.ingredientId)}
+						<tr>
+							<td>{need.ingredientName}</td>
+							<td>{need.category}</td>
+							<td>{formatQuantity(need.neededQuantity)} {need.unit}</td>
+							<td>{formatQuantity(need.procuredQuantity)} {need.unit}</td>
+							<td>{formatQuantity(need.remainingQuantity)} {need.unit}</td>
+							<td>{formatQuantity(need.estimatedCost)} lei</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table></TableView
+		>
 	</section>
 
 	<section class="report-sheet">
@@ -109,26 +112,28 @@
 		{#each data.overview.mealCoverage as meal (meal.mealId)}
 			<article class="day-report">
 				<h3>{meal.date} · {meal.mealLabel}</h3>
-				<table>
-					<thead>
-						<tr>
-							<th>Ingredient</th>
-							<th>Necesar</th>
-							<th>Acoperit</th>
-							<th>Status</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each meal.items as item (`${meal.mealId}-${item.ingredientId}`)}
+				<TableView label="Caută în raport" paginated={false}
+					><table>
+						<thead>
 							<tr>
-								<td>{item.ingredientName}</td>
-								<td>{formatQuantity(item.neededQuantity)} {item.unit}</td>
-								<td>{formatQuantity(item.coveredQuantity)} {item.unit}</td>
-								<td>{coverageLabel[item.state]}</td>
+								<th>Ingredient</th>
+								<th>Necesar</th>
+								<th>Acoperit</th>
+								<th>Status</th>
 							</tr>
-						{/each}
-					</tbody>
-				</table>
+						</thead>
+						<tbody>
+							{#each meal.items as item (`${meal.mealId}-${item.ingredientId}`)}
+								<tr>
+									<td>{item.ingredientName}</td>
+									<td>{formatQuantity(item.neededQuantity)} {item.unit}</td>
+									<td>{formatQuantity(item.coveredQuantity)} {item.unit}</td>
+									<td>{coverageLabel[item.state]}</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table></TableView
+				>
 				{#if meal.condiments.length}
 					<p>Condimente: {meal.condiments.join(', ')}</p>
 				{/if}
@@ -147,30 +152,32 @@
 				<p>
 					{event.supplier ?? 'Fără furnizor'} · {event.ownerName ?? 'fără responsabil'} · {event.status}
 				</p>
-				<table>
-					<thead>
-						<tr>
-							<th>Ingredient</th>
-							<th>Cantitate</th>
-							<th>Estimare</th>
-							<th>Real</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each event.items as item (item.id)}
+				<TableView label="Caută în raport" paginated={false}
+					><table>
+						<thead>
 							<tr>
-								<td>{item.ingredientName}</td>
-								<td>{formatQuantity(item.quantity)} {item.unit}</td>
-								<td
-									>{item.estimatedTotalCost
-										? `${formatQuantity(item.estimatedTotalCost)} lei`
-										: '-'}</td
-								>
-								<td>{item.realTotalCost ? `${formatQuantity(item.realTotalCost)} lei` : '-'}</td>
+								<th>Ingredient</th>
+								<th>Cantitate</th>
+								<th>Estimare</th>
+								<th>Real</th>
 							</tr>
-						{/each}
-					</tbody>
-				</table>
+						</thead>
+						<tbody>
+							{#each event.items as item (item.id)}
+								<tr>
+									<td>{item.ingredientName}</td>
+									<td>{formatQuantity(item.quantity)} {item.unit}</td>
+									<td
+										>{item.estimatedTotalCost
+											? `${formatQuantity(item.estimatedTotalCost)} lei`
+											: '-'}</td
+									>
+									<td>{item.realTotalCost ? `${formatQuantity(item.realTotalCost)} lei` : '-'}</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table></TableView
+				>
 			</article>
 		{/each}
 	</section>

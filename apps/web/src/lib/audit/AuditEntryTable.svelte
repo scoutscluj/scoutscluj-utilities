@@ -1,4 +1,5 @@
 <script lang="ts">
+	import TableView from '$lib/components/ui/TableView.svelte';
 	import { formatAuditDateTime, type AuditEntry } from './audit-entry';
 	import AuditEntryDetailsModal from './AuditEntryDetailsModal.svelte';
 	import { formatAuditEntry } from './audit-labels';
@@ -27,43 +28,45 @@
 
 {#if entries.length}
 	<div class="table-wrap">
-		<table>
-			<thead>
-				<tr>
-					<th>Când</th>
-					<th>Cine</th>
-					{#if showActivity}
-						<th>Activitate</th>
-					{/if}
-					<th>Eveniment</th>
-					<th>Rezumat</th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each entries as entry (entry.id)}
-					{@const display = formatAuditEntry(entry)}
+		<TableView label="Caută în jurnal"
+			><table>
+				<thead>
 					<tr>
-						<td class="date-cell">{formatAuditDateTime(entry.createdAt)}</td>
-						<td>{entry.actorName ?? 'Sistem'}</td>
+						<th>Când</th>
+						<th>Cine</th>
 						{#if showActivity}
-							<td>{entry.activityId ? `#${entry.activityId}` : '-'}</td>
+							<th>Activitate</th>
 						{/if}
-						<td>
-							<button
-								class="entry-button"
-								type="button"
-								aria-label={`Vezi detalii pentru ${display.title}`}
-								onclick={() => openDetails(entry)}
-							>
-								<strong>{display.title}</strong>
-								<span>{display.entityLabel}</span>
-							</button>
-						</td>
-						<td>{display.summary}</td>
+						<th>Eveniment</th>
+						<th>Rezumat</th>
 					</tr>
-				{/each}
-			</tbody>
-		</table>
+				</thead>
+				<tbody>
+					{#each entries as entry (entry.id)}
+						{@const display = formatAuditEntry(entry)}
+						<tr>
+							<td class="date-cell">{formatAuditDateTime(entry.createdAt)}</td>
+							<td>{entry.actorName ?? 'Sistem'}</td>
+							{#if showActivity}
+								<td>{entry.activityId ? `#${entry.activityId}` : '-'}</td>
+							{/if}
+							<td>
+								<button
+									class="entry-button"
+									type="button"
+									aria-label={`Vezi detalii pentru ${display.title}`}
+									onclick={() => openDetails(entry)}
+								>
+									<strong>{display.title}</strong>
+									<span>{display.entityLabel}</span>
+								</button>
+							</td>
+							<td>{display.summary}</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table></TableView
+		>
 	</div>
 {:else}
 	<p class="muted">{emptyMessage}</p>

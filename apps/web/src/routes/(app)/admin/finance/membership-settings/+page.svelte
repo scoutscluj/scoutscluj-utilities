@@ -1,4 +1,5 @@
 <script lang="ts">
+	import TableView from '$lib/components/ui/TableView.svelte';
 	import MembershipAdminPage from '$lib/membership/MembershipAdminPage.svelte';
 	import { money } from '$lib/membership/types';
 	import { enhance } from '$app/forms';
@@ -146,17 +147,19 @@
 						<strong>{form.preview.issues.length}</strong> cazuri care necesită verificare.
 					</p>
 					<div class="scroll">
-						<table>
-							<thead><tr><th>Membru</th><th>ID ORGO</th><th>Plan</th><th>Total</th></tr></thead>
-							<tbody>
-								{#each form.preview.members as member (member.orgoUserId)}
-									<tr
-										><td>{member.memberName}</td><td>{member.orgoUserId}</td><td>{member.plan}</td
-										><td>{money(member.totalBani)}</td></tr
-									>
-								{/each}
-							</tbody>
-						</table>
+						<TableView label="Caută tarif" paginated={false}
+							><table>
+								<thead><tr><th>Membru</th><th>ID ORGO</th><th>Plan</th><th>Total</th></tr></thead>
+								<tbody>
+									{#each form.preview.members as member (member.orgoUserId)}
+										<tr
+											><td>{member.memberName}</td><td>{member.orgoUserId}</td><td>{member.plan}</td
+											><td>{money(member.totalBani)}</td></tr
+										>
+									{/each}
+								</tbody>
+							</table></TableView
+						>
 					</div>
 					{#if form.preview.issues.length > 0}
 						<ul>

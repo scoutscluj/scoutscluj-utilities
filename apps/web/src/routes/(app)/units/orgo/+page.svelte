@@ -1,4 +1,5 @@
 <script lang="ts">
+	import TableView from '$lib/components/ui/TableView.svelte';
 	import { resolve } from '$app/paths';
 	import type { PageData, ActionData } from './$types';
 	import { branchLabels } from '$lib/members/types';
@@ -41,20 +42,22 @@
 			>
 		</form>
 		<h2>Registru pentru import</h2>
-		<table>
-			<thead
-				><tr><th>ID Orgo</th><th>Nume</th><th>Status Orgo</th><th>Tip și funcții active</th></tr
-				></thead
-			><tbody
-				>{#each data.preview.members ?? [] as member (member.id)}<tr
-						><td>{member.id}</td><td>{member.name}</td><td>{member.status}</td><td
-							>{member.type ?? '—'}{#each member.roles ?? [] as role, i (i)}<small
-									>{role.name}{role.unitName ? ` · ${role.unitName}` : ''}</small
-								>{/each}</td
-						></tr
-					>{/each}</tbody
-			>
-		</table>
+		<TableView label="Caută membru în Orgo"
+			><table>
+				<thead
+					><tr><th>ID Orgo</th><th>Nume</th><th>Status Orgo</th><th>Tip și funcții active</th></tr
+					></thead
+				><tbody
+					>{#each data.preview.members ?? [] as member (member.id)}<tr
+							><td>{member.id}</td><td>{member.name}</td><td>{member.status}</td><td
+								>{member.type ?? '—'}{#each member.roles ?? [] as role, i (i)}<small
+										>{role.name}{role.unitName ? ` · ${role.unitName}` : ''}</small
+									>{/each}</td
+							></tr
+						>{/each}</tbody
+				>
+			</table></TableView
+		>
 		<InactiveMembers members={data.preview.inactiveMembers ?? []} />
 		<form method="POST">
 			<input type="hidden" name="version" value={data.preview.version ?? ''} /><input

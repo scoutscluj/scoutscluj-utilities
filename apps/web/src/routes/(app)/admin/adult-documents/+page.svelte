@@ -1,8 +1,8 @@
 <script lang="ts">
+	import { highlightSearch, matchesSearch } from '$lib/components/ui/table-search';
 	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import TableToolbar from '$lib/components/ui/TableToolbar.svelte';
-	import TablePageSize from '$lib/components/ui/TablePageSize.svelte';
 	import TablePagination from '$lib/components/ui/TablePagination.svelte';
 	import DocumentBadge from '$lib/adult-documents/DocumentBadge.svelte';
 	import DocumentDossier from '$lib/adult-documents/DocumentDossier.svelte';
@@ -16,17 +16,11 @@
 	let descending = $state(false);
 	let selected = $state<DocumentWorkspace['rows'][number] | null>(null);
 	let open = $state(false);
-	const normalize = (value: string) =>
-		value
-			.normalize('NFD')
-			.replace(/[\u0300-\u036f]/g, '')
-			.toLocaleLowerCase('ro');
 	const rows = $derived(
 		data.workspace.rows
 			.filter(
 				(row) =>
-					normalize(row.name).includes(normalize(search)) &&
-					(!status || row.statuses.some((s) => s === status))
+					matchesSearch(row.name, search) && (!status || row.statuses.some((s) => s === status))
 			)
 			.sort((a, b) => (descending ? -1 : 1) * a.name.localeCompare(b.name, 'ro'))
 	);
@@ -64,6 +58,14 @@
 	<TableToolbar>
 		{#snippet filters()}
 			<label
+				>Caută membru<input
+					type="search"
+					placeholder="Numele membrului"
+					bind:value={search}
+					oninput={() => (page = 0)}
+				/></label
+			>
+			<label
 				>An cercetășesc<select
 					aria-label="An cercetășesc"
 					value={data.workspace.year}
@@ -72,14 +74,7 @@
 						>{/each}</select
 				></label
 			>
-			<label
-				>Caută membru<input
-					type="search"
-					placeholder="Numele membrului"
-					bind:value={search}
-					oninput={() => (page = 0)}
-				/></label
-			>
+
 			<label
 				>Documente<select
 					aria-label="Starea documentelor"
@@ -92,10 +87,9 @@
 				></label
 			>
 		{/snippet}
-		<TablePageSize bind:value={pageSize} total={rows.length} onchange={() => (page = 0)} />
 	</TableToolbar>
 	<div class="table-scroll">
-		<table>
+		<table use:highlightSearch={search}>
 			<thead
 				><tr
 					><th aria-sort={descending ? 'descending' : 'ascending'}
@@ -137,7 +131,7 @@
 	</div>
 	<TablePagination
 		bind:page
-		{pageSize}
+		bind:pageSize
 		total={rows.length}
 		loadedTotal={data.workspace.loadedTotal}
 		label="Paginile documentelor adulților"

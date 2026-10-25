@@ -1,9 +1,9 @@
 <script lang="ts">
+	import { highlightSearch, matchesSearch } from '$lib/components/ui/table-search';
 	import { resolve } from '$app/paths';
 	import type { PageData, ActionData } from '../../routes/(app)/units/$types';
 	import { branchLabels, roleLabels, syncLabels, unitName } from '$lib/members/types';
 	import TableToolbar from '$lib/components/ui/TableToolbar.svelte';
-	import TablePageSize from '$lib/components/ui/TablePageSize.svelte';
 	import TablePagination from '$lib/components/ui/TablePagination.svelte';
 	import MemberTable from '$lib/members/MemberTable.svelte';
 	import Modal from '$lib/components/ui/Modal.svelte';
@@ -66,16 +66,11 @@
 				data.registry.units.some((g) => g.parentId === u.id && g.canCreateMember)
 		)
 	);
-	const normalize = (value: string) =>
-		value
-			.normalize('NFD')
-			.replace(/[\u0300-\u036f]/g, '')
-			.toLocaleLowerCase('ro');
 	const visible = $derived(
 		data.registry.members.filter(
 			(m) =>
 				(!structureFilter || (m.structureId ?? 'cluj') === structureFilter) &&
-				(!search || normalize(m.name).includes(normalize(search))) &&
+				(!search || matchesSearch(m.name, search)) &&
 				(!categoryFilter ||
 					(categoryFilter === 'review' ? m.categoryReview : m.category === categoryFilter)) &&
 				(!unitFilter ||
@@ -99,7 +94,7 @@
 			(u) =>
 				!u.archived &&
 				(!structureFilter || (u.structureId ?? 'cluj') === structureFilter) &&
-				normalize(`${u.name} ${name(u.parentId)}`).includes(normalize(unitSearch))
+				matchesSearch(`${u.name} ${name(u.parentId)}`, unitSearch)
 		)
 	);
 	const unitEffectiveSize = $derived(unitPageSize || Math.max(1, unitRows.length));
@@ -161,6 +156,7 @@
 		</section>{/if}
 	<section class="registry-panel" aria-label="Registrul membrilor">
 		{#snippet registryFilters()}
+			<label>Caută membru<input type="search" bind:value={search} placeholder="Nume" /></label>
 			<label
 				>Structură<select bind:value={structureFilter} onchange={() => (unitFilter = '')}
 					><option value="">Toate structurile</option>{#each structures as st (st.id)}<option
@@ -168,7 +164,7 @@
 						>{/each}</select
 				></label
 			>
-			<label>Caută membru<input bind:value={search} placeholder="Nume" /></label>
+
 			<label
 				>Categorie<select bind:value={categoryFilter}
 					><option value="">Toate categoriile</option>
@@ -207,6 +203,7 @@
 			{management}
 			loadedTotal={data.registry.members.length}
 			filterContent={registryFilters}
+			searchQuery={search}
 			controls={registryControls}
 			onResponsibilities={(member) => {
 				responsibilityMember = member;
@@ -300,20 +297,15 @@
 			<h2>Unități și subunități</h2>
 			{#snippet unitFilters()}<label
 					>Caută unitate sau subunitate<input
+						type="search"
 						bind:value={unitSearch}
 						oninput={() => (unitPage = 0)}
 						placeholder="Nume"
 					/></label
 				>{/snippet}
-			<TableToolbar filters={unitFilters}
-				><TablePageSize
-					bind:value={unitPageSize}
-					total={unitRows.length}
-					onchange={() => (unitPage = 0)}
-				/></TableToolbar
-			>
+			<TableToolbar filters={unitFilters}></TableToolbar>
 			<div class="unit-table">
-				<table>
+				<table use:highlightSearch={unitSearch}>
 					<thead
 						><tr
 							><th>Structură</th><th>Unitate</th><th>Subunitate</th><th
@@ -367,7 +359,7 @@
 			</div>
 			<TablePagination
 				bind:page={unitPage}
-				pageSize={unitEffectiveSize}
+				bind:pageSize={unitPageSize}
 				total={unitRows.length}
 				loadedTotal={data.registry.units.filter((u) => !u.archived).length}
 			/>

@@ -1,6 +1,6 @@
 <script lang="ts">
+	import { highlightSearch, matchesSearch } from '$lib/components/ui/table-search';
 	import TableToolbar from '$lib/components/ui/TableToolbar.svelte';
-	import TablePageSize from '$lib/components/ui/TablePageSize.svelte';
 	import TablePagination from '$lib/components/ui/TablePagination.svelte';
 	import { enhance } from '$app/forms';
 	import { Dialog, DropdownMenu } from 'bits-ui';
@@ -18,10 +18,7 @@
 		data.users
 			.filter(
 				(user) =>
-					(!search ||
-						`${user.displayName} ${user.email ?? ''} ${getOrgoHint(user)}`
-							.toLocaleLowerCase('ro')
-							.includes(search.toLocaleLowerCase('ro'))) &&
+					matchesSearch(`${user.displayName} ${user.email ?? ''} ${getOrgoHint(user)}`, search) &&
 					(!roleFilter || user.roles.includes(roleFilter as UserRole))
 			)
 			.sort((a, b) => (sortDescending ? -1 : 1) * a.displayName.localeCompare(b.displayName, 'ro'))
@@ -135,6 +132,7 @@
 		{#snippet filters()}
 			<label
 				>Caută utilizator<input
+					type="search"
 					bind:value={search}
 					oninput={() => (currentPage = 0)}
 					placeholder="Nume, email sau ID Orgo"
@@ -148,14 +146,9 @@
 				></label
 			>
 		{/snippet}
-		<TablePageSize
-			bind:value={pageSize}
-			total={filteredUsers.length}
-			onchange={() => (currentPage = 0)}
-		/>
 	</TableToolbar>
 	{#if filteredUsers.length}
-		<div class="user-table" role="table" aria-label="Utilizatori">
+		<div class="user-table" use:highlightSearch={search} role="table" aria-label="Utilizatori">
 			<div class="table-header" role="row">
 				<span role="columnheader" aria-sort={sortDescending ? 'descending' : 'ascending'}
 					><button
@@ -265,7 +258,7 @@
 	{/if}
 	<TablePagination
 		bind:page={currentPage}
-		{pageSize}
+		bind:pageSize
 		total={filteredUsers.length}
 		loadedTotal={data.users.length}
 		label="Paginile utilizatorilor"

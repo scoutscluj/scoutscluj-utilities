@@ -35,7 +35,9 @@ const proxy: RequestHandler = async ({ request, params, cookies, locals, url }) 
 		'cache-control': 'private, no-store',
 		'x-content-type-options': 'nosniff'
 	});
-	for (const name of ['content-type', 'content-disposition', 'content-length']) {
+	// fetch decodes compressed upstream bodies; their original byte length no
+	// longer describes this stream. Let the web server frame the decoded body.
+	for (const name of ['content-type', 'content-disposition']) {
 		const value = response.headers.get(name);
 		if (value) headers.set(name, value);
 	}

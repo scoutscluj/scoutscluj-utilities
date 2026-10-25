@@ -62,7 +62,8 @@ test('creates through a dialog and preserves the objective after reload', async 
 	await expect(orgo.getByText('FT678')).toHaveCount(0);
 	await expect(details.getByText('9 martie 1993')).toBeVisible();
 	await expect(details.getByText('20 noiembrie 2007')).toBeVisible();
-	await expect(details.getByText('30 septembrie 2026')).toBeVisible();
+	await expect(details.locator('.fee-field')).toContainText('Indisponibilă');
+	await expect(details.getByText('Expirată', { exact: true })).toHaveCount(0);
 	await expect(details.getByText('Activ', { exact: true })).toBeVisible();
 	await expect(details.getByRole('link', { name: 'florin@example.test' })).toBeVisible();
 	await expect(orgo.getByText('517', { exact: true })).toBeVisible();
@@ -389,6 +390,11 @@ for (const { name, paidBani, date, failMembership, expected } of [
 		});
 		await page.goto('/profile');
 		const payFee = page.getByRole('link', { name: 'Plătește cotizația', exact: true });
+		const feeField = page.locator('.fee-field');
+		await expect(feeField).toContainText(
+			expected === null ? 'Indisponibilă' : expected ? 'De achitat' : 'Achitată'
+		);
+		await expect(feeField.getByText('Expirată', { exact: true })).toHaveCount(0);
 		const warning = page.getByRole('complementary', {
 			name: /Ai o cotizație de achitat|Situația cotizației nu este disponibilă/
 		});

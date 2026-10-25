@@ -31,6 +31,7 @@ const activityTypeLabels: Record<SidebarActivity['type'], string> = {
 
 export const canSee = (item: MenuItem, user: CurrentUser) =>
 	!item.disabled &&
+	(!item.requiresAdultDocumentsAdmin || user.canManageAdultDocuments === true) &&
 	(!item.minRole || hasRole(user, item.minRole)) &&
 	(!item.anyRole || item.anyRole.some((role) => hasRole(user, role)));
 
@@ -51,6 +52,8 @@ export const menuHref = (href: AppHref) => {
 			return resolve('/profile');
 		case '/admin/members':
 			return resolve('/admin/members');
+		case '/admin/adult-documents':
+			return resolve('/admin/adult-documents');
 		case '/admin':
 			return resolve('/admin');
 		case '/admin/finance':
@@ -186,6 +189,7 @@ export const routeTitle = (pathname: string) => {
 	if (pathname.startsWith('/admin/notifications')) return 'Notificări';
 	if (pathname.startsWith('/admin/parental-consent')) return 'Acorduri parentale';
 	if (pathname.startsWith('/admin/members')) return 'Membri și unități';
+	if (pathname.startsWith('/admin/adult-documents')) return 'Documente adulți';
 	if (pathname.startsWith('/admin/users')) return 'Utilizatori';
 	if (pathname.startsWith('/admin/finance/payment-processor')) return 'Procesatori de plăți';
 	if (pathname.startsWith('/admin/finance/guide')) return 'Ghid financiar';

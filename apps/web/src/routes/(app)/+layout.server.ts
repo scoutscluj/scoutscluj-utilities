@@ -3,6 +3,7 @@ import type { LayoutServerLoad } from './$types';
 import { SESSION_COOKIE_NAME } from '$lib/server/cookies';
 import { getSafeRedirectTarget } from '$lib/server/redirects';
 import { loadSidebarActivities } from '$lib/server/sidebar-activities';
+import { canManageAdultDocuments } from '$lib/server/adult-documents';
 
 export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
 	if (!locals.user) {
@@ -12,8 +13,12 @@ export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
 
 	const sessionToken = cookies.get(SESSION_COOKIE_NAME);
 
+	const [sidebarActivities, documentsAdmin] = await Promise.all([
+		sessionToken ? loadSidebarActivities(sessionToken) : Promise.resolve([]),
+		sessionToken ? canManageAdultDocuments(sessionToken) : Promise.resolve(false)
+	]);
 	return {
-		user: locals.user,
-		sidebarActivities: sessionToken ? await loadSidebarActivities(sessionToken) : []
+		user: { ...locals.user, canManageAdultDocuments: documentsAdmin },
+		sidebarActivities
 	};
 };

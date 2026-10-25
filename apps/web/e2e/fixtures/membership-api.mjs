@@ -186,13 +186,51 @@ let ledger = fixture();
 let submissions = [];
 let objectives = [];
 let profileOptions = {};
+let adultDocuments = [];
+const adultOwner = '11111111-1111-4111-8111-111111111111';
+const adultOther = '22222222-2222-4222-8222-222222222222';
+const adultKinds = ['behavioural_integrity'];
+const adultYear = 2026;
+const adultDossier = (memberId, year, canReview) => {
+	const documents = adultDocuments
+		.filter((d) => d.memberId === memberId && d.year === year)
+		.map((document) => {
+			const metadata = { ...document };
+			delete metadata.contentBase64;
+			delete metadata.memberId;
+			delete metadata.year;
+			return metadata;
+		});
+	const statuses = adultKinds.map(
+		(kind) =>
+			documents.filter((d) => d.kind === kind).sort((a, b) => b.version - a.version)[0]?.status ??
+			'missing'
+	);
+	return {
+		memberId,
+		name: memberId === adultOwner ? 'Ana Popescu' : 'Elena Ionescu',
+		birthDate: '1990-01-01',
+		eligible: true,
+		year,
+		currentYear: adultYear,
+		canReview,
+		documents,
+		complete: statuses.every((s) => s === 'validated'),
+		years: [...new Set([adultYear, year, ...adultDocuments.map((d) => d.year)])].sort(
+			(a, b) => b - a
+		)
+	};
+};
 let subscribedDevices = new Set();
 const respond = (res, value, status = 200) => {
 	res.writeHead(status, { 'Content-Type': 'application/json' });
 	res.end(JSON.stringify(value));
 };
 createServer(async (req, res) => {
-	res.setHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:5182');
+	res.setHeader(
+		'Access-Control-Allow-Origin',
+		process.env.MEMBERSHIP_TEST_WEB_ORIGIN ?? 'http://127.0.0.1:5182'
+	);
 	res.setHeader('Access-Control-Allow-Credentials', 'true');
 	res.setHeader('Access-Control-Allow-Headers', 'content-type');
 	res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
@@ -205,6 +243,7 @@ createServer(async (req, res) => {
 		submissions = [];
 		objectives = [];
 		profileOptions = {};
+		adultDocuments = [];
 		subscribedDevices = new Set();
 		return respond(res, {});
 	}
@@ -213,6 +252,105 @@ createServer(async (req, res) => {
 		for await (const chunk of req) raw += chunk;
 		Object.assign(profileOptions, JSON.parse(raw));
 		return respond(res, {});
+	}
+	if (req.url?.startsWith('/api/adult-documents')) {
+		const url = new URL(req.url, 'http://localhost');
+		const path = url.pathname.slice('/api/adult-documents'.length);
+		const admin = profileOptions.documentsAdmin === true;
+		const year = Number(url.searchParams.get('year') ?? adultYear);
+		if (profileOptions.failDocuments)
+			return respond(res, { message: 'Documentele nu sunt disponibile momentan.' }, 503);
+		if (path === '/access') return respond(res, { admin });
+		if (path === '/mine')
+			return respond(
+				res,
+				profileOptions.adultDocuments
+					? { eligible: true, reason: null, dossier: adultDossier(adultOwner, year, false) }
+					: { eligible: false, reason: 'under_age', dossier: null }
+			);
+		if (path === '') {
+			if (!admin) return respond(res, { message: 'Doar administratorii centrali au acces.' }, 403);
+			const rows = [adultOwner, adultOther].map((memberId) => {
+				const dossier = adultDossier(memberId, year, true);
+				return {
+					memberId,
+					name: dossier.name,
+					structureId: memberId === adultOwner ? 'cluj' : 'floresti',
+					complete: dossier.complete,
+					statuses: adultKinds.map(
+						(kind) =>
+							dossier.documents
+								.filter((d) => d.kind === kind)
+								.sort((a, b) => b.version - a.version)[0]?.status ?? 'missing'
+					)
+				};
+			});
+			return respond(res, {
+				year,
+				currentYear: adultYear,
+				years: [adultYear, adultYear - 1],
+				rows,
+				total: rows.length,
+				loadedTotal: rows.length,
+				unknownBirthDates: 0,
+				page: 1,
+				pageSize: 0
+			});
+		}
+		if (path.startsWith('/members/')) {
+			const memberId = path.split('/')[2];
+			if (memberId !== adultOwner && !admin)
+				return respond(res, { message: 'Acces refuzat.' }, 403);
+			if (req.method === 'GET') return respond(res, adultDossier(memberId, year, admin));
+			let raw = '';
+			for await (const chunk of req) raw += chunk;
+			const input = JSON.parse(raw);
+			const version =
+				adultDocuments.filter(
+					(d) => d.memberId === memberId && d.year === input.year && d.kind === input.kind
+				).length + 1;
+			const document = {
+				...input,
+				memberId,
+				id: randomUUID(),
+				version,
+				size: Buffer.from(input.contentBase64, 'base64').length,
+				status: 'pending',
+				uploadedAt: '2026-10-25T09:00:00Z',
+				uploaderName: admin ? 'Administrator' : 'Ana Popescu',
+				reviewedAt: null,
+				reviewerName: null,
+				rejectionReason: null
+			};
+			adultDocuments.push(document);
+			return respond(res, { id: document.id }, 201);
+		}
+		if (path.startsWith('/versions/')) {
+			const document = adultDocuments.find((d) => d.id === path.split('/')[2]);
+			if (!document) return respond(res, { message: 'Document inexistent.' }, 404);
+			if (path.endsWith('/download')) {
+				res.writeHead(200, {
+					'content-type': document.contentType,
+					'cache-control': 'private, no-store',
+					'content-disposition': `attachment; filename="${document.filename}"`
+				});
+				return res.end(Buffer.from(document.contentBase64, 'base64'));
+			}
+			if (!admin) return respond(res, { message: 'Acces refuzat.' }, 403);
+			let raw = '';
+			for await (const chunk of req) raw += chunk;
+			const input = JSON.parse(raw);
+			if (input.status === 'rejected' && !input.reason?.trim())
+				return respond(res, { message: 'Motiv obligatoriu.' }, 400);
+			Object.assign(document, {
+				status: input.status,
+				rejectionReason: input.status === 'rejected' ? input.reason : null,
+				reviewerName: 'Administrator',
+				reviewedAt: '2026-10-25T10:00:00Z'
+			});
+			return respond(res, { id: document.id }, 201);
+		}
+		return respond(res, {}, 404);
 	}
 	if (req.url === '/api/personal-objectives') {
 		if (req.method === 'POST') {
@@ -680,4 +818,6 @@ createServer(async (req, res) => {
 		return respond(res, receipt);
 	}
 	return respond(res, {});
-}).listen(3015, '127.0.0.1', () => console.log('Synthetic membership API: 3015'));
+}).listen(Number(process.env.MEMBERSHIP_TEST_API_PORT ?? 3015), '127.0.0.1', () =>
+	console.log('Synthetic membership API ready')
+);

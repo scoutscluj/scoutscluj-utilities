@@ -326,6 +326,435 @@
       "comment": null
     },
     {
+      "name": "adult_document_files",
+      "schema": "public",
+      "columns": {
+        "data": {
+          "name": "data",
+          "type": "bytea",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "blob"
+        },
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        }
+      },
+      "indexes": [
+        {
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "adult_document_files_pkey",
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "triggers": [],
+      "foreignKeys": {
+        "adult_document_files_id_fkey": {
+          "columnNames": [
+            "id"
+          ],
+          "constraintName": "adult_document_files_id_fkey",
+          "localTableName": "public.adult_document_files",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.adult_documents",
+          "deleteRule": "cascade"
+        }
+      },
+      "comment": null
+    },
+    {
+      "name": "adult_documents",
+      "schema": "public",
+      "columns": {
+        "content_type": {
+          "name": "content_type",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 255,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "filename": {
+          "name": "filename",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 255,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [
+            "behavioural_integrity"
+          ],
+          "mappedType": "enum"
+        },
+        "member_id": {
+          "name": "member_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": true,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        },
+        "rejection_reason": {
+          "name": "rejection_reason",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "reviewed_at": {
+          "name": "reviewed_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "reviewer_id": {
+          "name": "reviewer_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "size": {
+          "name": "size",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 255,
+          "precision": null,
+          "scale": null,
+          "default": "'pending'",
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "uploaded_at": {
+          "name": "uploaded_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "uploader_id": {
+          "name": "uploader_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "version": {
+          "name": "version",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "year": {
+          "name": "year",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        }
+      },
+      "indexes": [
+        {
+          "columnNames": [
+            "member_id",
+            "year",
+            "kind",
+            "version"
+          ],
+          "composite": true,
+          "constraint": true,
+          "keyName": "adult_documents_member_id_year_kind_version_unique",
+          "primary": false,
+          "unique": true
+        },
+        {
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "adult_documents_pkey",
+          "primary": true,
+          "unique": true
+        },
+        {
+          "columnNames": [
+            "year",
+            "member_id"
+          ],
+          "composite": true,
+          "constraint": false,
+          "keyName": "adult_documents_year_member_id_index",
+          "primary": false,
+          "unique": false
+        }
+      ],
+      "checks": [
+        {
+          "name": "adult_documents_kind_check",
+          "expression": "\"kind\" in ('behavioural_integrity')",
+          "definition": "check (\"kind\" in ('behavioural_integrity'))",
+          "columnName": "kind"
+        },
+        {
+          "name": "adult_documents_rejection_check",
+          "expression": "(((status)::text <> 'rejected'::text) OR ((rejection_reason IS NOT NULL) AND ((char_length(btrim(rejection_reason)) >= 1) AND (char_length(btrim(rejection_reason)) <= 2000))))",
+          "definition": "check ((((status)::text <> 'rejected'::text) OR ((rejection_reason IS NOT NULL) AND ((char_length(btrim(rejection_reason)) >= 1) AND (char_length(btrim(rejection_reason)) <= 2000)))))"
+        },
+        {
+          "name": "adult_documents_review_check",
+          "expression": "(\"status\" = 'pending' and \"reviewer_id\" is null and \"reviewed_at\" is null) or (\"status\" <> 'pending' and \"reviewer_id\" is not null and \"reviewed_at\" is not null)",
+          "definition": "check ((\"status\" = 'pending' and \"reviewer_id\" is null and \"reviewed_at\" is null) or (\"status\" <> 'pending' and \"reviewer_id\" is not null and \"reviewed_at\" is not null))"
+        },
+        {
+          "name": "adult_documents_size_check",
+          "expression": "\"size\" > 0 and \"size\" <= 10485760",
+          "definition": "check (\"size\" > 0 and \"size\" <= 10485760)"
+        },
+        {
+          "name": "adult_documents_status_check",
+          "expression": "\"status\" in ('pending', 'validated', 'rejected')",
+          "definition": "check (\"status\" in ('pending', 'validated', 'rejected'))"
+        },
+        {
+          "name": "adult_documents_version_check",
+          "expression": "\"version\" > 0",
+          "definition": "check (\"version\" > 0)"
+        },
+        {
+          "name": "adult_documents_year_check",
+          "expression": "year >= 2000 and year <= 9999",
+          "definition": "check (year >= 2000 and year <= 9999)"
+        }
+      ],
+      "triggers": [],
+      "foreignKeys": {
+        "adult_documents_member_id_fkey": {
+          "columnNames": [
+            "member_id"
+          ],
+          "constraintName": "adult_documents_member_id_fkey",
+          "localTableName": "public.adult_documents",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.scout_members",
+          "deleteRule": "restrict"
+        },
+        "adult_documents_reviewer_id_fkey": {
+          "columnNames": [
+            "reviewer_id"
+          ],
+          "constraintName": "adult_documents_reviewer_id_fkey",
+          "localTableName": "public.adult_documents",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.users",
+          "deleteRule": "restrict"
+        },
+        "adult_documents_uploader_id_fkey": {
+          "columnNames": [
+            "uploader_id"
+          ],
+          "constraintName": "adult_documents_uploader_id_fkey",
+          "localTableName": "public.adult_documents",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.users",
+          "deleteRule": "restrict"
+        }
+      },
+      "comment": null
+    },
+    {
       "name": "app_audit_entries",
       "schema": "public",
       "columns": {

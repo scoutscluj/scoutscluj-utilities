@@ -29,7 +29,7 @@ it('returns the actual worker build identifier to the page', async () => {
 	expect(worker.skipWaiting).toHaveBeenCalledOnce();
 });
 
-it.each(['/', '/info/calendar', '/sediu/orar'])(
+it.each(['/', '/info/calendar', '/sediu/orar', '/profile', '/admin/adult-documents'])(
 	'never restores a calendar HTML snapshot offline at %s and bypasses calendar data',
 	async (path) => {
 		vi.resetModules();
@@ -67,17 +67,19 @@ it.each(['/', '/info/calendar', '/sediu/orar'])(
 		expect(cache.delete).toHaveBeenCalledOnce();
 		expect(cache.match).not.toHaveBeenCalled();
 		respondWith.mockClear();
-		worker.dispatchEvent(
-			Object.assign(new Event('fetch'), {
-				request: {
-					method: 'GET',
-					url: 'https://app.example.test/calendar-data/events',
-					mode: 'cors',
-					headers: new Headers()
-				},
-				respondWith
-			})
-		);
+		for (const suffix of ['/calendar-data/events', '/adult-documents/versions/file/download']) {
+			worker.dispatchEvent(
+				Object.assign(new Event('fetch'), {
+					request: {
+						method: 'GET',
+						url: `https://app.example.test${suffix}`,
+						mode: 'cors',
+						headers: new Headers()
+					},
+					respondWith
+				})
+			);
+		}
 		expect(respondWith).not.toHaveBeenCalled();
 	}
 );

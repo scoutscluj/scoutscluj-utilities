@@ -19,6 +19,7 @@
 		"test:e2e": "playwright test",
 		"test:e2e:membership": "vite build && playwright test --config playwright.membership.config.ts",
 		"test:e2e:profile": "vite build && playwright test --config playwright.profile.config.ts",
+		"test:e2e:adult-documents": "vite build && playwright test --config playwright.adult-documents.config.ts",
 		"verify": "pnpm lint && pnpm check && pnpm test"
 	},
 	"devDependencies": {

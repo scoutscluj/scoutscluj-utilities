@@ -13,7 +13,7 @@ const RUNTIME_CACHE = `${CACHE_PREFIX}-runtime-${version}`;
 const OFFLINE_URL = '/offline';
 const ASSETS = [...build, ...files, ...prerendered];
 const ASSET_SET = new Set(ASSETS);
-const AUTH_PATH_PREFIXES = ['/api', '/auth', '/login', '/calendar-data'];
+const AUTH_PATH_PREFIXES = ['/api', '/auth', '/login', '/calendar-data', '/adult-documents'];
 
 const isNoStore = (response: Response) =>
 	response.headers.get('cache-control')?.toLowerCase().includes('no-store') ?? false;
@@ -60,15 +60,20 @@ const staleWhileRevalidate = async (request: Request) => {
 const navigationFallback = async (request: Request) => {
 	const cache = await caches.open(RUNTIME_CACHE);
 	const url = new URL(request.url);
-	// Calendar pages must never fall back to authenticated HTML snapshots,
-	// including entries left by an older service worker.
-	const isCalendarPage = ['/', '/info/calendar', '/sediu/orar'].includes(url.pathname);
-	if (isCalendarPage) await cache.delete(request);
+	// Private profile/document pages and calendars must never restore stale
+	// authenticated snapshots, including entries left by an older worker.
+	const isPrivatePage =
+		['/', '/info/calendar', '/sediu/orar'].includes(url.pathname) ||
+		url.pathname === '/profile' ||
+		url.pathname.startsWith('/profile/') ||
+		url.pathname === '/admin/adult-documents' ||
+		url.pathname.startsWith('/admin/adult-documents/');
+	if (isPrivatePage) await cache.delete(request);
 
 	try {
 		const response = await fetch(request);
 		if (
-			!isCalendarPage &&
+			!isPrivatePage &&
 			canCacheResponse(response) &&
 			isSameOrigin(url) &&
 			!isAuthOrApiPath(url.pathname)
@@ -77,7 +82,7 @@ const navigationFallback = async (request: Request) => {
 		}
 		return response;
 	} catch (error) {
-		const cached = isCalendarPage ? undefined : await cache.match(request);
+		const cached = isPrivatePage ? undefined : await cache.match(request);
 		if (cached) {
 			return cached;
 		}

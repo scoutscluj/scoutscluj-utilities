@@ -18,6 +18,7 @@ import { KitchenModule } from './modules/kitchen/kitchen.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ParentalConsentModule } from './modules/parental-consent/parental-consent.module';
 import { PersonalObjectivesModule } from './modules/personal-objectives/personal-objectives.module';
+import { AdultDocumentsModule } from './modules/adult-documents/adult-documents.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { PersonalObjectivesModule } from './modules/personal-objectives/personal
     NotificationsModule,
     ParentalConsentModule,
     PersonalObjectivesModule,
+    AdultDocumentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -33,6 +33,7 @@
 	let busy = $state(false);
 	let message = $state('');
 	let success = $state('');
+	let loadFailed = $state(false);
 	let rejecting = $state('');
 	let reason = $state('');
 	let generation = 0;
@@ -48,6 +49,7 @@
 		const requestId = ++generation;
 		loading = true;
 		message = '';
+		loadFailed = false;
 		dossier = null;
 		rejecting = '';
 		try {
@@ -56,13 +58,20 @@
 			});
 			if (!response.ok) throw new Error(await responseMessage(response));
 			const value = (await response.json()) as Dossier;
-			if (requestId === generation) dossier = value;
-		} catch (error) {
-			if (requestId === generation)
-				message = error instanceof Error ? error.message : 'Dosarul nu a putut fi încărcat.';
+			if (requestId === generation) {
+				dossier = value;
+				return true;
+			}
+		} catch {
+			if (requestId === generation) {
+				success = '';
+				loadFailed = true;
+				message = 'Situația documentului nu a putut fi încărcată. Încearcă din nou.';
+			}
 		} finally {
 			if (requestId === generation) loading = false;
 		}
+		return false;
 	}
 	$effect(() => {
 		if (open && dossierKey) {
@@ -96,8 +105,11 @@
 		});
 		if (!response.ok) throw new Error(await responseMessage(response));
 		if (open && memberId === targetMemberId && year === targetYear) {
-			success = notice;
-			await load(targetMemberId, targetYear);
+			const loaded = await load(targetMemberId, targetYear);
+			if (loaded) success = notice;
+			else if (open && memberId === targetMemberId && year === targetYear)
+				message =
+					'Salvarea a reușit, dar situația documentului nu a putut fi actualizată. Nu este nevoie să încarci din nou fișierul. Apasă „Încearcă din nou” pentru a vedea starea actualizată.';
 		}
 		await onchanged?.();
 	}
@@ -189,11 +201,11 @@
 				>{/if}
 		</div>
 		{#if message}<div class="feedback error" role="alert">
-				{message}<button
-					type="button"
-					disabled={busy || loading}
-					onclick={() => load(memberId, year)}>Reîncarcă dosarul</button
-				>
+				{message}{#if loadFailed}<button
+						type="button"
+						disabled={busy || loading}
+						onclick={() => load(memberId, year)}>Încearcă din nou</button
+					>{/if}
 			</div>{/if}
 		{#if success}<p class="feedback success" role="status">{success}</p>{/if}
 		{#if loading}<p role="status" class="muted">Se încarcă dosarul…</p>

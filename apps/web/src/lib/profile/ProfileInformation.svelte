@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import CreditCard from '@lucide/svelte/icons/credit-card';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
@@ -22,24 +21,10 @@
 		SUSPENDED: 'Suspendat',
 		DELETED: 'Șters'
 	};
-	let today = $state('');
-	const feeExpired = $derived(
-		Boolean(today && profile?.feeValidUntilDate && profile.feeValidUntilDate < today)
+	const feeState = $derived(
+		feePaymentDue === false ? 'paid' : feePaymentDue === true ? 'due' : 'unavailable'
 	);
 	const showFeePayment = $derived(feePaymentDue !== false);
-	onMount(() => {
-		const updateDate = () => {
-			today = new Intl.DateTimeFormat('en-CA', {
-				timeZone: 'Europe/Bucharest',
-				year: 'numeric',
-				month: '2-digit',
-				day: '2-digit'
-			}).format(new Date());
-		};
-		updateDate();
-		const interval = setInterval(updateDate, 60_000);
-		return () => clearInterval(interval);
-	});
 </script>
 
 {#if showFeePayment}
@@ -99,13 +84,15 @@
 				<dd>{formatProfileDate(profile?.dateJoined)}</dd>
 			</div>
 			<div class="fee-field">
-				<dt>Cotizație valabilă până la</dt>
-				<dd class={['fee-value', { expired: feeExpired || feePaymentDue === true }]}>
-					<span>{formatProfileDate(profile?.feeValidUntilDate)}</span>
-					{#if today && (profile?.feeValidUntilDate || feePaymentDue === true)}<span
-							class="fee-status"
-							>{feeExpired ? 'Expirată' : feePaymentDue === true ? 'De achitat' : 'Valabilă'}</span
-						>{/if}
+				<dt>Cotizație</dt>
+				<dd class="fee-value" data-state={feeState}>
+					<span class="fee-status"
+						>{feePaymentDue === false
+							? 'Achitată'
+							: feePaymentDue === true
+								? 'De achitat'
+								: 'Indisponibilă'}</span
+					>
 				</dd>
 			</div>
 		</dl>
@@ -331,9 +318,13 @@
 		background: var(--sc-success-soft);
 		color: var(--sc-success);
 	}
-	.expired .fee-status {
+	.fee-value[data-state='due'] .fee-status {
 		background: #fef3c7;
 		color: #92400e;
+	}
+	.fee-value[data-state='unavailable'] .fee-status {
+		background: var(--sc-inset);
+		color: var(--sc-muted);
 	}
 	.roles-section {
 		display: flex;

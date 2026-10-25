@@ -24,7 +24,9 @@ test('owner uploads, sees year history and retains original downloadable version
 	await page.goto('/profile');
 	const summary = page.getByRole('region', { name: 'Documente adulți' });
 	await expect(summary.getByText('Lipsește')).toHaveCount(1);
-	await summary.getByRole('button', { name: 'Deschide dosarul' }).click();
+	await expect(summary.getByRole('button', { name: 'Adaugă document', exact: true })).toBeVisible();
+	expect((await summary.boundingBox())!.width).toBeLessThanOrEqual(680);
+	await summary.getByRole('button', { name: /Adaugă document|Deschide dosarul/ }).click();
 	const dialog = page.getByRole('dialog', { name: 'Documente adulți' });
 	await expect(dialog).toBeVisible();
 	await expect(dialog.getByText('Cazier judiciar', { exact: true })).toHaveCount(0);
@@ -63,7 +65,7 @@ test('owner uploads, sees year history and retains original downloadable version
 	await page.keyboard.press('Escape');
 	await expect(dialog).not.toBeVisible();
 	await page.reload();
-	await summary.getByRole('button', { name: 'Deschide dosarul' }).click();
+	await summary.getByRole('button', { name: /Adaugă document|Deschide dosarul/ }).click();
 	await dialog.getByRole('combobox', { name: 'An cercetășesc' }).selectOption('2025');
 	await expect(dialog.getByRole('link', { name: 'certificat.pdf ↓', exact: true })).toBeVisible();
 });
@@ -73,7 +75,7 @@ test('central admin rejects CIC with feedback and validates its replacement', as
 	request
 }, testInfo) => {
 	await page.goto('/profile');
-	await page.getByRole('button', { name: 'Deschide dosarul' }).click();
+	await page.getByRole('button', { name: /Adaugă document|Deschide dosarul/ }).click();
 	let dialog = page.getByRole('dialog', { name: 'Documente adulți' });
 	await dialog
 		.getByLabel('Încarcă Certificat de integritate comportamentală', { exact: true })
@@ -133,7 +135,7 @@ test('ordinary members cannot open admin workspace or cross-origin upload proxy'
 
 test('owner can upload a 10 MiB CIC through the authenticated web proxy', async ({ page }) => {
 	await page.goto('/profile');
-	await page.getByRole('button', { name: 'Deschide dosarul' }).click();
+	await page.getByRole('button', { name: /Adaugă document|Deschide dosarul/ }).click();
 	const dialog = page.getByRole('dialog', { name: 'Documente adulți' });
 	const buffer = Buffer.alloc(10 * 1024 * 1024, 32);
 	buffer.write('%PDF-1.7\n');
@@ -182,7 +184,7 @@ test('mobile dialog fits, traps focus, closes with Escape and handles file error
 }, testInfo) => {
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.goto('/profile');
-	await page.getByRole('button', { name: 'Deschide dosarul' }).click();
+	await page.getByRole('button', { name: /Adaugă document|Deschide dosarul/ }).click();
 	const dialog = page.getByRole('dialog', { name: 'Documente adulți' });
 	await dialog
 		.getByLabel('Încarcă Certificat de integritate comportamentală', { exact: true })
@@ -192,7 +194,10 @@ test('mobile dialog fits, traps focus, closes with Escape and handles file error
 			buffer: Buffer.from('not a certificate')
 		});
 	await expect(dialog.getByRole('alert')).toContainText('Alege un fișier PDF, JPG sau PNG');
-	await dialog.getByRole('button', { name: 'Reîncarcă dosarul' }).click();
+	await expect(dialog.getByRole('button', { name: 'Încearcă din nou' })).toHaveCount(0);
+	await dialog
+		.getByLabel('Încarcă Certificat de integritate comportamentală', { exact: true })
+		.setInputFiles(pdf);
 	await expect(dialog.getByRole('alert')).toHaveCount(0);
 	await dialog.getByText('Cum obțin certificatul (CIC)?').click();
 	await expect(
@@ -207,4 +212,43 @@ test('mobile dialog fits, traps focus, closes with Escape and handles file error
 	await page.screenshot({ path: testInfo.outputPath('mobile-documents-dialog.png') });
 	await page.keyboard.press('Escape');
 	await expect(dialog).not.toBeVisible();
+});
+
+test('a failed refresh after upload explains the saved state without asking for another upload', async ({
+	page
+}) => {
+	let saved = false;
+	let failRefresh = true;
+	await page.route('**/adult-documents/members/**', (route) => {
+		if (route.request().method() === 'POST') {
+			saved = true;
+			return route.continue();
+		}
+		if (saved && failRefresh) {
+			failRefresh = false;
+			return route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: '{"documents":['
+			});
+		}
+		return route.continue();
+	});
+	await page.goto('/profile');
+	await page.getByRole('button', { name: 'Adaugă document', exact: true }).click();
+	const dialog = page.getByRole('dialog', { name: 'Documente adulți' });
+	await dialog
+		.getByLabel('Încarcă Certificat de integritate comportamentală', { exact: true })
+		.setInputFiles(pdf);
+	await expect(dialog.getByRole('alert')).toContainText(
+		'Nu este nevoie să încarci din nou fișierul'
+	);
+	await expect(
+		dialog.getByText('Document încărcat. Așteaptă verificarea unui administrator.')
+	).toHaveCount(0);
+	await expect(dialog.getByText(/Unterminated|JSON at position|Reîncarcă dosarul/)).toHaveCount(0);
+	await dialog.getByRole('button', { name: 'Încearcă din nou', exact: true }).click();
+	await expect(dialog.getByText('În verificare', { exact: true })).toBeVisible();
+	await expect(dialog.getByRole('link', { name: 'certificat.pdf ↓', exact: true })).toBeVisible();
+	await expect(dialog.getByText('Versiunea 1 ·')).toBeVisible();
 });

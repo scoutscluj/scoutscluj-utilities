@@ -13,6 +13,9 @@
 	let { documents }: { documents: MineDocuments | null } = $props();
 	let open = $state(false);
 	const dossier = $derived(documents?.dossier);
+	const missingCertificate = $derived(
+		!!dossier && !currentDocument(dossier.documents, 'behavioural_integrity')
+	);
 </script>
 
 {#if documents?.eligible !== false}
@@ -22,14 +25,16 @@
 				<FileCheck size={20} aria-hidden="true" />
 				<h2 id="adult-documents-title">Documente adulți</h2>
 			</div>
-			{#if dossier}<button type="button" onclick={() => (open = true)}>Deschide dosarul</button
+			{#if dossier}<button
+					class:primary={missingCertificate}
+					type="button"
+					onclick={() => (open = true)}
+					>{missingCertificate ? 'Adaugă document' : 'Deschide dosarul'}</button
 				>{/if}
 		</header>
 		{#if dossier}
 			<p class="summary-copy">
-				An cercetășesc {yearLabel(dossier.year)} · {dossier.complete
-					? 'Dosar complet'
-					: 'Încarcă certificatul de integritate comportamentală pentru validare.'}
+				An cercetășesc {yearLabel(dossier.year)}{dossier.complete ? ' · Dosar complet' : ''}
 			</p>
 			<div class="slots">
 				{#each documentKinds as kind (kind)}<div>
@@ -63,10 +68,13 @@
 
 <style>
 	.adult-summary {
+		width: 100%;
+		max-width: 680px;
+		box-sizing: border-box;
 		background: var(--sc-surface);
 		border: 1px solid var(--sc-border);
 		border-radius: 10px;
-		padding: 20px;
+		padding: 16px;
 		margin-top: 24px;
 	}
 	header {
@@ -102,6 +110,14 @@
 	button:hover {
 		background: var(--sc-inset);
 	}
+	button.primary {
+		background: var(--sc-accent);
+		border-color: var(--sc-accent);
+		color: white;
+	}
+	button.primary:hover {
+		background: var(--sc-accent-hover);
+	}
 	button:focus-visible {
 		outline: 2px solid var(--sc-accent);
 		outline-offset: 3px;
@@ -110,7 +126,7 @@
 		color: var(--sc-muted);
 		font-size: 13px;
 		line-height: 1.6;
-		margin: 12px 0 16px;
+		margin: 8px 0 12px;
 	}
 	.slots {
 		display: grid;

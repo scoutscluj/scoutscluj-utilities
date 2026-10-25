@@ -1,4 +1,5 @@
 <script lang="ts">
+	import TableView from '$lib/components/ui/TableView.svelte';
 	let { data, form } = $props();
 
 	let editing = $state<(typeof data.ingredients)[number] | null>(null);
@@ -52,26 +53,28 @@
 			<span>{data.ingredients.length} ingrediente</span>
 		</div>
 		<div class="table-wrap">
-			<table>
-				<thead>
-					<tr>
-						<th>Nume</th>
-						<th>Categorie</th>
-						<th>Unitate</th>
-						<th>Preț estimat</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each data.ingredients as ingredient (ingredient.id)}
-						<tr onclick={() => (editing = ingredient)} tabindex="0">
-							<td>{ingredient.name}</td>
-							<td>{ingredient.category}</td>
-							<td>{ingredient.defaultUnit}</td>
-							<td>{formatQuantity(ingredient.defaultPricePerUnit)} lei</td>
+			<TableView label="Caută ingredient"
+				><table>
+					<thead>
+						<tr>
+							<th>Nume</th>
+							<th>Categorie</th>
+							<th>Unitate</th>
+							<th>Preț estimat</th>
 						</tr>
-					{/each}
-				</tbody>
-			</table>
+					</thead>
+					<tbody>
+						{#each data.ingredients as ingredient (ingredient.id)}
+							<tr onclick={() => (editing = ingredient)} tabindex="0">
+								<td>{ingredient.name}</td>
+								<td>{ingredient.category}</td>
+								<td>{ingredient.defaultUnit}</td>
+								<td>{formatQuantity(ingredient.defaultPricePerUnit)} lei</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table></TableView
+			>
 		</div>
 	</section>
 

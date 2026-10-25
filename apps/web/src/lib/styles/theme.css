@@ -15,7 +15,7 @@
 	--sc-shadow: 0 8px 24px rgb(24 32 44 / 0.08), 0 2px 6px rgb(24 32 44 / 0.04);
 }
 
-/* Shared table layout: filters, page size and column controls share one row. */
+/* Shared table layout: search leads filters; page size belongs in the footer. */
 .sc-table-toolbar {
 	display: flex;
 	flex-wrap: wrap;
@@ -26,6 +26,7 @@
 }
 .sc-table-filters {
 	display: flex;
+	flex-wrap: wrap;
 	flex: 1 1 440px;
 	align-items: flex-end;
 	gap: 10px;
@@ -33,8 +34,8 @@
 }
 .sc-table-filters > label {
 	display: grid;
-	flex: 1 1 0;
-	min-width: 0;
+	flex: 1 1 160px;
+	min-width: min(100%, 160px);
 	gap: 5px;
 	font-size: 12px;
 	color: var(--sc-muted);
@@ -42,14 +43,44 @@
 .sc-table-toolbar :is(input:not([type='checkbox']), select) {
 	width: 100%;
 	min-width: 0;
-	height: 36px;
-	min-height: 36px;
-	padding: 7px 9px;
+	height: 40px;
+	min-height: 40px;
+	box-sizing: border-box;
+	line-height: 20px;
+	padding: 9px 12px;
 	border: 1px solid var(--sc-border-strong);
 	border-radius: 7px;
 	background: var(--sc-surface);
 	color: var(--sc-ink);
-	font-size: 13px;
+	font-size: 14px;
+}
+.sc-table-filters > label:has(input[type='search']) {
+	flex: 2 1 240px;
+}
+::highlight(sc-table-search) {
+	background-color: #fff0b3;
+	color: #422006;
+}
+.sc-table-column-trigger {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	min-height: 40px;
+	padding: 0;
+	border: 1px solid var(--sc-border);
+	border-radius: 7px;
+	background: var(--sc-surface);
+	color: var(--sc-muted);
+	list-style: none;
+}
+.sc-table-column-trigger::-webkit-details-marker {
+	display: none;
+}
+.sc-table-column-trigger:hover {
+	background: var(--sc-inset);
+	color: var(--sc-ink);
 }
 .sc-table-options {
 	display: flex;
@@ -106,6 +137,8 @@
 	color: var(--sc-muted);
 	font-size: 12px;
 	font-weight: 500;
+	text-transform: none;
+	letter-spacing: normal;
 }
 .content table tbody tr:last-child td {
 	border-bottom: 0;

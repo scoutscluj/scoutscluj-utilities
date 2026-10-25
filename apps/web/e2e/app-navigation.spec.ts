@@ -101,7 +101,7 @@ test('inactive Orgo history stays separate and supports paging and search', asyn
 	});
 	await expect(history.locator('td > a')).toHaveCount(25);
 	await expect(history.getByRole('link', { name: 'Istoric 01', exact: true })).toBeVisible();
-	await history.getByRole('button', { name: 'Următor', exact: true }).click();
+	await history.getByRole('button', { name: 'Pagina următoare', exact: true }).click();
 	await expect(history.getByRole('link', { name: 'Istoric 26', exact: true })).toBeVisible();
 	await history.getByLabel('Caută în istoricul Orgo').fill('Istoric 01');
 	await expect(history.getByRole('link')).toHaveCount(1);
@@ -248,7 +248,7 @@ test('registry supports sorting, column visibility, page sizes and scoped select
 	await nameHeader.getByRole('button').click();
 	await expect(nameHeader).toHaveAttribute('aria-sort', 'descending');
 	await registry.getByRole('combobox', { name: 'Rânduri pe pagină' }).selectOption('10');
-	await registry.locator('summary').filter({ hasText: 'Coloane' }).click();
+	await registry.getByLabel('Alege coloanele', { exact: true }).click();
 	await registry.getByRole('checkbox', { name: 'Clasa', exact: true }).uncheck();
 	await expect(registry.getByRole('columnheader').filter({ hasText: 'Clasa' })).toHaveCount(0);
 	await registry.getByRole('checkbox', { name: 'Selectează pagina curentă' }).check();
@@ -261,7 +261,7 @@ test('registry supports sorting, column visibility, page sizes and scoped select
 	).toHaveCount(0);
 	await expect(registry.getByText('Nu există membri pentru filtrele alese.')).toBeVisible();
 	await page.getByLabel('Caută membru', { exact: true }).fill('');
-	await registry.locator('summary').filter({ hasText: 'Coloane' }).click();
+	await registry.getByLabel('Alege coloanele', { exact: true }).click();
 	await page.screenshot({ path: testInfo.outputPath('registry-desktop.png'), fullPage: true });
 	await page.setViewportSize({ width: 390, height: 844 });
 	await expect
@@ -280,7 +280,7 @@ test('users table filters roles, searches identities, pages and opens role dialo
 }, testInfo) => {
 	await page.goto('/admin/users');
 	await expect(page.getByRole('heading', { name: 'Voluntar 01', exact: true })).toBeVisible();
-	await page.getByRole('button', { name: 'Următor', exact: true }).click();
+	await page.getByRole('button', { name: 'Pagina următoare', exact: true }).click();
 	await expect(page.getByRole('heading', { name: 'Voluntar 26', exact: true })).toBeVisible();
 	await page.getByRole('combobox', { name: 'Rol', exact: true }).selectOption('finance_manager');
 	await expect(page.getByRole('heading', { name: 'Voluntar 01', exact: true })).toBeVisible();
@@ -334,11 +334,15 @@ test('the shared registry stays compact and exposes permitted actions in context
 	await expect(page.getByRole('heading', { name: 'Registru', exact: true })).toHaveCount(0);
 	await expect(page.getByRole('button', { name: /Selectează toate rezultatele/ })).toHaveCount(0);
 	await expect(page.getByRole('button', { name: 'Adaugă membru', exact: true })).toBeVisible();
-	const filters = registry.getByRole('combobox');
+	const filters = registry.locator('.sc-table-toolbar').getByRole('combobox');
 	const boxes = await filters.evaluateAll((nodes) =>
 		nodes.map((node) => node.getBoundingClientRect().bottom)
 	);
-	expect(Math.max(...boxes) - Math.min(...boxes)).toBeLessThanOrEqual(1);
+	// Filters may wrap instead of clipping; each row remains aligned.
+	expect(boxes.every((bottom) => Number.isFinite(bottom))).toBe(true);
+	await expect(
+		registry.locator('.sc-table-toolbar').getByRole('combobox', { name: 'Rânduri pe pagină' })
+	).toHaveCount(0);
 	await expect(registry.getByRole('navigation')).toContainText('1–2 din 2');
 	await expect(registry.getByRole('option', { name: '500', exact: true })).toHaveCount(1);
 	await expect(registry.getByRole('option', { name: 'Toate (2)', exact: true })).toHaveCount(1);

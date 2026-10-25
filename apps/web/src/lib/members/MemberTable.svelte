@@ -1,10 +1,11 @@
 <script lang="ts">
+	import Columns3 from '@lucide/svelte/icons/columns-3';
+	import { highlightSearch, matchesSearch } from '$lib/components/ui/table-search';
 	import { resolve } from '$app/paths';
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { tick, type Snippet } from 'svelte';
 	import TableToolbar from '$lib/components/ui/TableToolbar.svelte';
-	import TablePageSize from '$lib/components/ui/TablePageSize.svelte';
 	import TablePagination from '$lib/components/ui/TablePagination.svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import Modal from '$lib/components/ui/Modal.svelte';
@@ -27,6 +28,7 @@
 		controls,
 		onResponsibilities,
 		management = true,
+		searchQuery = '',
 		loadedTotal = members.length
 	}: {
 		members: Member[];
@@ -40,6 +42,7 @@
 		onResponsibilities?: (member: Member) => void;
 		management?: boolean;
 		loadedTotal?: number;
+		searchQuery?: string;
 	} = $props();
 	let selected = $state<string[]>([]),
 		editing = $state(false),
@@ -63,13 +66,8 @@
 	let feeForm: HTMLFormElement;
 	let page = $state(0),
 		inactiveSearch = $state('');
-	const normalize = (value: string) =>
-		value
-			.normalize('NFD')
-			.replace(/[\u0300-\u036f]/g, '')
-			.toLocaleLowerCase('ro');
 	const filtered = $derived(
-		members.filter((m) => !inactiveSearch || normalize(m.name).includes(normalize(inactiveSearch)))
+		members.filter((m) => !inactiveSearch || matchesSearch(m.name, inactiveSearch))
 	);
 	const sorted = $derived(
 		[...filtered].sort((a, b) => {
@@ -362,15 +360,18 @@
 	{#snippet filters()}
 		{#if inactive}<label
 				>Caută în istoricul Orgo<input
+					type="search"
 					bind:value={inactiveSearch}
 					placeholder="Nume"
 					oninput={() => (page = 0)}
 				/></label
 			>{:else if filterContent}{@render filterContent()}{/if}
 	{/snippet}
-	<TablePageSize bind:value={pageSize} total={filtered.length} onchange={() => (page = 0)} />
+
 	{#if !inactive}<details class="column-picker">
-			<summary>Coloane</summary>
+			<summary class="sc-table-column-trigger" aria-label="Alege coloanele" title="Alege coloanele"
+				><Columns3 size={18} aria-hidden="true" /></summary
+			>
 			<div>
 				<label><input type="checkbox" bind:checked={showUnit} />Unitate / grupă</label><label
 					><input type="checkbox" bind:checked={showGrade} />Clasa</label
@@ -381,7 +382,7 @@
 	{#if controls}{@render controls()}{/if}
 </TableToolbar>
 <div class="table">
-	<table>
+	<table use:highlightSearch={inactive ? inactiveSearch : searchQuery}>
 		<thead
 			><tr>
 				{#if management && registry.canManage}<th
@@ -490,7 +491,7 @@
 </div>
 <TablePagination
 	bind:page
-	{pageSize}
+	bind:pageSize
 	total={filtered.length}
 	{loadedTotal}
 	label="Paginile registrului"

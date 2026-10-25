@@ -1,6 +1,6 @@
 <script lang="ts">
+	import { highlightSearch, matchesSearch } from '$lib/components/ui/table-search';
 	import TableToolbar from '$lib/components/ui/TableToolbar.svelte';
-	import TablePageSize from '$lib/components/ui/TablePageSize.svelte';
 	import TablePagination from '$lib/components/ui/TablePagination.svelte';
 	let page = $state(0),
 		pageSize = $state(25);
@@ -76,9 +76,7 @@
 		obligations.filter(
 			(o) =>
 				(paymentFilter === 'all' || paymentState(o) === paymentFilter) &&
-				`${o.memberName} ${o.orgoUserId} ${o.cardId ?? ''}`
-					.toUpperCase()
-					.includes(search.toUpperCase())
+				matchesSearch(`${o.memberName} ${o.orgoUserId} ${o.cardId ?? ''}`, search)
 		)
 	);
 	const effectiveSize = $derived(pageSize || Math.max(1, filtered.length));
@@ -134,6 +132,14 @@
 	<TableToolbar>
 		{#snippet filters()}
 			<label
+				>Caută nume sau ID<input
+					type="search"
+					bind:value={search}
+					oninput={() => (page = 0)}
+					placeholder="Nume, ID ORGO sau ID Card"
+				/></label
+			>
+			<label
 				>Perioadă<select
 					value={periodFilter || activePeriod?.id}
 					onchange={(e) => {
@@ -159,23 +165,14 @@
 					><option value="unpaid">Neplătit</option><option value="review">De verificat</option>
 				</select></label
 			>
-			<label
-				>Caută nume sau ID<input
-					type="search"
-					bind:value={search}
-					oninput={() => (page = 0)}
-					placeholder="Nume, ID ORGO sau ID Card"
-				/></label
-			>
 		{/snippet}
-		<TablePageSize bind:value={pageSize} total={filtered.length} onchange={() => (page = 0)} />
 	</TableToolbar>
 	{#if transfers}<p>
 			Selectează membrii cu cotizația integral achitată pentru a înregistra transferul național.
 		</p>{/if}
 	{#snippet memberRows()}
 		<div class="scroll">
-			<table>
+			<table use:highlightSearch={search}>
 				<thead
 					><tr
 						>{#if transfers}<th>Transfer</th>{/if}<th>Membru</th><th>Plan</th><th>Datorat</th><th
@@ -288,7 +285,7 @@
 	{:else}{@render memberRows()}{/if}
 	<TablePagination
 		bind:page
-		{pageSize}
+		bind:pageSize
 		total={filtered.length}
 		loadedTotal={obligations.length}
 		label="Paginile cotizațiilor"

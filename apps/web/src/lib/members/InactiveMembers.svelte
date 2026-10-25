@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import TableToolbar from '$lib/components/ui/TableToolbar.svelte';
+	import TablePagination from '$lib/components/ui/TablePagination.svelte';
+	import { highlightSearch, matchesSearch } from '$lib/components/ui/table-search';
 	let {
 		members,
 		linkToProfile = false
@@ -9,11 +12,11 @@
 	} = $props();
 	let open = $state(false),
 		search = $state(''),
-		page = $state(0);
-	const matching = $derived(
-		members.filter((m) => m.name.toLocaleLowerCase('ro').includes(search.toLocaleLowerCase('ro')))
-	);
-	const pages = $derived(Math.max(1, Math.ceil(matching.length / 25)));
+		page = $state(0),
+		pageSize = $state(25);
+	const matching = $derived(members.filter((m) => matchesSearch(m.name, search)));
+	const size = $derived(pageSize || Math.max(1, matching.length));
+	const currentPage = $derived(Math.min(page, Math.max(0, Math.ceil(matching.length / size) - 1)));
 	$effect(() => {
 		if (search || members) page = 0;
 	});
@@ -27,22 +30,30 @@
 				Membrii istorici cu statusul „INACTIVE” în Orgo sunt păstrați aici, separat de registrul
 				curent.
 			</p>
-			<label>Caută membru inactiv<input bind:value={search} placeholder="Nume" /></label>
-			<p role="status">
-				{matching.length} membri găsiți · Pagina {Math.min(page + 1, pages)} din {pages}
-			</p>
-			<ul>
-				{#each matching.slice(page * 25, (page + 1) * 25) as member (member.id)}
+			<TableToolbar
+				>{#snippet filters()}<label
+						>Caută membru inactiv<input
+							type="search"
+							bind:value={search}
+							placeholder="Nume"
+						/></label
+					>{/snippet}</TableToolbar
+			>
+			<ul use:highlightSearch={search}>
+				{#each matching.slice(currentPage * size, (currentPage + 1) * size) as member (member.id)}
 					<li>
 						{#if linkToProfile}<a href={resolve(`/units/${member.id}`)}>{member.name}</a
 							>{:else}{member.name}{/if}
 					</li>
 				{:else}<li>Nu există membri inactivi pentru căutarea aleasă.</li>{/each}
 			</ul>
-			{#if pages > 1}<nav aria-label="Paginare membri inactivi">
-					<button type="button" disabled={page === 0} onclick={() => page--}>Înapoi</button>
-					<button type="button" disabled={page + 1 >= pages} onclick={() => page++}>Înainte</button>
-				</nav>{/if}
+			<TablePagination
+				bind:page
+				bind:pageSize
+				total={matching.length}
+				loadedTotal={members.length}
+				label="Paginare membri inactivi"
+			/>
 		{/if}
 	</details>
 </section>
@@ -78,21 +89,5 @@
 	}
 	a {
 		color: var(--sc-accent);
-	}
-	nav {
-		display: flex;
-		gap: 12px;
-	}
-	button {
-		padding: 10px 16px;
-		border: 1px solid #bacbc2;
-		border-radius: 8px;
-		background: #f5f8f6;
-		cursor: pointer;
-		font: inherit;
-	}
-	button:disabled {
-		opacity: 0.5;
-		cursor: default;
 	}
 </style>

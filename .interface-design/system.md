@@ -46,11 +46,18 @@ and row expansions that move the rest of the register.
   optional columns, selected-row tint, explicit empty state and pagination.
 - Users: searchable identities, role filter, name sorting and pagination.
 - `TableToolbar.svelte`, `TablePageSize.svelte`, and `TablePagination.svelte`
-  define the shared table layout for members, users, cotizații and receipts.
-  Put filters, page size, columns and optional plus action on one desktop row;
-  wrap controls at mobile widths. Controls are 36px tall, labels 12px, gaps
-  10–12px. Footer shows the current range, filtered total and loaded total when
-  different. Offer 10, 25, 50, 100, 250, 500 and “Toate (total)” page sizes.
+  define the shared table layout. Put text search first, followed by filters,
+  an icon-only columns trigger and optional plus action. Wrap controls before
+  their labels or values become cramped; filters are 40px tall with 20px line
+  height. Place page size in the footer beside four neutral 36px icon buttons
+  for first/previous/next/last page. Show the current range, filtered total and
+  loaded total when different. Offer 10, 25, 50, 100, 250, 500 and “Toate (total)”
+  for local tables; respect server limits for inventory.
+- Search ignores case and diacritics, matches every word independently, and
+  highlights matching body text with native CSS ranges via `table-search.ts`.
+  Keep links, inputs, selections and Svelte-owned text intact. `TableView.svelte`
+  supplies the same controls for simple tables; report/editor tables keep all
+  rows mounted and print/export all rows regardless of the on-screen filter.
 - `/units` is the single browsing and management workspace. Per-row API capabilities
   control profile, fee, mutation and responsibility actions. Delegation uses a focused
   dialog on the member row; the unit table has plus buttons on fixed units and

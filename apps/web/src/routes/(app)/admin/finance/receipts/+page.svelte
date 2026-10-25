@@ -1,6 +1,6 @@
 <script lang="ts">
+	import { highlightSearch, matchesSearch } from '$lib/components/ui/table-search';
 	import TableToolbar from '$lib/components/ui/TableToolbar.svelte';
-	import TablePageSize from '$lib/components/ui/TablePageSize.svelte';
 	import TablePagination from '$lib/components/ui/TablePagination.svelte';
 	let page = $state(0),
 		pageSize = $state(25);
@@ -38,9 +38,7 @@
 		ledger.receipts.filter(
 			(r) =>
 				(methodFilter === 'all' || r.method === methodFilter) &&
-				`${r.reference} ${r.note} ${r.receivedOn}`
-					.toLocaleLowerCase('ro')
-					.includes(search.toLocaleLowerCase('ro'))
+				matchesSearch(`${r.reference} ${r.note} ${r.receivedOn}`, search)
 		)
 	);
 	const effectiveSize = $derived(pageSize || Math.max(1, visible.length));
@@ -114,10 +112,9 @@
 					></label
 				>
 			{/snippet}
-			<TablePageSize bind:value={pageSize} total={visible.length} onchange={() => (page = 0)} />
 		</TableToolbar>
 		<div class="scroll">
-			<table>
+			<table use:highlightSearch={search}>
 				<thead><tr><th>Încasare</th><th>Sumă</th><th>Nealocat</th><th>Detalii</th></tr></thead
 				><tbody>
 					{#each pageRows as r (r.id)}{@const checkout = ledger.checkouts.find(
@@ -169,7 +166,7 @@
 		</div>
 		<TablePagination
 			bind:page
-			{pageSize}
+			bind:pageSize
 			total={visible.length}
 			loadedTotal={ledger.receipts.length}
 			label="Paginile încasărilor"

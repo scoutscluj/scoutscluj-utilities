@@ -1,4 +1,7 @@
 <script lang="ts">
+	import TableToolbar from '$lib/components/ui/TableToolbar.svelte';
+	import TablePagination from '$lib/components/ui/TablePagination.svelte';
+	import { highlightSearch, matchesSearch } from '$lib/components/ui/table-search';
 	import { branchLabels } from '$lib/members/types';
 	import { resolve } from '$app/paths';
 	import type { PageData, ActionData } from './$types';
@@ -11,15 +14,14 @@
 	});
 	let search = $state(''),
 		inactive = $state(false),
-		page = $state(0);
+		page = $state(0),
+		pageSize = $state(25);
 	const matches = $derived(
-		members.filter(
-			(m) =>
-				m.inactive === inactive &&
-				m.name.toLocaleLowerCase('ro').includes(search.toLocaleLowerCase('ro'))
-		)
+		members.filter((m) => m.inactive === inactive && matchesSearch(m.name, search))
 	);
-	const visible = $derived(matches.slice(page * 25, (page + 1) * 25));
+	const size = $derived(pageSize || Math.max(1, matches.length));
+	const currentPage = $derived(Math.min(page, Math.max(0, Math.ceil(matches.length / size) - 1)));
+	const visible = $derived(matches.slice(currentPage * size, (currentPage + 1) * size));
 </script>
 
 <svelte:head><title>Repartizare Cluj și Florești</title></svelte:head>
@@ -64,38 +66,47 @@
 			<section>
 				<h2>Membri</h2>
 				<p>{members.length} apartenențe de verificat. Istoricul inactiv este separat.</p>
-				<label>Caută membru<input bind:value={search} oninput={() => (page = 0)} /></label>
+				<TableToolbar
+					>{#snippet filters()}<label
+							>Caută membru<input
+								type="search"
+								bind:value={search}
+								oninput={() => (page = 0)}
+							/></label
+						>{/snippet}</TableToolbar
+				>
 				<label class="check"
 					><input type="checkbox" bind:checked={inactive} onchange={() => (page = 0)} />Arată doar
 					istoricul inactiv ({members.filter((m) => m.inactive).length})</label
 				>
-				{#each visible as m (m.id)}<article>
-						<strong>{m.name}</strong>
-						<div class="fields">
-							<label
-								>Structură<select bind:value={m.structureId}
-									>{#each data.preview.structures as st (st.id)}<option value={st.id}
-											>{st.name}</option
-										>{/each}</select
-								></label
-							>
-							<label
-								>Categorie principală<select bind:value={m.category}>
-									<option value={null}>De verificat</option>
-									{#each Object.entries(branchLabels) as [key, label] (key)}<option value={key}
-											>{label}</option
-										>{/each}
-								</select></label
-							>
-						</div>
-					</article>{:else}<p>Nu există membri pentru filtrul ales.</p>{/each}
-				<div class="pages">
-					<button type="button" disabled={page === 0} onclick={() => page--}>Înapoi</button><span
-						>{matches.length ? page * 25 + 1 : 0}–{Math.min((page + 1) * 25, matches.length)} din {matches.length}</span
-					><button type="button" disabled={(page + 1) * 25 >= matches.length} onclick={() => page++}
-						>Înainte</button
-					>
+				<div use:highlightSearch={search}>
+					{#each visible as m (m.id)}<article>
+							<strong>{m.name}</strong>
+							<div class="fields">
+								<label
+									>Structură<select bind:value={m.structureId}
+										>{#each data.preview.structures as st (st.id)}<option value={st.id}
+												>{st.name}</option
+											>{/each}</select
+									></label
+								>
+								<label
+									>Categorie principală<select bind:value={m.category}>
+										<option value={null}>De verificat</option>
+										{#each Object.entries(branchLabels) as [key, label] (key)}<option value={key}
+												>{label}</option
+											>{/each}
+									</select></label
+								>
+							</div>
+						</article>{:else}<p>Nu există membri pentru filtrul ales.</p>{/each}
 				</div>
+				<TablePagination
+					bind:page
+					bind:pageSize
+					total={matches.length}
+					loadedTotal={members.length}
+				/>
 			</section>
 			<label class="check"
 				><input type="checkbox" name="confirm" required />Am verificat toate repartizările, inclusiv
@@ -149,8 +160,7 @@
 		grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 		gap: 16px;
 	}
-	.check,
-	.pages {
+	.check {
 		display: flex;
 		align-items: center;
 		gap: 12px;

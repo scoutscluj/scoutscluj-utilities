@@ -1,4 +1,5 @@
 <script lang="ts">
+	import TableView from '$lib/components/ui/TableView.svelte';
 	import { resolve } from '$app/paths';
 	import OrgoProfile from '$lib/members/OrgoProfile.svelte';
 	import type { PageData, ActionData } from './$types';
@@ -155,18 +156,21 @@
 					>
 				</p>{/if}
 			<div class="table">
-				<table>
-					<thead><tr><th>Perioadă</th><th>Total</th><th>Plătit</th><th>Rămas</th></tr></thead><tbody
-						>{#each data.detail.fees as fee (fee.period)}<tr
-								><td
-									>{fee.period}{#if !fee.collectible}<small>În afara urmăririi la plată</small
-										>{/if}</td
-								><td>{money(fee.totalBani)}</td><td>{money(fee.paidBani)}</td><td
-									>{money(fee.remainingBani)}</td
-								></tr
-							>{:else}<tr><td colspan="4">Nu există cotizații asociate.</td></tr>{/each}</tbody
-					>
-				</table>
+				<TableView label="Caută în tabel"
+					><table>
+						<thead><tr><th>Perioadă</th><th>Total</th><th>Plătit</th><th>Rămas</th></tr></thead
+						><tbody
+							>{#each data.detail.fees as fee (fee.period)}<tr
+									><td
+										>{fee.period}{#if !fee.collectible}<small>În afara urmăririi la plată</small
+											>{/if}</td
+									><td>{money(fee.totalBani)}</td><td>{money(fee.paidBani)}</td><td
+										>{money(fee.remainingBani)}</td
+									></tr
+								>{:else}<tr><td colspan="4">Nu există cotizații asociate.</td></tr>{/each}</tbody
+						>
+					</table></TableView
+				>
 			</div>
 		</section>{/if}
 	{#if a.transfer || (a.edit && m.unitId) || a.withdraw}<section>

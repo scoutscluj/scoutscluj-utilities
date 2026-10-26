@@ -179,10 +179,12 @@ describe('ORGO member API credentials', () => {
 it('limits delegated member writes to the selected actor and scoped paths, and clears revoked tokens', async () => {
   const connection = { apiTokenEncrypted: null as string | null };
   const em = {
+    fork: jest.fn(),
     findOne: (_entity: unknown, where: { user: number }) =>
       Promise.resolve(where.user === 17 ? connection : null),
     flush: () => Promise.resolve(),
   };
+  em.fork.mockReturnValue(em);
   const service = new OrgoTokenService(
     em as unknown as EntityManager,
     new ConfigService({

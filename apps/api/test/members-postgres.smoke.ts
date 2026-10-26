@@ -1,3 +1,5 @@
+import { OrgoTokenService } from '../src/modules/auth/orgo-token.service';
+import { OrgoConnection } from '../src/modules/users/entities/orgo-connection.entity';
 import { emptyProfile } from '../src/modules/members/member.types';
 import { ConfigService } from '@nestjs/config';
 import { MemberOrgoService } from '../src/modules/members/orgo.service';
@@ -74,6 +76,59 @@ async function main() {
       centralMemberAdmin: true,
     });
     await em.flush();
+    em.create(OrgoConnection, {
+      user: account,
+      orgoUserId: 99111,
+      profile: {},
+    });
+    await em.flush();
+    const tokenConfig = new ConfigService({
+      ORGO_TOKEN_ENCRYPTION_KEY: 'ab'.repeat(32),
+      ORGO_OAUTH_BASE_URL: 'https://orgo.example.test',
+    });
+    await new OrgoTokenService(em, tokenConfig).capture(account.id, {
+      access_token: 'synthetic-worker-token',
+    });
+    const previousFetch = global.fetch;
+    let tokenRequests = 0;
+    global.fetch = async (_url, init) => {
+      assert.equal(
+        new Headers(init?.headers).get('Authorization'),
+        'Bearer synthetic-worker-token',
+      );
+      tokenRequests++;
+      return new Response('{}', { status: tokenRequests === 1 ? 200 : 401 });
+    };
+    try {
+      // Deliberately use the global EM without RequestContext, as the scheduled worker does.
+      const tokens = new OrgoTokenService(orm.em, tokenConfig);
+      assert.equal(
+        (
+          await tokens.memberRequest(account.id, '/api/v1/users/99111', {
+            method: 'GET',
+          })
+        ).status,
+        200,
+      );
+      assert.equal(
+        (
+          await tokens.memberRequest(account.id, '/api/v1/users/99111', {
+            method: 'GET',
+          })
+        ).status,
+        401,
+      );
+      assert.equal(
+        (
+          await orm.em
+            .fork()
+            .findOneOrFail(OrgoConnection, { user: account.id })
+        ).apiTokenEncrypted,
+        null,
+      );
+    } finally {
+      global.fetch = previousFetch;
+    }
     em.create(ScoutMember, {
       accountId: account.id,
       name: 'Test central administrator',

@@ -72,8 +72,8 @@ export class OrgoTokenService {
     );
   }
 
-  private async accessToken(userId: number) {
-    const connection = await this.em.findOne(OrgoConnection, { user: userId });
+  private async accessToken(userId: number, em = this.em) {
+    const connection = await em.findOne(OrgoConnection, { user: userId });
     if (!connection?.apiTokenEncrypted)
       throw new UnauthorizedException(
         'Autentifică-te din nou pentru accesul API ORGO.',
@@ -201,7 +201,9 @@ export class OrgoTokenService {
       url.hash
     )
       throw new ServiceUnavailableException('Adresă API Orgo invalidă.');
-    const delegated = await this.accessToken(userId);
+    // Scheduled workers have no HTTP request context. Keep token read/revocation local.
+    const em = this.em.fork();
+    const delegated = await this.accessToken(userId, em);
     const response = await fetch(url, {
       method: init.method,
       headers: {
@@ -217,7 +219,7 @@ export class OrgoTokenService {
     });
     if (response.status === 401) {
       delegated.connection.apiTokenEncrypted = null;
-      await this.em.flush();
+      await em.flush();
     }
     return response;
   }

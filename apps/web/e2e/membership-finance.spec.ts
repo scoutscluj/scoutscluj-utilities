@@ -296,7 +296,7 @@ test('changes cotisation type with a preview and preserves paid evidence', async
 	await dialog.getByRole('combobox', { name: 'Tip cotizație', exact: true }).selectOption('fam1');
 	await dialog.getByRole('button', { name: 'Previzualizează recalcularea' }).click();
 	await expect(dialog.getByText('Cotizație 2026–2027:', { exact: false })).toBeVisible();
-	await dialog.getByLabel('Motivul modificării').fill('Primul membru al familiei');
+	await expect(dialog.getByLabel('Motivul modificării')).toHaveCount(0);
 	await dialog.getByRole('button', { name: 'Confirmă tipul și recalculează' }).click();
 	await expect(
 		page.getByRole('status').filter({ hasText: 'Tipul cotizației a fost salvat.' })
@@ -307,8 +307,7 @@ test('changes cotisation type with a preview and preserves paid evidence', async
 		expect.arrayContaining([
 			expect.objectContaining({
 				plan: 'fam1',
-				version: 'fee-preview',
-				note: 'Primul membru al familiei'
+				version: 'fee-preview'
 			})
 		])
 	);

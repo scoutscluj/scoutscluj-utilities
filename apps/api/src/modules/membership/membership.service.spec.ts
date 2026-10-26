@@ -2727,7 +2727,6 @@ describe('member cotisation type changes', () => {
     await f.service.changeFeePlan(f.staff, f.obligation.id, {
       plan: 'fam2',
       version: preview.version,
-      note: 'Second family member',
     });
     expect(f.obligation).toMatchObject({
       plan: 'fam2',

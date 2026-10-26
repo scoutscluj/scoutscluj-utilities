@@ -17,7 +17,6 @@
 		currentPlan?: string;
 	} = $props();
 	let selected = $state('normal'),
-		note = $state(''),
 		error = $state(''),
 		saved = $state('');
 	let busy = $state(false);
@@ -27,7 +26,6 @@
 			untrack(() => {
 				selected = currentPlan;
 				preview = undefined;
-				note = '';
 				error = '';
 				saved = '';
 			});
@@ -42,7 +40,7 @@
 			const response = await fetch(resolve('/units/fee-plan'), {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ id, plan, preview: !confirm, note, version: preview?.version })
+				body: JSON.stringify({ id, plan, preview: !confirm, version: preview?.version })
 			});
 			const result = await response.json();
 			if (id !== obligationId || plan !== selected) return;
@@ -101,10 +99,6 @@
 			{#each preview.blockers as blocker (blocker.message)}<p role="alert">
 					{blocker.message}
 				</p>{/each}
-			<label
-				>Motivul modificării<textarea bind:value={note} required maxlength="2000" disabled={busy}
-				></textarea></label
-			>
 			<p>
 				Tipul ales se salvează în Resurse și se trimite către Orgo. În caz de modificări concurente,
 				Orgo are prioritate.

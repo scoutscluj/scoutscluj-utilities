@@ -249,3 +249,5 @@ Tokenul lipsă/revocat cere reautentificare. Un administrator poate relua explic
 o operațiune cu propriul token; schimbarea autorului și modul de execuție sunt
 auditate. successToken SSO nu este folosit ca bearer API. Regula înlocuiește
 restricția anterioară server-only; fluxul financiar național rămâne separat.
+
+Cotisation type changes use a compact pencil icon next to the plan label. The operator is not required to supply an explanation; the audit retains the actor, old/new plan and amounts.

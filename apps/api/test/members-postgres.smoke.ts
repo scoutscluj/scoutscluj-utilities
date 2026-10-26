@@ -91,13 +91,15 @@ async function main() {
     });
     const previousFetch = global.fetch;
     let tokenRequests = 0;
-    global.fetch = async (_url, init) => {
+    global.fetch = (_url, init) => {
       assert.equal(
         new Headers(init?.headers).get('Authorization'),
         'Bearer synthetic-worker-token',
       );
       tokenRequests++;
-      return new Response('{}', { status: tokenRequests === 1 ? 200 : 401 });
+      return Promise.resolve(
+        new Response('{}', { status: tokenRequests === 1 ? 200 : 401 }),
+      );
     };
     try {
       // Deliberately use the global EM without RequestContext, as the scheduled worker does.

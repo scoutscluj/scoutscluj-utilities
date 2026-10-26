@@ -181,6 +181,47 @@ export class OrgoTokenService {
     return response.json() as Promise<unknown>;
   }
 
+  // Dedicated member adapter transport. OAuth access tokens only; never SSO successToken.
+  async memberRequest(
+    userId: number,
+    path: string,
+    init: { method: 'GET' | 'PATCH' | 'POST'; body?: string | FormData },
+  ) {
+    const base = new URL(this.config.getOrThrow<string>('ORGO_OAUTH_BASE_URL'));
+    const url = new URL(path, base);
+    const allowed =
+      init.method === 'POST'
+        ? url.pathname === '/api/v1/media_objects'
+        : /^\/api\/v1\/users\/\d+$/.test(url.pathname);
+    if (
+      !allowed ||
+      url.origin !== base.origin ||
+      url.protocol !== 'https:' ||
+      url.search ||
+      url.hash
+    )
+      throw new ServiceUnavailableException('Adresă API Orgo invalidă.');
+    const delegated = await this.accessToken(userId);
+    const response = await fetch(url, {
+      method: init.method,
+      headers: {
+        Authorization: `Bearer ${delegated.token}`,
+        Accept: 'application/ld+json, application/json',
+        ...(typeof init.body === 'string'
+          ? { 'Content-Type': 'application/merge-patch+json' }
+          : {}),
+      },
+      ...(init.body ? { body: init.body } : {}),
+      redirect: 'error',
+      signal: AbortSignal.timeout(30000),
+    });
+    if (response.status === 401) {
+      delegated.connection.apiTokenEncrypted = null;
+      await this.em.flush();
+    }
+    return response;
+  }
+
   async capture(userId: number, raw: unknown) {
     const value = raw as Record<string, unknown>;
     const token = value.access_token ?? value.accessToken;

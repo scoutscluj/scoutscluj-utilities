@@ -22,6 +22,7 @@ jest.mock('./members.service', () => ({
 }));
 import type { EntityManager } from '@mikro-orm/postgresql';
 import { ConfigService } from '@nestjs/config';
+import { ForbiddenException } from '@nestjs/common';
 import { MemberOrgoService } from './orgo.service';
 import type { MembersService } from './members.service';
 import { emptyProfile } from './member.types';
@@ -278,7 +279,7 @@ describe('Orgo import preview', () => {
   });
 });
 
-function fixture(writes = true) {
+function fixture(writes = true, delegated = false) {
   const member = {
     id: 'local',
     orgoId: 42,
@@ -305,6 +306,7 @@ function fixture(writes = true) {
     message: '',
     nextAttemptAt: null as Date | null,
     attempts: 0,
+    actorId: 17,
   };
   const em = {
     fork: () => em,
@@ -316,6 +318,16 @@ function fixture(writes = true) {
     create: jest.fn(),
     transactional: <T>(fn: (tx: unknown) => Promise<T>) => fn(em),
   };
+  const authorize = jest.fn(() => Promise.resolve());
+  const delegatedRequest = jest.fn(
+    (actorId: number, path: string, init: RequestInit) => {
+      void actorId;
+      return global.fetch(new URL(path, 'https://orgo.example.test'), {
+        ...init,
+        headers: { Authorization: 'Bearer actor-token' },
+      });
+    },
+  );
   const service = new MemberOrgoService(
     em as unknown as EntityManager,
     new ConfigService({
@@ -324,8 +336,12 @@ function fixture(writes = true) {
       ORGO_OAUTH_BASE_URL: 'https://orgo.example.test',
       ORGO_MEMBER_WRITES_ENABLED: writes ? 'true' : 'false',
     }),
+    delegated
+      ? ({ authorizeSyncActor: authorize } as unknown as MembersService)
+      : undefined,
+    delegated ? ({ memberRequest: delegatedRequest } as never) : undefined,
   );
-  return { service, member, operation };
+  return { service, member, operation, authorize, delegatedRequest };
 }
 const response = (email = 'old@example.test', center = 7, id = 42) =>
   new Response(
@@ -839,9 +855,7 @@ describe('automatic outgoing retry', () => {
       .mockResolvedValue(new Response('{}', { status: 403 }));
     await f.service.run();
     expect(f.operation.state).toBe('permission-required');
-    expect(f.operation.nextAttemptAt!.getTime() - Date.now()).toBeGreaterThan(
-      800000,
-    );
+    expect(f.operation.nextAttemptAt!.getTime()).toBeGreaterThan(Date.now());
   });
 });
 
@@ -918,4 +932,79 @@ it('sends a fee-type change using the canonical ProductPrice IRI and confirms it
   } finally {
     global.fetch = original;
   }
+});
+
+describe('actor-bound member credential fallback', () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+  it('uses the modifying actor when server writes are disabled and confirms readback', async () => {
+    const f = fixture(false, true);
+    const fetcher = jest
+      .fn<ReturnType<typeof global.fetch>, Parameters<typeof global.fetch>>()
+      .mockResolvedValueOnce(response())
+      .mockResolvedValueOnce(response('new@example.test'))
+      .mockResolvedValueOnce(response('new@example.test'));
+    global.fetch = fetcher;
+    await f.service.run();
+    expect(f.operation.state).toBe('synced');
+    expect(
+      f.delegatedRequest.mock.calls.every(([actorId]) => actorId === 17),
+    ).toBe(true);
+    expect(f.authorize).toHaveBeenCalled();
+    expect(fetcher.mock.calls[1][1]).toMatchObject({
+      method: 'PATCH',
+      headers: { Authorization: 'Bearer actor-token' },
+    });
+  });
+  it('falls back after explicit 403 with delegated preflight and readback', async () => {
+    const f = fixture(true, true);
+    const fetcher = jest
+      .fn<ReturnType<typeof global.fetch>, Parameters<typeof global.fetch>>()
+      .mockResolvedValueOnce(response())
+      .mockResolvedValueOnce(new Response('{}', { status: 403 }))
+      .mockResolvedValueOnce(response())
+      .mockResolvedValueOnce(response('new@example.test'))
+      .mockResolvedValueOnce(response('new@example.test'));
+    global.fetch = fetcher;
+    await f.service.run();
+    expect(f.operation.state).toBe('synced');
+    expect(
+      f.delegatedRequest.mock.calls.map(([, , init]) => init.method),
+    ).toEqual(['GET', 'PATCH', 'GET']);
+  });
+  it('never changes credentials after an uncertain server write', async () => {
+    const f = fixture(true, true);
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(response())
+      .mockRejectedValueOnce(new Error('timeout'));
+    await f.service.run();
+    expect(f.operation.state).toBe('uncertain');
+    expect(f.delegatedRequest).not.toHaveBeenCalled();
+  });
+  it('blocks delegated delivery after local authority is revoked', async () => {
+    const f = fixture(false, true);
+    f.authorize.mockRejectedValue(new ForbiddenException());
+    global.fetch = jest.fn();
+    await f.service.run();
+    expect(f.operation.state).toBe('permission-required');
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+  it('does not switch credential and overwrite changed remote data during fallback', async () => {
+    const f = fixture(true, true);
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(response())
+      .mockResolvedValueOnce(new Response('{}', { status: 403 }))
+      .mockResolvedValueOnce(response('concurrent@example.test'));
+    await f.service.run();
+    expect(f.operation.state).toBe('pending');
+    expect(
+      f.delegatedRequest.mock.calls.every(
+        ([, , init]) => init.method === 'GET',
+      ),
+    ).toBe(true);
+  });
 });

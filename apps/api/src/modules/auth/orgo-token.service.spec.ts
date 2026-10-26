@@ -175,3 +175,60 @@ describe('ORGO member API credentials', () => {
     }
   });
 });
+
+it('limits delegated member writes to the selected actor and scoped paths, and clears revoked tokens', async () => {
+  const connection = { apiTokenEncrypted: null as string | null };
+  const em = {
+    findOne: (_entity: unknown, where: { user: number }) =>
+      Promise.resolve(where.user === 17 ? connection : null),
+    flush: () => Promise.resolve(),
+  };
+  const service = new OrgoTokenService(
+    em as unknown as EntityManager,
+    new ConfigService({
+      ORGO_TOKEN_ENCRYPTION_KEY: 'ab'.repeat(32),
+      ORGO_OAUTH_BASE_URL: 'https://tenant.example.test',
+    }),
+  );
+  await service.capture(17, { access_token: 'actor-secret' });
+  const fetcher = jest
+    .spyOn(global, 'fetch')
+    .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+    .mockResolvedValueOnce(new Response('{}', { status: 401 }));
+  try {
+    await expect(
+      service.memberRequest(18, '/api/v1/users/42', {
+        method: 'PATCH',
+        body: '{}',
+      }),
+    ).rejects.toThrow();
+    await expect(
+      service.memberRequest(17, 'https://elsewhere.test/api/v1/users/42', {
+        method: 'PATCH',
+        body: '{}',
+      }),
+    ).rejects.toThrow();
+    await expect(
+      service.memberRequest(17, '/api/v1/fee_payments', {
+        method: 'POST',
+        body: '{}',
+      }),
+    ).rejects.toThrow();
+    expect(fetcher).not.toHaveBeenCalled();
+    await service.memberRequest(17, '/api/v1/users/42', {
+      method: 'PATCH',
+      body: JSON.stringify({ email: 'test@example.test' }),
+    });
+    expect(fetcher.mock.calls[0][1]).toMatchObject({
+      method: 'PATCH',
+      headers: {
+        Authorization: 'Bearer actor-secret',
+        'Content-Type': 'application/merge-patch+json',
+      },
+    });
+    await service.memberRequest(17, '/api/v1/users/42', { method: 'GET' });
+    expect(connection.apiTokenEncrypted).toBeNull();
+  } finally {
+    fetcher.mockRestore();
+  }
+});

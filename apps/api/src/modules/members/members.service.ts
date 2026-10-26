@@ -84,6 +84,79 @@ const denied = () => {
 export class MembersService {
   constructor(private readonly em: EntityManager) {}
 
+  async authorizeSyncActor(
+    actorId: number,
+    memberId: string,
+    kind: string,
+    fields: string[],
+  ) {
+    const tx = this.em.fork();
+    const account = await tx.findOneOrFail(
+      User,
+      { id: actorId },
+      { refresh: true },
+    );
+    if (account.memberAccessDisabled) denied();
+    const user: CurrentUser = {
+      id: account.id,
+      displayName: account.displayName,
+      roles: [
+        ...new Set([
+          ...account.roles,
+          ...(account.councilAdmin ? [UserRole.Admin] : []),
+        ]),
+      ],
+    };
+    if (kind === 'fee-plan') {
+      if (
+        !user.roles.some((role) =>
+          [
+            UserRole.Admin,
+            UserRole.SuperAdmin,
+            UserRole.FinanceManager,
+          ].includes(role),
+        )
+      )
+        denied();
+      return;
+    }
+    const member = await this.get(tx, memberId),
+      grant = await this.access(tx, user, member);
+    if (kind === 'status' ? !grant.withdraw : !grant.edit && !grant.own)
+      denied();
+    if (
+      fields.some((field) =>
+        [
+          'firstName',
+          'lastName',
+          'middleName',
+          'dateBirth',
+          'dateJoined',
+          'dateJoinedFullMember',
+        ].includes(field),
+      ) &&
+      !grant.identity
+    )
+      denied();
+    if (fields.some((field) => field.startsWith('custom:')) && !grant.sensitive)
+      denied();
+    for (const field of fields.filter((key) => key.startsWith('custom:'))) {
+      const id = Number(field.slice(7));
+      const definitions = Array.isArray(member.orgoProfile?.customDefinitions)
+        ? member.orgoProfile.customDefinitions
+        : [];
+      const definition = definitions.find(
+        (item) => Number((item as { id?: number }).id) === id,
+      ) as { visibility?: string; isOnlyAdmin?: boolean } | undefined;
+      if (
+        !definition ||
+        ((definition.visibility === 'admin' || definition.isOnlyAdmin) &&
+          !grant.identity)
+      )
+        denied();
+    }
+  }
+
   async requireRosterAccess(user: CurrentUser) {
     const ctx = await this.context(this.em.fork(), user);
     if (!ctx.member || ctx.member.status !== 'active') denied();

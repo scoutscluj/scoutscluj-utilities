@@ -23,13 +23,13 @@ test('owner uploads, sees year history and retains original downloadable version
 }) => {
 	await page.goto('/profile');
 	const summary = page.getByRole('region', { name: 'Documente adulți' });
-	await expect(summary.getByText('Lipsește')).toHaveCount(1);
+	await expect(summary.getByText('Lipsește')).toHaveCount(2);
 	await expect(summary.getByRole('button', { name: 'Adaugă document', exact: true })).toBeVisible();
 	expect((await summary.boundingBox())!.width).toBeLessThanOrEqual(680);
 	await summary.getByRole('button', { name: /Adaugă document|Deschide dosarul/ }).click();
 	const dialog = page.getByRole('dialog', { name: 'Documente adulți' });
 	await expect(dialog).toBeVisible();
-	await expect(dialog.getByText('Cazier judiciar', { exact: true })).toHaveCount(0);
+	await expect(dialog.getByText('Cazier judiciar', { exact: true })).toBeVisible();
 	await dialog.getByText('Cum obțin certificatul (CIC)?').click();
 	await expect(
 		dialog.getByRole('link', { name: 'Obține certificatul de integritate' })
@@ -116,6 +116,30 @@ test('central admin rejects CIC with feedback and validates its replacement', as
 	await expect(page.getByText('Dosar complet')).toBeVisible();
 });
 
+test('optional criminal record uploads and versions remain separate from CIC', async ({ page }) => {
+	await page.goto('/profile');
+	await page.getByRole('button', { name: 'Adaugă document', exact: true }).click();
+	const dialog = page.getByRole('dialog', { name: 'Documente adulți' });
+	const slot = dialog.getByRole('region', { name: 'Cazier judiciar', exact: true });
+	await expect(slot.getByText('Opțional.', { exact: false })).toBeVisible();
+	await slot
+		.getByLabel('Încarcă Cazier judiciar', { exact: true })
+		.setInputFiles({ ...pdf, name: 'cazier.pdf' });
+	await expect(slot.getByText('În verificare', { exact: true })).toBeVisible();
+	await expect(
+		dialog.getByLabel('Încarcă Certificat de integritate comportamentală', { exact: true })
+	).toBeEnabled();
+	await slot
+		.getByLabel('Înlocuiește Cazier judiciar', { exact: true })
+		.setInputFiles({ ...pdf, name: 'cazier-nou.pdf' });
+	await expect(slot.getByText('Versiunea 2 ·')).toBeVisible();
+	await slot.getByText('Versiuni anterioare (1)').click();
+	const original = slot.getByRole('link', { name: 'Versiunea 1 · cazier.pdf' });
+	expect(await (await page.request.get((await original.getAttribute('href'))!)).body()).toEqual(
+		pdf.buffer
+	);
+});
+
 test('ordinary members cannot open admin workspace or cross-origin upload proxy', async ({
 	page
 }) => {
@@ -171,7 +195,7 @@ test('switching dossiers while a file is being read keeps the original upload ow
 	await expect(
 		dialog.getByLabel('Încarcă Certificat de integritate comportamentală', { exact: true })
 	).toBeEnabled();
-	await expect(dialog.getByText('Lipsește', { exact: true })).toBeVisible();
+	await expect(dialog.getByText('Lipsește', { exact: true })).toHaveCount(2);
 	await page.keyboard.press('Escape');
 	const row = page
 		.getByRole('row')

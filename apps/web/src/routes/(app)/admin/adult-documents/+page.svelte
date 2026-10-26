@@ -96,7 +96,8 @@
 						><button class="sort" type="button" onclick={() => (descending = !descending)}
 							>Membru {descending ? '↓' : '↑'}</button
 						></th
-					><th>Integritate comportamentală (CIC)</th><th><span class="sr-only">Acțiuni</span></th
+					><th>Integritate comportamentală (CIC)</th><th>Cazier judiciar (opțional)</th><th
+						><span class="sr-only">Acțiuni</span></th
 					></tr
 				></thead
 			>
@@ -108,6 +109,7 @@
 							></td
 						>
 						<td><DocumentBadge status={row.statuses[0]} /></td>
+						<td><DocumentBadge status={row.statuses[1] ?? 'missing'} /></td>
 						<td
 							><button
 								class="open-dossier"
@@ -120,7 +122,7 @@
 							></td
 						>
 					</tr>{:else}<tr
-						><td colspan="3" class="empty"
+						><td colspan="4" class="empty"
 							>{data.workspace.rows.length
 								? 'Niciun membru nu corespunde filtrelor selectate.'
 								: 'Nu există membri activi de minimum 18 ani cu data nașterii înregistrată.'}</td

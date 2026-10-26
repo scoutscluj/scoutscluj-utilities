@@ -38,7 +38,8 @@
 			</p>
 			<div class="slots">
 				{#each documentKinds as kind (kind)}<div>
-						<span>{documentLabels[kind]}</span><DocumentBadge
+						<span>{documentLabels[kind]}{kind === 'criminal_record' ? ' (opțional)' : ''}</span
+						><DocumentBadge
 							status={currentDocument(dossier.documents, kind)?.status ?? 'missing'}
 						/>
 					</div>{/each}

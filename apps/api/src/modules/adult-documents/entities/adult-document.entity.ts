@@ -49,7 +49,10 @@ export const AdultDocument = defineEntity({
         .foreignKeyName('adult_documents_member_id_fkey'),
     year: p.integer(),
     kind: p
-      .enum(() => ({ BehaviouralIntegrity: 'behavioural_integrity' as const }))
+      .enum(() => ({
+        BehaviouralIntegrity: 'behavioural_integrity' as const,
+        CriminalRecord: 'criminal_record' as const,
+      }))
       .$type<DocumentKind>(),
     version: p.integer(),
     status: p.string().$type<DocumentStatus>().default('pending'),

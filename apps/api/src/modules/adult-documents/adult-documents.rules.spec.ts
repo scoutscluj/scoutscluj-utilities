@@ -26,14 +26,19 @@ describe('adult document rules', () => {
   });
 
   it('requires the current CIC version to be validated', () => {
-    expect(summarizeDocuments([])).toEqual(['missing']);
+    expect(summarizeDocuments([])).toEqual(['missing', 'missing']);
     expect(
       summarizeDocuments([
         { kind: 'behavioural_integrity', version: 1, status: 'validated' },
         { kind: 'behavioural_integrity', version: 2, status: 'pending' },
       ]),
-    ).toEqual(['pending']);
-    expect(() => parseKind('criminal_record')).toThrow();
+    ).toEqual(['pending', 'missing']);
+    expect(parseKind('criminal_record')).toBe('criminal_record');
+    expect(
+      summarizeDocuments([
+        { kind: 'criminal_record', version: 1, status: 'validated' },
+      ]),
+    ).toEqual(['missing', 'validated']);
   });
 
   it('rejects invalid kinds, years, malformed base64, spoofed types and oversized files', () => {

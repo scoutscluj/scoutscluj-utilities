@@ -15,6 +15,7 @@ import { OrgoTokenService } from './orgo-token.service';
   providers: [
     AuthService,
     OrgoTokenService,
+    { provide: 'ORGO_MEMBER_TOKENS', useExisting: OrgoTokenService },
     OrgoClientService,
     SessionService,
     AuthGuard,
@@ -26,6 +27,7 @@ import { OrgoTokenService } from './orgo-token.service';
     RolesGuard,
     SessionService,
     OrgoTokenService,
+    'ORGO_MEMBER_TOKENS',
   ],
 })
 export class AuthModule {}

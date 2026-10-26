@@ -233,3 +233,21 @@ Se selectează versiunea curentă din produsul de cotizație al tenantului, cu v
 intervalului și centrului; ID-urile nu sunt fixate în cod. Schimbarea nu înregistrează
 o plată națională și nu activează tokenul de scriere. Starea livrării este afișată
 în registru și în jurnalul de sincronizare.
+
+
+## Tokenul utilizatorului pentru scrierile Orgo
+
+La solicitarea explicită a administratorului, scrierile de membri pot folosi tokenul
+OAuth criptat al autorului operațiunii când scrierile serverului sunt dezactivate
+sau Orgo răspunde 401/403. Se păstrează autorul din outbox, nu se alege alt utilizator.
+Drepturile locale curente și câmpurile protejate se verifică înaintea fiecărui apel.
+Orgo verifică separat drepturile tokenului. Validarea centrului, reconcilierea și
+recitirea după scriere rămân obligatorii. Un timeout sau 5xx nu schimbă tokenul
+pentru o a doua scriere imediată.
+
+Tokenul lipsă/revocat cere reautentificare. Un administrator poate relua explicit
+o operațiune cu propriul token; schimbarea autorului și modul de execuție sunt
+auditate. successToken SSO nu este folosit ca bearer API. Regula înlocuiește
+restricția anterioară server-only; fluxul financiar național rămâne separat.
+
+Cotisation type changes use a compact pencil icon next to the plan label. The operator is not required to supply an explanation; the audit retains the actor, old/new plan and amounts.

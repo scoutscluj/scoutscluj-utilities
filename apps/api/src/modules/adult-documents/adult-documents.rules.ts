@@ -1,7 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
 import { membershipPeriodFor } from '../membership/membership.rules';
 
-export const DOCUMENT_KINDS = ['behavioural_integrity'] as const;
+export const DOCUMENT_KINDS = [
+  'behavioural_integrity',
+  'criminal_record',
+] as const;
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
 export type DocumentStatus = 'pending' | 'validated' | 'rejected';
 export const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
@@ -47,7 +50,7 @@ export function parseYear(value: unknown) {
 }
 
 export function parseKind(value: unknown): DocumentKind {
-  if (value !== 'behavioural_integrity')
+  if (value !== 'behavioural_integrity' && value !== 'criminal_record')
     throw new BadRequestException('Tip de document invalid.');
   return value;
 }

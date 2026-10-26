@@ -827,7 +827,7 @@ export class MembershipService {
     uuid(id);
     const body = record(input),
       selected = plan(body.plan),
-      note = text(body.note, 2000),
+      note = body.note ? text(body.note, 2000) : null,
       version = text(body.version, 100);
     if (!this.memberOrgo)
       throw new ServiceUnavailableException(

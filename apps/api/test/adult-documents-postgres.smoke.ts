@@ -16,6 +16,7 @@ import {
 } from '../src/modules/adult-documents/entities/adult-document.entity';
 import { AdultDocumentsService } from '../src/modules/adult-documents/adult-documents.service';
 import { scoutingYear } from '../src/modules/adult-documents/adult-documents.rules';
+import { Migration20261026000200 } from '../src/migrations/Migration20261026000200';
 import { Migration20261025000100 } from '../src/migrations/Migration20261025000100';
 
 async function main() {
@@ -58,16 +59,6 @@ async function main() {
     );
     migration.up();
     for (const sql of migration.getQueries()) await connection.execute(sql);
-
-    const diff = await orm.schema.getUpdateSchemaSQL({ wrap: false });
-    if (diff.trim())
-      console.log(
-        await connection.execute(
-          "select conname, pg_get_constraintdef(oid) as definition from pg_constraint where conrelid = 'adult_documents'::regclass and contype = 'c' order by conname",
-        ),
-      );
-    assert.equal(diff.trim(), '', `Migration must match ORM metadata: ${diff}`);
-
     const em = orm.em.fork();
     const owner = em.create(User, {
       displayName: 'Adult beneficiar',
@@ -116,6 +107,27 @@ async function main() {
         service().upload(actor, member.id, input),
       ),
     );
+    const extension = new Migration20261026000200(
+      orm.em.getDriver(),
+      orm.config,
+    );
+    extension.up();
+    for (const sql of extension.getQueries()) await connection.execute(sql);
+
+    const diff = await orm.schema.getUpdateSchemaSQL({ wrap: false });
+    if (diff.trim())
+      console.log(
+        await connection.execute(
+          "select conname, pg_get_constraintdef(oid) as definition from pg_constraint where conrelid = 'adult_documents'::regclass and contype = 'c' order by conname",
+        ),
+      );
+    assert.equal(diff.trim(), '', `Migration must match ORM metadata: ${diff}`);
+
+    assert.equal(
+      await orm.em.fork().count(AdultDocument, {}),
+      3,
+      'Existing CIC versions survive the extension.',
+    );
     const dossier = await service().getDossier(actor, member.id);
     assert.deepEqual(
       dossier.documents.map((d) => d.version),
@@ -160,6 +172,27 @@ async function main() {
       4,
     );
 
+    const optional = await service().upload(actor, member.id, {
+      ...input,
+      kind: 'criminal_record',
+      filename: 'cazier.pdf',
+    });
+    assert.equal(
+      (await service().getDossier(actor, member.id)).documents.find(
+        (d) => d.id === optional.id,
+      )?.version,
+      1,
+    );
+    assert.equal((await service().getDossier(actor, member.id)).complete, true);
+    await service().review(central, optional.id, {
+      status: 'rejected',
+      reason: 'Copie ilizibilă.',
+    });
+    assert.equal((await service().getDossier(actor, member.id)).complete, true);
+    assert.deepEqual(
+      (await service().download(actor, optional.id)).data,
+      original,
+    );
     const freshEm = orm.em.fork();
     const count = await freshEm.count(AdultDocument, {});
     const fileCount = await freshEm.count(AdultDocumentFile, {});

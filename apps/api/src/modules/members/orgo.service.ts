@@ -1,3 +1,4 @@
+import type { OrgoTokenService } from '../auth/orgo-token.service';
 import { orgoPlan } from '../membership/orgo-fee-plan';
 import { feePriceReference } from './orgo-sync';
 import {
@@ -26,6 +27,8 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Inject,
+  UnauthorizedException,
   Optional,
   ConflictException,
   ServiceUnavailableException,
@@ -104,6 +107,9 @@ export class MemberOrgoService {
     private readonly em: EntityManager,
     private readonly config: ConfigService,
     @Optional() private readonly members?: MembersService,
+    @Optional()
+    @Inject('ORGO_MEMBER_TOKENS')
+    private readonly tokens?: OrgoTokenService,
   ) {}
   private definitions: Record<string, unknown>[] = [];
   private cached?: { at: number; rows: Record<string, unknown>[] };
@@ -1291,6 +1297,8 @@ export class MemberOrgoService {
         throw new BadRequestException(
           'Operațiunea este finalizată sau în curs.',
         );
+      const previousActorId = operation.actorId;
+      operation.actorId = user.id;
       operation.nextAttemptAt = null;
       operation.attempts = 0;
       operation.state = 'pending';
@@ -1331,7 +1339,7 @@ export class MemberOrgoService {
         action: 'members.sync-retry',
         entityType: 'MemberSync',
         entityId: id,
-        metadata: {},
+        metadata: { previousActorId, actorId: user.id },
       });
       return { ok: true };
     });
@@ -1547,9 +1555,7 @@ export class MemberOrgoService {
     this.processing = true;
     try {
       const em = this.em.fork();
-      const states = ['pending', 'running', 'uncertain'];
-      if (this.config.get<string>('ORGO_MEMBER_WRITES_ENABLED') === 'true')
-        states.push('permission-required');
+      const states = ['pending', 'running', 'uncertain', 'permission-required'];
       const jobs = await em.find(
         MemberSync,
         {
@@ -1565,6 +1571,99 @@ export class MemberOrgoService {
     } finally {
       this.processing = false;
     }
+  }
+  private async memberTransport(
+    path: string,
+    init: { method: 'GET' | 'PATCH' | 'POST'; body?: string | FormData },
+    claim: MemberSync,
+    mode: { delegated: boolean; observed?: Record<string, unknown> },
+  ) {
+    const delegate = async () => {
+      if (!claim.actorId || !this.tokens || !this.members)
+        throw new UnauthorizedException(
+          'Operațiunea necesită un utilizator cu acces Orgo.',
+        );
+      const m = await this.em
+        .fork()
+        .findOneOrFail(ScoutMember, { id: claim.memberId });
+      const fields = Object.keys(this.intentions(claim, m).expected);
+      await this.members.authorizeSyncActor(
+        claim.actorId,
+        claim.memberId,
+        claim.kind,
+        fields,
+      );
+      const switching = !mode.delegated;
+      mode.delegated = true;
+      if (switching && init.method !== 'GET') {
+        // Re-read under the replacement credential before a rejected server write is retried.
+        const check = await this.tokens.memberRequest(
+          claim.actorId,
+          '/api/v1/users/' + m.orgoId,
+          { method: 'GET' },
+        );
+        if (!check.ok) throw new OrgoRequestError(check.status);
+        const raw = object(await check.json());
+        if (
+          Number(raw.id) !== m.orgoId ||
+          Number(object(raw.localCenter).id) !== this.settings().center
+        )
+          throw new BadGatewayException('Identitate Orgo invalidă.');
+        const current = {
+          ...flattenFields(cleanProfile(raw)),
+          status: raw.status,
+        } as Record<string, unknown>;
+        if (
+          fields.some(
+            (field) => !equalValue(current[field], mode.observed?.[field]),
+          )
+        )
+          throw new ConflictException(
+            'Datele Orgo s-au schimbat. Se reia verificarea.',
+          );
+      }
+      mode.delegated = true;
+      return this.tokens.memberRequest(claim.actorId, path, init);
+    };
+    let response: Response;
+    if (
+      mode.delegated ||
+      (init.method !== 'GET' &&
+        this.config.get<string>('ORGO_MEMBER_WRITES_ENABLED') !== 'true')
+    )
+      response = await delegate();
+    else {
+      const settings = this.settings();
+      const url = new URL(path, settings.base);
+      if (
+        url.origin !== new URL(settings.base).origin ||
+        !/^\/api\/v1\/(users\/\d+|media_objects)$/.test(url.pathname)
+      )
+        throw new BadGatewayException('Adresă Orgo invalidă.');
+      response = await fetch(url, {
+        method: init.method,
+        headers: {
+          'Api-Token': settings.token,
+          Accept: 'application/ld+json, application/json',
+          ...(typeof init.body === 'string'
+            ? { 'Content-Type': 'application/merge-patch+json' }
+            : {}),
+        },
+        ...(init.body ? { body: init.body } : {}),
+        redirect: 'error',
+        signal: AbortSignal.timeout(30000),
+      });
+      if ([401, 403].includes(response.status)) response = await delegate();
+    }
+    if (!response.ok) {
+      const retry = response.headers.get('retry-after'),
+        seconds = retry ? Number(retry) : NaN;
+      throw new OrgoRequestError(
+        response.status,
+        Number.isFinite(seconds) ? seconds * 1000 : 0,
+      );
+    }
+    return object(await response.json());
   }
   private async deliver(id: string) {
     const claim = await this.em.fork().transactional(async (tx) => {
@@ -1606,13 +1705,26 @@ export class MemberOrgoService {
     const superseded: string[] = [];
     const confirmedWrites: Record<string, unknown> = {};
     let attemptedWrite = false;
+    const credentialMode: {
+      delegated: boolean;
+      observed?: Record<string, unknown>;
+    } = {
+      delegated:
+        !!this.tokens &&
+        this.config.get<string>('ORGO_MEMBER_WRITES_ENABLED') !== 'true',
+    };
     try {
       if (!member.orgoId) {
         state = 'permission-required';
         message = 'Asociază o identitate Orgo înainte de sincronizare.';
       } else {
         const read = async () => {
-          const raw = await this.request('/api/v1/users/' + member.orgoId);
+          const raw = await this.memberTransport(
+            '/api/v1/users/' + member.orgoId,
+            { method: 'GET' },
+            claim,
+            credentialMode,
+          );
           if (
             Number(raw.id) !== member.orgoId ||
             Number(object(raw.localCenter).id) !== this.settings().center
@@ -1625,6 +1737,7 @@ export class MemberOrgoService {
           ...flattenFields(cleanProfile(raw)),
           status: raw.status,
         };
+        credentialMode.observed = remote;
         const intent = this.intentions(claim, member);
         const patch: Record<string, unknown> = {};
         for (const [key, expected] of Object.entries(intent.expected)) {
@@ -1647,11 +1760,6 @@ export class MemberOrgoService {
           message = superseded.length
             ? 'Se păstrează datele curente; modificările vechi au fost înlocuite.'
             : 'Date confirmate în Orgo.';
-        } else if (
-          this.config.get<string>('ORGO_MEMBER_WRITES_ENABLED') !== 'true'
-        ) {
-          state = 'permission-required';
-          message = 'Salvat local. Scrierile Orgo nu sunt activate.';
         } else {
           attemptedWrite = true;
           if (claim.kind === 'photo') {
@@ -1664,18 +1772,12 @@ export class MemberOrgoService {
             );
             form.append('type', 'user');
             form.append('entity_id', String(member.orgoId));
-            const response = await fetch(
-              new URL('/api/v1/media_objects', this.settings().base),
-              {
-                method: 'POST',
-                headers: { 'Api-Token': this.settings().token },
-                body: form,
-                redirect: 'error',
-                signal: AbortSignal.timeout(30000),
-              },
+            const uploaded = await this.memberTransport(
+              '/api/v1/media_objects',
+              { method: 'POST', body: form },
+              claim,
+              credentialMode,
             );
-            if (!response.ok) throw new OrgoRequestError(response.status);
-            const uploaded = object(await response.json());
             if (typeof uploaded.contentUrl !== 'string')
               throw new BadGatewayException('Fotografie neconfirmată.');
             patch.logo = uploaded.contentUrl;
@@ -1696,7 +1798,12 @@ export class MemberOrgoService {
             }
             if (Object.keys(patch).some((key) => key.startsWith('custom:')))
               outgoing.rawUserCustomFieldsValues = custom;
-            await this.request('/api/v1/users/' + member.orgoId, outgoing);
+            await this.memberTransport(
+              '/api/v1/users/' + member.orgoId,
+              { method: 'PATCH', body: JSON.stringify(outgoing) },
+              claim,
+              credentialMode,
+            );
           }
           const verified = await read();
           const values: Record<string, unknown> = {
@@ -1721,12 +1828,28 @@ export class MemberOrgoService {
         }
       }
     } catch (error) {
-      if (
+      if (error instanceof ConflictException) {
+        state = 'pending';
+        message = 'Datele Orgo s-au schimbat. Se reia verificarea.';
+        nextAttemptAt = new Date(Date.now() + 5000);
+      } else if (
+        error instanceof UnauthorizedException ||
+        error instanceof ForbiddenException
+      ) {
+        state = 'permission-required';
+        message =
+          error instanceof ForbiddenException
+            ? 'Utilizatorul care a făcut modificarea nu mai are dreptul de editare. Un administrator poate relua explicit operațiunea.'
+            : 'Autentifică-te din nou în Orgo pentru sincronizarea modificărilor.';
+        nextAttemptAt = new Date(Date.now() + 60000);
+      } else if (
         error instanceof OrgoRequestError &&
         [401, 403].includes(error.status)
       ) {
         state = 'permission-required';
-        message = 'Tokenul serverului nu permite scrierea în Orgo.';
+        message = credentialMode.delegated
+          ? 'Orgo a refuzat accesul utilizatorului. Verifică drepturile Orgo sau autentifică-te din nou.'
+          : 'Tokenul serverului nu permite scrierea în Orgo.';
         nextAttemptAt = new Date(Date.now() + 900000);
       } else if (error instanceof ServiceUnavailableException) {
         state = 'permission-required';
@@ -1818,6 +1941,16 @@ export class MemberOrgoService {
         m.revision++;
         m.updatedAt = new Date();
       }
+      tx.create(AuditEntry, {
+        actorId: claim.actorId,
+        action: 'members.sync-attempt',
+        entityType: 'MemberSync',
+        entityId: claim.id,
+        metadata: {
+          credentialMode: credentialMode.delegated ? 'actor-oauth' : 'server',
+          state,
+        },
+      });
       operation.state = state;
       operation.message = message;
       operation.nextAttemptAt = nextAttemptAt;

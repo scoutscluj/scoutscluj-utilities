@@ -41,6 +41,10 @@ jobs:
       - run: pnpm --filter api build
       - name: Migrate a fresh PostgreSQL database and verify persisted member operations
         run: pnpm --filter api exec tsx test/members-postgres.smoke.ts
+      - name: Verify private adult document migration and persistence
+        run: pnpm --filter api exec tsx test/adult-documents-postgres.smoke.ts
+        env:
+          ADULT_DOCUMENTS_TEST_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/postgres
       - name: Verify catalog maintenance command completes and is repeatable
         run: |
           timeout 60s pnpm --filter api kitchen:seed:prod

@@ -20,6 +20,7 @@
 		membershipProgress
 	} from './admin-ledger';
 	import Plus from '@lucide/svelte/icons/plus';
+	import Pencil from '@lucide/svelte/icons/pencil';
 	import Users from '@lucide/svelte/icons/users';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import Wallet from '@lucide/svelte/icons/wallet';
@@ -205,20 +206,27 @@
 										>Adeziune achitată</span
 									>{/if}<small>ID Orgo {o.orgoUserId} {o.cardId ? `· ${o.cardId}` : ''}</small></td
 							>
-							<td
-								>{feePlans.find((p) => p[0] === o.plan)?.[1] ?? o.plan}
+							<td>
+								<div class="plan-control">
+									<span>{feePlans.find((p) => p[0] === o.plan)?.[1] ?? o.plan}</span>
+									{#if !transfers && ledger.periods.find((p) => p.id === o.periodId)?.active}
+										<button
+											type="button"
+											class="edit-plan"
+											disabled={!ready}
+											aria-label={`Schimbă tipul cotizației pentru ${o.memberName}`}
+											title="Schimbă tipul cotizației"
+											onclick={() => {
+												planMember = o;
+												planOpen = true;
+											}}
+										>
+											<Pencil size={15} aria-hidden="true" />
+										</button>
+									{/if}
+								</div>
 								{#if o.feePlanSyncState}<small
 										>{syncLabels[o.feePlanSyncState] ?? 'În așteptarea sincronizării'}</small
-									>{/if}
-								{#if !transfers && ledger.periods.find((p) => p.id === o.periodId)?.active}<button
-										type="button"
-										class="resolve-review"
-										disabled={!ready}
-										aria-label={`Schimbă tipul cotizației pentru ${o.memberName}`}
-										onclick={() => {
-											planMember = o;
-											planOpen = true;
-										}}>Schimbă tipul</button
 									>{/if}
 							</td>
 							<td>{money(o.totalBani)}</td>
@@ -322,6 +330,38 @@
 />
 
 <style>
+	.plan-control {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.edit-plan {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		min-height: 32px;
+		padding: 0;
+		border: 1px solid var(--sc-border);
+		border-radius: 6px;
+		background: var(--sc-surface);
+		color: var(--sc-muted);
+		cursor: pointer;
+	}
+	.edit-plan:hover {
+		color: var(--sc-ink);
+		background: var(--sc-inset);
+	}
+	.edit-plan:focus-visible {
+		outline: 2px solid var(--sc-accent);
+		outline-offset: 2px;
+	}
+	.edit-plan:disabled {
+		opacity: 0.5;
+		cursor: wait;
+	}
+
 	.resolve-review {
 		margin-left: 8px;
 		padding: 5px 10px;

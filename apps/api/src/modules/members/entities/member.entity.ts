@@ -149,6 +149,8 @@ export const MemberSync = defineEntity({
     createdAt: created(),
     completedAt: p.datetime().nullable(),
     claimedAt: p.datetime().nullable(),
+    attempts: p.integer().default(0),
+    nextAttemptAt: p.datetime().nullable(),
   },
 });
 export type MemberSync = InferEntity<typeof MemberSync>;
@@ -173,6 +175,10 @@ export const MemberSettings = defineEntity({
     id: p.string().primary(),
     progressionEnabled: p.boolean().default(false),
     lastOrgoRefresh: p.datetime().nullable(),
+    refreshToken: p.uuid().nullable(),
+    refreshClaimedAt: p.datetime().nullable(),
+    refreshState: p.string().default('idle'),
+    refreshMessage: p.text().nullable(),
   },
 });
 export const MemberNotice = defineEntity({

@@ -33,6 +33,8 @@ export type Unit = {
 	archived: boolean;
 };
 export type Member = {
+	syncState?: string;
+	syncMessage?: string;
 	responsibilities?: { id: string; role: string; unitId: string | null; groupId: string | null }[];
 	category?: string | null;
 	categoryReview?: boolean;
@@ -134,6 +136,8 @@ export type Detail = {
 		canSeeSensitive: boolean;
 	}[];
 	fees: {
+		current?: boolean;
+		plan?: string;
 		obligationId?: string;
 		nationalBani?: number;
 		nationalDirectBani?: number;

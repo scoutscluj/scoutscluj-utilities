@@ -1,3 +1,4 @@
+import { flattenFields, restoreFields, feePriceReference } from './orgo-sync';
 import type { Branch, Profile } from './member.types';
 export const object = (v: unknown): Record<string, unknown> =>
   v && typeof v === 'object' && !Array.isArray(v)
@@ -101,6 +102,8 @@ export function cleanProfile(raw: Record<string, unknown>) {
       });
     else if (JSON.stringify(v).length < 16000) result[key] = v;
   }
+  if ('feeTenantProductPrice' in raw)
+    result.feeTenantProductPrice = feePriceReference(raw.feeTenantProductPrice);
   return result;
 }
 export function branchFor(raw: Record<string, unknown>): Branch | null {
@@ -127,19 +130,39 @@ export function reconcile(
   local: Record<string, unknown>,
   remote: Record<string, unknown>,
 ) {
-  const values = { ...local },
-    nextBase = { ...base },
-    conflicts: Record<string, { local: unknown; remote: unknown }> = {};
+  const flatBase = flattenFields(base),
+    flatLocal = flattenFields(local),
+    flatRemote = flattenFields(remote);
+  if ('customFieldValues' in remote)
+    for (const key of Object.keys(flatBase))
+      if (key.startsWith('custom:') && !(key in flatRemote))
+        flatRemote[key] = null;
+  const values = { ...flatLocal },
+    nextBase = { ...flatBase };
+  const conflicts: Record<string, { local: unknown; remote: unknown }> = {};
   const equal = (a: unknown, b: unknown) =>
     JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
-  for (const [key, value] of Object.entries(remote)) {
-    if (equal(local[key], base[key]) || equal(local[key], value)) {
+  for (const [key, value] of Object.entries(flatRemote)) {
+    if (
+      !equal(flatLocal[key], flatBase[key]) &&
+      !equal(flatLocal[key], value) &&
+      !equal(value, flatBase[key])
+    )
+      conflicts[key] = { local: flatLocal[key] ?? null, remote: value };
+    if (
+      equal(flatLocal[key], flatBase[key]) ||
+      equal(flatLocal[key], value) ||
+      !equal(value, flatBase[key])
+    ) {
       values[key] = value;
       nextBase[key] = value;
-    } else if (!equal(value, base[key]))
-      conflicts[key] = { local: local[key] ?? null, remote: value };
+    }
   }
-  return { values, base: nextBase, conflicts };
+  return {
+    values: restoreFields(values, local),
+    base: restoreFields(nextBase, remote),
+    conflicts,
+  };
 }
 
 export function customProfileKey(

@@ -41,7 +41,7 @@ describe('Orgo profile contract and reconciliation', () => {
       customFieldValues: [{ field: 12, value: 'B', media: null }],
     });
   });
-  it('merges independent edits and preserves both versions of a conflicting field', () => {
+  it('merges independent edits and accepts Orgo for a conflicting field', () => {
     expect(
       reconcile(
         { address: 'A', bio: 'B', postalCode: 'C' },
@@ -49,8 +49,8 @@ describe('Orgo profile contract and reconciliation', () => {
         { address: 'remote', bio: 'new bio', postalCode: 'C' },
       ),
     ).toEqual({
-      values: { address: 'local', bio: 'new bio', postalCode: 'local-code' },
-      base: { address: 'A', bio: 'new bio', postalCode: 'C' },
+      values: { address: 'remote', bio: 'new bio', postalCode: 'local-code' },
+      base: { address: 'remote', bio: 'new bio', postalCode: 'C' },
       conflicts: { address: { local: 'local', remote: 'remote' } },
     });
   });
@@ -119,4 +119,33 @@ describe('verified reusable medical custom fields', () => {
       }),
     ).toEqual(emptyProfile());
   });
+});
+
+it('merges custom fields independently and accepts remote changes only for competing fields', () => {
+  const fields = (a: string, b: string) => ({
+    customFieldValues: [
+      { field: 1, value: a },
+      { field: 2, value: b },
+    ],
+  });
+  const result = reconcile(
+    fields('old-a', 'old-b'),
+    fields('local-a', 'old-b'),
+    fields('old-a', 'remote-b'),
+  );
+  expect(result.values.customFieldValues).toEqual([
+    { field: 1, value: 'local-a' },
+    { field: 2, value: 'remote-b' },
+  ]);
+  expect(result.conflicts).toEqual({});
+  const conflict = reconcile(
+    fields('old-a', 'old-b'),
+    fields('local-a', 'old-b'),
+    fields('remote-a', 'remote-b'),
+  );
+  expect(conflict.values.customFieldValues).toEqual([
+    { field: 1, value: 'remote-a' },
+    { field: 2, value: 'remote-b' },
+  ]);
+  expect(Object.keys(conflict.conflicts)).toEqual(['custom:1']);
 });

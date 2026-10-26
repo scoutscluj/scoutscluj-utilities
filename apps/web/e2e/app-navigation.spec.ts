@@ -91,21 +91,19 @@ test('member registry keeps occasional actions collapsed and offers only groups 
 	]);
 });
 
-test('inactive Orgo history stays separate and supports paging and search', async ({ page }) => {
-	await page.goto('/admin/members');
-	await page.getByRole('combobox', { name: 'Status', exact: true }).selectOption('');
-	await expect(page.getByRole('link', { name: 'Istoric 01', exact: true })).toHaveCount(0);
-	await page.locator('summary').filter({ hasText: 'Istoric Orgo: membri inactivi (52)' }).click();
-	const history = page.locator('section').filter({
-		has: page.locator('summary').filter({ hasText: 'Istoric Orgo: membri inactivi (52)' })
-	});
-	await expect(history.locator('td > a')).toHaveCount(25);
-	await expect(history.getByRole('link', { name: 'Istoric 01', exact: true })).toBeVisible();
-	await history.getByRole('button', { name: 'Pagina următoare', exact: true }).click();
-	await expect(history.getByRole('link', { name: 'Istoric 26', exact: true })).toBeVisible();
-	await history.getByLabel('Caută în istoricul Orgo').fill('Istoric 01');
-	await expect(history.getByRole('link')).toHaveCount(1);
-	await expect(history.getByRole('link', { name: 'Istoric 01', exact: true })).toBeVisible();
+test('inactive members use the main table search, status filter and pagination', async ({
+	page
+}) => {
+	await page.goto('/units');
+	const registry = page.getByRole('region', { name: 'Registrul membrilor', exact: true });
+	await registry.getByRole('combobox', { name: 'Status', exact: true }).selectOption('inactive');
+	await expect(page.locator('summary').filter({ hasText: 'Istoric Orgo' })).toHaveCount(0);
+	await expect(registry.getByRole('link', { name: 'Istoric 01', exact: true })).toBeVisible();
+	await registry.getByRole('button', { name: 'Pagina următoare', exact: true }).click();
+	await expect(registry.getByRole('link', { name: 'Istoric 26', exact: true })).toBeVisible();
+	await registry.getByLabel('Caută membru').fill('Istoric 01');
+	await expect(registry.getByRole('link', { name: 'Istoric 01', exact: true })).toBeVisible();
+	await expect(registry.locator('tbody tr')).toHaveCount(1);
 });
 
 test('structure filtering and initial classification keep unit choices consistent', async ({
@@ -173,13 +171,15 @@ test('selects all inactive results across pages and opens the withdrawal preview
 	page
 }) => {
 	await page.goto('/admin/members');
-	const history = page.locator('section').filter({
-		has: page.locator('summary').filter({ hasText: 'Istoric Orgo: membri inactivi (52)' })
-	});
-	await history.locator('summary').first().click();
+	const history = page.getByRole('region', { name: 'Registrul membrilor', exact: true });
+	await history.getByRole('combobox', { name: 'Status', exact: true }).selectOption('inactive');
 	await history.getByRole('combobox', { name: 'Rânduri pe pagină' }).selectOption('0');
 	await history.getByRole('checkbox', { name: 'Selectează pagina curentă' }).check();
 	await history.getByRole('button', { name: 'Modifică selecția', exact: true }).click();
+	await page
+		.getByRole('dialog')
+		.getByRole('combobox', { name: 'Modificare', exact: true })
+		.selectOption('withdraw');
 	await page
 		.getByRole('dialog')
 		.getByRole('button', { name: 'Previzualizează modificarea', exact: true })
@@ -429,9 +429,9 @@ test('responsibilities are assigned from a member row without changing primary c
 	await dialog.getByRole('combobox', { name: 'Subunitate', exact: true }).selectOption('g1');
 	await dialog.getByRole('checkbox', { name: 'Poate modifica membrii', exact: true }).check();
 	await dialog.getByRole('button', { name: 'Salvează responsabilitatea', exact: true }).click();
-	await expect(page.getByRole('status')).toContainText(
-		'Responsabilitatea și drepturile de acces au fost salvate.'
-	);
+	await expect(
+		page.getByRole('status').filter({ hasText: 'Responsabilitatea și drepturile de acces' })
+	).toContainText('Responsabilitatea și drepturile de acces au fost salvate.');
 	const submissions = await (await request.get('http://127.0.0.1:3015/test/submissions')).json();
 	expect(submissions.at(-1)).toMatchObject({
 		role: 'helper',
@@ -443,4 +443,31 @@ test('responsibilities are assigned from a member row without changing primary c
 	});
 	expect(submissions.at(-1)).not.toHaveProperty('category');
 	expect(submissions.at(-1)).not.toHaveProperty('targetId');
+});
+
+test('refreshes on opening, keeps cached rows visible, and permits retry after failure', async ({
+	page
+}) => {
+	let starts = 0,
+		polls = 0;
+	await page.route('**/units/sync', async (route) => {
+		const post = route.request().method() === 'POST';
+		if (post) starts++;
+		else polls++;
+		await route.fulfill({
+			json: {
+				state: post ? 'running' : starts === 1 ? 'failed' : 'succeeded',
+				message: 'Actualizarea a eșuat.',
+				lastSucceededAt: '2026-10-25T10:00:00Z'
+			}
+		});
+	});
+	await page.goto('/units');
+	await expect(page.getByRole('link', { name: 'Ana Popescu', exact: true })).toBeVisible();
+	await expect(page.getByText('Se actualizează din Orgo…', { exact: false })).toBeVisible();
+	await expect(page.getByText('Actualizarea a eșuat.', { exact: false })).toBeVisible();
+	await page.getByRole('button', { name: 'Reîncearcă actualizarea' }).click();
+	await expect(page.getByText('Date actualizate din Orgo.', { exact: false })).toBeVisible();
+	expect(starts).toBe(2);
+	expect(polls).toBe(2);
 });

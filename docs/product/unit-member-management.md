@@ -48,7 +48,7 @@ Se încheie toate implicările persoanei. Nu se șterg plăți sau istoricul.
 Cotizațiile nu mai sunt urmărite ca restanțe și nu pot fi inițiate plăți noi.
 Plățile deja în curs sunt semnalate pentru verificare financiară.
 
-La revenire se aleg explicit unitatea/grupa. Cotizația urmărită este cea pentru
+La revenirea inițiată local se aleg unitatea/grupa; reactivarea confirmată în Orgo păstrează apartenența locală cunoscută, iar lipsurile sunt trimise la verificare. Cotizația urmărită este cea pentru
 anul curent; plățile existente în acel an sunt păstrate, iar anii anteriori nu
 devin restanțe. Dacă nu există un plan anterior verificat sau o perioadă curentă
 inițializată, configurarea cotizației se face prin fluxul financiar existent.
@@ -87,12 +87,13 @@ Configurația se păstrează exclusiv pe server:
 | `ORGO_WITHDRAWN_STATUS`      | Valoarea Orgo confirmată pentru retragerea din activitate                      |
 
 Pagina `/units/orgo` citește registrul paginat și structura prin `Api-Token`.
-Membrii cu statusul Orgo `INACTIVE` apar exclusiv în secțiunea separată
-„Membri inactivi din Orgo”, închisă inițial, cu căutare și pagini de 25 de nume.
-Separarea se aplică atât previzualizării, cât și registrului local, inclusiv
-identităților importate anterior. Un membru reactivat explicit local revine în
-registrul curent. Statusurile necunoscute și `SUSPENDED` rămân pentru verificare;
-inactivitatea istorică nu aplică automat retragerea globală sau modificări financiare.
+Registrul principal include membrii activi, suspendați, inactivi și retrași,
+cu aceeași căutare, filtrare după status și paginare. Nu există un tabel separat
+pentru istoricul inactivilor. Fiecare deschidere a paginii afișează datele salvate
+și pornește o actualizare Orgo, cu progres, ultima reușită și reîncercare vizibile.
+Actualizarea citește toate paginile și fișele înainte de aplicare, descoperă
+identități noi și reconciliază statusurile. Lipsa unei persoane din răspuns nu
+înseamnă retragere. Identitățile provizorii ambigue nu sunt unite după nume.
 Patrulele sunt excluse după tipul structural Orgo (`Patrula` / `Patrulă`),
 împreună cu eventualii descendenți. Numele unei unități nu este folosit pentru
 această clasificare. Grupele locale rămân configurabile independent de Orgo.
@@ -106,9 +107,7 @@ checkoutul bazat pe ID Orgo până la confirmarea asocierii.
 Outboxul păstrează intenția împreună cu modificarea locală. Adapterul are suport
 pentru verificare și actualizare a contactului email/telefon și a statusului,
 cu citire înainte/după scriere, conflict și recuperare după răspuns incert.
-Reverificarea unei versiuni vechi folosește datele locale curente. Pentru un
-conflict, administratorul verifică valorile în Orgo și confirmă explicit dacă
-păstrează varianta locală. Nu există schimbare automată la tokenul utilizatorului.
+Reverificarea unei versiuni vechi folosește datele locale curente. La un conflict real pe același câmp, valoarea Orgo este acceptată automat și intenția locală este înlocuită cu audit. O intenție locală rămâne în așteptare dacă baza Orgo nu s-a schimbat. Câmpurile personalizate se reconciliază individual. Nu există schimbare automată la tokenul utilizatorului.
 
 **Integrare încă de finalizat:** crearea automată de membri în Orgo, maparea și
 scrierea unităților/subgrupelor/rolurilor, numelui, datei nașterii și clasei,
@@ -149,7 +148,7 @@ identitatea se salvează acum înaintea rândurilor dependente, în aceeași tra
 
 ## Cluj și Florești
 
-Consiliul confirmă încadrarea inițială din Unități și membri → Apartenența la Cluj și Florești. Propunerea folosește numele doar la prima încadrare; ulterior apartenența este explicită. Unitățile și subgrupele aparțin unei structuri. Dacă datele vechi amestecă ambele structuri într-o unitate, se creează întâi unitățile locale separate și se rezolvă repartizările în previzualizare. Istoricul inactiv se verifică separat, cu căutare și paginare.
+Consiliul confirmă încadrarea inițială din Unități și membri → Apartenența la Cluj și Florești. Propunerea folosește numele doar la prima încadrare; ulterior apartenența este explicită. Unitățile și subgrupele aparțin unei structuri. Dacă datele vechi amestecă ambele structuri într-o unitate, se creează întâi unitățile locale separate și se rezolvă repartizările în previzualizare. Membrii inactivi se verifică în tabelul principal, prin filtrul de status.
 
 Un responsabil de structură este un adult verificat, numit de Consiliu din fișa membrului. Nu are nevoie de promisiunea de lider pentru acest mandat. Gestionează membrii, unitățile și șefii propriei structuri și vede cotizațiile și adeziunile; nu primește drepturi financiare. Consiliul aprobă transferurile Cluj/Florești și implicarea adulților în cealaltă structură. Încetarea unei implicări locale nu retrage adultul din toate activitățile.
 
@@ -168,9 +167,9 @@ Plățile online aflate în curs la schimbarea apartenenței sau la înregistrar
 
 Importul citește fișele detaliate, tipurile și funcțiile active. Previzualizarea Consiliului afișează funcțiile; rolul Lider confirmă promisiunea fără o dată inventată. Patrulele rămân excluse, iar acordarea funcțiilor respectă vârsta, ramura și unitățile importate. Funcțiile importate au proveniență pentru încheierea lor la un import ulterior confirmat; responsabilitățile locale nu sunt șterse automat.
 
-Fișa include informațiile Orgo și fotografia, cu editare a câmpurilor compatibile, upload JPG/PNG/WebP și protejarea datelor suplimentare după aria de acces. Setările de securitate ale contului nu sunt importate în fișa cercetășească. Fișele se verifică zilnic și la cerere; conflictele păstrează ambele valori. Scrierile folosesc exclusiv tokenul serverului și coada existentă, cu verificare prin recitire. Flagul ORGO_MEMBER_WRITES_ENABLED rămâne controlul operațional pentru scrieri; o limitare remote este vizibilă. Rolurile și progresia fără contract de scriere verificat nu sunt declarate sincronizate.
+Fișa include informațiile Orgo și fotografia, cu editare a câmpurilor compatibile, upload JPG/PNG/WebP și protejarea datelor suplimentare după aria de acces. Setările de securitate ale contului nu sunt importate în fișa cercetășească. Fișele se verifică la fiecare deschidere a registrului, la cerere și prin verificarea zilnică de rezervă; Orgo câștigă schimbările concurente ale aceluiași câmp. Scrierile folosesc exclusiv tokenul serverului și coada existentă, cu verificare prin recitire. Flagul ORGO_MEMBER_WRITES_ENABLED rămâne controlul operațional pentru scrieri; o limitare remote este vizibilă. Rolurile și progresia fără contract de scriere verificat nu sunt declarate sincronizate.
 
-Registrul permite editarea individuală și în lot a clasei, repartizării și statusului. Selecția tuturor rezultatelor cuprinde toate paginile. Transferul apartenenței la Florești este rezervat Consiliului; încheie repartizarea beneficiarului în vechea unitate și păstrează responsabilitățile adulților. Membrii inactivi rămân într-un istoric separat, cu căutare și paginare, și pot fi confirmați direct ca retrași.
+Registrul permite editarea individuală și în lot a clasei, repartizării și statusului. Selecția tuturor rezultatelor cuprinde toate paginile. Transferul apartenenței la Florești este rezervat Consiliului; încheie repartizarea beneficiarului în vechea unitate și păstrează responsabilitățile adulților. Membrii inactivi apar în tabelul principal și pot fi retrași sau reactivați prin acțiunile autorizate; schimbările de status produc operațiuni către Orgo.
 
 Oricine poate vedea un membru poate consulta situația cotizațiilor sale. Confirmările financiare rămân rezervate rolurilor financiare. Meniul contextual verifică în Orgo partea națională pentru perioada exactă și asociază încasarea bancară locală. Acoperirea națională externă nu este o încasare a centrului și nu poate intra din nou într-un lot național. Soldurile și progresul financiar includ ambele componente, iar disponibilul unei încasări folosește numai fondurile reale.
 
@@ -181,3 +180,56 @@ Istoricul național verificat în Orgo folosește anul 1 octombrie–30 septembr
 Extinderea a fost instalată și verificată în producție la 20 octombrie 2026: migrarea `Migration20261020000200`, serviciile API/web și protecția accesului la membri și fotografii. Validarea include 391 teste API, 31 teste web și 17 teste în browser.
 
 Definițiile tenantului au fost verificate: rolurile 1/6 sunt pentru unități, iar 18/19 sunt pentru patrule și sunt excluse inclusiv din previzualizarea funcțiilor. Câmpurile publice Alimentație, Alergii și Alte nevoi sunt legate de fișa reutilizabilă, cu etichete pentru opțiunile alimentare și protecția câmpurilor administrative. Corecturile folosesc aceeași bază de reconciliere ca fișa Orgo.
+
+
+## Sincronizarea automată a registrului (26 octombrie 2026)
+
+Se aplică migrarea aditivă `Migration20261026000100` înaintea noii versiuni.
+Aceasta adaugă lease-ul persistent al actualizării și programarea reîncercărilor,
+clasifică statusurile istorice cunoscute și marchează operațiunile de organizare
+ca locale. Structura, categoria, unitatea/subunitatea, clasa și responsabilitățile
+sunt administrate în Resurse; actualizarea nu le suprascrie din Orgo.
+
+Workerul verifică operațiunile la aproximativ cinci secunde. Erorile temporare
+și HTTP 429/5xx primesc reîncercare cu întârziere progresivă; răspunsurile incerte
+sunt recitite înainte de o nouă scriere. HTTP 401/403 rămâne vizibil ca acces
+necesar, cu reverificare rară după activarea scrierilor sau reluare manuală după
+corectarea tokenului. Schimbările mai noi nu sunt anulate de răspunsuri vechi.
+Numele complet liber necesită editorul separat prenume/nume pentru livrare în
+Orgo; corectarea datei nașterii și a contactelor folosește aceleași câmpuri ca
+editorul profilului extins, chiar dacă se corectează și clasa în aceeași salvare.
+
+Retragerea încheie implicările la nivelul centrului și păstrează istoricul.
+Suspendarea/inactivitatea remote blochează autoritatea; reactivarea nu reînvie
+mandate încheiate și nu acordă automat roluri de administrator. Plățile istorice
+nu se rescriu și nu se creează restanțe retroactive.
+
+Contractele de scriere sunt încă limitate de accesul real al tokenului. Nu s-au
+activat scrieri de producție prin această implementare. `ORGO_ACTIVE_STATUS` și
+`ORGO_WITHDRAWN_STATUS` trebuie verificate în tenant; `INACTIVE` nu este ghicit
+ca valoare de retragere. Fără actualizări condiționale oferite de Orgo, verificarea
+înainte/după PATCH reduce conflictele, dar nu poate garanta atomicitatea unei
+modificări remote exact între citire și scriere. Testul PostgreSQL existent din
+CI acoperă migrarea și idempotenta actualizării pe o bază temporară.
+
+
+## Schimbarea tipului cotizației
+
+Personalul financiar poate alege „Schimbă tipul” în registrul financiar sau
+„Schimbă tipul cotizației” în situația cotizațiilor din meniul unui membru.
+Sunt disponibile Normală, Fam 1, Fam 2, Fam 3 și Socială. Previzualizarea arată
+tariful perioadei curente, suma deja achitată și restul; confirmarea cere un motiv.
+Nu se modifică perioadele istorice, încasările sau alocările existente.
+
+Plățile în curs, surplusul, acoperirea națională externă prea mare și transferurile
+naționale incompatibile blochează confirmarea până la reconciliere. Orice schimbare
+a datelor după previzualizare cere o nouă verificare. Tipul și intenția Orgo se
+salvează în aceeași tranzacție. Un registru Orgo neschimbat nu anulează o schimbare
+locală în așteptare; o schimbare concurentă reală din Orgo are prioritate.
+
+Catalogul Orgo și clientul oficial au fost citite la 26 octombrie 2026:
+`feeTenantProductPrice` se trimite ca referință `ProductPrice` prin PATCH pe membru.
+Se selectează versiunea curentă din produsul de cotizație al tenantului, cu validarea
+intervalului și centrului; ID-urile nu sunt fixate în cod. Schimbarea nu înregistrează
+o plată națională și nu activează tokenul de scriere. Starea livrării este afișată
+în registru și în jurnalul de sincronizare.

@@ -1,4 +1,13 @@
-import { createHash } from 'node:crypto';
+import { orgoPlan } from '../membership/orgo-fee-plan';
+import { feePriceReference } from './orgo-sync';
+import {
+  equalValue,
+  flattenFields,
+  localStatus,
+  OrgoRequestError,
+  retryDelay,
+} from './orgo-sync';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   cleanProfile,
   branchFor,
@@ -98,8 +107,8 @@ export class MemberOrgoService {
   ) {}
   private definitions: Record<string, unknown>[] = [];
   private cached?: { at: number; rows: Record<string, unknown>[] };
-  private async detailedRoster() {
-    if (this.cached && Date.now() - this.cached.at < 120000)
+  private async detailedRoster(fresh = false) {
+    if (!fresh && this.cached && Date.now() - this.cached.at < 120000)
       return this.cached.rows;
     const tenants = await this.request(
       '/api/v1/tenants?appHost=' +
@@ -387,92 +396,295 @@ export class MemberOrgoService {
     }
   }
   async refresh(user: CurrentUser) {
-    await this.admin(user);
-    this.cached = undefined;
-    return this.refreshProfiles();
+    await this.members!.requireRosterAccess(user);
+    const token = await this.claimRefresh();
+    if (token) void this.performRefresh(token).catch(() => undefined);
+    return this.refreshStatus(user);
   }
-  async refreshProfiles() {
-    const em = this.em.fork(),
-      existing = await em.find(ScoutMember, { orgoId: { $ne: null } });
-    let updated = 0;
-    for (const initial of existing) {
-      const r = await this.request('/api/v1/users/' + initial.orgoId);
-      if (
-        Number(r.id) !== initial.orgoId ||
-        Number(object(r.localCenter).id) !== this.settings().center
-      )
-        throw new BadGatewayException('Identitate Orgo invalidă.');
-      await em.fork().transactional(async (tx) => {
-        await tx.execute('select pg_advisory_xact_lock(19102026)');
-        const m = await tx.findOneOrFail(
-          ScoutMember,
-          { id: initial.id },
-          { refresh: true },
-        );
-        const result = reconcile(
-          m.orgoBase ?? {},
-          m.orgoProfile ?? {},
-          cleanProfile(r),
-        );
-        const before = JSON.stringify({
-          profile: m.orgoProfile,
-          conflicts: m.orgoConflicts,
-          categoryReview: m.categoryReview,
-        });
-        m.orgoProfile = {
-          ...result.values,
-          customDefinitions: m.orgoProfile?.customDefinitions ?? [],
-          rolesPending: this.rolePreview(r),
-        };
-        m.orgoBase = result.base;
-        m.orgoConflicts = result.conflicts;
-        const simple = remoteFields(r);
-        const links: Record<string, string> = {
-          name: 'fullName',
-          email: 'email',
-          phone: 'phoneNumber',
-        };
-        for (const [key, rich] of Object.entries(links))
-          if (
-            !result.conflicts[rich] &&
-            JSON.stringify(result.values[rich]) ===
-              JSON.stringify(result.base[rich])
-          )
-            m.remote = { ...m.remote, [key]: simple[key] };
-        this.projectProfile(m);
-        await this.projectCategory(tx, m, r);
-        if (
-          before !==
-          JSON.stringify({
-            profile: m.orgoProfile,
-            conflicts: m.orgoConflicts,
-            categoryReview: m.categoryReview,
-          })
-        ) {
-          m.revision++;
-          m.updatedAt = new Date();
-          updated++;
-        }
-      });
-    }
-    await em.transactional(async (tx) => {
+  async refreshStatus(user: CurrentUser) {
+    await this.members!.requireRosterAccess(user);
+    const settings = await this.em
+      .fork()
+      .findOne(MemberSettings, { id: 'default' });
+    const expired =
+      settings?.refreshState === 'running' &&
+      (!settings.refreshClaimedAt ||
+        Date.now() - settings.refreshClaimedAt.getTime() > 120000);
+    return {
+      state: expired ? 'failed' : (settings?.refreshState ?? 'idle'),
+      message: expired
+        ? 'Actualizarea a fost întreruptă. Reîncearcă.'
+        : (settings?.refreshMessage ?? null),
+      lastSucceededAt: settings?.lastOrgoRefresh ?? null,
+    };
+  }
+  private async claimRefresh() {
+    return this.em.fork().transactional(async (tx) => {
+      await tx.execute('select pg_advisory_xact_lock(19102026)');
       const settings =
         (await tx.findOne(MemberSettings, { id: 'default' })) ??
         tx.create(MemberSettings, { id: 'default' });
-      settings.lastOrgoRefresh = new Date();
+      if (
+        settings.refreshState === 'running' &&
+        settings.refreshClaimedAt &&
+        Date.now() - settings.refreshClaimedAt.getTime() < 120000
+      )
+        return null;
+      settings.refreshToken = randomUUID();
+      settings.refreshClaimedAt = new Date();
+      settings.refreshState = 'running';
+      settings.refreshMessage = 'Se actualizează din Orgo…';
+      return settings.refreshToken;
     });
-    return { updated };
+  }
+  private async performRefresh(token: string) {
+    const heartbeat = setInterval(() => {
+      void this.em
+        .fork()
+        .nativeUpdate(
+          MemberSettings,
+          { id: 'default', refreshToken: token, refreshState: 'running' },
+          { refreshClaimedAt: new Date() },
+        )
+        .catch(() => undefined);
+    }, 30000);
+    heartbeat.unref();
+    try {
+      // Read and validate every page/detail before applying any roster changes.
+      const rows = await this.detailedRoster(true);
+      return await this.em.fork().transactional(async (tx) => {
+        await tx.execute('select pg_advisory_xact_lock(9212026)');
+        await tx.execute('select pg_advisory_xact_lock(19102026)');
+        const settings = await tx.findOneOrFail(
+          MemberSettings,
+          { id: 'default' },
+          { refresh: true },
+        );
+        if (settings.refreshToken !== token) return { updated: 0 };
+        let updated = 0;
+        for (const raw of rows) {
+          const orgoId = Number(raw.id),
+            rawName = remoteFields(raw).name,
+            name = typeof rawName === 'string' ? rawName.trim() : '';
+          if (!name) throw new BadGatewayException('Membru Orgo fără nume.');
+          let m = await tx.findOne(ScoutMember, { orgoId });
+          if (!m) {
+            // Never merge a provisional identity by a shared name/email.
+            if (
+              await tx.count(ScoutMember, {
+                name: { $ilike: name },
+                orgoId: null,
+              })
+            ) {
+              tx.create(AuditEntry, {
+                actorId: null,
+                action: 'members.orgo-identity-review',
+                entityType: 'MemberRegistry',
+                entityId: 'orgo',
+                metadata: { orgoId },
+              });
+              continue;
+            }
+            const connection = await tx.findOne(
+              OrgoConnection,
+              { orgoUserId: orgoId },
+              { populate: ['user'] },
+            );
+            const category = importedCategory(raw);
+            m = tx.create(ScoutMember, {
+              orgoId,
+              accountId: connection?.user.id ?? null,
+              name,
+              structureId: proposedStructure(name),
+              structureConfirmed: false,
+              category,
+              categoryReview: !category,
+              profile: emptyProfile(),
+              status:
+                raw.status ===
+                (this.config.get<string>('ORGO_ACTIVE_STATUS') ?? 'ACTIVE')
+                  ? 'active'
+                  : 'review',
+              remote: {},
+              lastProgressionYear: targetYear(new Date()),
+            });
+            if (category) {
+              const unit = await tx.findOne(ScoutUnit, {
+                fixed: true,
+                structureId: m.structureId,
+                branch: category,
+              });
+              if (unit) {
+                m.unitId = unit.id;
+                m.branch = category;
+              }
+            }
+            await tx.flush();
+          }
+          await this.reconcileMember(tx, m, raw);
+          updated++;
+        }
+        settings.lastOrgoRefresh = new Date();
+        settings.refreshState = 'succeeded';
+        settings.refreshMessage = null;
+        return { updated };
+      });
+    } catch (error) {
+      await this.em.fork().nativeUpdate(
+        MemberSettings,
+        { id: 'default', refreshToken: token },
+        {
+          refreshState: 'failed',
+          refreshMessage:
+            error instanceof OrgoRequestError &&
+            [401, 403].includes(error.status)
+              ? 'Accesul Orgo nu permite actualizarea. Contactează administratorul.'
+              : 'Actualizarea din Orgo a eșuat. Datele salvate sunt păstrate. Reîncearcă.',
+        },
+      );
+      throw error;
+    } finally {
+      clearInterval(heartbeat);
+    }
+  }
+  private recordConfirmedBase(m: ScoutMember, values: Record<string, unknown>) {
+    for (const [key, value] of Object.entries(values)) {
+      if (key === 'status') m.remote = { ...m.remote, status: value };
+      else if (key.startsWith('custom:')) {
+        const fields = (
+          Array.isArray(m.orgoBase?.customFieldValues)
+            ? m.orgoBase.customFieldValues
+            : []
+        ).map((f) => ({ ...object(f) }));
+        const id = Number(key.slice(7)),
+          field = fields.find((f) => Number(f.field) === id);
+        if (field) field.value = value;
+        else fields.push({ field: id, value, media: null });
+        m.orgoBase = { ...m.orgoBase, customFieldValues: fields };
+      } else m.orgoBase = { ...m.orgoBase, [key]: value };
+    }
+  }
+  private async reconcileMember(
+    tx: EntityManager,
+    m: ScoutMember,
+    raw: Record<string, unknown>,
+  ) {
+    const before = JSON.stringify({
+      profile: m.orgoProfile,
+      base: m.orgoBase,
+      remote: m.remote,
+      status: m.status,
+      name: m.name,
+      birthDate: m.birthDate,
+    });
+    let statusAcknowledged = false;
+    const observed = {
+      ...flattenFields(cleanProfile(raw)),
+      status: raw.status,
+    } as Record<string, unknown>;
+    const inFlight = await tx.find(MemberSync, {
+      memberId: m.id,
+      state: { $in: ['running', 'uncertain'] },
+    });
+    for (const operation of inFlight) {
+      const intent = this.intentions(operation, m);
+      for (const [key, expected] of Object.entries(intent.expected)) {
+        if (
+          equalValue(observed[key], expected) &&
+          !equalValue(intent.local[key], expected)
+        ) {
+          // Recognize our preceding write before applying Orgo-wins to a newer edit.
+          this.recordConfirmedBase(m, { [key]: observed[key] });
+          if (key === 'status') statusAcknowledged = true;
+        }
+      }
+    }
+    const result = reconcile(
+      m.orgoBase ?? {},
+      m.orgoProfile ?? {},
+      cleanProfile(raw),
+    );
+    m.orgoProfile = {
+      ...result.values,
+      customDefinitions: this.definitions.length
+        ? this.definitions
+        : (m.orgoProfile?.customDefinitions ?? []),
+    };
+    m.orgoBase = result.base;
+    m.orgoConflicts = {};
+    this.projectProfile(m);
+    const statusJobs = await tx.find(
+      MemberSync,
+      {
+        memberId: m.id,
+        kind: 'status',
+        state: {
+          $in: [
+            'pending',
+            'running',
+            'uncertain',
+            'permission-required',
+            'unsupported',
+            'review',
+            'conflict',
+          ],
+        },
+      },
+      { orderBy: { createdAt: 'desc' } },
+    );
+    const pending = statusJobs[0];
+    const baseline = pending?.baseline.status ?? m.remote?.status;
+    if (
+      !statusAcknowledged &&
+      (!pending || !equalValue(raw.status, baseline))
+    ) {
+      await this.members!.applyOrgoStatus(
+        tx,
+        m,
+        localStatus(
+          raw.status,
+          this.config.get<string>('ORGO_ACTIVE_STATUS') ?? 'ACTIVE',
+          this.config.get<string>('ORGO_WITHDRAWN_STATUS'),
+        ),
+      );
+    }
+    m.remote = { ...m.remote, ...remoteFields(raw) };
+    if (Object.keys(result.conflicts).length)
+      tx.create(AuditEntry, {
+        actorId: null,
+        action: 'members.orgo-superseded',
+        entityType: 'Member',
+        entityId: m.id,
+        metadata: { fields: Object.keys(result.conflicts) },
+      });
+    if (
+      before !==
+      JSON.stringify({
+        profile: m.orgoProfile,
+        base: m.orgoBase,
+        remote: m.remote,
+        status: m.status,
+        name: m.name,
+        birthDate: m.birthDate,
+      })
+    ) {
+      m.revision++;
+      m.updatedAt = new Date();
+    }
+  }
+  async refreshProfiles() {
+    const token = await this.claimRefresh();
+    return token ? this.performRefresh(token) : { updated: 0 };
   }
   async daily() {
-    const em = this.em.fork();
-    const settings = await em.findOne(MemberSettings, { id: 'default' });
+    const settings = await this.em
+      .fork()
+      .findOne(MemberSettings, { id: 'default' });
     if (
       !settings?.lastOrgoRefresh ||
       Date.now() - settings.lastOrgoRefresh.getTime() > 86400000
-    ) {
-      if (await em.count(ScoutMember, { orgoId: { $ne: null } }))
-        await this.refreshProfiles();
-    }
+    )
+      await this.refreshProfiles();
   }
   async saveProfile(user: CurrentUser, id: string, input: unknown) {
     if (!this.members) throw new ServiceUnavailableException();
@@ -589,7 +801,11 @@ export class MemberOrgoService {
         actorId: user.id,
         kind: 'orgo-profile',
         payload: patch,
-        baseline: m.orgoBase ?? {},
+        baseline: {
+          email: m.remote?.email,
+          phoneNumber: m.remote?.phone,
+          ...m.orgoBase,
+        },
         message: 'În așteptarea sincronizării.',
       });
       tx.create(AuditEntry, {
@@ -723,37 +939,15 @@ export class MemberOrgoService {
         throw new ForbiddenException(
           'Rezolvarea diferențelor este rezervată șefului sau consiliului.',
         );
-      const local = b.choice === 'local';
-      if (!local && b.choice !== 'remote') throw new BadRequestException();
-      m.orgoProfile = {
-        ...m.orgoProfile,
-        [key]: local ? conflict.local : conflict.remote,
-      };
+      if (b.choice !== 'remote')
+        throw new BadRequestException('Se păstrează valoarea Orgo.');
+      m.orgoProfile = { ...m.orgoProfile, [key]: conflict.remote };
       m.orgoBase = { ...m.orgoBase, [key]: conflict.remote };
       const conflicts = { ...m.orgoConflicts };
       delete conflicts[key];
       m.orgoConflicts = conflicts;
       this.projectProfile(m);
       m.revision++;
-      if (local)
-        tx.create(MemberSync, {
-          memberId: id,
-          revision: m.revision,
-          actorId: user.id,
-          kind: key === 'logo' ? 'photo' : 'orgo-profile',
-          payload:
-            key === 'customFieldValues'
-              ? {
-                  rawUserCustomFieldsValues: Object.fromEntries(
-                    (Array.isArray(conflict.local) ? conflict.local : [])
-                      .map(object)
-                      .map((f) => [String(f.field), f.value]),
-                  ),
-                }
-              : { [key]: conflict.local },
-          baseline: m.orgoBase,
-          message: 'Rezolvare locală în așteptare.',
-        });
       tx.create(AuditEntry, {
         actorId: user.id,
         action: 'members.conflict-resolved',
@@ -801,12 +995,19 @@ export class MemberOrgoService {
       redirect: 'error',
       signal: AbortSignal.timeout(15000),
     });
-    if (!response.ok)
-      throw new ServiceUnavailableException(
-        [401, 403].includes(response.status)
-          ? 'Tokenul server-to-server nu permite operațiunea Orgo.'
-          : `Orgo nu a confirmat operațiunea (${response.status}).`,
+    if (!response.ok) {
+      const retry = response.headers.get('retry-after');
+      const seconds = retry ? Number(retry) : NaN;
+      const delay = Number.isFinite(seconds)
+        ? seconds * 1000
+        : retry
+          ? Math.max(0, Date.parse(retry) - Date.now())
+          : 0;
+      throw new OrgoRequestError(
+        response.status,
+        Number.isFinite(delay) ? delay : 0,
       );
+    }
     return obj(await response.json());
   }
   private async collection(path: string) {
@@ -979,6 +1180,7 @@ export class MemberOrgoService {
           { populate: ['user'] },
         );
         let member = await tx.findOne(ScoutMember, { orgoId: Number(r.id) });
+        const newlyImported = !member;
         if (!member) {
           // Never automatically merge a provisional local identity by name or shared email.
           if (
@@ -1007,15 +1209,11 @@ export class MemberOrgoService {
               email: typeof fields.email === 'string' ? fields.email : '',
               phone: typeof fields.phone === 'string' ? fields.phone : '',
             },
-            status:
-              r.status ===
-              (this.config.get<string>('ORGO_ACTIVE_STATUS') ?? 'ACTIVE')
-                ? 'active'
-                : this.config.get<string>('ORGO_WITHDRAWN_STATUS') &&
-                    r.status ===
-                      this.config.get<string>('ORGO_WITHDRAWN_STATUS')
-                  ? 'withdrawn'
-                  : 'review',
+            status: localStatus(
+              r.status,
+              this.config.get<string>('ORGO_ACTIVE_STATUS') ?? 'ACTIVE',
+              this.config.get<string>('ORGO_WITHDRAWN_STATUS'),
+            ),
             remote: fields,
             lastProgressionYear: targetYear(new Date()),
           });
@@ -1061,7 +1259,8 @@ export class MemberOrgoService {
         member.orgoBase = result.base;
         member.orgoConflicts = result.conflicts;
         this.projectProfile(member);
-        await this.applyImportedRoles(tx, member, r, user.id);
+        if (newlyImported)
+          await this.applyImportedRoles(tx, member, r, user.id);
       }
       tx.create(AuditEntry, {
         actorId: user.id,
@@ -1076,38 +1275,26 @@ export class MemberOrgoService {
   async retry(user: CurrentUser, id: string, input: unknown = {}) {
     await this.admin(user);
     const b = bodyObject(input);
-    let acceptedRemote: Record<string, unknown> | undefined;
-    if (b.keepLocal === true) {
-      const job = await this.em.findOneOrFail(MemberSync, { id });
-      const member = await this.em.findOneOrFail(ScoutMember, {
-        id: job.memberId,
-      });
-      if (!member.orgoId)
-        throw new BadRequestException('Identitatea Orgo nu este confirmată.');
-      const remote = await this.request(`/api/v1/users/${member.orgoId}`);
-      if (
-        Number(remote.id) !== member.orgoId ||
-        Number(obj(remote.localCenter).id) !== this.settings().center
-      )
-        throw new BadRequestException('Identitatea Orgo nu corespunde.');
-      acceptedRemote = ['orgo-profile', 'photo'].includes(job.kind)
-        ? cleanProfile(remote)
-        : remoteFields(remote);
-    }
+    if (b.keepLocal === true)
+      throw new BadRequestException(
+        'La diferențe concurente se păstrează valoarea Orgo.',
+      );
     return this.em.transactional(async (tx) => {
       await tx.execute('select pg_advisory_xact_lock(19102026)');
       await this.admin(user, tx);
       const operation = await tx.findOneOrFail(MemberSync, { id });
-      if (operation.state === 'synced' || operation.state === 'running')
+      if (
+        ['synced', 'running', 'superseded', 'local-only'].includes(
+          operation.state,
+        )
+      )
         throw new BadRequestException(
           'Operațiunea este finalizată sau în curs.',
         );
-      if (operation.state === 'conflict' && !acceptedRemote)
-        throw new BadRequestException(
-          'Rezolvă diferența din Orgo și fișa locală înainte de reluare.',
-        );
+      operation.nextAttemptAt = null;
+      operation.attempts = 0;
       operation.state = 'pending';
-      if (acceptedRemote) operation.baseline = acceptedRemote;
+      operation.completedAt = null;
       const current = await tx.findOneOrFail(ScoutMember, {
         id: operation.memberId,
       });
@@ -1141,9 +1328,7 @@ export class MemberOrgoService {
       operation.message = 'Verificarea a fost programată.';
       tx.create(AuditEntry, {
         actorId: user.id,
-        action: acceptedRemote
-          ? 'members.sync-keep-local'
-          : 'members.sync-retry',
+        action: 'members.sync-retry',
         entityType: 'MemberSync',
         entityId: id,
         metadata: {},
@@ -1195,256 +1380,463 @@ export class MemberOrgoService {
       return { ok: true };
     });
   }
-  async run() {
-    const em = this.em.fork();
-    const jobs = await em.find(
-      MemberSync,
-      { state: { $in: ['pending', 'running'] } },
-      { orderBy: { createdAt: 'asc' }, limit: 30 },
+  async feePlanContext(orgoId: number) {
+    const settings = this.settings();
+    const raw = await this.request('/api/v1/users/' + orgoId);
+    if (
+      Number(raw.id) !== orgoId ||
+      Number(object(raw.localCenter).id) !== settings.center
+    )
+      throw new BadGatewayException('Identitate Orgo invalidă.');
+    const tenants = await this.request(
+      '/api/v1/tenants?appHost=' +
+        encodeURIComponent(new URL(settings.base).hostname),
     );
-    for (const job of jobs) {
-      if (
-        job.state === 'running' &&
-        job.claimedAt &&
-        Date.now() - job.claimedAt.getTime() < 120000
+    const rows = tenants['hydra:member'];
+    if (!Array.isArray(rows) || rows.length !== 1)
+      throw new BadGatewayException('Catalog Orgo ambiguu.');
+    const productId = object(
+      object(object(rows[0]).settingFeatures).fees,
+    ).productUuid;
+    if (typeof productId !== 'string' || !/^[a-zA-Z0-9-]+$/.test(productId))
+      throw new BadGatewayException('Catalog Orgo invalid.');
+    const product = await this.request('/api/v1/products/' + productId);
+    const now = Date.now();
+    const choices = (
+      Array.isArray(product.productPrices) ? product.productPrices : []
+    )
+      .map(object)
+      .filter(
+        (price) =>
+          !price.isArchived &&
+          !price.isCompanyPrice &&
+          !price.isHidden &&
+          (!price.validFrom ||
+            (typeof price.validFrom === 'string' &&
+              Date.parse(price.validFrom) <= now)) &&
+          (!price.validTo ||
+            (typeof price.validTo === 'string' &&
+              Date.parse(price.validTo) >= now)) &&
+          (!Array.isArray(price.allowedLocalCenters) ||
+            !price.allowedLocalCenters.length ||
+            price.allowedLocalCenters.some(
+              (center) =>
+                Number(object(center).id ?? center) === settings.center,
+            )),
       )
-        continue;
-      const claim = await em.fork().transactional(async (tx) => {
-        await tx.execute('select pg_advisory_xact_lock(19102026)');
-        const operation = await tx.findOneOrFail(
-          MemberSync,
-          { id: job.id },
-          { refresh: true },
-        );
-        if (
-          operation.state !== 'pending' &&
-          !(
-            operation.state === 'running' &&
-            (!operation.claimedAt ||
-              Date.now() - operation.claimedAt.getTime() >= 120000)
+      .map((price) => ({
+        plan: orgoPlan(price),
+        reference: feePriceReference(price),
+      }))
+      .filter((price) => price.plan && price.reference);
+    const member = await this.em.fork().findOne(ScoutMember, { orgoId });
+    return {
+      baseline: feePriceReference(raw.feeTenantProductPrice),
+      choices,
+      memberRevision: member?.revision ?? null,
+    };
+  }
+  async queueFeePlan(
+    tx: EntityManager,
+    user: CurrentUser,
+    orgoId: number,
+    plan: string,
+    reference: string,
+    baseline: string | null,
+    revision: number | null,
+  ) {
+    await tx.execute('select pg_advisory_xact_lock(19102026)');
+    const member = await tx.findOne(ScoutMember, { orgoId }, { refresh: true });
+    if (!member || member.revision !== revision)
+      throw new ConflictException(
+        'Reîncarcă registrul de membri și previzualizarea.',
+      );
+    member.orgoBase = { ...member.orgoBase, feeTenantProductPrice: baseline };
+    member.orgoProfile = {
+      ...member.orgoProfile,
+      feeTenantProductPrice: reference,
+    };
+    member.revision++;
+    member.updatedAt = new Date();
+    tx.create(MemberSync, {
+      memberId: member.id,
+      actorId: user.id,
+      revision: member.revision,
+      kind: 'fee-plan',
+      payload: { plan, feeTenantProductPrice: reference },
+      baseline: { feeTenantProductPrice: baseline },
+      message: 'Tipul cotizației așteaptă sincronizarea cu Orgo.',
+    });
+  }
+  private processing = false;
+  private intentions(
+    job: MemberSync,
+    m: ScoutMember,
+  ): {
+    expected: Record<string, unknown>;
+    local: Record<string, unknown>;
+    baseline: Record<string, unknown>;
+  } {
+    const expected: Record<string, unknown> = {},
+      baseline = { ...job.baseline };
+    const local = flattenFields(m.orgoProfile ?? {});
+    if (job.kind === 'status') {
+      const code = this.config.get<string>(
+        job.payload.status === 'withdrawn'
+          ? 'ORGO_WITHDRAWN_STATUS'
+          : 'ORGO_ACTIVE_STATUS',
+      );
+      if (
+        code &&
+        ['active', 'withdrawn'].includes(String(job.payload.status))
+      ) {
+        expected.status = code;
+        local.status =
+          m.status === 'active'
+            ? this.config.get<string>('ORGO_ACTIVE_STATUS')
+            : m.status === 'withdrawn'
+              ? this.config.get<string>('ORGO_WITHDRAWN_STATUS')
+              : m.remote?.status;
+      }
+    } else if (job.kind === 'fee-plan') {
+      expected.feeTenantProductPrice = job.payload.feeTenantProductPrice;
+    } else if (job.kind === 'photo') expected.logo = job.payload.logo;
+    else if (job.kind === 'profile') {
+      const contact = object(job.payload.contact);
+      for (const [source, key] of [
+        ['email', 'email'],
+        ['phone', 'phoneNumber'],
+      ]) {
+        if (source in contact) {
+          expected[key] = contact[source];
+          baseline[key] = job.baseline[source];
+          local[key] = source === 'email' ? m.profile.email : m.profile.phone;
+        }
+      }
+    } else if (job.kind === 'orgo-profile') {
+      Object.assign(
+        expected,
+        Object.fromEntries(
+          Object.entries(job.payload).filter(
+            ([key]) => key in profileFields && !readonlyFields.has(key),
+          ),
+        ),
+      );
+      for (const [id, value] of Object.entries(
+        object(job.payload.rawUserCustomFieldsValues),
+      )) {
+        if (!/^\d+$/.test(id))
+          throw new BadRequestException('Câmp personalizat invalid.');
+        expected['custom:' + id] = value;
+      }
+    }
+    return {
+      expected,
+      local,
+      baseline: {
+        ...flattenFields(baseline),
+        ...flattenFields(m.orgoBase ?? {}),
+        ...(job.kind === 'status'
+          ? { status: m.remote?.status ?? baseline.status }
+          : {}),
+      },
+    };
+  }
+  async run() {
+    if (this.processing) return;
+    this.processing = true;
+    try {
+      const em = this.em.fork();
+      const states = ['pending', 'running', 'uncertain'];
+      if (this.config.get<string>('ORGO_MEMBER_WRITES_ENABLED') === 'true')
+        states.push('permission-required');
+      const jobs = await em.find(
+        MemberSync,
+        {
+          state: { $in: states },
+          $or: [
+            { nextAttemptAt: null },
+            { nextAttemptAt: { $lte: new Date() } },
+          ],
+        },
+        { orderBy: { createdAt: 'asc' }, limit: 30 },
+      );
+      for (const job of jobs) await this.deliver(job.id);
+    } finally {
+      this.processing = false;
+    }
+  }
+  private async deliver(id: string) {
+    const claim = await this.em.fork().transactional(async (tx) => {
+      await tx.execute('select pg_advisory_xact_lock(19102026)');
+      const operation = await tx.findOneOrFail(
+        MemberSync,
+        { id },
+        { refresh: true },
+      );
+      if (
+        !['pending', 'running', 'uncertain', 'permission-required'].includes(
+          operation.state,
+        ) ||
+        (operation.nextAttemptAt &&
+          operation.nextAttemptAt.getTime() > Date.now()) ||
+        (operation.state === 'running' &&
+          operation.claimedAt &&
+          Date.now() - operation.claimedAt.getTime() < 120000)
+      )
+        return null;
+      operation.state = 'running';
+      operation.claimedAt = new Date();
+      operation.attempts = (operation.attempts ?? 0) + 1;
+      operation.message = 'Se sincronizează cu Orgo.';
+      return { ...operation };
+    });
+    if (!claim) return;
+    const em = this.em.fork();
+    const member = await em.findOneOrFail(
+      ScoutMember,
+      { id: claim.memberId },
+      { refresh: true },
+    );
+    const revision = member.revision;
+    let state = 'unsupported',
+      message = 'Operațiunea nu are o mapare Orgo verificată.';
+    let nextAttemptAt: Date | null = null;
+    const accepted: Record<string, unknown> = {};
+    const superseded: string[] = [];
+    const confirmedWrites: Record<string, unknown> = {};
+    let attemptedWrite = false;
+    try {
+      if (!member.orgoId) {
+        state = 'permission-required';
+        message = 'Asociază o identitate Orgo înainte de sincronizare.';
+      } else {
+        const read = async () => {
+          const raw = await this.request('/api/v1/users/' + member.orgoId);
+          if (
+            Number(raw.id) !== member.orgoId ||
+            Number(object(raw.localCenter).id) !== this.settings().center
           )
-        )
-          return null;
-        operation.state = 'running';
-        operation.claimedAt = new Date();
-        operation.message = 'Se verifică în Orgo.';
-        return { ...operation };
-      });
-      if (!claim) continue;
-      let state = 'unsupported',
-        message =
-          'Operațiunea necesită o mapare Orgo verificată. Schimbarea locală este păstrată.';
-      let snapshot: Record<string, unknown> | null = null;
-      let attemptedWrite = false;
-      try {
-        const m = await em.findOneOrFail(
-          ScoutMember,
-          { id: claim.memberId },
-          { refresh: true },
-        );
-        if (m.revision !== claim.revision) {
-          state = 'review';
-          message =
-            'Există o versiune locală mai nouă. Modificările nesincronizate trebuie revizuite.';
-        } else if (!m.orgoId) {
+            throw new BadGatewayException('Identitate Orgo invalidă.');
+          return raw;
+        };
+        const raw = await read();
+        const remote: Record<string, unknown> = {
+          ...flattenFields(cleanProfile(raw)),
+          status: raw.status,
+        };
+        const intent = this.intentions(claim, member);
+        const patch: Record<string, unknown> = {};
+        for (const [key, expected] of Object.entries(intent.expected)) {
+          const current = intent.local[key];
+          if (!equalValue(current, expected)) {
+            // A refresh or a newer local edit superseded this field's old intent.
+            superseded.push(key);
+          } else if (equalValue(remote[key], expected))
+            accepted[key] = remote[key];
+          else if (!equalValue(remote[key], intent.baseline[key])) {
+            accepted[key] = remote[key];
+            superseded.push(key);
+          } else patch[key] = expected;
+        }
+        if (!Object.keys(intent.expected).length) {
+          state = 'unsupported';
+          message = 'Câmpul sau statusul necesită o mapare Orgo verificată.';
+        } else if (!Object.keys(patch).length) {
+          state = superseded.length ? 'superseded' : 'synced';
+          message = superseded.length
+            ? 'Se păstrează datele curente; modificările vechi au fost înlocuite.'
+            : 'Date confirmate în Orgo.';
+        } else if (
+          this.config.get<string>('ORGO_MEMBER_WRITES_ENABLED') !== 'true'
+        ) {
           state = 'permission-required';
-          message =
-            'Crearea și asocierea identității Orgo nu sunt încă confirmate.';
+          message = 'Salvat local. Scrierile Orgo nu sunt activate.';
         } else {
-          const remote = await this.request(`/api/v1/users/${m.orgoId}`);
-          if (
-            Number(remote.id) !== m.orgoId ||
-            Number(obj(remote.localCenter).id) !== this.settings().center
-          )
-            throw new BadGatewayException(
-              'Membrul Orgo nu aparține centrului configurat.',
-            );
+          attemptedWrite = true;
           if (claim.kind === 'photo') {
-            if (
-              remote.logo !== claim.baseline.logo &&
-              remote.logo !== m.orgoBase?.logo
-            ) {
-              state = 'conflict';
-              message = 'Fotografia a fost modificată și în Orgo.';
-            } else if (
-              this.config.get<string>('ORGO_MEMBER_WRITES_ENABLED') !== 'true'
-            ) {
-              state = 'permission-required';
-              message =
-                'Fotografie păstrată local; scrierile Orgo nu sunt activate.';
-            } else {
-              const data =
-                  typeof m.orgoProfile?.logo === 'string'
-                    ? m.orgoProfile.logo
-                    : '',
-                photo = this.decodePhoto(data),
-                form = new FormData();
-              form.append(
-                'file',
-                new Blob([new Uint8Array(photo.bytes)], { type: photo.type }),
-                'profile.' + photo.type.split('/')[1],
-              );
-              form.append('type', 'user');
-              form.append('entity_id', String(m.orgoId));
-              attemptedWrite = true;
-              const response = await fetch(
-                new URL('/api/v1/media_objects', this.settings().base),
-                {
-                  method: 'POST',
-                  headers: { 'Api-Token': this.settings().token },
-                  body: form,
-                  redirect: 'error',
-                  signal: AbortSignal.timeout(30000),
-                },
-              );
-              if (!response.ok) throw new Error('Orgo photo rejected');
-              const uploaded = object(await response.json()),
-                verified = await this.request('/api/v1/users/' + m.orgoId);
-              if (
-                uploaded.contentUrl &&
-                verified.logo === uploaded.contentUrl
-              ) {
-                state = 'synced';
-                message = 'Fotografia a fost confirmată în Orgo.';
-                snapshot = { logo: verified.logo };
-              } else {
-                state = 'uncertain';
-                message = 'Verifică fotografia din Orgo înainte de reluare.';
-              }
-            }
-          }
-          const fields =
-            claim.kind === 'orgo-profile'
-              ? cleanProfile(remote)
-              : remoteFields(remote);
-          const patch: Record<string, unknown> = {};
-          if (
-            claim.kind === 'profile' &&
-            Object.keys(claim.payload).every((k) => k === 'contact')
-          ) {
-            const contact = obj(claim.payload.contact);
-            patch.email = contact.email;
-            patch.phoneNumber = contact.phone;
-          }
-          if (claim.kind === 'orgo-profile') {
-            for (const [key, value] of Object.entries(claim.payload))
-              if (
-                key === 'rawUserCustomFieldsValues' ||
-                (key in profileFields && !readonlyFields.has(key))
-              )
-                patch[key] = value;
-          }
-          if (claim.kind === 'status') {
-            const configured = this.config.get<string>(
-              m.status === 'withdrawn'
-                ? 'ORGO_WITHDRAWN_STATUS'
-                : 'ORGO_ACTIVE_STATUS',
+            const photo = this.decodePhoto(String(patch.logo));
+            const form = new FormData();
+            form.append(
+              'file',
+              new Blob([new Uint8Array(photo.bytes)], { type: photo.type }),
+              'profile.' + photo.type.split('/')[1],
             );
-            if (configured) patch.status = configured;
+            form.append('type', 'user');
+            form.append('entity_id', String(member.orgoId));
+            const response = await fetch(
+              new URL('/api/v1/media_objects', this.settings().base),
+              {
+                method: 'POST',
+                headers: { 'Api-Token': this.settings().token },
+                body: form,
+                redirect: 'error',
+                signal: AbortSignal.timeout(30000),
+              },
+            );
+            if (!response.ok) throw new OrgoRequestError(response.status);
+            const uploaded = object(await response.json());
+            if (typeof uploaded.contentUrl !== 'string')
+              throw new BadGatewayException('Fotografie neconfirmată.');
+            patch.logo = uploaded.contentUrl;
+          } else {
+            const outgoing: Record<string, unknown> = {};
+            const custom = Object.fromEntries(
+              (Array.isArray(raw.customFieldValues)
+                ? (cleanProfile(raw).customFieldValues as Record<
+                    string,
+                    unknown
+                  >[])
+                : []
+              ).map((f) => [String(f.field), f.value]),
+            );
+            for (const [key, value] of Object.entries(patch)) {
+              if (key.startsWith('custom:')) custom[key.slice(7)] = value;
+              else outgoing[key] = value;
+            }
+            if (Object.keys(patch).some((key) => key.startsWith('custom:')))
+              outgoing.rawUserCustomFieldsValues = custom;
+            await this.request('/api/v1/users/' + member.orgoId, outgoing);
           }
-          const tracked: Record<string, unknown> = {
-            ...(claim.kind === 'orgo-profile'
-              ? Object.fromEntries(
-                  Object.entries(patch).filter(
-                    ([key]) => key !== 'rawUserCustomFieldsValues',
-                  ),
-                )
-              : {}),
-            ...(patch.email !== undefined ? { email: patch.email } : {}),
-            ...(patch.phoneNumber !== undefined
-              ? { phone: patch.phoneNumber }
-              : {}),
-            ...(patch.status !== undefined ? { status: patch.status } : {}),
+          const verified = await read();
+          const values: Record<string, unknown> = {
+            ...flattenFields(cleanProfile(verified)),
+            status: verified.status,
           };
           if (
-            claim.kind === 'orgo-profile' &&
-            patch.rawUserCustomFieldsValues
+            Object.entries(patch).every(([key, value]) =>
+              equalValue(values[key], value),
+            )
           ) {
-            const custom = object(patch.rawUserCustomFieldsValues);
-            const values = Array.isArray(m.orgoProfile?.customFieldValues)
-              ? m.orgoProfile.customFieldValues
-              : [];
-            tracked.customFieldValues = values;
-            if (Object.keys(custom).some((k) => !/^\d+$/.test(k)))
-              throw new BadRequestException('Câmp personalizat invalid.');
-          }
-          const equal = (a: unknown, b: unknown) =>
-            JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
-          if (Object.keys(patch).length) {
-            if (
-              Object.entries(tracked).some(
-                ([k, v]) =>
-                  !equal(fields[k], claim.baseline[k]) && !equal(fields[k], v),
-              )
-            ) {
-              state = 'conflict';
-              message =
-                'Datele au fost modificate și în Orgo. Este necesară rezolvarea conflictului.';
-            } else if (
-              Object.entries(tracked).every(([k, v]) => equal(fields[k], v))
-            ) {
-              state = 'synced';
-              message = 'Orgo confirmă aceleași date.';
-              snapshot = fields;
-            } else if (
-              this.config.get<string>('ORGO_MEMBER_WRITES_ENABLED') !== 'true'
-            ) {
-              state = 'permission-required';
-              message =
-                'Scrierile Orgo nu sunt activate; verifică tokenul și mapările înainte de activare.';
-            } else {
-              attemptedWrite = true;
-              await this.request(`/api/v1/users/${m.orgoId}`, patch);
-              const rawReadback = await this.request(
-                `/api/v1/users/${m.orgoId}`,
-              );
-              const readback =
-                claim.kind === 'orgo-profile'
-                  ? cleanProfile(rawReadback)
-                  : remoteFields(rawReadback);
-              if (
-                Object.entries(tracked).every(([k, v]) => equal(readback[k], v))
-              ) {
-                state = 'synced';
-                message = 'Modificarea a fost confirmată în Orgo.';
-                snapshot = readback;
-              } else {
-                state = 'uncertain';
-                message =
-                  'Orgo nu confirmă toate câmpurile. Verifică înainte de reluare.';
-              }
-            }
+            Object.assign(accepted, patch);
+            Object.assign(confirmedWrites, patch);
+            state = 'synced';
+            message = 'Modificarea a fost confirmată în Orgo.';
+          } else {
+            state = 'uncertain';
+            message =
+              'Orgo nu a confirmat toate câmpurile. Se va verifica din nou.';
+            nextAttemptAt = new Date(Date.now() + retryDelay(claim.attempts));
           }
         }
-      } catch {
-        state = attemptedWrite ? 'uncertain' : 'permission-required';
-        message = attemptedWrite
-          ? 'Orgo poate să fi primit modificarea. Reverifică înainte de reluare.'
-          : 'Sincronizarea nu a putut fi verificată. Verifică tokenul server-to-server, centrul și accesul Orgo.';
       }
-      await em.fork().transactional(async (tx) => {
-        await tx.execute('select pg_advisory_xact_lock(19102026)');
-        const operation = await tx.findOneOrFail(MemberSync, { id: claim.id });
-        const m = await tx.findOneOrFail(ScoutMember, { id: claim.memberId });
-        if (operation.claimedAt?.getTime() !== claim.claimedAt?.getTime())
-          return;
-        if (m.revision !== claim.revision) {
-          operation.state = 'review';
-          operation.message =
-            'Există o versiune locală mai nouă; verifică toate modificările nesincronizate.';
-        } else {
-          operation.state = state;
-          operation.message = message;
-          if (snapshot) {
-            if (claim.kind === 'orgo-profile' || claim.kind === 'photo') {
-              m.orgoBase = { ...m.orgoBase, ...snapshot };
-              if (claim.kind === 'photo')
-                m.orgoProfile = { ...m.orgoProfile, ...snapshot };
-            } else m.remote = snapshot;
-          }
-        }
-        operation.completedAt = new Date();
-      });
+    } catch (error) {
+      if (
+        error instanceof OrgoRequestError &&
+        [401, 403].includes(error.status)
+      ) {
+        state = 'permission-required';
+        message = 'Tokenul serverului nu permite scrierea în Orgo.';
+        nextAttemptAt = new Date(Date.now() + 900000);
+      } else if (error instanceof ServiceUnavailableException) {
+        state = 'permission-required';
+        message = 'Configurează tokenul serverului și centrul Orgo.';
+        nextAttemptAt = new Date(Date.now() + 900000);
+      } else if (
+        error instanceof BadGatewayException ||
+        error instanceof BadRequestException ||
+        (error instanceof OrgoRequestError && !error.temporary)
+      ) {
+        state = 'unsupported';
+        message = 'Orgo a respins operațiunea. Verifică maparea și datele.';
+      } else {
+        state = attemptedWrite ? 'uncertain' : 'pending';
+        message = 'Orgo nu este disponibil. Sincronizarea se reia automat.';
+        nextAttemptAt = new Date(
+          Date.now() +
+            retryDelay(
+              claim.attempts,
+              error instanceof OrgoRequestError ? error.retryAfterMs : 0,
+            ),
+        );
+      }
     }
+    await this.em.fork().transactional(async (tx) => {
+      await tx.execute('select pg_advisory_xact_lock(9212026)');
+      await tx.execute('select pg_advisory_xact_lock(19102026)');
+      const operation = await tx.findOneOrFail(
+        MemberSync,
+        { id: claim.id },
+        { refresh: true },
+      );
+      const m = await tx.findOneOrFail(
+        ScoutMember,
+        { id: claim.memberId },
+        { refresh: true },
+      );
+      if (operation.claimedAt?.getTime() !== claim.claimedAt?.getTime()) return;
+      if (m.revision !== revision) {
+        // A successful write by this worker is a new common baseline, not an
+        // independent Orgo edit that should defeat a newer local intention.
+        this.recordConfirmedBase(m, confirmedWrites);
+        operation.state = 'pending';
+        operation.nextAttemptAt = null;
+        operation.message =
+          'Datele au fost actualizate. Se verifică ultima versiune.';
+        return;
+      }
+      const custom = (
+        Array.isArray(m.orgoProfile?.customFieldValues)
+          ? m.orgoProfile.customFieldValues
+          : []
+      ).map((f) => ({ ...object(f) }));
+      const baseCustom = (
+        Array.isArray(m.orgoBase?.customFieldValues)
+          ? m.orgoBase.customFieldValues
+          : []
+      ).map((f) => ({ ...object(f) }));
+      for (const [key, value] of Object.entries(accepted)) {
+        if (key === 'status') {
+          await this.members!.applyOrgoStatus(
+            tx,
+            m,
+            localStatus(
+              value,
+              this.config.get<string>('ORGO_ACTIVE_STATUS') ?? 'ACTIVE',
+              this.config.get<string>('ORGO_WITHDRAWN_STATUS'),
+            ),
+          );
+          m.remote = { ...m.remote, status: value };
+        } else if (key.startsWith('custom:')) {
+          const field = Number(key.slice(7));
+          for (const fields of [custom, baseCustom]) {
+            const existing = fields.find((f) => Number(f.field) === field);
+            if (existing) existing.value = value;
+            else fields.push({ field, value, media: null });
+          }
+        } else {
+          m.orgoProfile = { ...m.orgoProfile, [key]: value };
+          m.orgoBase = { ...m.orgoBase, [key]: value };
+        }
+      }
+      if (Object.keys(accepted).some((key) => key.startsWith('custom:'))) {
+        m.orgoProfile = { ...m.orgoProfile, customFieldValues: custom };
+        m.orgoBase = { ...m.orgoBase, customFieldValues: baseCustom };
+      }
+      this.projectProfile(m);
+      if (Object.keys(accepted).length) {
+        m.revision++;
+        m.updatedAt = new Date();
+      }
+      operation.state = state;
+      operation.message = message;
+      operation.nextAttemptAt = nextAttemptAt;
+      operation.completedAt = [
+        'synced',
+        'superseded',
+        'unsupported',
+        'permission-required',
+      ].includes(state)
+        ? new Date()
+        : null;
+      if (superseded.length)
+        tx.create(AuditEntry, {
+          actorId: null,
+          action: 'members.orgo-superseded',
+          entityType: 'Member',
+          entityId: m.id,
+          metadata: { fields: superseded },
+        });
+    });
   }
 }

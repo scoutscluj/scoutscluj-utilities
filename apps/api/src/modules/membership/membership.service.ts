@@ -1,3 +1,5 @@
+import type { MemberOrgoService } from '../members/orgo.service';
+import { MemberSync } from '../members/entities/member.entity';
 import { OrgoNationalService } from './orgo-national.service';
 import {
   admissionEvidence,
@@ -16,6 +18,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Inject,
   Optional,
   Logger,
   HttpException,
@@ -94,6 +97,9 @@ export class MembershipService {
     private readonly paymentConfigurations: PaymentConfigurationService,
     private readonly orgoRoster: OrgoRosterService,
     @Optional() private readonly orgoNational?: OrgoNationalService,
+    @Optional()
+    @Inject('MEMBER_ORGO_SERVICE')
+    private readonly memberOrgo?: MemberOrgoService,
   ) {}
 
   private async paymentSettings(em = this.em) {
@@ -432,7 +438,8 @@ export class MembershipService {
       const seen = new Set<number>();
       const summary = { added: 0, updated: 0, review: 0, unchanged: 0 };
       const now = new Date();
-      for (const member of members) {
+      for (const source of members) {
+        const member = await this.pendingFeePlan(em, source);
         seen.add(member.orgoUserId);
         if (!(await collectionAllowed(em, member.orgoUserId, period.startsOn)))
           continue;
@@ -538,6 +545,7 @@ export class MembershipService {
     em: EntityManager,
     obligation: Obligation,
     member: OrgoRosterMember | undefined,
+    changingPlan = false,
   ) {
     const period = await em.findOneOrFail(
       Period,
@@ -588,6 +596,7 @@ export class MembershipService {
       message: string;
     }> = [];
     if (
+      !changingPlan &&
       ![
         'plan_changed_after_payment',
         'orgo_review',
@@ -697,6 +706,198 @@ export class MembershipService {
     return { ...preview, version };
   }
 
+  private async pendingFeePlan(em: EntityManager, source: OrgoRosterMember) {
+    const member = await em.findOne(ScoutMember, { orgoId: source.orgoUserId });
+    if (!member) return source;
+    const jobs = await em.find(
+      MemberSync,
+      {
+        memberId: member.id,
+        kind: 'fee-plan',
+        state: {
+          $in: [
+            'pending',
+            'running',
+            'uncertain',
+            'permission-required',
+            'unsupported',
+          ],
+        },
+      },
+      { orderBy: { createdAt: 'desc' } },
+    );
+    const job = jobs[0];
+    if (
+      job &&
+      typeof job.payload.plan === 'string' &&
+      Object.hasOwn(BASELINE_PLANS, job.payload.plan) &&
+      member.orgoProfile?.feeTenantProductPrice ===
+        job.payload.feeTenantProductPrice &&
+      (source.feePriceRef === job.baseline.feeTenantProductPrice ||
+        source.feePriceRef === job.payload.feeTenantProductPrice)
+    )
+      return { ...source, plan: plan(job.payload.plan) };
+    return source;
+  }
+  private async feePlanQuote(
+    em: EntityManager,
+    obligation: Obligation,
+    selected: string,
+    context: Awaited<ReturnType<MemberOrgoService['feePlanContext']>>,
+  ) {
+    const planKey = plan(selected);
+    const period = await em.findOneOrFail(
+      Period,
+      { id: obligation.periodId },
+      { refresh: true },
+    );
+    const preview = await this.obligationReview(
+      em,
+      obligation,
+      {
+        orgoUserId: obligation.orgoUserId,
+        memberName: obligation.memberName,
+        plan: planKey,
+        eligible: true,
+      },
+      true,
+    );
+    const choices = context.choices.filter((choice) => choice.plan === planKey);
+    const blockers = [...preview.blockers];
+    if (
+      (obligation.nationalDirectBani ?? 0) > (preview.proposedNationalBani ?? 0)
+    )
+      blockers.push({
+        target: 'receipts',
+        message:
+          'Suma plătită direct naționalului depășește noua parte națională. Verifică dovada înainte de schimbare.',
+      });
+    if (!period.active)
+      blockers.push({
+        target: 'payments',
+        message:
+          'Tipul se schimbă numai pentru perioada curentă. Istoricul rămâne neschimbat.',
+      });
+    if (context.memberRevision === null)
+      blockers.push({
+        target: 'orgo',
+        message:
+          'Deschide Unități și membri pentru asocierea identității Orgo, apoi reîncearcă.',
+      });
+    if (choices.length !== 1)
+      blockers.push({
+        target: 'orgo',
+        message:
+          'Catalogul Orgo nu oferă o singură variantă curentă pentru acest tip.',
+      });
+    const version = hash(
+      JSON.stringify({ financial: preview.version, context, planKey }),
+    );
+    return {
+      ...preview,
+      selectedPlan: planKey,
+      canResolve: blockers.length === 0,
+      blockers,
+      version,
+      reference: choices[0]?.reference ?? null,
+    };
+  }
+  async previewFeePlan(user: CurrentUser, id: string, input: unknown) {
+    this.staff(user);
+    uuid(id);
+    const body = record(input),
+      selected = plan(body.plan);
+    if (!this.memberOrgo)
+      throw new ServiceUnavailableException(
+        'Integrarea Orgo nu este disponibilă.',
+      );
+    const row = await this.em.findOneOrFail(Obligation, { id });
+    const context = await this.memberOrgo.feePlanContext(row.orgoUserId);
+    return this.mutate(async (em) =>
+      this.feePlanQuote(
+        em,
+        await em.findOneOrFail(Obligation, { id }, { refresh: true }),
+        selected,
+        context,
+      ),
+    );
+  }
+  async changeFeePlan(user: CurrentUser, id: string, input: unknown) {
+    this.staff(user);
+    uuid(id);
+    const body = record(input),
+      selected = plan(body.plan),
+      note = text(body.note, 2000),
+      version = text(body.version, 100);
+    if (!this.memberOrgo)
+      throw new ServiceUnavailableException(
+        'Integrarea Orgo nu este disponibilă.',
+      );
+    const row = await this.em.findOneOrFail(Obligation, { id });
+    const context = await this.memberOrgo.feePlanContext(row.orgoUserId);
+    return this.mutate(async (em) => {
+      const obligation = await em.findOneOrFail(
+        Obligation,
+        { id },
+        { refresh: true },
+      );
+      const preview = await this.feePlanQuote(
+        em,
+        obligation,
+        selected,
+        context,
+      );
+      if (preview.version !== version)
+        throw new ConflictException(
+          'Datele s-au schimbat. Reîncarcă previzualizarea.',
+        );
+      if (
+        !preview.canResolve ||
+        !preview.reference ||
+        preview.proposedTotalBani === null ||
+        preview.proposedNationalBani === null
+      )
+        throw new ConflictException(
+          preview.blockers.map((item) => item.message).join(' '),
+        );
+      const previous = {
+        plan: obligation.plan,
+        totalBani: obligation.totalBani,
+        nationalBani: obligation.nationalBani,
+      };
+      await this.memberOrgo!.queueFeePlan(
+        em,
+        user,
+        obligation.orgoUserId,
+        selected,
+        preview.reference,
+        context.baseline,
+        context.memberRevision,
+      );
+      obligation.plan = selected;
+      obligation.totalBani = preview.proposedTotalBani;
+      obligation.nationalBani = preview.proposedNationalBani;
+      obligation.reviewState = null;
+      obligation.reviewReason = null;
+      this.audit(em, user.id, 'obligation.plan_changed', id, {
+        reason: note,
+        previous,
+        accepted: {
+          plan: selected,
+          totalBani: obligation.totalBani,
+          nationalBani: obligation.nationalBani,
+        },
+        paidBani: preview.paidBani,
+        orgoState: 'pending',
+      });
+      await em.flush();
+      return {
+        success: true,
+        state: preview.resultingState,
+        remainingBani: preview.remainingBani,
+      };
+    });
+  }
   async previewObligationReview(user: CurrentUser, id: string) {
     this.staff(user);
     uuid(id);
@@ -1269,6 +1470,18 @@ export class MembershipService {
         item.id === paymentConfiguration.activeProvider &&
         item.environment === paymentConfiguration.activeEnvironment,
     );
+    const feeMembers = obligations.length
+      ? await this.em.find(ScoutMember, {
+          orgoId: { $in: obligations.map((o) => o.orgoUserId) },
+        })
+      : [];
+    const feeOperations = feeMembers.length
+      ? await this.em.find(
+          MemberSync,
+          { kind: 'fee-plan', memberId: { $in: feeMembers.map((m) => m.id) } },
+          { orderBy: { createdAt: 'desc' } },
+        )
+      : [];
     return {
       payouts: await this.em.find(
         Payout,
@@ -1279,6 +1492,12 @@ export class MembershipService {
       obligations: await Promise.all(
         obligations.map(async (o) => ({
           ...o,
+          feePlanSyncState:
+            feeOperations.find(
+              (job) =>
+                job.memberId ===
+                feeMembers.find((m) => m.orgoId === o.orgoUserId)?.id,
+            )?.state ?? null,
           collectionEnabled: await collectionAllowed(
             this.em,
             o.orgoUserId,

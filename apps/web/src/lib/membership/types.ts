@@ -8,6 +8,7 @@ export type Period = {
 	prices: Record<string, FeePlan>;
 };
 export type Obligation = {
+	feePlanSyncState?: string | null;
 	collectionEnabled?: boolean;
 	id: string;
 	periodId: string;

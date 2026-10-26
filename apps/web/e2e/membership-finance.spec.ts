@@ -103,6 +103,10 @@ test('period progress survives filtering and payment tooltips open with keyboard
 	await expect(page.getByRole('combobox', { name: 'Starea cotizației' })).toBeFocused();
 	await page.keyboard.press('Tab');
 	await expect(
+		page.getByRole('button', { name: 'Schimbă tipul cotizației pentru Ana Popescu' })
+	).toBeFocused();
+	await page.keyboard.press('Tab');
+	await expect(
 		page.getByRole('button', { name: 'Detalii plată pentru Ana Popescu' })
 	).toBeFocused();
 	await expect(page.getByRole('tooltip')).toContainText('BT-100');
@@ -277,5 +281,35 @@ test('bank admission can share one transfer with membership and leaves membershi
 	await page.getByRole('searchbox', { name: 'Caută încasare' }).fill('BT-ADEZIUNE-200');
 	await expect(page.getByRole('row').filter({ hasText: 'BT-ADEZIUNE-200' })).toContainText(
 		'Alocat integral'
+	);
+});
+
+test('changes cotisation type with a preview and preserves paid evidence', async ({
+	page,
+	request
+}) => {
+	await page.goto('/admin/finance/membership');
+	await page
+		.getByRole('button', { name: 'Schimbă tipul cotizației pentru Ana Popescu', exact: true })
+		.click();
+	const dialog = page.getByRole('dialog', { name: 'Schimbă tipul cotizației', exact: true });
+	await dialog.getByRole('combobox', { name: 'Tip cotizație', exact: true }).selectOption('fam1');
+	await dialog.getByRole('button', { name: 'Previzualizează recalcularea' }).click();
+	await expect(dialog.getByText('Cotizație 2026–2027:', { exact: false })).toBeVisible();
+	await dialog.getByLabel('Motivul modificării').fill('Primul membru al familiei');
+	await dialog.getByRole('button', { name: 'Confirmă tipul și recalculează' }).click();
+	await expect(
+		page.getByRole('status').filter({ hasText: 'Tipul cotizației a fost salvat.' })
+	).toBeVisible();
+	await expect(page.getByRole('row').filter({ hasText: 'Ana Popescu' })).toContainText('Fam 1');
+	const submissions = await (await request.get('http://127.0.0.1:3015/test/submissions')).json();
+	expect(submissions).toEqual(
+		expect.arrayContaining([
+			expect.objectContaining({
+				plan: 'fam1',
+				version: 'fee-preview',
+				note: 'Primul membru al familiei'
+			})
+		])
 	);
 });

@@ -84,6 +84,70 @@ const denied = () => {
 export class MembersService {
   constructor(private readonly em: EntityManager) {}
 
+  async requireRosterAccess(user: CurrentUser) {
+    const ctx = await this.context(this.em.fork(), user);
+    if (!ctx.member || ctx.member.status !== 'active') denied();
+  }
+
+  async applyOrgoStatus(tx: EntityManager, m: ScoutMember, status: string) {
+    if (m.status === status) return;
+    const wasInactive = m.status !== 'active';
+    if (status !== 'active') {
+      for (const a of await tx.find(ScoutAssignment, {
+        memberId: m.id,
+        endedAt: null,
+      }))
+        a.endedAt = new Date();
+      if (m.orgoId) {
+        for (const obligation of await tx.find(MembershipObligation, {
+          orgoUserId: m.orgoId,
+        }))
+          for (const checkout of await tx.find(MembershipCheckout, {
+            obligationId: obligation.id,
+            state: { $in: ['starting', 'pending', 'unknown'] },
+          }))
+            checkout.reviewRequired = true;
+      }
+    } else if (wasInactive) {
+      m.feeResumePeriod = `${targetYear(new Date())}-09-01`;
+      const current = await tx.findOne(MembershipPeriod, {
+        startsOn: m.feeResumePeriod,
+      });
+      if (current && m.orgoId) {
+        const obligation = await tx.findOne(MembershipObligation, {
+          orgoUserId: m.orgoId,
+          periodId: current.id,
+        });
+        if (
+          obligation &&
+          ['orgo_review', 'missing_from_orgo'].includes(
+            obligation.reviewState ?? '',
+          )
+        ) {
+          obligation.reviewState = null;
+          obligation.reviewReason = null;
+        }
+      }
+    }
+    if (m.accountId) {
+      const account = await tx.findOne(User, { id: m.accountId });
+      if (account) {
+        account.councilAdmin = false;
+        account.memberAccessDisabled = status !== 'active';
+        if (status === 'active' && wasInactive) account.roles = [];
+      }
+    }
+    const previous = m.status;
+    m.status = status;
+    tx.create(AuditEntry, {
+      actorId: null,
+      action: 'members.orgo-status',
+      entityType: 'Member',
+      entityId: m.id,
+      metadata: { from: previous, to: status },
+    });
+  }
+
   private async context(tx: EntityManager, user: CurrentUser) {
     const account = await tx.findOneOrFail(
       User,
@@ -324,12 +388,24 @@ export class MembersService {
       actorId,
       kind,
       payload,
-      baseline: member.remote,
-      state: kind === 'local-profile' ? 'local-only' : 'pending',
-      message:
-        kind === 'local-profile'
-          ? 'Date păstrate în fișa locală; nu sunt trimise în Orgo.'
-          : 'În așteptarea sincronizării.',
+      baseline:
+        kind === 'orgo-profile'
+          ? {
+              email: member.remote?.email,
+              phoneNumber: member.remote?.phone,
+              ...member.orgoBase,
+            }
+          : member.remote,
+      state: ['local-profile', 'assignment', 'roles', 'progression'].includes(
+        kind,
+      )
+        ? 'local-only'
+        : 'pending',
+      message: ['local-profile', 'assignment', 'roles', 'progression'].includes(
+        kind,
+      )
+        ? 'Date păstrate în fișa locală; nu sunt trimise în Orgo.'
+        : 'În așteptarea sincronizării.',
     });
   }
   async bulk(user: CurrentUser, input: unknown) {
@@ -554,6 +630,16 @@ export class MembersService {
           ),
         ].sort((a, b) => a - b),
       }));
+    const pendingSync = visible.length
+      ? await this.em.find(
+          MemberSync,
+          {
+            memberId: { $in: visible.map((m) => m.id) },
+            state: { $nin: ['synced', 'superseded', 'local-only'] },
+          },
+          { orderBy: { createdAt: 'desc' } },
+        )
+      : [];
     const settings = await this.em.findOne(MemberSettings, { id: 'default' });
     const sync = ctx.admin
       ? await this.em.find(
@@ -630,94 +716,85 @@ export class MembersService {
           .map((a) => a.unitId),
       ],
       units,
-      inactiveMembers: visible.filter(isImportedInactive).map((m) => ({
+      members: visible.map((m) => ({
+        responsibilities: allAssignments
+          .filter(
+            (a) =>
+              a.memberId === m.id &&
+              a.role !== 'beneficiary' &&
+              (ctx.admin ||
+                (a.role === 'chief'
+                  ? units.some(
+                      (u) =>
+                        u.id === a.unitId &&
+                        ctx.structureIds.includes(u.structureId),
+                    )
+                  : ['leader', 'helper'].includes(a.role) &&
+                    ctx.assignments.some(
+                      (actor) =>
+                        actor.role === 'chief' && actor.unitId === a.unitId,
+                    ))),
+          )
+          .map((a) => ({
+            id: a.id,
+            role: a.role,
+            unitId: a.unitId,
+            groupId: a.groupId,
+          })),
+        responsibilityUnitIds: [
+          ...new Set(
+            allAssignments
+              .filter(
+                (a) =>
+                  a.memberId === m.id &&
+                  a.unitId &&
+                  units.some((u) => u.id === a.unitId),
+              )
+              .map((a) => a.unitId!),
+          ),
+        ],
+        responsibilityGroupIds: [
+          ...new Set(
+            allAssignments
+              .filter(
+                (a) =>
+                  a.memberId === m.id &&
+                  a.groupId &&
+                  units.some((u) => u.id === a.groupId),
+              )
+              .map((a) => a.groupId!),
+          ),
+        ],
         id: m.id,
         name: m.name,
-        orgoId: m.orgoId,
         structureId: structureOf(m),
-        revision: m.revision,
+        orgoId: grants.get(m.id)?.detail ? m.orgoId : null,
+        grade: grants.get(m.id)?.detail ? m.grade : null,
+        unitId: m.unitId,
+        groupId: m.groupId,
+        syncState: pendingSync.find((s) => s.memberId === m.id)?.state,
+        syncMessage: pendingSync.find((s) => s.memberId === m.id)?.message,
         status: m.status,
+        adultKind: m.adultKind,
+        roles: [
+          ...new Set(
+            allAssignments
+              .filter((a) => a.memberId === m.id)
+              .map((a) => a.role),
+          ),
+        ],
+        orgoType: grants.get(m.id)?.detail
+          ? typeof (m.orgoProfile?.type as { name?: unknown } | undefined)
+              ?.name === 'string'
+            ? (m.orgoProfile.type as { name: string }).name
+            : null
+          : null,
+        revision: m.revision,
         access: grants.get(m.id),
+        branch: m.branch,
+        category: m.category,
+        categoryReview: m.categoryReview,
       })),
-      members: visible
-        .filter((m) => !isImportedInactive(m))
-        .map((m) => ({
-          responsibilities: allAssignments
-            .filter(
-              (a) =>
-                a.memberId === m.id &&
-                a.role !== 'beneficiary' &&
-                (ctx.admin ||
-                  (a.role === 'chief'
-                    ? units.some(
-                        (u) =>
-                          u.id === a.unitId &&
-                          ctx.structureIds.includes(u.structureId),
-                      )
-                    : ['leader', 'helper'].includes(a.role) &&
-                      ctx.assignments.some(
-                        (actor) =>
-                          actor.role === 'chief' && actor.unitId === a.unitId,
-                      ))),
-            )
-            .map((a) => ({
-              id: a.id,
-              role: a.role,
-              unitId: a.unitId,
-              groupId: a.groupId,
-            })),
-          responsibilityUnitIds: [
-            ...new Set(
-              allAssignments
-                .filter(
-                  (a) =>
-                    a.memberId === m.id &&
-                    a.unitId &&
-                    units.some((u) => u.id === a.unitId),
-                )
-                .map((a) => a.unitId!),
-            ),
-          ],
-          responsibilityGroupIds: [
-            ...new Set(
-              allAssignments
-                .filter(
-                  (a) =>
-                    a.memberId === m.id &&
-                    a.groupId &&
-                    units.some((u) => u.id === a.groupId),
-                )
-                .map((a) => a.groupId!),
-            ),
-          ],
-          id: m.id,
-          name: m.name,
-          structureId: structureOf(m),
-          orgoId: grants.get(m.id)?.detail ? m.orgoId : null,
-          grade: grants.get(m.id)?.detail ? m.grade : null,
-          unitId: m.unitId,
-          groupId: m.groupId,
-          status: m.status,
-          adultKind: m.adultKind,
-          roles: [
-            ...new Set(
-              allAssignments
-                .filter((a) => a.memberId === m.id)
-                .map((a) => a.role),
-            ),
-          ],
-          orgoType: grants.get(m.id)?.detail
-            ? typeof (m.orgoProfile?.type as { name?: unknown } | undefined)
-                ?.name === 'string'
-              ? (m.orgoProfile.type as { name: string }).name
-              : null
-            : null,
-          revision: m.revision,
-          access: grants.get(m.id),
-          branch: m.branch,
-          category: m.category,
-          categoryReview: m.categoryReview,
-        })),
       ownMemberId: ctx.member?.id ?? null,
       progressionEnabled: settings?.progressionEnabled ?? false,
       sync: sync.map((s) => ({
@@ -876,6 +953,8 @@ export class MembersService {
           (period?.startsOn ?? '') >= member.feeResumePeriod);
       return {
         period: period?.name ?? '',
+        current: period?.active ?? false,
+        plan: o.plan,
         obligationId: o.id,
         startsOn: period?.startsOn,
         nationalBani: o.nationalBani,
@@ -1124,26 +1203,35 @@ export class MembersService {
         };
       }
     }
-    if (payload.rawUserCustomFieldsValues && payload.contact) {
+    const shared: Record<string, unknown> = {};
+    if (payload.contact) {
       const contact = payload.contact as { email: string; phone: string };
-      payload.email = contact.email;
-      payload.phoneNumber = contact.phone;
-      delete payload.contact;
+      if (m.orgoBase?.email !== contact.email) shared.email = contact.email;
+      if (m.orgoBase?.phoneNumber !== contact.phone)
+        shared.phoneNumber = contact.phone;
     }
+    if ('birthDate' in payload) shared.dateBirth = payload.birthDate;
+    if (payload.rawUserCustomFieldsValues)
+      shared.rawUserCustomFieldsValues = payload.rawUserCustomFieldsValues;
     this.queue(
       tx,
       m,
       user.id,
-      payload.rawUserCustomFieldsValues &&
-        Object.keys(payload).every((k) =>
-          ['email', 'phoneNumber', 'rawUserCustomFieldsValues'].includes(k),
-        )
-        ? 'orgo-profile'
-        : Object.keys(payload).length
-          ? 'profile'
-          : 'local-profile',
-      payload,
+      Object.keys(shared).length ? 'orgo-profile' : 'local-profile',
+      shared,
     );
+    if ('name' in payload)
+      tx.create(MemberSync, {
+        memberId: m.id,
+        revision: m.revision,
+        actorId: user.id,
+        kind: 'profile',
+        payload: { name: payload.name },
+        baseline: m.remote,
+        state: 'unsupported',
+        message:
+          'Pentru sincronizarea numelui, folosește prenumele și numele din fișa Orgo.',
+      });
     return { id, result: { ok: true } };
   }
   async note(user: CurrentUser, id: string, input: unknown) {
@@ -1362,9 +1450,9 @@ export class MembersService {
         ).edit
       )
         denied();
-      if (!['withdrawn', 'review'].includes(m.status))
+      if (!['withdrawn', 'review', 'inactive', 'suspended'].includes(m.status))
         throw new BadRequestException('Membrul este deja activ.');
-      const wasWithdrawn = m.status === 'withdrawn';
+      const wasWithdrawn = m.status !== 'active';
       m.status = 'active';
       m.adultKind = unitId ? null : 'volunteer';
       if (wasWithdrawn) m.feeResumePeriod = `${targetYear(new Date())}-09-01`;
@@ -1419,15 +1507,7 @@ export class MembersService {
         }
       }
     } else throw new BadRequestException('Acțiune necunoscută.');
-    this.queue(
-      tx,
-      m,
-      user.id,
-      action === 'withdraw' && isImportedInactive(m)
-        ? 'local-profile'
-        : 'status',
-      { status: m.status },
-    );
+    this.queue(tx, m, user.id, 'status', { status: m.status });
     return { id, result: { ok: true } };
   }
   async assignment(user: CurrentUser, id: string, input: unknown) {

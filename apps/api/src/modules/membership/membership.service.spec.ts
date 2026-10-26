@@ -4,6 +4,7 @@ jest.mock('./entities/admission-allocation.entity', () => ({
 }));
 jest.mock('../members/entities/member.entity', () => ({
   ScoutMember: 'member',
+  MemberSync: 'member-sync',
 }));
 jest.mock('../auth/guards/auth.guard', () => ({
   AuthGuard: class {
@@ -454,6 +455,7 @@ function fixture() {
         memberName: string;
         plan: 'normal' | 'fam1' | 'fam2';
         eligible: boolean;
+        feePriceRef?: string;
       }>
     >,
     []
@@ -471,6 +473,17 @@ function fixture() {
   const nationalCheck = jest.fn(() =>
     Promise.resolve({ state: 'synced', message: 'Verified in Orgo' }),
   );
+  const feeContext = jest.fn(() =>
+    Promise.resolve({
+      baseline: '/api/v1/product_prices/100',
+      choices: ['normal', 'fam1', 'fam2', 'fam3', 'social'].map((plan, i) => ({
+        plan,
+        reference: '/api/v1/product_prices/' + (100 + i),
+      })),
+      memberRevision: 1,
+    }),
+  );
+  const queueFeePlan = jest.fn(() => Promise.resolve());
   const service = new MembershipService(
     em as unknown as EntityManager,
     netopia as unknown as NetopiaService,
@@ -478,6 +491,7 @@ function fixture() {
     configurations as never,
     { members: rosterMembers, nationalReady: () => false } as never,
     { synchronize: nationalCheck } as never,
+    { feePlanContext: feeContext, queueFeePlan } as never,
   );
   const staff: CurrentUser = {
     id: 1,
@@ -492,6 +506,8 @@ function fixture() {
     configurations,
     rosterMembers,
     nationalCheck,
+    feeContext,
+    queueFeePlan,
     service,
     staff,
   };
@@ -2693,4 +2709,181 @@ describe('national paid directly in Orgo and local bank contribution', () => {
     );
     expect(f.obligation.nationalDirectBani ?? 0).toBe(0);
   });
+});
+
+describe('member cotisation type changes', () => {
+  it('recalculates an unpaid current-year amount and queues the canonical Orgo price', async () => {
+    const f = await setup();
+    const preview = await f.service.previewFeePlan(f.staff, f.obligation.id, {
+      plan: 'fam2',
+    });
+    expect(preview).toMatchObject({
+      currentPlan: 'normal',
+      selectedPlan: 'fam2',
+      proposedTotalBani: 15000,
+      remainingBani: 15000,
+      canResolve: true,
+    });
+    await f.service.changeFeePlan(f.staff, f.obligation.id, {
+      plan: 'fam2',
+      version: preview.version,
+      note: 'Second family member',
+    });
+    expect(f.obligation).toMatchObject({
+      plan: 'fam2',
+      totalBani: 15000,
+      nationalBani: 7500,
+    });
+    expect(f.queueFeePlan).toHaveBeenCalledWith(
+      expect.anything(),
+      f.staff,
+      36805,
+      'fam2',
+      '/api/v1/product_prices/102',
+      '/api/v1/product_prices/100',
+      1,
+    );
+  });
+  it('preserves partial payments and recalculates only the remainder', async () => {
+    const f = await setup();
+    await f.service.bankReceipt(f.staff, {
+      periodId: f.period.id,
+      obligationId: f.obligation.id,
+      amountBani: 10000,
+      reference: 'PARTIAL',
+      receivedOn: '2026-10-26',
+      note: 'Payment evidence',
+    });
+    const evidence = JSON.stringify(
+      f.rows.filter((row) => ['receipt', 'allocation'].includes(row.table)),
+    );
+    const preview = await f.service.previewFeePlan(f.staff, f.obligation.id, {
+      plan: 'fam2',
+    });
+    expect(preview.remainingBani).toBe(5000);
+    await f.service.changeFeePlan(f.staff, f.obligation.id, {
+      plan: 'fam2',
+      version: preview.version,
+      note: 'Family discount',
+    });
+    expect(
+      JSON.stringify(
+        f.rows.filter((row) => ['receipt', 'allocation'].includes(row.table)),
+      ),
+    ).toBe(evidence);
+  });
+  it('blocks a new tariff that would create an overpayment', async () => {
+    const f = await setup();
+    await f.service.bankReceipt(f.staff, {
+      periodId: f.period.id,
+      obligationId: f.obligation.id,
+      amountBani: 20000,
+      reference: 'SURPLUS',
+      receivedOn: '2026-10-26',
+      note: 'Payment evidence',
+    });
+    const preview = await f.service.previewFeePlan(f.staff, f.obligation.id, {
+      plan: 'fam2',
+    });
+    expect(preview.canResolve).toBe(false);
+    await expect(
+      f.service.changeFeePlan(f.staff, f.obligation.id, {
+        plan: 'fam2',
+        version: preview.version,
+        note: 'Family discount',
+      }),
+    ).rejects.toThrow('depășește');
+    expect(f.obligation.plan).toBe('normal');
+    expect(f.queueFeePlan).not.toHaveBeenCalled();
+  });
+  it('refuses a stale preview after a payment is opened', async () => {
+    const f = await setup();
+    const preview = await f.service.previewFeePlan(f.staff, f.obligation.id, {
+      plan: 'fam2',
+    });
+    f.rows.push({
+      id: 'new-checkout',
+      table: 'checkout',
+      periodId: f.period.id,
+      obligationId: f.obligation.id,
+      state: 'pending',
+    });
+    await expect(
+      f.service.changeFeePlan(f.staff, f.obligation.id, {
+        plan: 'fam2',
+        version: preview.version,
+        note: 'Family discount',
+      }),
+    ).rejects.toThrow('s-au schimbat');
+    expect(f.queueFeePlan).not.toHaveBeenCalled();
+  });
+  it('does not change historical periods or accept non-financial actors', async () => {
+    const f = await setup();
+    f.rows.find((row) => row.id === f.period.id)!.active = false;
+    const preview = await f.service.previewFeePlan(f.staff, f.obligation.id, {
+      plan: 'fam1',
+    });
+    expect(preview.canResolve).toBe(false);
+    await expect(
+      f.service.previewFeePlan({ ...f.staff, roles: [] }, f.obligation.id, {
+        plan: 'fam1',
+      }),
+    ).rejects.toThrow();
+    expect(f.feeContext).toHaveBeenCalledTimes(1);
+  });
+  it('preserves a pending local fee type when Orgo still returns the unchanged baseline', async () => {
+    const f = await setup();
+    const preview = await f.service.previewFeePlan(f.staff, f.obligation.id, {
+      plan: 'fam2',
+    });
+    await f.service.changeFeePlan(f.staff, f.obligation.id, {
+      plan: 'fam2',
+      version: preview.version,
+      note: 'Family discount',
+    });
+    f.rows.push({
+      table: 'member',
+      id: 'linked',
+      orgoId: 36805,
+      orgoProfile: { feeTenantProductPrice: '/api/v1/product_prices/102' },
+    });
+    f.rows.push({
+      table: 'member-sync',
+      id: 'pending-type',
+      memberId: 'linked',
+      kind: 'fee-plan',
+      state: 'permission-required',
+      payload: {
+        plan: 'fam2',
+        feeTenantProductPrice: '/api/v1/product_prices/102',
+      },
+      baseline: { feeTenantProductPrice: '/api/v1/product_prices/100' },
+    });
+    f.rosterMembers.mockResolvedValue([
+      {
+        orgoUserId: 36805,
+        cardId: 'AT36805',
+        memberName: 'Test Member',
+        eligible: true,
+        plan: 'normal',
+        feePriceRef: '/api/v1/product_prices/100',
+      },
+    ]);
+    await f.service.synchronizeRoster(f.staff, 'initialization');
+    expect(f.obligation).toMatchObject({ plan: 'fam2', totalBani: 15000 });
+  });
+});
+
+it('does not reclassify excess direct national coverage as local payment', async () => {
+  const f = await setup();
+  f.obligation.nationalDirectBani = 15000;
+  const quote = await f.service.previewFeePlan(f.staff, f.obligation.id, {
+    plan: 'fam2',
+  });
+  expect(quote.canResolve).toBe(false);
+  expect(
+    quote.blockers.some((blocker) =>
+      blocker.message.includes('direct naționalului'),
+    ),
+  ).toBe(true);
 });

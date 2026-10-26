@@ -2,6 +2,10 @@ import { Migration } from '@mikro-orm/migrations';
 
 export class Migration20261026000100 extends Migration {
   override up(): void {
+    // Widen the legacy constraint before converting populated historical rows.
+    this.addSql('alter table "scout_members" drop constraint "member_status";');
+    this.addSql(`alter table "scout_members" add constraint "member_status"
+      check (status in ('active', 'withdrawn', 'review', 'inactive', 'suspended'));`);
     this.addSql(`alter table "member_sync_operations"
       add column "attempts" integer not null default 0,
       add column "next_attempt_at" timestamptz null;`);
@@ -26,6 +30,13 @@ export class Migration20261026000100 extends Migration {
     );
   }
   override down(): void {
+    this.addSql(
+      `update "scout_members" set status = 'review' where status in ('inactive', 'suspended');`,
+    );
+    this.addSql('alter table "scout_members" drop constraint "member_status";');
+    this.addSql(
+      `alter table "scout_members" add constraint "member_status" check (status in ('active', 'withdrawn', 'review'));`,
+    );
     this.addSql('drop index "member_sync_retry_index";');
     this.addSql(
       'alter table "member_sync_operations" drop column "attempts", drop column "next_attempt_at";',

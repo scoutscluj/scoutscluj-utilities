@@ -1,3 +1,4 @@
+import { emptyProfile } from '../src/modules/members/member.types';
 import { ConfigService } from '@nestjs/config';
 import { MemberOrgoService } from '../src/modules/members/orgo.service';
 import { MembershipService } from '../src/modules/membership/membership.service';
@@ -37,7 +38,34 @@ async function main() {
     preferTs: true,
   });
   try {
+    await orm.migrator.up({ to: 'Migration20261025000100' });
+    const legacyEm = orm.em.fork();
+    const legacyInactive = legacyEm.create(ScoutMember, {
+      orgoId: 88887,
+      name: 'Legacy inactive fixture',
+      status: 'review',
+      profile: emptyProfile(),
+      remote: { status: 'INACTIVE' },
+    });
+    const legacySuspended = legacyEm.create(ScoutMember, {
+      orgoId: 88886,
+      name: 'Legacy suspended fixture',
+      status: 'review',
+      profile: emptyProfile(),
+      remote: { status: 'SUSPENDED' },
+    });
+    await legacyEm.flush();
     await orm.migrator.up();
+    assert.equal(
+      (await orm.em.fork().findOneOrFail(ScoutMember, legacyInactive.id))
+        .status,
+      'inactive',
+    );
+    assert.equal(
+      (await orm.em.fork().findOneOrFail(ScoutMember, legacySuspended.id))
+        .status,
+      'suspended',
+    );
     assert.equal((await orm.migrator.up()).length, 0);
     const em = orm.em.fork();
     const account = em.create(User, {
@@ -354,11 +382,29 @@ async function main() {
             name: 'Normală',
           },
         };
+        const roster = [
+          row,
+          {
+            ...row,
+            id: 88889,
+            fullName: 'New inactive fixture',
+            status: 'INACTIVE',
+          },
+          {
+            ...row,
+            id: 88890,
+            fullName: 'New suspended fixture',
+            status: 'SUSPENDED',
+          },
+        ];
+        const detail = roster.find((item) =>
+          url.pathname.endsWith('/' + item.id),
+        );
         const body =
           url.pathname === '/api/v1/users'
-            ? { 'hydra:member': [row], 'hydra:totalItems': 1 }
-            : url.pathname.endsWith('/88888')
-              ? row
+            ? { 'hydra:member': roster, 'hydra:totalItems': roster.length }
+            : detail
+              ? detail
               : url.pathname === '/api/v1/tenants'
                 ? {
                     'hydra:member': [
@@ -397,6 +443,16 @@ async function main() {
         .fork()
         .findOneOrFail(ScoutMember, { orgoId: 88888 });
       assert.equal(synced.status, 'active');
+      assert.equal(
+        (await orm.em.fork().findOneOrFail(ScoutMember, { orgoId: 88889 }))
+          .status,
+        'inactive',
+      );
+      assert.equal(
+        (await orm.em.fork().findOneOrFail(ScoutMember, { orgoId: 88890 }))
+          .status,
+        'suspended',
+      );
       assert.equal(
         await orm.em.fork().count(ScoutAssignment, { memberId: synced.id }),
         0,

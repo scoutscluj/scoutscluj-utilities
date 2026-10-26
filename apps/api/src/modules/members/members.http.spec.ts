@@ -406,7 +406,26 @@ describe('member HTTP scope and lifecycle', () => {
       .get('/members/' + otherId)
       .expect(403);
   });
-  it('confirms imported inactive members as withdrawn without a remote status change', async () => {
+  it('ends authority for incoming suspension and does not restore it on remote reactivation', async () => {
+    const member = f.list('member').find((m) => m.id === adultId)!;
+    member.status = 'suspended'; // Existing imported state must still revoke stale authority.
+    const service = new MembersService(f.em);
+    const assignment = {
+      id: 'suspended-authority',
+      memberId: adultId,
+      role: 'helper',
+      endedAt: null,
+    };
+    f.list('assignment').push(assignment);
+    await service.applyOrgoStatus(f.em, member as never, 'suspended');
+    expect(member.status).toBe('suspended');
+    expect(assignment.endedAt).toBeInstanceOf(Date);
+    await service.applyOrgoStatus(f.em, member as never, 'active');
+    expect(member.status).toBe('active');
+    expect(assignment.endedAt).toBeInstanceOf(Date);
+    expect(f.list('sync')).toHaveLength(0);
+  });
+  it('queues the Orgo status change when withdrawing an imported inactive member', async () => {
     const member = f.list('member').find((m) => m.id === childId)!;
     member.status = 'review';
     member.remote = { status: 'INACTIVE' };
@@ -416,8 +435,8 @@ describe('member HTTP scope and lifecycle', () => {
       .expect(201);
     expect(member.status).toBe('withdrawn');
     expect(f.list('sync')[0]).toMatchObject({
-      kind: 'local-profile',
-      state: 'local-only',
+      kind: 'status',
+      state: 'pending',
     });
   });
   it('preserves adult responsibilities when council transfers primary affiliation and flags pending admissions', async () => {
@@ -627,7 +646,7 @@ describe('member HTTP scope and lifecycle', () => {
       })
       .expect(409);
   });
-  it('separates imported inactive history without hiding suspended or locally reactivated members', async () => {
+  it('includes inactive and suspended members in the main scoped roster', async () => {
     f.list('member').push(
       {
         id: 'historical',
@@ -659,16 +678,12 @@ describe('member HTTP scope and lifecycle', () => {
       members: { id: string }[];
       inactiveMembers: { id: string }[];
     };
-    expect(result.inactiveMembers.map((m) => m.id)).toEqual(['historical']);
+    expect(result.inactiveMembers).toBeUndefined();
     expect(result.members.map((m) => m.id)).toEqual(
-      expect.arrayContaining(['suspended', 'returned']),
+      expect.arrayContaining(['historical', 'suspended', 'returned']),
     );
-    expect(result.members.map((m) => m.id)).not.toContain('historical');
     const scoped = await http().get('/members').expect(200);
-    expect(
-      (JSON.parse(scoped.text) as { inactiveMembers: unknown[] })
-        .inactiveMembers,
-    ).toEqual(
+    expect((JSON.parse(scoped.text) as { members: unknown[] }).members).toEqual(
       expect.arrayContaining([expect.objectContaining({ id: 'historical' })]),
     );
   });

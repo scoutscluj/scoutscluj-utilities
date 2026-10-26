@@ -1,4 +1,9 @@
 <script lang="ts">
+	import FeePlanDialog from '$lib/membership/FeePlanDialog.svelte';
+	let planOpen = $state(false),
+		planId = $state<string>(),
+		planName = $state(''),
+		planCurrent = $state('normal');
 	import Columns3 from '@lucide/svelte/icons/columns-3';
 	import { highlightSearch, matchesSearch } from '$lib/components/ui/table-search';
 	import { resolve } from '$app/paths';
@@ -470,7 +475,12 @@
 									? 'Activ'
 									: m.status === 'withdrawn'
 										? 'Retras din activitate'
-										: 'De verificat'}</td
+										: m.status === 'suspended'
+											? 'Suspendat'
+											: m.status === 'inactive'
+												? 'Inactiv'
+												: 'De verificat'}
+								{#if m.syncMessage}<small title={m.syncMessage}>{m.syncMessage}</small>{/if}</td
 							>{/if}{/if}
 					<td
 						>{#if rowActions(m).length}<ActionMenu
@@ -516,6 +526,16 @@
 							? ' · achitat direct în Orgo'
 							: ''}. Încasat de centru: {money(fee.localPaidBani ?? fee.paidBani)}.
 					</p>
+					{#if management && registry.canFinance && fee.obligationId && fee.current}<button
+							type="button"
+							onclick={() => {
+								planId = fee.obligationId;
+								planName = displayedFees?.name ?? '';
+								planCurrent = fee.plan ?? 'normal';
+								feesOpen = false;
+								planOpen = true;
+							}}>Schimbă tipul cotizației</button
+						>{/if}
 					{#if management && registry.canFinance && fee.obligationId}<details>
 							<summary>Național achitat în Orgo — confirmă partea locală</summary>
 							<form method="POST" use:enhance={submitFee}>
@@ -551,6 +571,13 @@
 		</div>
 	{/if}
 </Modal>
+
+<FeePlanDialog
+	bind:open={planOpen}
+	obligationId={planId}
+	memberName={planName}
+	currentPlan={planCurrent}
+/>
 
 <style>
 	.column-picker {

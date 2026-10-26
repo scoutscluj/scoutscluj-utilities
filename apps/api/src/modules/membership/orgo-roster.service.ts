@@ -1,3 +1,6 @@
+import { orgoPlan } from './orgo-fee-plan';
+export { orgoPlan } from './orgo-fee-plan';
+import { feePriceReference } from '../members/orgo-sync';
 import { BadGatewayException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OrgoTokenService } from '../auth/orgo-token.service';
@@ -9,6 +12,7 @@ export type OrgoRosterMember = {
   orgoCreatedAt?: Date;
   memberName: string;
   plan?: PlanKey;
+  feePriceRef?: string | null;
   eligible: boolean;
   issue?: string;
 };
@@ -36,23 +40,6 @@ const normalized = (value: string) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
-
-export function orgoPlan(value: unknown): PlanKey | undefined {
-  const item = object(value);
-  const candidate = normalized(
-    label(value) ??
-      label(item?.productPrice) ??
-      label(item?.product) ??
-      label(item?.price) ??
-      '',
-  );
-  if (/\bfam(?:ilia)?\s*3\b/.test(candidate)) return 'fam3';
-  if (/\bfam(?:ilia)?\s*2\b/.test(candidate)) return 'fam2';
-  if (/\bfam(?:ilia)?\s*1\b/.test(candidate)) return 'fam1';
-  if (/\bsocial/.test(candidate)) return 'social';
-  if (/\bnormal/.test(candidate)) return 'normal';
-  return undefined;
-}
 
 export function parseOrgoRoster(
   payload: Record<string, unknown>,
@@ -109,6 +96,7 @@ export function parseOrgoRoster(
         cardId: string(item.cardId)?.toUpperCase(),
         memberName: memberName || `ORGO ${id}`,
         plan,
+        feePriceRef: feePriceReference(price),
         eligible: !issue,
         issue,
       },

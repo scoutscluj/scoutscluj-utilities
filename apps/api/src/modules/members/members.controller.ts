@@ -35,6 +35,11 @@ export class MembersController {
   @Post('bulk') bulk(@CurrentUser() u: Actor, @Body() b: unknown) {
     return this.members.bulk(u, b);
   }
+  @Get('orgo/refresh-status')
+  @Header('Cache-Control', 'private, no-store')
+  refreshStatus(@CurrentUser() u: Actor) {
+    return this.orgo.refreshStatus(u);
+  }
   @Post('orgo/refresh') refresh(@CurrentUser() u: Actor) {
     return this.orgo.refresh(u);
   }

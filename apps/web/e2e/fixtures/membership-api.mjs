@@ -433,6 +433,12 @@ createServer(async (req, res) => {
 			...profileOptions.user
 		});
 	if (req.url === '/api/activities') return respond(res, []);
+	if (req.url === '/api/members/orgo/refresh' || req.url === '/api/members/orgo/refresh-status')
+		return respond(res, {
+			state: 'succeeded',
+			message: null,
+			lastSucceededAt: '2026-10-26T10:00:00Z'
+		});
 	if (req.url === '/api/members')
 		return respond(res, {
 			structures: [
@@ -509,15 +515,20 @@ createServer(async (req, res) => {
 					grades: [3]
 				}
 			],
-			inactiveMembers: Array.from({ length: 52 }, (_, i) => ({
-				id: `inactive-${i + 1}`,
-				name: `Istoric ${String(i + 1).padStart(2, '0')}`,
-				orgoId: 900 + i,
-				revision: 1,
-				access: { detail: true, edit: true, identity: true, transfer: true, fees: true },
-				status: 'review'
-			})),
 			members: [
+				...Array.from({ length: 52 }, (_, i) => ({
+					id: `inactive-${i + 1}`,
+					name: `Istoric ${String(i + 1).padStart(2, '0')}`,
+					orgoId: 900 + i,
+					revision: 1,
+					access: { detail: true, edit: true, identity: true, transfer: true, fees: true },
+					status: 'inactive',
+					grade: null,
+					unitId: null,
+					groupId: null,
+					adultKind: null
+				})),
+
 				{
 					id: 'm2',
 					revision: 1,
@@ -710,6 +721,40 @@ createServer(async (req, res) => {
 		if (req.url.endsWith('/surplus')) member.testSurplus = true;
 		if (req.url.endsWith('/stale')) member.testStale = true;
 		return respond(res, {});
+	}
+	if (req.url?.endsWith('/fee-plan-preview') || req.url?.endsWith('/fee-plan')) {
+		let raw = '';
+		for await (const chunk of req) raw += chunk;
+		const body = JSON.parse(raw),
+			member = ledger.obligations.find((o) => req.url.includes(o.id));
+		if (!member) return respond(res, { message: 'Cotizație inexistentă.' }, 404);
+		const price = prices[body.plan];
+		const paidBani =
+			ledger.allocations
+				.filter((a) => a.obligationId === member.id && !a.reversed)
+				.reduce((sum, a) => sum + a.amountBani, 0) + (member.nationalDirectBani ?? 0);
+		if (req.url.endsWith('/fee-plan-preview'))
+			return respond(res, {
+				obligationId: member.id,
+				periodName: 'Cotizație 2026–2027',
+				currentPlan: member.plan,
+				currentTotalBani: member.totalBani,
+				proposedTotalBani: price.totalBani,
+				proposedNationalBani: price.nationalBani,
+				selectedPlan: body.plan,
+				paidBani,
+				remainingBani: Math.max(0, price.totalBani - paidBani),
+				canResolve: paidBani <= price.totalBani,
+				blockers:
+					paidBani > price.totalBani ? [{ message: 'Suma alocată depășește noul tarif.' }] : [],
+				version: 'fee-preview'
+			});
+		submissions.push(body);
+		member.plan = body.plan;
+		member.totalBani = price.totalBani;
+		member.nationalBani = price.nationalBani;
+		member.feePlanSyncState = 'pending';
+		return respond(res, { success: true });
 	}
 	if (req.url?.endsWith('/review-preview')) {
 		const member = ledger.obligations[0];

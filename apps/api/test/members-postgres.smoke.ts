@@ -1,3 +1,5 @@
+import { ConfigService } from '@nestjs/config';
+import { MemberOrgoService } from '../src/modules/members/orgo.service';
 import { MembershipService } from '../src/modules/membership/membership.service';
 import {
   MembershipPeriod,
@@ -336,6 +338,145 @@ async function main() {
       await reader.count(MembershipReceipt, { reference: 'PG-ROLLBACK' }),
       0,
     );
+    // Exercise the new schema and refresh transaction against real PostgreSQL in CI.
+    const originalFetch = global.fetch;
+    try {
+      global.fetch = (input) => {
+        const url = new URL(input instanceof Request ? input.url : input);
+        const row = {
+          id: 88888,
+          fullName: 'Membru sincronizat',
+          status: 'ACTIVE',
+          localCenter: { id: 7 },
+          type: { id: 39, name: 'Temerar' },
+          feeTenantProductPrice: {
+            '@id': '/api/v1/product_prices/100',
+            name: 'Normală',
+          },
+        };
+        const body =
+          url.pathname === '/api/v1/users'
+            ? { 'hydra:member': [row], 'hydra:totalItems': 1 }
+            : url.pathname.endsWith('/88888')
+              ? row
+              : url.pathname === '/api/v1/tenants'
+                ? {
+                    'hydra:member': [
+                      {
+                        settingFeatures: { fees: { productUuid: 'test-fees' } },
+                      },
+                    ],
+                  }
+                : url.pathname === '/api/v1/products/test-fees'
+                  ? {
+                      productPrices: [
+                        {
+                          '@id': '/api/v1/product_prices/100',
+                          name: 'Normală',
+                        },
+                        { '@id': '/api/v1/product_prices/102', name: 'Fam 2' },
+                      ],
+                    }
+                  : { 'hydra:member': [] };
+        return Promise.resolve(
+          new Response(JSON.stringify(body), { status: 200 }),
+        );
+      };
+      const adapter = () =>
+        new MemberOrgoService(
+          orm.em.fork(),
+          new ConfigService({
+            ORGO_API_TOKEN: 'synthetic-test-token',
+            ORGO_LOCAL_CENTER_ID: '7',
+            ORGO_OAUTH_BASE_URL: 'https://orgo.example.test',
+          }),
+          service(),
+        );
+      await adapter().refreshProfiles();
+      const synced = await orm.em
+        .fork()
+        .findOneOrFail(ScoutMember, { orgoId: 88888 });
+      assert.equal(synced.status, 'active');
+      assert.equal(
+        await orm.em.fork().count(ScoutAssignment, { memberId: synced.id }),
+        0,
+      );
+      const revision = synced.revision;
+      await adapter().refreshProfiles();
+      assert.equal(
+        await orm.em.fork().count(ScoutMember, { orgoId: 88888 }),
+        1,
+      );
+      assert.equal(
+        (await orm.em.fork().findOneOrFail(ScoutMember, { orgoId: 88888 }))
+          .revision,
+        revision,
+      );
+      period.active = true;
+      const typedObligation = reader.create(MembershipObligation, {
+        periodId: period.id,
+        orgoUserId: 88888,
+        memberName: 'Membru sincronizat',
+        plan: 'normal',
+        totalBani: 30000,
+        nationalBani: 15000,
+        verificationNote: 'Synthetic fee type test',
+      });
+      await reader.flush();
+      const feeService = new MembershipService(
+        orm.em.fork(),
+        {} as never,
+        {} as never,
+        {} as never,
+        {
+          members: () =>
+            Promise.resolve([
+              {
+                orgoUserId: 88888,
+                memberName: 'Membru sincronizat',
+                eligible: true,
+                plan: 'normal',
+                feePriceRef: '/api/v1/product_prices/100',
+              },
+            ]),
+        } as never,
+        undefined,
+        adapter(),
+      );
+      const quote = await feeService.previewFeePlan(actor, typedObligation.id, {
+        plan: 'fam2',
+      });
+      assert.equal(quote.canResolve, true);
+      await feeService.changeFeePlan(actor, typedObligation.id, {
+        plan: 'fam2',
+        version: quote.version,
+        note: 'Synthetic family discount',
+      });
+      assert.equal(
+        (
+          await orm.em
+            .fork()
+            .findOneOrFail(MembershipObligation, typedObligation.id)
+        ).totalBani,
+        15000,
+      );
+      assert.equal(
+        await orm.em.fork().count(MemberSync, {
+          memberId: synced.id,
+          kind: 'fee-plan',
+          state: 'pending',
+        }),
+        1,
+      );
+      await adapter().refreshProfiles();
+      assert.equal(
+        (await orm.em.fork().findOneOrFail(ScoutMember, synced.id)).orgoProfile
+          .feeTenantProductPrice,
+        '/api/v1/product_prices/102',
+      );
+    } finally {
+      global.fetch = originalFetch;
+    }
     console.log(
       'PostgreSQL migrations, scoped structures, admission allocation concurrency and transaction rollback checks passed.',
     );

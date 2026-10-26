@@ -8,7 +8,13 @@ import { MembersController } from './members.controller';
 import { MembersWorker } from './members.worker';
 @Module({
   imports: [AuthModule, MikroOrmModule.forFeature(MEMBER_ENTITIES)],
+  exports: [MemberOrgoService, 'MEMBER_ORGO_SERVICE'],
   controllers: [MembersController],
-  providers: [MembersService, MemberOrgoService, MembersWorker],
+  providers: [
+    MembersService,
+    MemberOrgoService,
+    MembersWorker,
+    { provide: 'MEMBER_ORGO_SERVICE', useExisting: MemberOrgoService },
+  ],
 })
 export class MembersModule {}

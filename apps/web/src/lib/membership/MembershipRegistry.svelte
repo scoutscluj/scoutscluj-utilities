@@ -1,4 +1,8 @@
 <script lang="ts">
+	import FeePlanDialog from './FeePlanDialog.svelte';
+	import { syncLabels } from '$lib/members/types';
+	let planOpen = $state(false);
+	let planMember = $state<Obligation>();
 	import { highlightSearch, matchesSearch } from '$lib/components/ui/table-search';
 	import TableToolbar from '$lib/components/ui/TableToolbar.svelte';
 	import TablePagination from '$lib/components/ui/TablePagination.svelte';
@@ -201,7 +205,22 @@
 										>Adeziune achitată</span
 									>{/if}<small>ID Orgo {o.orgoUserId} {o.cardId ? `· ${o.cardId}` : ''}</small></td
 							>
-							<td>{feePlans.find((p) => p[0] === o.plan)?.[1] ?? o.plan}</td>
+							<td
+								>{feePlans.find((p) => p[0] === o.plan)?.[1] ?? o.plan}
+								{#if o.feePlanSyncState}<small
+										>{syncLabels[o.feePlanSyncState] ?? 'În așteptarea sincronizării'}</small
+									>{/if}
+								{#if !transfers && ledger.periods.find((p) => p.id === o.periodId)?.active}<button
+										type="button"
+										class="resolve-review"
+										disabled={!ready}
+										aria-label={`Schimbă tipul cotizației pentru ${o.memberName}`}
+										onclick={() => {
+											planMember = o;
+											planOpen = true;
+										}}>Schimbă tipul</button
+									>{/if}
+							</td>
 							<td>{money(o.totalBani)}</td>
 							<td
 								>{money(paid(o.id))}{#if o.nationalDirectBani}<small
@@ -294,6 +313,13 @@
 
 {#if !transfers}<ManualReceiptDialog {ledger} obligation={receiptMember} bind:open={receiptOpen} />
 	<ObligationReviewDialog obligation={reviewMember} bind:open={reviewOpen} />{/if}
+
+<FeePlanDialog
+	bind:open={planOpen}
+	obligationId={planMember?.id}
+	memberName={planMember?.memberName}
+	currentPlan={planMember?.plan}
+/>
 
 <style>
 	.resolve-review {

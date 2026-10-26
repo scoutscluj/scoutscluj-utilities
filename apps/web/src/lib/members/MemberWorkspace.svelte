@@ -1,4 +1,73 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { invalidateAll } from '$app/navigation';
+	type Refresh = { state: string; message: string | null; lastSucceededAt: string | null };
+	let refresh = $state<Refresh>({ state: 'idle', message: null, lastSucceededAt: null });
+	let controller: AbortController | undefined;
+	let pollTimer: ReturnType<typeof setTimeout> | undefined;
+	async function refreshRoster() {
+		controller?.abort();
+		if (pollTimer) clearTimeout(pollTimer);
+		const current = new AbortController();
+		controller = current;
+		refresh = { ...refresh, state: 'running', message: null };
+		try {
+			const response = await fetch(resolve('/units/sync'), {
+				method: 'POST',
+				signal: current.signal
+			});
+			if (!response.ok) throw new Error('Refresh rejected');
+			refresh = await response.json();
+			await pollRefresh(current);
+		} catch {
+			if (!current.signal.aborted)
+				refresh = {
+					...refresh,
+					state: 'failed',
+					message: 'Actualizarea din Orgo a eșuat. Reîncearcă.'
+				};
+		}
+	}
+	async function pollRefresh(current: AbortController) {
+		if (current.signal.aborted) return;
+		if (refresh.state !== 'running') {
+			await invalidateAll();
+			return;
+		}
+		pollTimer = setTimeout(() => {
+			void (async () => {
+				try {
+					const response = await fetch(resolve('/units/sync'), { signal: current.signal });
+					if (!response.ok) throw new Error('Refresh rejected');
+					refresh = await response.json();
+					await pollRefresh(current);
+				} catch {
+					if (!current.signal.aborted)
+						refresh = {
+							...refresh,
+							state: 'failed',
+							message: 'Actualizarea din Orgo a eșuat. Reîncearcă.'
+						};
+				}
+			})();
+		}, 1000);
+	}
+	onMount(() => {
+		void refreshRoster();
+		const deliveryTimer = setInterval(() => {
+			if (
+				data.registry.members.some((m) =>
+					['pending', 'running', 'uncertain'].includes(m.syncState ?? '')
+				)
+			)
+				void invalidateAll().catch(() => undefined);
+		}, 5000);
+		return () => {
+			clearInterval(deliveryTimer);
+			controller?.abort();
+			if (pollTimer) clearTimeout(pollTimer);
+		};
+	});
 	import { highlightSearch, matchesSearch } from '$lib/components/ui/table-search';
 	import { resolve } from '$app/paths';
 	import type { PageData, ActionData } from '../../routes/(app)/units/$types';
@@ -154,6 +223,21 @@
 					· {name(notice.unitId)} · {new Date(notice.createdAt).toLocaleDateString('ro-RO')}
 				</p>{/each}
 		</section>{/if}
+	<div class="notice" role="status" aria-live="polite">
+		{#if refresh.state === 'running'}Se actualizează din Orgo…
+		{:else if refresh.state === 'failed'}{refresh.message ?? 'Actualizarea a eșuat.'}
+		{:else if refresh.state === 'succeeded'}Date actualizate din Orgo.
+		{:else}Se pregătește actualizarea din Orgo.{/if}
+		{#if refresh.lastSucceededAt}<small
+				>Ultima actualizare: {new Date(refresh.lastSucceededAt).toLocaleString('ro-RO')}</small
+			>{/if}
+		{#if refresh.state !== 'running'}<button
+				type="button"
+				class="secondary"
+				onclick={() => void refreshRoster()}
+				>{refresh.state === 'failed' ? 'Reîncearcă actualizarea' : 'Actualizează din Orgo'}</button
+			>{/if}
+	</div>
 	<section class="registry-panel" aria-label="Registrul membrilor">
 		{#snippet registryFilters()}
 			<label>Caută membru<input type="search" bind:value={search} placeholder="Nume" /></label>
@@ -184,6 +268,7 @@
 				>Status<select bind:value={status}
 					><option value="active">Activ</option><option value="withdrawn"
 						>Retras din activitate</option
+					><option value="suspended">Suspendat</option><option value="inactive">Inactiv</option
 					><option value="review">Status de verificat</option><option value="">Toate</option
 					></select
 				></label
@@ -216,34 +301,6 @@
 			preview={bulkPreview}
 			{feeMenu}
 		/>
-	</section>
-	<section>
-		<details>
-			<summary>Istoric Orgo: membri inactivi ({data.registry.inactiveMembers?.length ?? 0})</summary
-			>
-			<p>
-				Membrii inactivi sunt păstrați separat. Îi poți confirma ca retrași, fără alte formalități.
-			</p>
-			<MemberTable
-				members={(data.registry.inactiveMembers ?? [])
-					.filter((m) => !structureFilter || (m.structureId ?? 'cluj') === structureFilter)
-					.map((m) => ({
-						...m,
-						grade: null,
-						unitId: null,
-						groupId: null,
-						adultKind: null,
-						status: m.status ?? 'review'
-					}))}
-				registry={data.registry}
-				message={form?.message}
-				preview={bulkPreview}
-				{feeMenu}
-				{management}
-				loadedTotal={data.registry.inactiveMembers?.length ?? 0}
-				inactive
-			/>
-		</details>
 	</section>
 	{#if management && data.registry.canManage}<Modal
 			bind:open={createOpen}
@@ -428,10 +485,7 @@
 								type="hidden"
 								name="id"
 								value={s.id}
-							/>{#if s.state === 'conflict'}<label class="check"
-									><input type="checkbox" name="keepLocal" required />Am verificat diferențele în
-									Orgo. Păstrează datele locale.</label
-								>{/if}<button class="secondary">Reverifică</button>
+							/><button class="secondary">Reverifică</button>
 						</form>
 					</div>{:else}<p>Nicio operațiune în așteptare.</p>{/each}
 			</details>

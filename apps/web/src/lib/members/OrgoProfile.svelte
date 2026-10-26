@@ -125,26 +125,6 @@
 	{#if m.promiseSource === 'orgo-leader'}<p>
 			Promisiunea de lider este confirmată prin rolul existent în Orgo. Data nu este consemnată.
 		</p>{/if}
-	{#each Object.entries(m.conflicts ?? {}) as [key, conflict] (key)}
-		<article>
-			<h3>Diferență de verificat: {m.orgoFields?.[key] ?? key}</h3>
-			<p>În Resurse: {key === 'logo' ? 'Fotografia salvată local' : show(conflict.local)}</p>
-			<p>În Orgo: {key === 'logo' ? 'Fotografia din Orgo' : show(conflict.remote)}</p>
-			<form method="POST">
-				<input type="hidden" name="action" value="conflict" /><input
-					type="hidden"
-					name="revision"
-					value={m.revision}
-				/><input type="hidden" name="key" value={key} />
-				<label
-					>Varianta corectă<select name="choice"
-						><option value="local">Păstrează Resurse și trimite în Orgo</option><option
-							value="remote">Preia varianta Orgo</option
-						></select
-					></label
-				><button>Confirmă alegerea</button>
-			</form>
-		</article>{/each}
 </section>
 
 <style>
@@ -205,11 +185,5 @@
 	summary {
 		cursor: pointer;
 		font-weight: 600;
-	}
-	article {
-		padding: 16px;
-		background: #fff7e6;
-		border-radius: 8px;
-		margin-top: 16px;
 	}
 </style>

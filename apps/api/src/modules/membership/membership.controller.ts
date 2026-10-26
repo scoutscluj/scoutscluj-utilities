@@ -198,6 +198,27 @@ export class MembershipController {
   }
 
   @UseGuards(AuthGuard)
+  @Post('obligations/:id/fee-plan-preview')
+  @Header('Cache-Control', 'no-store')
+  feePlanPreview(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.membership.previewFeePlan(user, id, body);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('obligations/:id/fee-plan')
+  feePlan(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.membership.changeFeePlan(user, id, body);
+  }
+
+  @UseGuards(AuthGuard)
   @Post('obligations/:id/review-preview')
   @Header('Cache-Control', 'no-store')
   reviewPreview(

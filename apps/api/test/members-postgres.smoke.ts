@@ -78,7 +78,7 @@ async function main() {
     await em.flush();
     em.create(OrgoConnection, {
       user: account,
-      orgoUserId: 99111,
+      orgoUserId: null,
       profile: {},
     });
     await em.flush();

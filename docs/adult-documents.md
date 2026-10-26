@@ -4,7 +4,7 @@ Every active member aged at least 18, including beneficiaries, has an annual
 behavioural integrity certificate (CIC) dossier. Age comes from the local Orgo
 member record's date of birth, evaluated using Europe/Bucharest dates. Missing
 birth dates are reported for correction; category alone never establishes age.
-Criminal record certificates are not requested or accepted by this module.
+Criminal record certificates (cazier judiciar) are also accepted as optional annual documents with the same private upload, review and version history. They do not affect dossier completeness, which requires only the current CIC to be validated.
 
 ## Member workflow
 
@@ -31,7 +31,7 @@ https://hub.mai.gov.ro/serviciu/view?id=90.
 **Admin → Documente adulți** lists active adult members from both structures,
 with year selection, name search, status filters, sorting and pagination. Open
 a member's dossier to upload on their behalf, download original versions or
-review the current CIC. An administrator can validate their own on-behalf upload.
+review the current CIC or optional criminal record certificate. The workspace shows a separate status for each kind. An administrator can validate their own on-behalf upload.
 
 Access requires an enabled account with `centralMemberAdmin`, an explicit
 `admin` or `super_admin` role, and an active primary member affiliation in Cluj.
@@ -55,7 +55,7 @@ Uploads and reviews share a member-scoped transaction lock; stale reviews return
 
 ## Setup and verification
 
-Apply `Migration20261025000100` using the normal API migration process before
+Apply `Migration20261025000100` and `Migration20261026000200` using the normal API migration process before
 serving the new feature. No new secrets or storage service are required. The
 existing web `BODY_SIZE_LIMIT=16M` supports the base64 JSON upload payload for
 a 10 MiB file; the API uses the existing 25 MB document request limit.

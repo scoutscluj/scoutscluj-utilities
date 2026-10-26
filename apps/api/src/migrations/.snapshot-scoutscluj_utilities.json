@@ -464,7 +464,8 @@
           "comment": null,
           "collation": null,
           "enumItems": [
-            "behavioural_integrity"
+            "behavioural_integrity",
+            "criminal_record"
           ],
           "mappedType": "enum"
         },

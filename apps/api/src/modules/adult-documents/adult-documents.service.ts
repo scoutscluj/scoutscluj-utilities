@@ -164,9 +164,7 @@ export class AdultDocumentsService {
       years: [
         ...new Set([scoutingYear(), year, ...documents.map((d) => d.year)]),
       ].sort((a, b) => b - a),
-      complete: summarizeDocuments(selected).every(
-        (status) => status === 'validated',
-      ),
+      complete: summarizeDocuments(selected)[0] === 'validated',
       documents: selected.map((d) => ({
         id: d.id,
         kind: d.kind,
@@ -240,7 +238,7 @@ export class AdultDocumentsService {
             name: m.name,
             structureId: m.structureId,
             statuses,
-            complete: statuses.every((s) => s === 'validated'),
+            complete: statuses[0] === 'validated',
           };
         })
         .filter(

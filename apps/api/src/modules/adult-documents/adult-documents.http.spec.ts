@@ -309,6 +309,52 @@ describe('private adult document HTTP workflow', () => {
     expect(JSON.stringify(tables.audits)).not.toContain('certificat.pdf');
   });
 
+  it('keeps criminal records optional with separate versions and private review/download', async () => {
+    const cic = await upload().expect(201);
+    const optional = await upload(1, {
+      kind: 'criminal_record',
+      filename: 'cazier.pdf',
+    }).expect(201);
+    expect(
+      tables.documents.find((d) => d.id === payload(optional).id),
+    ).toMatchObject({ kind: 'criminal_record', version: 1 });
+    await http()
+      .post(`/api/adult-documents/versions/${payload(cic).id}/review`)
+      .auth('3', { type: 'bearer' })
+      .send({ status: 'validated' })
+      .expect(201);
+    const dossier = await http()
+      .get(memberPath)
+      .auth('1', { type: 'bearer' })
+      .expect(200);
+    expect(payload(dossier).complete).toBe(true);
+    await http()
+      .post(`/api/adult-documents/versions/${payload(optional).id}/review`)
+      .auth('3', { type: 'bearer' })
+      .send({ status: 'rejected', reason: 'Ilizibil' })
+      .expect(201);
+    const replacement = await upload(1, { kind: 'criminal_record' }).expect(
+      201,
+    );
+    expect(
+      tables.documents.find((d) => d.id === payload(replacement).id),
+    ).toMatchObject({ kind: 'criminal_record', version: 2 });
+    expect(
+      payload(
+        await http().get(memberPath).auth('1', { type: 'bearer' }).expect(200),
+      ).complete,
+    ).toBe(true);
+    const download = `/api/adult-documents/versions/${payload(optional).id}/download`;
+    await http().get(download).auth('2', { type: 'bearer' }).expect(403);
+    const original = await http()
+      .get(download)
+      .auth('1', { type: 'bearer' })
+      .expect(200);
+    expect(Buffer.from(original.body)).toEqual(
+      Buffer.from(input.contentBase64, 'base64'),
+    );
+  });
+
   it('retains historical years, filters the current version only and rechecks revoked admin rights', async () => {
     await upload(3, { year: scoutingYear() - 1 }).expect(201);
     const pending = await upload().expect(201);

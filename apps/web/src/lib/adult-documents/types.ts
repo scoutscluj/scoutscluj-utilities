@@ -1,8 +1,9 @@
-export const documentKinds = ['behavioural_integrity'] as const;
+export const documentKinds = ['behavioural_integrity', 'criminal_record'] as const;
 export type DocumentKind = (typeof documentKinds)[number];
 export type DocumentStatus = 'missing' | 'pending' | 'validated' | 'rejected';
 export const documentLabels: Record<DocumentKind, string> = {
-	behavioural_integrity: 'Certificat de integritate comportamentală'
+	behavioural_integrity: 'Certificat de integritate comportamentală',
+	criminal_record: 'Cazier judiciar'
 };
 export const statusLabels: Record<DocumentStatus, string> = {
 	missing: 'Lipsește',

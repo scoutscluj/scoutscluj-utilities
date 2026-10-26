@@ -218,6 +218,9 @@
 						<h3>{documentLabels[kind]}</h3>
 						<DocumentBadge status={document?.status ?? 'missing'} />
 					</header>
+					{#if kind === 'criminal_record'}<p class="metadata">
+							Opțional. Nu condiționează completitudinea dosarului anual.
+						</p>{/if}
 					{#if document}
 						<a class="filename" href={path(`versions/${document.id}/download`)} download
 							>{document.filename} ↓</a

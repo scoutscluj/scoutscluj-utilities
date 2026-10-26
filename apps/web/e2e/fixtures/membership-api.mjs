@@ -189,7 +189,7 @@ let profileOptions = {};
 let adultDocuments = [];
 const adultOwner = '11111111-1111-4111-8111-111111111111';
 const adultOther = '22222222-2222-4222-8222-222222222222';
-const adultKinds = ['behavioural_integrity'];
+const adultKinds = ['behavioural_integrity', 'criminal_record'];
 const adultYear = 2026;
 const adultDossier = (memberId, year, canReview) => {
 	const documents = adultDocuments
@@ -215,7 +215,7 @@ const adultDossier = (memberId, year, canReview) => {
 		currentYear: adultYear,
 		canReview,
 		documents,
-		complete: statuses.every((s) => s === 'validated'),
+		complete: statuses[0] === 'validated',
 		years: [...new Set([adultYear, year, ...adultDocuments.map((d) => d.year)])].sort(
 			(a, b) => b - a
 		)

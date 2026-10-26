@@ -408,6 +408,7 @@ describe('member HTTP scope and lifecycle', () => {
   });
   it('ends authority for incoming suspension and does not restore it on remote reactivation', async () => {
     const member = f.list('member').find((m) => m.id === adultId)!;
+    member.status = 'suspended'; // Existing imported state must still revoke stale authority.
     const service = new MembersService(f.em);
     const assignment = {
       id: 'suspended-authority',

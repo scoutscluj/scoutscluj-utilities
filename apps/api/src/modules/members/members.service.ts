@@ -90,14 +90,17 @@ export class MembersService {
   }
 
   async applyOrgoStatus(tx: EntityManager, m: ScoutMember, status: string) {
-    if (m.status === status) return;
+    if (m.status === status && status === 'active') return;
+    let changed = m.status !== status;
     const wasInactive = m.status !== 'active';
     if (status !== 'active') {
       for (const a of await tx.find(ScoutAssignment, {
         memberId: m.id,
         endedAt: null,
-      }))
+      })) {
         a.endedAt = new Date();
+        changed = true;
+      }
       if (m.orgoId) {
         for (const obligation of await tx.find(MembershipObligation, {
           orgoUserId: m.orgoId,
@@ -132,11 +135,17 @@ export class MembersService {
     if (m.accountId) {
       const account = await tx.findOne(User, { id: m.accountId });
       if (account) {
+        if (
+          account.memberAccessDisabled !== (status !== 'active') ||
+          account.councilAdmin
+        )
+          changed = true;
         account.councilAdmin = false;
         account.memberAccessDisabled = status !== 'active';
         if (status === 'active' && wasInactive) account.roles = [];
       }
     }
+    if (!changed) return;
     const previous = m.status;
     m.status = status;
     tx.create(AuditEntry, {

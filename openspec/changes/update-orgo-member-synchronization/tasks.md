@@ -31,7 +31,7 @@
 ## 5. Verification and release
 
 - [x] Add reconciliation/lifecycle/worker tests for the design's acceptance cases and field privacy boundaries.
-- [ ] Verify migrations, locks and worker concurrency on PostgreSQL.
+- [x] Verify migrations, locks and worker concurrency on PostgreSQL.
 - [x] Test page refresh feedback, unified status filtering, selection across pages and unchanged access controls in the browser.
 - [x] Run API/web checks and production builds appropriate to changed code.
 - [x] Update CONTEXT.md and operating docs to replace the superseded behavior when implemented.
@@ -41,8 +41,7 @@
 
 Implementation evidence (2026-10-26): 472 API tests, 55 web unit tests and 20 browser regression tests passed locally.
 API/web type checks, lint for changed code, and production builds were checked. The web unit suite needs a 15-second test timeout on this Windows host
-for initial Svelte compilation. PostgreSQL execution remains a CI check: Docker
-is unavailable and the installed client tools do not include initdb. The existing
+for initial Svelte compilation. The PostgreSQL CI workflow passed on PR #73; Docker is unavailable locally and the installed client tools do not include initdb. The existing
 PostgreSQL smoke test was extended to verify the new schema, discovery without
 role grants, and repeat-refresh idempotence. No production credentials, write
 flags or member data were changed. Remote conditional-write support and tenant

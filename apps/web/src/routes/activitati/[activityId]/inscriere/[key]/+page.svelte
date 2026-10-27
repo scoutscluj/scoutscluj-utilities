@@ -70,7 +70,7 @@
 <svelte:head
 	><title>Înscriere — {row.memberName} | Scouts Cluj</title><meta
 		name="referrer"
-		content="same-origin"
+		content="no-referrer"
 	/><meta name="robots" content="noindex,nofollow" /></svelte:head
 >
 <main>

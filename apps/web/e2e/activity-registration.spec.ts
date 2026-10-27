@@ -64,6 +64,11 @@ test('authenticated prefill works for another identifier and the personal agreem
 	await page.getByRole('button', { name: 'Pregătește PDF-ul completat' }).click();
 	await expect(page.getByRole('link', { name: /Descarcă acordul completat/ })).toBeVisible();
 	await expect(page.getByText('Acoperită parțial', { exact: true })).toBeVisible();
+	const [sameOriginRequest] = await Promise.all([
+		page.waitForRequest((request) => new URL(request.url()).pathname === '/health'),
+		page.evaluate(() => fetch('/health').then((response) => response.status))
+	]);
+	expect(sameOriginRequest.headers()['referer']).toBeUndefined();
 });
 test('mobile public form and organizer fit the viewport', async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 844 });

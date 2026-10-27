@@ -34,7 +34,7 @@ export const GET: RequestHandler = async ({ params, cookies }) => {
 			'content-type': 'application/pdf',
 			'content-disposition': response.headers.get('content-disposition') ?? 'attachment',
 			'cache-control': 'private, no-store',
-			'referrer-policy': 'same-origin',
+			'referrer-policy': 'no-referrer',
 			'x-content-type-options': 'nosniff'
 		}
 	});

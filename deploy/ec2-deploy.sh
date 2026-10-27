@@ -85,6 +85,7 @@ ${app_host_name} {
 				request>headers>Authorization delete
 				request>headers>Verification-Token delete
 				request>headers>X-Registration-Token delete
+				request>headers>Referer delete
 				request>headers>Cookie delete
 				request>headers>Proxy-Authorization delete
 				request>headers>Set-Cookie delete

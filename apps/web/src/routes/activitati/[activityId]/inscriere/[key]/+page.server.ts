@@ -4,7 +4,7 @@ import { SESSION_COOKIE_NAME } from '$lib/server/cookies';
 import type { Registration } from '$lib/activities/registration';
 import type { PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ params, locals, cookies, setHeaders }) => {
-	setHeaders({ 'cache-control': 'private, no-store', 'referrer-policy': 'same-origin' });
+	setHeaders({ 'cache-control': 'private, no-store', 'referrer-policy': 'no-referrer' });
 	const id = Number(params.activityId),
 		key = params.key;
 	const token = /^[A-Za-z0-9_-]{43}$/.test(key) ? key : '';

@@ -28,6 +28,7 @@ export type StartPaymentInput = {
   beneficiaryName?: string;
   beneficiaryOrgoId?: number;
   periodName?: string;
+  activityReturnPath?: string;
 };
 
 export type StartedPayment = {

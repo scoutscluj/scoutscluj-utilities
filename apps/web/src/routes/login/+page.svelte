@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	let isStarting = $state(false);
 	let error = $state<string | null>(null);
 
@@ -38,6 +39,10 @@
 			<img class="button-mark" src="/branding/orgo-symbol.png" alt="ORGO" width="34" height="34" />
 			{isStarting ? 'Se deschide Orgo...' : 'Connect with Orgo'}
 		</button>
+		<p>
+			<a href={resolve('/activitati')}>Activități și înscrieri</a> ·
+			<a href={resolve('/cotizatie')}>Plata cotizației</a>
+		</p>
 
 		{#if error}
 			<p class="error" role="alert">{error}</p>

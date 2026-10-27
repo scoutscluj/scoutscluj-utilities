@@ -1,5 +1,10 @@
 # Parental consent generator
 
+Individual registration answers, completed PDFs, signed uploads, physical receipt
+confirmation and renewed consent are described in [activity registrations](activity-registration.md).
+The new participation template can be selected when creating an administrative
+draft; activation and publication retain the existing versioned workflow.
+
 ## Scope and access
 
 This feature is specific to Scouts Cluj activities. Enable the `parental_consent`

@@ -7,6 +7,7 @@ import { hasRole } from '$lib/auth/roles';
 import { parentalConsentJson, parentalConsentResult } from '$lib/server/parental-consent-api';
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { participationTemplate } from '@scouts-cluj/parental-consent-schema';
 
 const guard = (user: App.Locals['user']) => {
 	if (!user || !hasRole(user, 'admin'))
@@ -36,7 +37,11 @@ export const actions: Actions = {
 		if (!name) return fail(400, { action: 'createTemplate', message: 'Numele este obligatoriu.' });
 		const result = await parentalConsentResult(cookies, '/api/parental-consent/admin/templates', {
 			method: 'POST',
-			body: JSON.stringify({ name, basedOnVersionId: basedOnVersionId || undefined })
+			body: JSON.stringify({
+				name,
+				basedOnVersionId: basedOnVersionId || undefined,
+				...(data.get('useParticipationExample') === 'on' ? { document: participationTemplate } : {})
+			})
 		});
 		if (!result.ok)
 			return fail(result.status, { action: 'createTemplate', message: result.message });

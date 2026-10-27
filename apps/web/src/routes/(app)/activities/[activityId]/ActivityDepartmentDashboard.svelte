@@ -6,6 +6,7 @@
 	type Props = {
 		activity: Activity;
 		kitchenOverview?: KitchenOverview;
+		registrationAccess?: boolean;
 	};
 
 	type DepartmentCard = {
@@ -16,7 +17,7 @@
 		features?: Array<{ label: string; href: ReturnType<typeof resolve> }>;
 	};
 
-	let { activity, kitchenOverview }: Props = $props();
+	let { activity, kitchenOverview, registrationAccess = false }: Props = $props();
 
 	const hasDepartment = (department: ActivityDepartment) =>
 		activity.departments.includes(department);
@@ -75,6 +76,14 @@
 				id: 'administrative',
 				label: 'Administrativ',
 				features: [
+					...(registrationAccess
+						? [
+								{
+									label: 'Înscrieri și participare',
+									href: resolve(`/activities/${activity.id}/registrations`)
+								}
+							]
+						: []),
 					{
 						label: 'Acord parental',
 						href: resolve(`/activities/${activity.id}/parental-consent`)

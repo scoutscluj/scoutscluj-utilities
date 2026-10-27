@@ -19,6 +19,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { ParentalConsentModule } from './modules/parental-consent/parental-consent.module';
 import { PersonalObjectivesModule } from './modules/personal-objectives/personal-objectives.module';
 import { AdultDocumentsModule } from './modules/adult-documents/adult-documents.module';
+import { RegistrationModule } from './modules/activity-registrations/registration.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { AdultDocumentsModule } from './modules/adult-documents/adult-documents.
     ParentalConsentModule,
     PersonalObjectivesModule,
     AdultDocumentsModule,
+    RegistrationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

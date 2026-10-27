@@ -39,6 +39,7 @@ export type ParentalConsentRenderInput = {
   draft: OrganizerDraft;
   organization: OrganizationSettings;
   assets: RenderAsset[];
+  answers?: Record<string, string | number | boolean | string[]>;
 };
 
 const escapeHtml = (value: string | number | boolean | null | undefined) =>
@@ -120,6 +121,8 @@ export class ParentalConsentRendererService {
   .module h3 { margin-top: 0; }
   .field { margin: 3mm 0; break-inside: avoid-page; page-break-inside: avoid; }
   .field-label { display: block; font-weight: 700; margin-bottom: 1.2mm; }
+  .field-filled { break-inside: auto; page-break-inside: auto; }
+  .field-filled .field-label { break-after: avoid; }
   .field-help { display: block; color: #4e5b70; font-size: 8.5pt; margin-bottom: 1mm; }
   .line { border-bottom: .3mm solid #283548; height: 7mm; }
   .box { display: inline-block; width: 4mm; height: 4mm; border: .3mm solid #283548; vertical-align: -.5mm; margin-right: 1.5mm; }
@@ -184,7 +187,6 @@ export class ParentalConsentRendererService {
           '.pagedjs_margin-top-center',
           '.pagedjs_margin-top-right',
         ];
-
         pageBoxes.forEach((pageBox, index) => {
           headerSelectors.forEach((selector, headerIndex) => {
             const margin = pageBox.querySelector<HTMLElement>(selector);
@@ -231,6 +233,13 @@ export class ParentalConsentRendererService {
       if (pagedPageCount < 1) {
         throw new Error('Parental-consent pagination produced no pages');
       }
+      await page.evaluate(async () => {
+        await Promise.all(
+          Array.from(document.querySelectorAll('img')).map((image) =>
+            image.decode(),
+          ),
+        );
+      });
       await page.emulateMedia({ media: 'print' });
       const pdf = await page.pdf({
         printBackground: true,
@@ -280,7 +289,7 @@ export class ParentalConsentRendererService {
       case 'variable':
         return `<p class="variable">${escapeHtml(this.resolveVariable(block.key, input))}</p>`;
       case 'formField':
-        return this.renderField(block.field);
+        return this.renderField(block.field, input.answers?.[block.field.code]);
       case 'module':
         return this.renderModule(block.key, input);
     }
@@ -326,12 +335,30 @@ export class ParentalConsentRendererService {
     return values[key];
   }
 
-  private renderField(field: FormField): string {
+  private renderField(
+    field: FormField,
+    answer?: string | number | boolean | string[],
+  ): string {
     const label = `<span class="field-label">${escapeHtml(field.label)}${field.required ? ' *' : ''}</span>`;
     const help = field.helpText
       ? `<span class="field-help">${escapeHtml(field.helpText)}</span>`
       : '';
     let control = '';
+    if (answer !== undefined && field.type !== 'signature') {
+      const selected = Array.isArray(answer) ? answer : [String(answer)];
+      if (field.options?.length) {
+        control = `<div class="choices">${field.options.map((option) => `<span>${selected.includes(option.value) ? '☑' : '☐'} ${escapeHtml(option.label)}</span>`).join('')}</div>`;
+      } else {
+        const value =
+          typeof answer === 'boolean'
+            ? answer
+              ? 'Da'
+              : 'Nu'
+            : selected.join(', ');
+        control = `<div class="read-only" style="white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(value)}</div>`;
+      }
+      return `<section class="field field-filled" data-field-code="${escapeHtml(field.code)}">${label}${help}${control}</section>`;
+    }
     if (
       ['short_text', 'date', 'number', 'phone', 'email'].includes(field.type)
     ) {

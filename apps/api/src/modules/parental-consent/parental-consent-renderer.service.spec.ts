@@ -11,6 +11,39 @@ import { ParentalConsentRendererService } from './parental-consent-renderer.serv
 
 describe('ParentalConsentRendererService', () => {
   const renderer = new ParentalConsentRendererService();
+
+  it('fills answers safely and preserves the handwritten signature area', () => {
+    const input = {
+      activityId: 12,
+      templateVersionId: 1,
+      branch: 'lupisori' as const,
+      document: initialTemplateDocument,
+      layout: defaultLayoutSettings,
+      draft: createRepresentativeOrganizerDraft(),
+      organization: {
+        name: 'Scouts Cluj',
+        legalName: '',
+        address: 'Cluj',
+        email: 'contact@example.test',
+        phone: '',
+        website: '',
+      },
+      assets: [],
+    };
+    const { html } = renderer.renderHtml({
+      ...input,
+      answers: {
+        participant_name: '<script>name</script>',
+        guardian_name: 'Părinte',
+        acknowledgement: true,
+        guardian_signature: 'not a signature',
+      },
+    });
+    expect(html).toContain('&lt;script&gt;name&lt;/script&gt;');
+    expect(html).not.toContain('<script>name</script>');
+    expect(html).toContain('signature-grid');
+    expect(html).not.toContain('not a signature');
+  });
   const input = (branch: BranchCode = 'lupisori') => ({
     activityId: 9,
     templateVersionId: 2,

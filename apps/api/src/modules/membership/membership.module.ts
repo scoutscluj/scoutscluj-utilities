@@ -14,6 +14,7 @@ import { PaymentSecretVault } from './payment-secret-vault.service';
 import { OrgoRosterService } from './orgo-roster.service';
 import { OrgoNationalService } from './orgo-national.service';
 import { OrgoNationalWorker } from './orgo-national-worker.service';
+import { PaymentCallbacksService } from './payment-callbacks.service';
 
 @Module({
   imports: [
@@ -35,6 +36,13 @@ import { OrgoNationalWorker } from './orgo-national-worker.service';
     StripeService,
     PaymentConfigurationService,
     PaymentSecretVault,
+    PaymentCallbacksService,
+  ],
+  exports: [
+    NetopiaService,
+    StripeService,
+    PaymentConfigurationService,
+    PaymentCallbacksService,
   ],
 })
 export class MembershipModule {}

@@ -56,6 +56,10 @@
 						>{/each}</select
 				></label
 			>
+			<label
+				><input type="checkbox" name="useParticipationExample" /> Folosește modelul de participare bazat
+				pe acordul Cântul Vâlvelor</label
+			>
 			<button>Crează draft</button>
 		</form>
 	</section>

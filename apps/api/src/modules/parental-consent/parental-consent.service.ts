@@ -1,5 +1,6 @@
 import {
   PARENTAL_CONSENT_SCHEMA_VERSION,
+  participationFields,
   branchCodes,
   canonicalJson,
   changedPaths,
@@ -670,6 +671,57 @@ export class ParentalConsentService {
       status: ParentalConsentPublicationStatus.Active,
     });
     return publication ? this.serializePublication(publication) : null;
+  }
+
+  // Internal entry point: registration service owns access checks and immutable storage.
+  async renderRegistration(
+    publicationId: number,
+    activityId: number,
+    branch: BranchCode,
+    answers: Record<string, string | number | boolean | string[]>,
+    extraFields: import('@scouts-cluj/parental-consent-schema').FormField[] = [],
+  ) {
+    const publication = await this.publicationRepository.findOne({
+      id: publicationId,
+      activityId,
+    });
+    if (!publication || !publication.draftSnapshot.branches[branch]?.enabled)
+      throw new BadRequestException(
+        'Nu există un acord publicat pentru ramura participantului.',
+      );
+    const document = structuredClone(publication.templateSnapshot.document);
+    const codes = new Set(
+      document.content
+        .filter((block) => block.type === 'formField')
+        .map((block) => block.field.code),
+    );
+    for (const field of [...participationFields, ...extraFields]) {
+      if (!codes.has(field.code)) {
+        const signatureIndex = document.content.findIndex(
+          (block) =>
+            block.type === 'formField' && block.field.type === 'signature',
+        );
+        document.content.splice(
+          signatureIndex < 0 ? document.content.length : signatureIndex,
+          0,
+          { type: 'formField', field },
+        );
+        codes.add(field.code);
+      }
+    }
+    return this.renderer.renderPdf({
+      activityId,
+      publicationId,
+      publicationReference: publication.reference,
+      templateVersionId: publication.templateVersionId,
+      branch,
+      document,
+      layout: publication.templateSnapshot.layout,
+      draft: publication.draftSnapshot,
+      organization: publication.organizationSnapshot,
+      assets: await this.assetRepository.findAll(),
+      answers,
+    });
   }
 
   async listHistory(user: CurrentUser, activityId: number) {

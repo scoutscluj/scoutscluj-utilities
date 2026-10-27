@@ -44,6 +44,8 @@ export const menuHref = (href: AppHref) => {
 			return resolve('/units');
 		case '/cotizatie':
 			return resolve('/cotizatie');
+		case '/activitati':
+			return resolve('/activitati');
 		case '/membership':
 			return resolve('/membership');
 		case '/':

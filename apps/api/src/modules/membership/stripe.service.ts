@@ -157,8 +157,12 @@ export class StripeService implements PaymentProvider<StripeConfiguration> {
     const origin = paymentOrigin(this.config, 'web');
     const body = new URLSearchParams({
       mode: 'payment',
-      success_url: new URL('/cotizatie/rezultat', origin).href,
-      cancel_url: new URL('/cotizatie', origin).href,
+      success_url: new URL(
+        input.activityReturnPath ?? '/cotizatie/rezultat',
+        origin,
+      ).href,
+      cancel_url: new URL(input.activityReturnPath ?? '/cotizatie', origin)
+        .href,
       client_reference_id: input.id,
       'metadata[checkout_id]': input.id,
       'payment_intent_data[metadata][checkout_id]': input.id,
@@ -168,13 +172,16 @@ export class StripeService implements PaymentProvider<StripeConfiguration> {
       'line_items[0][price_data][product_data][name]': input.description,
       'line_items[0][quantity]': '1',
       locale: 'ro',
-      'custom_text[submit][message]':
-        'Cotizație pentru Centrul Local Cluj. După plată, revino în aplicație pentru confirmare și situația cotizației. Pentru ajutor: cluj.napoca@scout.ro.',
+      'custom_text[submit][message]': input.activityReturnPath
+        ? 'Participare la activitate. Revino în aplicație pentru confirmarea plății.'
+        : 'Cotizație pentru Centrul Local Cluj. După plată, revino în aplicație pentru confirmare și situația cotizației. Pentru ajutor: cluj.napoca@scout.ro.',
     });
     const details = [
       input.beneficiaryName ? `Beneficiar: ${input.beneficiaryName}` : '',
       input.periodName ? `Perioada: ${input.periodName}` : '',
-      'Plată unică a cotizației pentru Centrul Local Cluj.',
+      input.activityReturnPath
+        ? 'Taxă de participare la activitate.'
+        : 'Plată unică a cotizației pentru Centrul Local Cluj.',
     ]
       .filter(Boolean)
       .join(' · ');

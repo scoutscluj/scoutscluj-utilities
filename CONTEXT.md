@@ -166,6 +166,18 @@ _Avoid_: Responsabil financiar
 The amount expected from a participant for a specific activity. Its collection status can be tracked manually before it is reconciled with bank transactions.
 _Avoid_: Stripe payment
 
+**Înscriere la activitate**:
+The local operational registration linking an Orgo member to an activity. Participation, payment coverage and parental consent have independent states. A public exact-ID payment lookup cannot expose private registration answers. A local registration does not claim successful registration in Orgo.
+_Avoid_: Treating a payment attempt or downloaded agreement as confirmed participation
+
+**Susținere din centrul local**:
+An explicitly recorded contribution by the local center toward an activity participation fee. It reduces the participant's balance and remains separate from cash, bank and card receipts.
+_Avoid_: Money collected from the participant
+
+**Restituire aprobată**:
+The amount authorized for reimbursement, tracked independently of completed refunds. Planning a reimbursement does not initiate a transfer or alter an existing card receipt.
+_Avoid_: Refund already paid
+
 **Coordonator**:
 The user who creates an activity and is responsible for managing that activity's participants, expected fees, expenses, supporting documents, meal planning, and kitchen procurement.
 _Avoid_: Organizator
@@ -231,7 +243,7 @@ A global member status ending all current involvement in the local center, with 
 _Avoid_: Leaving only one subgroup or unit
 
 **Fișa membrului**:
-The versioned reusable personal, contact, emergency and medical information maintained for operational member management and future activity-registration prefill. Internal leader notes have separate restricted visibility. Activity registration and the generated/signed parental-consent PDF remain distinct workflows.
+The versioned reusable personal, contact, emergency and medical information maintained for operational member management and authorized activity-registration prefill. Internal leader notes have separate restricted visibility. Activity registration and the generated/signed parental-consent PDF remain distinct workflows.
 _Avoid_: Treating profile confirmation as a signed parental consent
 
 **Consiliu**:

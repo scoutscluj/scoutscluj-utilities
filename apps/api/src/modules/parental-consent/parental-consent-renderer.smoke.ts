@@ -2,6 +2,7 @@ import {
   createRepresentativeOrganizerDraft,
   defaultLayoutSettings,
   initialTemplateDocument,
+  participationTemplate,
   type FormField,
   type TemplateDocument,
 } from '@scouts-cluj/parental-consent-schema';
@@ -135,7 +136,30 @@ const run = async () => {
     publicationReference: 'fixture-cantul-valvelor',
     templateVersionId: 1,
     branch: 'temerari',
-    document: fixtureDocument,
+    document: process.argv.includes('--registration-example')
+      ? participationTemplate
+      : fixtureDocument,
+    ...(process.argv.includes('--registration-example')
+      ? {
+          answers: {
+            participant_name: 'Participant de test',
+            birth_date: '2016-04-12',
+            guardian_name: 'Reprezentant de test',
+            guardian_relation: 'mother',
+            guardian_phone: '0700000000',
+            emergency_name: 'Contact de test',
+            emergency_phone: '0700000001',
+            transport: 'branch',
+            treatment: 'call_first',
+            medical_notes:
+              'Fără afecțiuni declarate. Exemplu exclusiv pentru verificare.',
+            dietary: 'Fără restricții',
+            medication_mode: 'none',
+            photo_uses: ['closed_groups'],
+            acknowledgement: true,
+          },
+        }
+      : {}),
     layout: { ...defaultLayoutSettings, headerAssetIds: [1, 2, 3] },
     draft: createRepresentativeOrganizerDraft(),
     organization: {

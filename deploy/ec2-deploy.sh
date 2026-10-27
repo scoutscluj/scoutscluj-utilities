@@ -66,6 +66,8 @@ write_caddyfile() {
 
 ${app_host_name} {
 	encode zstd gzip
+	@private_registration path /activitati/*/inscriere/* /api/activity-registrations/*/personal/*
+	log_skip @private_registration
 
 	log {
 		output stdout
@@ -82,6 +84,7 @@ ${app_host_name} {
 				}
 				request>headers>Authorization delete
 				request>headers>Verification-Token delete
+				request>headers>X-Registration-Token delete
 				request>headers>Cookie delete
 				request>headers>Proxy-Authorization delete
 				request>headers>Set-Cookie delete
@@ -247,6 +250,8 @@ write_env_value "${API_ENV_FILE}" PUBLIC_API_BASE_URL "${PUBLIC_API_BASE_URL}"
 write_env_value "${API_ENV_FILE}" NETOPIA_IPN_PUBLIC_KEY "${NETOPIA_IPN_PUBLIC_KEY}"
 write_env_value "${API_ENV_FILE}" WEB_ORIGIN "${WEB_ORIGIN}"
 write_env_value "${API_ENV_FILE}" WEB_ORIGINS "${WEB_ORIGINS}"
+write_env_value "${API_ENV_FILE}" ACTIVITY_MAIL_ENDPOINT "$(secret_value "${APP_SECRET_JSON}" ACTIVITY_MAIL_ENDPOINT)"
+write_env_value "${API_ENV_FILE}" ACTIVITY_MAIL_TOKEN "$(secret_value "${APP_SECRET_JSON}" ACTIVITY_MAIL_TOKEN)"
 write_env_value "${API_ENV_FILE}" MEMBERSHIP_WEB_ORIGIN "${WEB_ORIGIN}"
 write_env_value "${API_ENV_FILE}" MEMBERSHIP_API_ORIGIN "${PUBLIC_API_BASE_URL}"
 write_env_value "${API_ENV_FILE}" VAPID_PUBLIC_KEY "${VAPID_PUBLIC_KEY}"

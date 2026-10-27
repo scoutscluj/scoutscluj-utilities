@@ -99,5 +99,16 @@ export const load: LayoutServerLoad = async ({ cookies, params, url }) => {
 		error(404, 'Zona Acord parental nu este activă pentru această activitate.');
 	}
 
-	return { activity };
+	const accessResponse = await apiFetch(`/api/activity-registrations/${activityId}/access`, {
+		headers: authHeaders(sessionToken)
+	});
+	const registrationAccess = accessResponse.ok
+		? ((await accessResponse.json()) as {
+				manage: boolean;
+				finance: boolean;
+				sensitive: boolean;
+				consent: boolean;
+			})
+		: { manage: false, finance: false, sensitive: false, consent: false };
+	return { activity, registrationAccess };
 };

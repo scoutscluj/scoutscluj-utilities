@@ -11,12 +11,14 @@ import {
   Post,
   Req,
   UseGuards,
+  Optional,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { MembershipService } from './membership.service';
+import { PaymentCallbacksService } from './payment-callbacks.service';
 
 @Controller('membership')
 export class MembershipController {
@@ -25,7 +27,10 @@ export class MembershipController {
     string,
     { count: number; until: number }
   >();
-  constructor(private readonly membership: MembershipService) {}
+  constructor(
+    private readonly membership: MembershipService,
+    @Optional() private readonly callbacks?: PaymentCallbacksService,
+  ) {}
 
   private rateLimit(request: Request) {
     const now = Date.now();
@@ -74,7 +79,10 @@ export class MembershipController {
 
   @Post('netopia/notify')
   @HttpCode(200)
-  notify(@Body() body: unknown, @Headers('verification-token') token: string) {
+  async notify(
+    @Body() body: unknown,
+    @Headers('verification-token') token: string,
+  ) {
     if (!Buffer.isBuffer(body) || !token) {
       this.logger.warn({
         event: 'netopia.ipn',
@@ -85,17 +93,21 @@ export class MembershipController {
       });
       throw new HttpException('Notificare invalidă.', 400);
     }
+    if (await this.callbacks?.dispatch('netopia', body, token))
+      return { errorCode: 0 };
     return this.membership.notifyNetopia(body, token);
   }
 
   @Post('stripe/notify')
   @HttpCode(200)
-  stripeNotify(
+  async stripeNotify(
     @Body() body: unknown,
     @Headers('stripe-signature') signature: string,
   ) {
     if (!Buffer.isBuffer(body) || !signature)
       throw new HttpException('Notificare invalidă.', 400);
+    if (await this.callbacks?.dispatch('stripe', body, signature))
+      return { received: true };
     return this.membership.notifyStripe(body, signature);
   }
 

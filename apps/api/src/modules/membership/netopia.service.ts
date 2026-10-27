@@ -227,7 +227,7 @@ export class NetopiaService implements PaymentProvider<NetopiaConfiguration> {
               paymentOrigin(this.config, 'api'),
             ).href,
             redirectUrl: new URL(
-              '/cotizatie/rezultat',
+              input.activityReturnPath ?? '/cotizatie/rezultat',
               paymentOrigin(this.config, 'web'),
             ).href,
             language: 'ro',

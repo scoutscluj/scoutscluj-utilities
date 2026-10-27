@@ -1,2 +1,6 @@
 export const usesAuthenticatedShell = (pathname: string, authenticated: boolean) =>
-	authenticated && (pathname === '/cotizatie' || pathname.startsWith('/cotizatie/'));
+	authenticated &&
+	(pathname === '/cotizatie' ||
+		pathname.startsWith('/cotizatie/') ||
+		pathname === '/activitati' ||
+		pathname.startsWith('/activitati/'));

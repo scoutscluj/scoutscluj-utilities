@@ -1,0 +1,6 @@
+- [ ] Preserve and parameterize the supplied fixed Word format and verify generated PDFs.
+- [x] Save immutable agreement publications directly from activity registration settings.
+- [x] Clarify shareable activity page, image, enrolment and optional payment flows.
+- [x] Show eligible public activities under the Activities menu.
+- [x] Mark the general template editor as temporarily suspended and prevent confusing draft failures.
+- [ ] Verify privacy, legacy documents, registration/payment flows and deploy through a checked PR.

@@ -30,7 +30,16 @@
 		receivedOn = $state(new Date().toISOString().slice(0, 10)),
 		entryId = $state('');
 	const overview = $derived(data.overview),
+		publicPath = $derived(resolve(`/activitati/${data.activity.id}`)),
 		activityId = $derived(data.activity.id);
+	async function copyPublicLink() {
+		try {
+			await navigator.clipboard.writeText(`${location.origin}${publicPath}`);
+			message = 'Linkul public al activității a fost copiat.';
+		} catch {
+			message = `Link public: ${location.origin}${publicPath}`;
+		}
+	}
 	const rows = $derived(
 		overview.rows.filter(
 			(row) =>
@@ -193,6 +202,14 @@
 			>Deschide pagina publică ↗</a
 		>
 	</header>
+	{#if overview.capabilities.manage}<section class="notice">
+			<strong>Pagina pe care o distribui participanților</strong>
+			<p>
+				<code>/activitati/{activityId}</code> · Completează acordul, verifică taxa și bifează „Publică
+				pagina activității și înscrierile” în Setări înscrieri.
+			</p>
+			<button class="secondary" onclick={copyPublicLink}>Copiază linkul public</button>
+		</section>{/if}
 	{#if overview.capabilities.finance}<div class="totals">
 			<div><small>Încasări nete de restituiri</small><strong>{money(totals.cash)}</strong></div>
 			<div><small>Susținere din centrul local</small><strong>{money(totals.support)}</strong></div>

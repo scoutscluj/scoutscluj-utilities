@@ -10,6 +10,8 @@ export type Question = {
 	inPdf: boolean;
 };
 export type RegistrationSettings = {
+	coverImageUrl?: string;
+	consent?: import('@scouts-cluj/parental-consent-schema').FixedConsentDetails | null;
 	published: boolean;
 	opensAt: string;
 	closesAt: string;

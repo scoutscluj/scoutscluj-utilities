@@ -47,6 +47,8 @@ import { User } from '../users/entities/user.entity';
 import { ParentalConsentPublication } from '../parental-consent/entities/parental-consent-publication.entity';
 import { ParentalConsentPublicationStatus } from '../parental-consent/entities/parental-consent.enums';
 import { ParentalConsentService } from '../parental-consent/parental-consent.service';
+import { publishFixedConsent } from '../parental-consent/fixed-consent-publication';
+import { renderFixedConsent } from '../parental-consent/fixed-consent-renderer';
 import {
   ActivityRegistration as Registration,
   ActivityRegistrationSettings as Settings,
@@ -213,6 +215,14 @@ export class RegistrationService {
       row.data = data;
       row.revision++;
       row.updatedAt = new Date();
+      if (data.consent && data.published)
+        await publishFixedConsent(
+          tx,
+          context.activity,
+          data.consent,
+          user.id,
+          row.revision,
+        );
       tx.persist(row);
       this.audit(
         tx,
@@ -244,7 +254,56 @@ export class RegistrationService {
       startDate: a.startDate,
       endDate: a.endDate,
       description: a.description,
+      coverImageUrl:
+        settings.find((s) => s.activityId === a.id)?.data.coverImageUrl ?? '',
+      type: a.type,
+      status: a.status,
+      coordinatorId: a.coordinatorId,
+      departments: a.departments,
     }));
+  }
+  async eligibleActivities(user: CurrentUser) {
+    const catalog = await this.catalog();
+    const member = user.orgoConnection?.orgoUserId
+      ? await this.em.findOne(ScoutMember, {
+          orgoId: user.orgoConnection.orgoUserId,
+          status: 'active',
+        })
+      : null;
+    const settings = await this.em.find(Settings, {});
+    const mine = await this.em.find(Registration, {
+      $or: [{ ownerId: user.id }, ...(member ? [{ memberId: member.id }] : [])],
+    });
+    return catalog.filter(
+      (activity) =>
+        activity.coordinatorId === user.id ||
+        mine.some((row) => row.activityId === activity.id) ||
+        (member &&
+          this.eligible(
+            member,
+            settings.find((row) => row.activityId === activity.id)!.data,
+          )),
+    );
+  }
+  async consentPreview(user: CurrentUser, activityId: number, branch: string) {
+    const { activity, data } = await this.requireManager(user, activityId);
+    if (!data.consent)
+      throw new BadRequestException(
+        'Salvează mai întâi datele acordului în Setări înscrieri.',
+      );
+    if (!['lupisori', 'temerari', 'exploratori'].includes(branch))
+      throw new BadRequestException('Ramură invalidă.');
+    const date = (value: string | Date | undefined | null) =>
+      value instanceof Date ? value.toISOString().slice(0, 10) : (value ?? '');
+    return renderFixedConsent({
+      title: activity.title,
+      location: activity.location ?? '',
+      startDate: date(activity.startDate),
+      endDate: date(activity.endDate),
+      branch,
+      details: data.consent,
+      answers: {},
+    });
   }
   async publicPage(activityId: number, user?: CurrentUser) {
     const { activity, data } = await this.settings(activityId);
@@ -271,7 +330,13 @@ export class RegistrationService {
         endDate: activity.endDate,
       },
       settings: publicSettings,
-      fields: participationFields.filter((f) => f.type !== 'signature'),
+      fields: participationFields
+        .filter((f) => f.type !== 'signature')
+        .map((f) =>
+          f.code === 'medical_relevant' && data.consent
+            ? { ...f, required: true }
+            : f,
+        ),
       information: publication?.draftSnapshot ?? null,
       counts: {
         beneficiaries: rows.filter(
@@ -510,6 +575,14 @@ export class RegistrationService {
         await this.certificate(tx, member, activity);
       }
       const branch = member.branch ?? member.category ?? '';
+      if (
+        role !== 'staff' &&
+        data.consent &&
+        !['yes', 'no'].includes(String(record(b.answers).medical_relevant))
+      )
+        throw new BadRequestException(
+          'Precizează dacă există informații medicale, alimentare sau nevoi de sprijin relevante.',
+        );
       const answers =
         role === 'staff'
           ? {}

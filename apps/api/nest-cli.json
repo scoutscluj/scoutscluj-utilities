@@ -6,6 +6,10 @@
     "deleteOutDir": true,
     "assets": [
       {
+        "include": "modules/parental-consent/fixed-template/*",
+        "outDir": "dist"
+      },
+      {
         "include": "modules/kitchen/fixtures/legacy-catalog/*.json",
         "outDir": "dist"
       },

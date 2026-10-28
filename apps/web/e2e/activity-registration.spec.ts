@@ -5,7 +5,7 @@ test.beforeEach(async ({ request }) => {
 test('guest starts with empty answers and can only pay after registration', async ({ page }) => {
 	await page.goto('/activitati/1');
 	await expect(page.getByRole('heading', { name: 'Camp de test — Cântul Vâlvelor' })).toBeVisible();
-	await page.getByRole('button', { name: 'Deschide formularul de înscriere' }).click();
+	await page.getByRole('button', { name: 'Înscrie folosind ID-ul unui membru' }).click();
 	await expect(
 		page.getByText('Autentifică-te pentru a completa automat informațiile cunoscute.', {
 			exact: false
@@ -43,6 +43,9 @@ test('authenticated organizer sees separate money, support and agreement states 
 	await page.screenshot({ path: '../../tmp/registration-organizer-desktop.png', fullPage: true });
 	await page.getByRole('button', { name: 'Setări înscrieri' }).click();
 	await expect(page.getByText('Comision configurat:', { exact: false })).toBeVisible();
+	await page.getByRole('button', { name: 'Pregătește acordul acestei activități' }).click();
+	await expect(page.getByLabel('Activități comune')).toBeVisible();
+	await expect(page.getByLabel('Transport la plecare')).toBeVisible();
 	await page.evaluate(() => window.scrollTo(0, 0));
 	await page.screenshot({ path: '../../tmp/registration-settings-desktop.png', fullPage: true });
 });
@@ -55,7 +58,7 @@ test('authenticated prefill works for another identifier and the personal agreem
 			{ name: 'scoutscluj_session', value: 'synthetic-admin', url: 'http://127.0.0.1:5186' }
 		]);
 	await page.goto('/activitati/1');
-	await page.getByRole('button', { name: 'Deschide formularul de înscriere' }).click();
+	await page.getByRole('button', { name: 'Înscrie folosind ID-ul unui membru' }).click();
 	await page.locator('#registration').getByLabel('ID Orgo sau ID card').fill('36805');
 	await page.getByRole('button', { name: 'Completează datele cunoscute pentru acest ID' }).click();
 	await expect(page.getByLabel('Nume participant *')).toHaveValue('Participant de test');
@@ -90,4 +93,25 @@ test('mobile public form and organizer fit the viewport', async ({ page }) => {
 	);
 	await page.evaluate(() => window.scrollTo(0, 0));
 	await page.screenshot({ path: '../../tmp/registration-organizer-mobile.png', fullPage: true });
+});
+test('eligible activities appear inside Activities and the global editor is visibly paused', async ({
+	page
+}) => {
+	await page
+		.context()
+		.addCookies([
+			{ name: 'scoutscluj_session', value: 'synthetic-member', url: 'http://127.0.0.1:5186' }
+		]);
+	await page.goto('/activitati/1');
+	await expect(
+		page.getByRole('link', { name: 'Camp de test — Cântul Vâlvelor', exact: true })
+	).toHaveAttribute('href', '/activitati/1');
+	await page
+		.context()
+		.addCookies([
+			{ name: 'scoutscluj_session', value: 'synthetic-admin', url: 'http://127.0.0.1:5186' }
+		]);
+	await page.goto('/admin/parental-consent');
+	await expect(page.getByText('Editor de șabloane · suspendat temporar')).toBeVisible();
+	await expect(page.getByRole('button', { name: /Creează/ })).toHaveCount(0);
 });

@@ -83,6 +83,12 @@ export const participationFields: FormField[] = [
     ],
   },
   {
+    code: "medical_relevant",
+    type: "single_choice",
+    label: "Există informații medicale, alimentare sau nevoi de sprijin relevante?",
+    options: [{value:'no',label:'Nu'},{value:'yes',label:'Da'}],
+  },
+  {
     code: "medical_notes",
     type: "long_text",
     label:
@@ -118,6 +124,15 @@ export const participationFields: FormField[] = [
       { value: "medical", label: "De personal medical" },
     ],
   },
+  { code: 'medication_dose', type: 'long_text', label: 'Medicație personală: doza și orarul' },
+  { code: 'medication_reason', type: 'long_text', label: 'Medicație personală: motivul administrării' },
+  { code: 'medication_storage', type: 'long_text', label: 'Medicație personală: condiții de păstrare' },
+  { code: 'medication_instructions', type: 'long_text', label: 'Medicație personală: instrucțiuni speciale' },
+  { code: 'medical_categories', type: 'multiple_choice', label: 'Informații medicale relevante', options: [
+    {value:'allergies',label:'Alergii / intoleranțe'}, {value:'anaphylaxis',label:'Reacție anafilactică / autoinjector'},
+    {value:'conditions',label:'Boli, diagnostice sau medicație de urgență'}, {value:'effort',label:'Contraindicații / limitări de efort'},
+    {value:'support',label:'Nevoi de sprijin fizic, emoțional sau comportamental'}, {value:'diet',label:'Regim alimentar / restricții'}, {value:'other',label:'Alte informații relevante'},
+  ]},
   {
     code: "photo_uses",
     type: "multiple_choice",

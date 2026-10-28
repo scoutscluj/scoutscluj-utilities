@@ -19,6 +19,7 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { UserRole } from '../users/entities/user-role.enum';
+import { TemplateEditingPausedGuard } from './template-editing-paused.guard';
 import {
   CreateParentalConsentAssetDto,
   CreateParentalConsentTemplateDto,
@@ -58,7 +59,7 @@ const sendFile = (
 };
 
 @ApiTags('parental-consent-admin')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, RolesGuard, TemplateEditingPausedGuard)
 @Roles(UserRole.Admin)
 @Controller('parental-consent/admin')
 export class ParentalConsentAdminController {
@@ -222,7 +223,7 @@ export class ParentalConsentAdminController {
 }
 
 @ApiTags('parental-consent-activities')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, TemplateEditingPausedGuard)
 @Controller('activities/:activityId/parental-consent')
 export class ParentalConsentActivityController {
   constructor(private readonly service: ParentalConsentService) {}

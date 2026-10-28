@@ -8,6 +8,7 @@ export const load: PageServerLoad = async ({ setHeaders }) => {
 	return {
 		activities: (await response.json()) as {
 			id: number;
+			coverImageUrl?: string;
 			title: string;
 			description?: string;
 			location?: string;

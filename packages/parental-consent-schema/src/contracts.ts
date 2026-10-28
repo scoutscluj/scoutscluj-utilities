@@ -142,6 +142,7 @@ export type DocumentBlock =
 
 export type TemplateDocument = {
   type: "doc";
+  fixedFormat?: "participation-2026";
   content: DocumentBlock[];
 };
 
@@ -179,6 +180,7 @@ export type BranchDraft = {
 export type ToggleDetails = { enabled: boolean; details: string };
 
 export type OrganizerDraft = {
+  fixedDetails?: import('./fixed.js').FixedConsentDetails;
   schemaVersion: typeof PARENTAL_CONSENT_SCHEMA_VERSION;
   general: {
     title: string;

@@ -32,6 +32,42 @@ async function main() {
   try {
     assert(module.get(RegistrationService));
     console.log('PASS compiled NestJS registration module dependency wiring');
+    const { MikroORM, RequestContext } = require('@mikro-orm/core');
+    const { User } = require('../dist/modules/users/entities/user.entity');
+    const {
+      ParentalConsentService,
+    } = require('../dist/modules/parental-consent/parental-consent.service');
+    const {
+      participationTemplate,
+      defaultLayoutSettings,
+    } = require('@scouts-cluj/parental-consent-schema');
+    const orm = module.get(MikroORM);
+    await RequestContext.create(orm.em, async () => {
+      const actor = orm.em.create(User, {
+        displayName: 'Synthetic template regression',
+        roles: ['super_admin'],
+      });
+      orm.em.persist(actor);
+      await orm.em.flush();
+      const result = await module
+        .get(ParentalConsentService)
+        .createTemplate(
+          {
+            id: actor.id,
+            displayName: actor.displayName,
+            roles: ['super_admin'],
+          },
+          {
+            name: 'Synthetic template regression',
+            document: participationTemplate,
+            layout: { ...defaultLayoutSettings, headerAssetIds: [] },
+          },
+        );
+      assert(result.version > 0);
+      console.log(
+        'PASS draft version allocation on PostgreSQL without an empty findOne filter',
+      );
+    });
   } finally {
     await module.close();
   }

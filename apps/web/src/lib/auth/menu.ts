@@ -31,7 +31,6 @@ export const menuItems: MenuItem[] = [
 		]
 	},
 	{ label: 'Activități', href: '/activities' },
-	{ label: 'Înscriere la activități', href: '/activitati' },
 	{ label: 'Unități și membri', href: '/units' },
 	{ label: 'Micro-stagii', disabled: true },
 	{ label: 'Parteneri', disabled: true },

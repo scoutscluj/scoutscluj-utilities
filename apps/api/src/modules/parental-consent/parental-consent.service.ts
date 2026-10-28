@@ -27,6 +27,7 @@ import {
 } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
+import { renderFixedConsent } from './fixed-consent-renderer';
 import { ActivityDepartment } from '../activities/entities/activity-department.enum';
 import { Activity } from '../activities/entities/activity.entity';
 import { AuditService } from '../audit/audit.service';
@@ -310,7 +311,7 @@ export class ParentalConsentService {
     const template = await this.em.transactional(async (tx) => {
       const repository = tx.getRepository(ParentalConsentTemplateVersion);
       const latest = await repository.findOne(
-        {},
+        { id: { $gt: 0 } },
         { orderBy: { version: 'desc' }, lockMode: LockMode.PESSIMISTIC_WRITE },
       );
       const created = repository.create({
@@ -689,6 +690,23 @@ export class ParentalConsentService {
       throw new BadRequestException(
         'Nu există un acord publicat pentru ramura participantului.',
       );
+    if (
+      publication.templateSnapshot.document.fixedFormat ===
+        'participation-2026' &&
+      publication.draftSnapshot.fixedDetails
+    ) {
+      const draft = publication.draftSnapshot;
+      return renderFixedConsent({
+        title: draft.general.title,
+        location: draft.general.location,
+        startDate: draft.general.startDate,
+        endDate: draft.general.endDate,
+        branch,
+        details: draft.fixedDetails!,
+        answers,
+        extraFields,
+      });
+    }
     const document = structuredClone(publication.templateSnapshot.document);
     const codes = new Set(
       document.content

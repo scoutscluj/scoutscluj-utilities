@@ -39,6 +39,17 @@ jobs:
       - run: pnpm --filter api typecheck
       - run: pnpm --filter api test --runInBand
       - run: pnpm --filter api build
+      - name: Render and inspect the supplied fixed agreement
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libreoffice-writer fonts-crosextra-carlito fonts-liberation python3-lxml python3-pypdf python3-reportlab poppler-utils
+          pnpm --filter api exec tsx test/fixed-consent.smoke.ts
+          pdftoppm -scale-to 1100 -png tmp/fixed-consent/acord.pdf tmp/fixed-consent/page
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fixed-consent-preview
+          path: tmp/fixed-consent/
+          retention-days: 2
       - name: Verify activity registrations against isolated PostgreSQL
         run: |
           PGPASSWORD=postgres psql -h 127.0.0.1 -U postgres -d postgres -c 'CREATE DATABASE activity_registration_test'

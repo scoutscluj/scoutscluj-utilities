@@ -8,6 +8,7 @@ export type SidebarActivityDepartment =
 	| 'administrative';
 
 export type SidebarActivity = {
+	publicRegistration?: boolean;
 	id: number;
 	title: string;
 	type: SidebarActivityType;

@@ -7,6 +7,8 @@ import { promisify } from 'node:util';
 import { ServiceUnavailableException } from '@nestjs/common';
 import {
   branchLabels,
+  hasPersonalMedication,
+  visibleParticipationAnswers,
   type FixedConsentDetails,
   type FormField,
 } from '@scouts-cluj/parental-consent-schema';
@@ -22,7 +24,7 @@ export type FixedConsentInput = {
   extraFields?: FormField[];
 };
 export function fixedConsentValues(input: FixedConsentInput) {
-  const a = input.answers;
+  const a = visibleParticipationAnswers(input.answers);
   const values: Record<string, string> = {};
   const date = (v: string) =>
     /^\d{4}-\d{2}-\d{2}/.test(v)
@@ -75,7 +77,11 @@ export function fixedConsentValues(input: FixedConsentInput) {
     treatment: a.treatment,
     medication_mode: a.medication_mode,
     medical_relevant: a.medical_relevant ?? '',
-    has_medication: a.medication && a.medication_mode !== 'none' ? 'yes' : 'no',
+    has_medication: Object.keys(a).length
+      ? hasPersonalMedication(a)
+        ? 'yes'
+        : 'no'
+      : '',
   };
   for (const [key, selected] of Object.entries(choices))
     for (const option of [
@@ -101,7 +107,8 @@ export function fixedConsentValues(input: FixedConsentInput) {
     'partners',
   ])
     values[`photo.${code}`] = photos.includes(code) ? '☑' : '☐';
-  values['check.photo_none'] = photos.length ? '☐' : '☑';
+  values['check.photo_none'] =
+    photos.length || !Object.keys(a).length ? '☐' : '☑';
   for (const code of [
     'allergies',
     'support',
@@ -124,11 +131,18 @@ export function fixedConsentValues(input: FixedConsentInput) {
     });
   return values;
 }
+let activeRenders = 0;
 export async function renderFixedConsent(
   input: FixedConsentInput,
 ): Promise<Buffer> {
-  const directory = await mkdtemp(join(tmpdir(), 'scouts-consent-'));
+  if (activeRenders >= 3)
+    throw new ServiceUnavailableException(
+      'Se pregătesc alte acorduri. Reîncearcă peste câteva secunde.',
+    );
+  activeRenders++;
+  let directory: string | undefined;
   try {
+    directory = await mkdtemp(join(tmpdir(), 'scouts-consent-'));
     const values = join(directory, 'values.json');
     const document = join(directory, 'acord.docx');
     await writeFile(values, JSON.stringify(fixedConsentValues(input)), {
@@ -171,6 +185,7 @@ export async function renderFixedConsent(
       'Acordul nu a putut fi pregătit momentan. Înscrierea este salvată; reîncearcă descărcarea.',
     );
   } finally {
-    await rm(directory, { recursive: true, force: true });
+    activeRenders--;
+    if (directory) await rm(directory, { recursive: true, force: true });
   }
 }

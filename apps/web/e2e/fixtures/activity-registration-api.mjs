@@ -10,8 +10,8 @@ const lists = {
 		{ id: 'floresti', name: 'Florești' }
 	],
 	units: [
-		{ id: 'cluj-temerari', name: 'Temerari', structureId: 'cluj' },
-		{ id: 'floresti-temerari', name: 'Temerari', structureId: 'floresti' }
+		{ id: 'cluj-temerari', name: 'Temerari', branch: 'temerari', structureId: 'cluj' },
+		{ id: 'floresti-temerari', name: 'Temerari', branch: 'temerari', structureId: 'floresti' }
 	],
 	groups: [
 		{ id: 'cluj-group', name: 'Patrula Cluj', parentId: 'cluj-temerari', structureId: 'cluj' },
@@ -63,6 +63,7 @@ const settings = {
 	administrativeUserIds: [],
 	terms: 'Taxa este aceeași pentru toate metodele de plată. Retragerea se discută cu organizatorul.'
 };
+let previews = [];
 let row;
 let created = null;
 let savedSettings = null;
@@ -72,6 +73,7 @@ const originalSettings = structuredClone(settings);
 const originalActivity = structuredClone(activity);
 function reset() {
 	Object.assign(activity, originalActivity);
+	previews = [];
 	created = null;
 	savedSettings = null;
 	settingsRevision = 1;
@@ -123,6 +125,28 @@ function reset() {
 	};
 }
 reset();
+function previewPdf() {
+	const stream = 'BT /F1 15 Tf 40 760 Td (Previzualizare sintetica - fara date personale) Tj ET';
+	const objects = [
+		'<< /Type /Catalog /Pages 2 0 R >>',
+		'<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+		'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
+		`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+		'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'
+	];
+	let pdf = '%PDF-1.4\n';
+	const offsets = [0];
+	for (const [index, obj] of objects.entries()) {
+		offsets.push(Buffer.byteLength(pdf));
+		pdf += `${index + 1} 0 obj\n${obj}\nendobj\n`;
+	}
+	const xref = Buffer.byteLength(pdf);
+	pdf += `xref\n0 6\n0000000000 65535 f \n${offsets
+		.slice(1)
+		.map((offset) => `${String(offset).padStart(10, '0')} 00000 n `)
+		.join('\n')}\ntrailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+	return Buffer.from(pdf);
+}
 const send = (res, data, status = 200) => {
 	res.writeHead(status, { 'Content-Type': 'application/json' });
 	res.end(JSON.stringify(data));
@@ -138,6 +162,39 @@ createServer(async (req, res) => {
 		reset();
 		return send(res, {});
 	}
+	if (path === '/test/row') return send(res, row);
+	if (path === '/test/configure') {
+		Object.assign(settings, input.settings ?? {});
+		Object.assign(row, input.row ?? {});
+		return send(res, {});
+	}
+	if (path === '/test/previews') return send(res, previews);
+	if (path.includes('/consent-preview')) {
+		previews.push({
+			path,
+			unitId: new URL(req.url, 'http://127.0.0.1').searchParams.get('unitId'),
+			input
+		});
+		res.writeHead(200, { 'Content-Type': 'application/pdf' });
+		return res.end(previewPdf());
+	}
+	if (path.endsWith('/check-in')) {
+		if (input.revision !== row.revision)
+			return send(res, { message: 'Înscriere modificată. Verifică din nou.' }, 409);
+		if (input.paper) row.consentState = 'paper_received';
+		for (const item of row.cashInstallments ?? [])
+			if (input.cashKeys.includes(item.key)) {
+				row.remainingBani -= item.remainingBani;
+				row.cashBani += item.remainingBani;
+				item.remainingBani = 0;
+			}
+		row.cashRemainingBani = (row.cashInstallments ?? []).reduce(
+			(sum, i) => sum + i.remainingBani,
+			0
+		);
+		row.revision++;
+		return send(res, { success: true });
+	}
 	if (path === '/test/created') return send(res, created);
 	if (path === '/test/settings') return send(res, savedSettings);
 	if (path === '/test/current-settings')
@@ -149,6 +206,25 @@ createServer(async (req, res) => {
 	if (path === '/api/activity-registrations/1/settings' && req.method === 'POST') {
 		if (input.revision !== settingsRevision)
 			return send(res, { message: 'Setările au fost modificate. Reîncarcă pagina.' }, 409);
+		if (input.data.published && input.data.consent) {
+			const missing = Object.keys(schema.fixedConsentLabels).filter(
+				(key) =>
+					!input.data.consent[key]?.trim() && !schema.fixedConsentOptionalFields.includes(key)
+			);
+			if (missing.length)
+				return send(
+					res,
+					{
+						message: 'Completează informațiile obligatorii ale acordului de participare.',
+						issues: missing.map((key) => ({
+							field: `consent.${key}`,
+							label: schema.fixedConsentLabels[key],
+							message: 'Acest câmp este obligatoriu pentru publicare.'
+						}))
+					},
+					400
+				);
+		}
 		savedSettings = input;
 		Object.assign(settings, structuredClone(input.data));
 		const saved = { revision: ++settingsRevision, data: structuredClone(settings) };
@@ -221,6 +297,10 @@ createServer(async (req, res) => {
 		return send(res, {
 			activity,
 			settings,
+			eligibleBranches:
+				settings.unitIds.length || settings.structureIds.length
+					? ['temerari']
+					: ['lupisori', 'temerari', 'exploratori', 'seniori'],
 			fields: participationFields.filter((f) => f.type !== 'signature'),
 			information: createRepresentativeOrganizerDraft(),
 			counts: { beneficiaries: 1, staff: 0 },

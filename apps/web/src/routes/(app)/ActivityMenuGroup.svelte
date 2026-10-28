@@ -122,6 +122,12 @@
 									>
 									<a
 										class="feature-link"
+										href={resolve(`/activities/${activity.id}/check-in`)}
+										class:active={pathname.includes('/check-in')}
+										onclick={closeMobile}>Primire participanți</a
+									>
+									<a
+										class="feature-link"
 										href={parentalConsentHref(activity.id)}
 										class:active={isPathActive(parentalConsentHref(activity.id), pathname)}
 										onclick={closeMobile}

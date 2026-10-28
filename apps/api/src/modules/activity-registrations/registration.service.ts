@@ -10,7 +10,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import {
+  consentForUnit,
   participationFields,
+  participationFieldVisible,
   type BranchCode,
   type FormField,
 } from '@scouts-cluj/parental-consent-schema';
@@ -64,7 +66,7 @@ import {
   activityIsPublic,
   defaultSettings,
   hasCapacity,
-  installmentBalance,
+  paymentBreakdown,
   parseSettings,
   priceAdvice,
   validateAnswers,
@@ -72,6 +74,16 @@ import {
   type RegistrationSettings,
 } from './registration.rules';
 
+function stringsForCheckIn(value: unknown): string[] {
+  if (
+    !Array.isArray(value) ||
+    value.length > 20 ||
+    value.some((v) => typeof v !== 'string' || v.length > 100) ||
+    new Set(value).size !== value.length
+  )
+    throw new BadRequestException('Tranșe cash invalide.');
+  return value.map((v: unknown) => text(v, 100));
+}
 export const hashToken = (token: string) =>
   createHash('sha256').update(token).digest('hex');
 
@@ -115,7 +127,56 @@ export class RegistrationService {
     const activity = await tx.findOne(Activity, { id: activityId });
     if (!activity) throw new NotFoundException('Activitatea nu există.');
     const settings = await tx.findOne(Settings, { activityId });
-    return { activity, settings, data: settings?.data ?? defaultSettings() };
+    return {
+      activity,
+      settings,
+      data: await this.currentEligibility(
+        settings?.data ?? defaultSettings(),
+        tx,
+      ),
+    };
+  }
+  /** Resolve only unambiguous legacy root units, without mutating settings on reads. */
+  async currentEligibility(
+    data: RegistrationSettings,
+    tx = this.em,
+  ): Promise<RegistrationSettings> {
+    if (!data.unitIds.length) return data;
+    const selected = await tx.find(ScoutUnit, { id: { $in: data.unitIds } });
+    const roots = await tx.find(ScoutUnit, {
+      fixed: true,
+      parentId: null,
+      archived: false,
+    });
+    const unitIds = data.unitIds.map((id) => {
+      const old = selected.find((u) => u.id === id);
+      if (!old || old.fixed || old.archived || old.parentId) return id;
+      const candidates = roots.filter(
+        (u) => u.structureId === old.structureId && u.branch === old.branch,
+      );
+      return candidates.length === 1 ? candidates[0].id : id;
+    });
+    return { ...data, unitIds: [...new Set(unitIds)] };
+  }
+  async eligibleUnits(data: RegistrationSettings, tx = this.em) {
+    const units = await tx.find(ScoutUnit, {
+      fixed: true,
+      parentId: null,
+      archived: false,
+    });
+    const groups = data.groupIds.length
+      ? await tx.find(ScoutSubunit, {
+          id: { $in: data.groupIds },
+          archived: false,
+        })
+      : [];
+    return units.filter(
+      (u) =>
+        (!data.structureIds.length ||
+          data.structureIds.includes(u.structureId)) &&
+        (!data.unitIds.length || data.unitIds.includes(u.id)) &&
+        (!data.groupIds.length || groups.some((g) => g.parentId === u.id)),
+    );
   }
   private manager(user: CurrentUser, activity: Activity) {
     return (
@@ -303,6 +364,8 @@ export class RegistrationService {
           data.consent,
           user.id,
           row.revision,
+          data.unitActivities,
+          (await this.eligibleUnits(data, tx)).map((u) => u.branch),
         );
       tx.persist(row);
       this.audit(
@@ -392,6 +455,12 @@ export class RegistrationService {
     const mine = await this.em.find(Registration, {
       $or: [{ ownerId: user.id }, ...(member ? [{ memberId: member.id }] : [])],
     });
+    const normalized = await Promise.all(
+      settings.map(async (row) => ({
+        activityId: row.activityId,
+        data: await this.currentEligibility(row.data),
+      })),
+    );
     return catalog.filter(
       (activity) =>
         managedIds.has(activity.id) ||
@@ -399,19 +468,75 @@ export class RegistrationService {
         (member &&
           this.eligible(
             member,
-            settings.find((row) => row.activityId === activity.id)!.data,
+            normalized.find((row) => row.activityId === activity.id)!.data,
+            adultOn(member.birthDate, activity.startDate ?? new Date()) ===
+              true,
           )),
     );
   }
-  async consentPreview(user: CurrentUser, activityId: number, branch: string) {
-    const { activity, data } = await this.requireManager(user, activityId);
+  async consentPreview(
+    user: CurrentUser,
+    activityId: number,
+    branch: string,
+    unitId?: string,
+    input?: unknown,
+  ) {
+    const { activity, data: saved } = await this.requireManager(
+      user,
+      activityId,
+    );
+    const data =
+      input === undefined
+        ? saved
+        : parseSettings({ ...record(input), published: false });
+    return this.renderConsentPreview(activity, data, branch, unitId);
+  }
+  async draftConsentPreview(input: unknown) {
+    const b = record(input);
+    const title = text(b.title, 255),
+      location = b.location ? text(b.location, 255) : '';
+    const date = (value: unknown) =>
+      typeof value === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+      Number.isFinite(Date.parse(value))
+        ? value
+        : '';
+    return this.renderConsentPreview(
+      {
+        title,
+        location,
+        startDate: date(b.startDate),
+        endDate: date(b.endDate),
+      },
+      parseSettings({ ...record(b.settings), published: false }),
+      text(b.branch, 30),
+      typeof b.unitId === 'string' ? b.unitId : undefined,
+    );
+  }
+  private async renderConsentPreview(
+    activity: {
+      title: string;
+      location?: string | null;
+      startDate?: Date | string | null;
+      endDate?: Date | string | null;
+    },
+    data: RegistrationSettings,
+    branch: string,
+    unitId?: string,
+  ) {
     if (!data.consent)
       throw new BadRequestException(
-        'Salvează mai întâi datele acordului în Setări înscrieri.',
+        'Completează mai întâi informațiile acordului.',
       );
-    if (!['lupisori', 'temerari', 'exploratori'].includes(branch))
-      throw new BadRequestException('Ramură invalidă.');
-    const date = (value: string | Date | undefined | null) =>
+    const units = await this.eligibleUnits(data);
+    const selected = unitId
+      ? units.find((u) => u.id === unitId)
+      : units.find((u) => u.branch === branch);
+    if (!selected || selected.branch !== branch)
+      throw new BadRequestException(
+        'Alege o unitate eligibilă pentru previzualizare.',
+      );
+    const date = (value: Date | string | null | undefined) =>
       value instanceof Date ? value.toISOString().slice(0, 10) : (value ?? '');
     return renderFixedConsent({
       title: activity.title,
@@ -419,7 +544,7 @@ export class RegistrationService {
       startDate: date(activity.startDate),
       endDate: date(activity.endDate),
       branch,
-      details: data.consent,
+      details: consentForUnit(data.consent, data.unitActivities, selected.id),
       answers: {},
     });
   }
@@ -448,6 +573,9 @@ export class RegistrationService {
         endDate: activity.endDate,
       },
       settings: publicSettings,
+      eligibleBranches: [
+        ...new Set((await this.eligibleUnits(data)).map((u) => u.branch)),
+      ],
       fields: participationFields
         .filter((f) => f.type !== 'signature')
         .map((f) =>
@@ -556,6 +684,7 @@ export class RegistrationService {
       result: Record<string, Answer> = {};
     const fields = participationFields.filter(
       (f) =>
+        participationFieldVisible(f.code, b) &&
         f.type !== 'signature' &&
         (minor ||
           ![
@@ -618,14 +747,19 @@ export class RegistrationService {
       ),
     };
   }
-  private eligible(member: ScoutMember, settings: RegistrationSettings) {
+  private eligible(
+    member: ScoutMember,
+    settings: RegistrationSettings,
+    staff = false,
+  ) {
     return (
       (!settings.structureIds.length ||
         settings.structureIds.includes(member.structureId)) &&
-      (!settings.unitIds.length ||
-        (!!member.unitId && settings.unitIds.includes(member.unitId))) &&
-      (!settings.groupIds.length ||
-        (!!member.groupId && settings.groupIds.includes(member.groupId)))
+      (staff ||
+        ((!settings.unitIds.length ||
+          (!!member.unitId && settings.unitIds.includes(member.unitId))) &&
+          (!settings.groupIds.length ||
+            (!!member.groupId && settings.groupIds.includes(member.groupId)))))
     );
   }
   private async certificate(
@@ -665,7 +799,8 @@ export class RegistrationService {
       )
         throw new BadRequestException('Înscrierile nu sunt deschise.');
       const member = await this.member(b.identifier, tx, user);
-      if (!override && !this.eligible(member, data))
+      const role = b.role === 'staff' ? 'staff' : 'beneficiary';
+      if (!override && !this.eligible(member, data, role === 'staff'))
         throw new BadRequestException(
           'Membrul nu face parte din grupurile eligibile.',
         );
@@ -673,7 +808,6 @@ export class RegistrationService {
         throw new ConflictException(
           'Există deja o înscriere. Folosește contul sau linkul personal pentru gestionare.',
         );
-      const role = b.role === 'staff' ? 'staff' : 'beneficiary';
       const reportedBirthDate =
         role === 'staff'
           ? member.birthDate
@@ -751,6 +885,22 @@ export class RegistrationService {
       const registration = tx.create(Registration, {
         activityId,
         memberId: member.id,
+        unitId: member.unitId
+          ? (
+              await this.currentEligibility(
+                { ...defaultSettings(), unitIds: [member.unitId] },
+                tx,
+              )
+            ).unitIds[0]
+          : (
+              await tx.findOne(ScoutUnit, {
+                structureId: member.structureId,
+                branch: branch as ScoutUnit['branch'],
+                fixed: true,
+                parentId: null,
+                archived: false,
+              })
+            )?.id,
         orgoId: member.orgoId!,
         memberName: member.name,
         branch,
@@ -822,10 +972,11 @@ export class RegistrationService {
       refundRemainingBani: Math.max(0, (row.refundDueBani ?? 0) - refundedBani),
       remainingBani: Math.max(0, row.totalBani - coveredBani),
       excessBani: Math.max(0, coveredBani - row.totalBani),
-      installment: installmentBalance(
+      ...paymentBreakdown(
         row.totalBani,
         coveredBani,
         row.installments,
+        entries,
       ),
       paymentState:
         coveredBani >= row.totalBani
@@ -1038,6 +1189,17 @@ export class RegistrationService {
           createdAt: r.createdAt,
           revision: r.revision,
           consentState: r.consentState,
+          minor: r.minor,
+          unitId: r.unitId,
+          handoffPaperReady:
+            (manage || data.administrativeUserIds.includes(user.id)) &&
+            !!r.consentPublicationId &&
+            !!(await this.em.count(Document, {
+              registrationId: r.id,
+              kind: 'generated',
+              publicationId: r.consentPublicationId,
+              answerRevision: r.answerRevision,
+            })),
           familyKey: r.familyKey,
           familyPlan: finance ? r.familyPlan : undefined,
           totalBani: finance ? r.totalBani : undefined,
@@ -1079,9 +1241,10 @@ export class RegistrationService {
     id: string,
     input: unknown,
     user: CurrentUser,
+    transaction?: EntityManager,
   ) {
     const b = record(input);
-    return this.mutate(activityId, async (tx) => {
+    const work = async (tx: EntityManager) => {
       const { activity, data } = await this.settings(activityId, tx);
       const row = await tx.findOneOrFail(Registration, {
         id: uuid(id),
@@ -1135,6 +1298,10 @@ export class RegistrationService {
             throw new BadRequestException(
               'Înscrierea nu poate primi încasări.',
             );
+          if (b.installmentKey && !transaction)
+            throw new BadRequestException(
+              'Folosește confirmarea de la primirea participanților pentru această tranșă.',
+            );
           const method = text(b.method, 20);
           if (!['bank', 'cash', 'support', 'refund'].includes(method))
             throw new BadRequestException('Metodă invalidă.');
@@ -1169,6 +1336,9 @@ export class RegistrationService {
             receivedOn,
             note,
             actorId: user.id,
+            installmentKey: b.installmentKey
+              ? text(b.installmentKey, 100)
+              : undefined,
           });
           tx.persist(entry);
           this.audit(tx, activityId, user.id, 'receipt_recorded', id, {
@@ -1210,6 +1380,7 @@ export class RegistrationService {
               note,
               actorId: user.id,
               reversedEntryId: entry.id,
+              installmentKey: entry.installmentKey,
             }),
           );
           this.audit(tx, activityId, user.id, 'receipt_reversed', id, {
@@ -1291,6 +1462,145 @@ export class RegistrationService {
       row.revision++;
       row.updatedAt = new Date();
       return { success: true };
+    };
+    return transaction ? work(transaction) : this.mutate(activityId, work);
+  }
+  async checkIn(
+    activityId: number,
+    id: string,
+    input: unknown,
+    user: CurrentUser,
+  ) {
+    const b = record(input);
+    return this.mutate(activityId, async (tx) => {
+      const { activity, data } = await this.settings(activityId, tx);
+      const row = await tx.findOneOrFail(Registration, {
+        activityId,
+        id: uuid(id),
+      });
+      if (row.revision !== b.revision)
+        throw new ConflictException(
+          'Înscrierea a fost actualizată. Verifică din nou sumele și acordul.',
+        );
+      if (!['accepted', 'reserved'].includes(row.state))
+        throw new BadRequestException(
+          'Primirea necesită o înscriere cu loc confirmat sau rezervat.',
+        );
+      const cashKeys =
+        b.cashKeys === undefined ? [] : stringsForCheckIn(b.cashKeys);
+      if (b.paper !== true && !cashKeys.length)
+        throw new BadRequestException('Alege ce ai primit.');
+      if (b.paper === true) {
+        if (
+          !this.manager(user, activity) &&
+          !data.administrativeUserIds.includes(user.id)
+        )
+          throw new ForbiddenException();
+        if (['paper_received', 'signed_accepted'].includes(row.consentState))
+          throw new ConflictException('Acordul este deja validat.');
+        await this.update(
+          activityId,
+          id,
+          { action: 'paper_received', revision: row.revision },
+          user,
+          tx,
+        );
+      }
+      if (cashKeys.length) {
+        const currentCash = (await this.balance(row, tx)).cashInstallments
+          .filter((item) => cashKeys.includes(item.key))
+          .reduce((sum, item) => sum + item.remainingBani, 0);
+        if (b.cashBani !== currentCash)
+          throw new ConflictException(
+            'Suma cash s-a schimbat. Verifică suma actualizată înainte de încasare.',
+          );
+        if (!this.financial(user, activity)) throw new ForbiddenException();
+        for (const key of cashKeys) {
+          const item = (await this.balance(row, tx)).cashInstallments.find(
+            (item) => item.key === key,
+          );
+          if (!item || item.remainingBani <= 0)
+            throw new ConflictException(
+              'Tranșa cash este deja acoperită sau planul de plată s-a schimbat.',
+            );
+          await this.update(
+            activityId,
+            id,
+            {
+              action: 'receipt',
+              revision: row.revision,
+              method: 'cash',
+              amountBani: item.remainingBani,
+              installmentKey: key,
+              receivedOn: localDate(new Date()),
+              note: `Cash la predare · ${key}`,
+            },
+            user,
+            tx,
+          );
+        }
+      }
+      return { success: true, revision: row.revision };
+    });
+  }
+  async applyInstallments(
+    activityId: number,
+    input: unknown,
+    user: CurrentUser,
+  ) {
+    const b = record(input);
+    return this.mutate(activityId, async (tx) => {
+      const { data, settings } = await this.requireManager(
+        user,
+        activityId,
+        tx,
+      );
+      if (b.revision !== (settings?.revision ?? 0) || b.confirm !== true)
+        throw new ConflictException(
+          'Verifică și confirmă planul salvat înainte de aplicare.',
+        );
+      const rows = await tx.find(Registration, {
+        activityId,
+        role: 'beneficiary',
+        state: { $in: ['pending', 'waitlisted', 'reserved', 'accepted'] },
+      });
+      if (
+        rows.length &&
+        (await tx.findOne(Checkout, {
+          registrationId: { $in: rows.map((r) => r.id) },
+          state: { $in: ['created', 'pending', 'unknown'] },
+        }))
+      )
+        throw new ConflictException(
+          'Există plăți în curs. Rezolvă încercările înainte de aplicarea planului.',
+        );
+      for (const row of rows) {
+        // A handoff receipt must not silently move to a different tranche.
+        const entries = await tx.find(Entry, { registrationId: row.id });
+        if (
+          [
+            ...new Set(entries.map((e) => e.installmentKey).filter(Boolean)),
+          ].some(
+            (key) =>
+              !data.installments.some((i) => i.key === key) &&
+              entries
+                .filter((e) => e.installmentKey === key)
+                .reduce((sum, e) => sum + e.amountBani, 0) !== 0,
+          )
+        )
+          throw new ConflictException(
+            'O tranșă eliminată are încasări la predare. Păstrează identificatorul ei sau corectează întâi încasările.',
+          );
+        const before = structuredClone(row.installments);
+        row.installments = structuredClone(data.installments);
+        row.revision++;
+        row.updatedAt = new Date();
+        this.audit(tx, activityId, user.id, 'installments_applied', row.id, {
+          before,
+          after: row.installments,
+        });
+      }
+      return { count: rows.length };
     });
   }
   async family(activityId: number, input: unknown, user: CurrentUser) {
@@ -1440,6 +1750,7 @@ export class RegistrationService {
       row.branch as BranchCode,
       row.answers,
       extras,
+      row.unitId,
     );
     return this.mutate(activityId, async (tx) => {
       const fresh = await this.authorize(activityId, id, token, user, tx);

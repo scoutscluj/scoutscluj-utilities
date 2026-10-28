@@ -111,7 +111,7 @@ export const participationFields: FormField[] = [
     type: "long_text",
     label: "Medicație personală",
     helpText:
-      "Pentru fiecare medicament: denumire, doză, orar, motiv, păstrare și instrucțiuni speciale.",
+      "Scrie denumirile medicamentelor. Dacă participantul nu are medicație personală, scrie „Nu există”; detaliile de mai jos vor fi ascunse.",
   },
   {
     code: "medication_mode",

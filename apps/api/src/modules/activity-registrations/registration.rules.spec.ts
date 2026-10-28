@@ -5,6 +5,7 @@ import {
   hasCapacity,
   installmentBalance,
   parseSettings,
+  paymentBreakdown,
   priceAdvice,
   validateAnswers,
 } from './registration.rules';
@@ -181,5 +182,75 @@ describe('activity registration rules', () => {
         'lupisori',
       ),
     ).toEqual({ shirt: 'S' });
+  });
+});
+
+describe('cash at handoff', () => {
+  const plan = [
+    {
+      key: 'online',
+      amountBani: 20000,
+      due: '2027-07-01',
+      method: 'platform' as const,
+    },
+    {
+      key: 'handoff',
+      amountBani: 15000,
+      due: '2027-08-01',
+      method: 'cash' as const,
+    },
+  ];
+  it('keeps cash in the gross balance while card excludes it and includes unscheduled fees', () => {
+    const result = paymentBreakdown(40000, 5000, plan);
+    expect(result.cardRemainingBani).toBe(20000);
+    expect(result.cashRemainingBani).toBe(15000);
+    expect(result.installment.amountBani).toBe(15000);
+  });
+  it('accepts the cash tranche first without treating the platform tranche as paid', () => {
+    const result = paymentBreakdown(35000, 15000, plan, [
+      { amountBani: 15000, installmentKey: 'handoff' },
+    ]);
+    expect(result.cardRemainingBani).toBe(20000);
+    expect(result.cashRemainingBani).toBe(0);
+    expect(result.installment.amountBani).toBe(20000);
+  });
+  it('honors family price clipping and center support without charging twice', () => {
+    const result = paymentBreakdown(25000, 22000, plan, [
+      { amountBani: 22000 },
+    ]);
+    expect(result.cashRemainingBani).toBe(3000);
+    expect(result.cardRemainingBani).toBe(0);
+    expect(paymentBreakdown(10000, 10000, plan).cashRemainingBani).toBe(0);
+  });
+  it('reopens the cash tranche on correction and caps allocations after refunds', () => {
+    const result = paymentBreakdown(35000, 20000, plan, [
+      { amountBani: 15000, installmentKey: 'handoff' },
+      { amountBani: -15000, installmentKey: 'handoff' },
+      { amountBani: 20000 },
+    ]);
+    expect(result.cashRemainingBani).toBe(15000);
+    expect(result.cardRemainingBani).toBe(0);
+    const refunded = paymentBreakdown(35000, 5000, plan, [
+      { amountBani: 15000, installmentKey: 'handoff' },
+      { amountBani: -10000 },
+    ]);
+    expect(refunded.cashRemainingBani + refunded.cardRemainingBani).toBe(30000);
+  });
+  it('skips cash tranches even when scheduled before the card tranche', () => {
+    const result = paymentBreakdown(35000, 0, [plan[1], plan[0]]);
+    expect(result.installment).toEqual({
+      amountBani: 20000,
+      due: '2027-07-01',
+    });
+  });
+  it('preserves old all-platform schedules', () => {
+    for (const covered of [0, 5000, 20000, 35000, 50000])
+      expect(
+        paymentBreakdown(
+          40000,
+          covered,
+          plan.map(({ amountBani, due }) => ({ amountBani, due })),
+        ).installment,
+      ).toEqual(installmentBalance(40000, covered, plan));
   });
 });

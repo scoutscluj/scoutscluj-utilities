@@ -2,6 +2,7 @@ import { isActivityAdministrator } from '../activities/activity-access';
 import {
   PARENTAL_CONSENT_SCHEMA_VERSION,
   participationFields,
+  consentForUnit,
   branchCodes,
   canonicalJson,
   changedPaths,
@@ -682,6 +683,7 @@ export class ParentalConsentService {
     branch: BranchCode,
     answers: Record<string, string | number | boolean | string[]>,
     extraFields: import('@scouts-cluj/parental-consent-schema').FormField[] = [],
+    unitId?: string | null,
   ) {
     const publication = await this.publicationRepository.findOne({
       id: publicationId,
@@ -703,7 +705,11 @@ export class ParentalConsentService {
         startDate: draft.general.startDate,
         endDate: draft.general.endDate,
         branch,
-        details: draft.fixedDetails!,
+        details: consentForUnit(
+          draft.fixedDetails!,
+          draft.unitActivities,
+          unitId,
+        ),
         answers,
         extraFields,
       });

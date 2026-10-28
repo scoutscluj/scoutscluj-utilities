@@ -1,5 +1,30 @@
 import type { FormField, OrganizerDraft } from '@scouts-cluj/parental-consent-schema';
 export type Answer = string | number | boolean | string[];
+export type RegistrationIssue = { field: string; label: string; message: string };
+export function registrationIssues(value: unknown): RegistrationIssue[] {
+	if (!Array.isArray(value)) return [];
+	return value.filter(
+		(item: unknown): item is RegistrationIssue =>
+			typeof item === 'object' &&
+			item !== null &&
+			'field' in item &&
+			typeof item.field === 'string' &&
+			'label' in item &&
+			typeof item.label === 'string' &&
+			'message' in item &&
+			typeof item.message === 'string'
+	);
+}
+export class RegistrationError extends Error {
+	constructor(
+		message: string,
+		public status: number,
+		public issues: RegistrationIssue[] = []
+	) {
+		super(message);
+		this.name = 'RegistrationError';
+	}
+}
 export type Publication = {
 	revision: number;
 	published: boolean;
@@ -17,6 +42,7 @@ export type Question = {
 };
 export type RegistrationSettings = {
 	coverImageUrl?: string;
+	unitActivities?: Record<string, string>;
 	consent?: import('@scouts-cluj/parental-consent-schema').FixedConsentDetails | null;
 	published: boolean;
 	opensAt: string;
@@ -34,7 +60,7 @@ export type RegistrationSettings = {
 	feeBani: number;
 	branchFees: Record<string, number>;
 	familyFees: number[];
-	installments: { amountBani: number; due: string }[];
+	installments: { amountBani: number; due: string; key?: string; method?: 'platform' | 'cash' }[];
 	questions: Question[];
 	medicalUserIds: number[];
 	administrativeUserIds: number[];
@@ -51,6 +77,7 @@ export type PublicActivity = {
 		endDate?: string;
 	};
 	settings: Omit<RegistrationSettings, 'medicalUserIds' | 'administrativeUserIds'>;
+	eligibleBranches?: string[];
 	fields: FormField[];
 	information: OrganizerDraft | null;
 	counts: { beneficiaries: number; staff: number };
@@ -71,8 +98,13 @@ export type Registration = {
 	role: string;
 	state: string;
 	minor?: boolean;
+	handoffPaperReady?: boolean;
 	consentState: string;
 	totalBani?: number;
+	unitId?: string;
+	cardRemainingBani?: number;
+	cashRemainingBani?: number;
+	cashInstallments?: { key: string; amountBani: number; due: string; remainingBani: number }[];
 	remainingBani?: number;
 	excessBani?: number;
 	cashBani?: number;
@@ -119,7 +151,7 @@ export type Overview = {
 	} | null;
 	lists?: {
 		structures: { id: string; name: string }[];
-		units: { id: string; name: string; structureId: string }[];
+		units: { id: string; name: string; structureId: string; branch?: string }[];
 		groups: { id: string; name: string; parentId: string }[];
 	};
 };
@@ -153,15 +185,34 @@ export async function registrationRequest<T>(
 	token?: string,
 	method = 'POST'
 ): Promise<T> {
-	const response = await fetch(`/activitati/${activityId}/api/${path}`, {
-		method,
-		headers: {
-			'Content-Type': 'application/json',
-			...(token ? { 'x-registration-token': token } : {})
-		},
-		...(body === undefined ? {} : { body: JSON.stringify(body) })
-	});
-	const value = await response.json();
-	if (!response.ok) throw new Error(value.message ?? 'Operațiunea nu a reușit.');
+	let response: Response;
+	try {
+		response = await fetch(`/activitati/${activityId}/api/${path}`, {
+			method,
+			headers: {
+				'Content-Type': 'application/json',
+				...(token ? { 'x-registration-token': token } : {})
+			},
+			...(body === undefined ? {} : { body: JSON.stringify(body) })
+		});
+	} catch {
+		throw new RegistrationError(
+			'Conexiunea a fost întreruptă. Datele introduse sunt păstrate. Verifică internetul și încearcă din nou.',
+			0
+		);
+	}
+	const value = await response
+		.json()
+		.catch(() => ({ message: 'Răspunsul aplicației nu a putut fi citit. Reîncearcă.' }));
+	if (!response.ok)
+		throw new RegistrationError(
+			response.status >= 500
+				? 'Operațiunea nu a putut fi finalizată momentan. Informațiile introduse au fost păstrate. Încearcă din nou.'
+				: Array.isArray(value.message)
+					? value.message.join('\n')
+					: (value.message ?? 'Operațiunea nu a reușit.'),
+			response.status,
+			registrationIssues(value.issues)
+		);
 	return value as T;
 }

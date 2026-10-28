@@ -1,4 +1,5 @@
 <script lang="ts">
+	import FormFeedback from '$lib/components/ui/FormFeedback.svelte';
 	import { untrack, onMount } from 'svelte';
 	import { registrationRequest, money, states } from './registration';
 	let {
@@ -13,6 +14,8 @@
 	let lookup = $state<{
 		memberName: string;
 		remainingBani: number;
+		cardRemainingBani?: number;
+		cashRemainingBani?: number;
 		installment: { amountBani: number; due: string };
 		payable: boolean;
 		state: string;
@@ -43,7 +46,9 @@
 			const result = await registrationRequest<{ paymentUrl: string }>(activityId, 'checkout', {
 				identifier,
 				full,
-				amountBani: full ? lookup.remainingBani : lookup.installment.amountBani,
+				amountBani: full
+					? (lookup.cardRemainingBani ?? lookup.remainingBani)
+					: lookup.installment.amountBani,
 				acceptTerms: terms
 			});
 			window.location.assign(result.paymentUrl);
@@ -66,17 +71,25 @@
 		<label>ID Orgo sau ID card<input bind:value={identifier} required autocomplete="off" /></label
 		><button disabled={busy}>{busy ? 'Se verifică…' : 'Verifică înscrierea'}</button>
 	</form>
-	{#if message}<p role="alert">{message}</p>{/if}
+	{#if message}<FormFeedback {message} />{/if}
 	{#if lookup}<div class="summary">
 			<strong>{lookup.memberName}</strong>
 			<p>{states[lookup.state] ?? lookup.state} · {states[lookup.paymentState]}</p>
 			<p>Sold rămas: <strong>{money(lookup.remainingBani)}</strong></p>
+			{#if lookup.cashRemainingBani}<p class="cash-note">
+					Doar cash la predare: <strong>{money(lookup.cashRemainingBani)}</strong>. Rămâne în sold
+					până la încasarea de către organizator și nu se poate achita cu cardul.
+				</p>{/if}
 			{#if lookup.payable}<label
-					><input type="checkbox" bind:checked={full} /> Achit întregul sold rămas</label
+					><input type="checkbox" bind:checked={full} /> Achit întreaga sumă disponibilă pentru card</label
 				>
 				<p>
 					Suma de plată: <strong
-						>{money(full ? lookup.remainingBani : lookup.installment.amountBani)}</strong
+						>{money(
+							full
+								? (lookup.cardRemainingBani ?? lookup.remainingBani)
+								: lookup.installment.amountBani
+						)}</strong
 					>{!full && lookup.installment.due ? ` · Scadență ${lookup.installment.due}` : ''}
 				</p>
 				<label
@@ -91,7 +104,9 @@
 						Mediu de test — această plată nu încasează bani reali.
 					</p>{/if}
 			{:else}<p>
-					Plata nu este necesară sau înscrierea așteaptă acceptarea și un loc disponibil.
+					{lookup.cashRemainingBani && ['accepted', 'reserved'].includes(lookup.state)
+						? 'Nu mai există sume de achitat cu cardul. Pregătește numerarul pentru predare.'
+						: 'Plata nu este necesară sau înscrierea așteaptă acceptarea și un loc disponibil.'}
 				</p>{/if}
 		</div>{/if}
 </section>
@@ -150,7 +165,9 @@
 		background: var(--sc-canvas);
 		border-radius: 10px;
 	}
-	[role='alert'] {
-		color: var(--sc-accent);
+	.cash-note {
+		padding: 12px;
+		border: 1px solid var(--sc-border);
+		border-radius: 7px;
 	}
 </style>

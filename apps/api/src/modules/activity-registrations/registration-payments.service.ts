@@ -27,7 +27,6 @@ import {
   type VerifiedPaymentEvent,
 } from '../membership/payment-provider';
 import { record, text, uuid } from '../membership/membership.rules';
-import { installmentBalance } from './registration.rules';
 import { localDate } from '../members/member.types';
 import type { CurrentUser } from '../users/users.types';
 
@@ -78,11 +77,13 @@ export class RegistrationPaymentsService
       environment: settings?.activeEnvironment ?? 'sandbox',
       memberName: `${row.memberName.split(' ')[0]} ${row.memberName.split(' ').slice(-1)[0].slice(0, 1)}.`,
       remainingBani: balance.remainingBani,
+      cardRemainingBani: balance.cardRemainingBani,
+      cashRemainingBani: balance.cashRemainingBani,
       installment: balance.installment,
       payable:
         row.role !== 'staff' &&
         ['accepted', 'reserved'].includes(row.state) &&
-        balance.remainingBani > 0,
+        balance.cardRemainingBani > 0,
       state: row.state,
       paymentState: balance.paymentState,
     };
@@ -115,16 +116,16 @@ export class RegistrationPaymentsService
           'Plata necesită o înscriere acceptată, cu loc disponibil.',
         );
       const balance = await this.registrations.balance(row, tx);
-      if (!balance.remainingBani)
-        throw new BadRequestException('Taxa este deja acoperită.');
+      if (!balance.cardRemainingBani)
+        throw new BadRequestException(
+          balance.cashRemainingBani
+            ? 'Soldul rămas se achită doar cash la predare.'
+            : 'Taxa este deja acoperită.',
+        );
       const requestedBani =
         b.full === true
-          ? balance.remainingBani
-          : installmentBalance(
-              row.totalBani,
-              balance.coveredBani,
-              row.installments,
-            ).amountBani;
+          ? balance.cardRemainingBani
+          : balance.installment.amountBani;
       if (requestedBani !== b.amountBani)
         throw new ConflictException(
           'Suma s-a schimbat. Verifică soldul înainte de plată.',

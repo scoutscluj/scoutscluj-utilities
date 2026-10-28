@@ -8,13 +8,13 @@ const proxy: RequestHandler = async ({ params, request, cookies }) => {
 	const path = params.path ?? '';
 	const uuid = '[0-9a-f-]{36}';
 	const allowed =
-		/^consent-preview\/(lupisori|temerari|exploratori)$/.test(path) ||
-		/^(register|lookup|checkout|prefill|settings|publication|family|renew-consent|overview|mine)$/.test(
+		/^consent-preview\/(lupisori|temerari|exploratori|seniori)$/.test(path) ||
+		/^(register|lookup|checkout|prefill|settings|publication|family|renew-consent|overview|mine|apply-installments)$/.test(
 			path
 		) ||
-		new RegExp(`^registrations/${uuid}(?:/(?:generate|upload|answers|documents/${uuid}))?$`).test(
-			path
-		);
+		new RegExp(
+			`^registrations/${uuid}(?:/(?:generate|upload|answers|check-in|documents/${uuid}))?$`
+		).test(path);
 	const close = new RegExp(`^checkouts/${uuid}/close$`).test(path);
 	if (!allowed && !close) error(404);
 	const session = cookies.get(SESSION_COOKIE_NAME);
@@ -25,7 +25,7 @@ const proxy: RequestHandler = async ({ params, request, cookies }) => {
 	const response = await apiFetch(
 		path === 'prefill'
 			? '/api/activity-registrations/prefill'
-			: `/api/activity-registrations/${activityId}/${path}`,
+			: `/api/activity-registrations/${activityId}/${path}${request.url.includes('?') ? new URL(request.url).search : ''}`,
 		{
 			method: request.method,
 			headers,

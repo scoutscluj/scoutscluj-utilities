@@ -254,10 +254,10 @@ def add_signature(path):
     })
     reference = writer._add_object(field)
     page.setdefault(NameObject('/Annots'), ArrayObject()).append(reference)
-    form = writer.root_object.get('/AcroForm')
+    form = writer._root_object.get('/AcroForm')
     if form is None:
         form = DictionaryObject()
-        writer.root_object[NameObject('/AcroForm')] = writer._add_object(form)
+        writer._root_object[NameObject('/AcroForm')] = writer._add_object(form)
     else:
         form = form.get_object()
     form.setdefault(NameObject('/Fields'), ArrayObject()).append(reference)

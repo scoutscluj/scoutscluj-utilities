@@ -1094,6 +1094,27 @@ async function main() {
       35000,
     );
     assert.equal(handoffRow.totalBani, 35000);
+    const beforeRenewal = handoffRow.consentPublicationId;
+    const finalSettings = await make(orm.em.fork()).settings(
+      handoffActivity.id,
+    );
+    await make(orm.em.fork()).saveSettings(actor, handoffActivity.id, {
+      revision: finalSettings.settings!.revision,
+      data: { ...finalSettings.data, unitIds: [root.id], unitActivities: {} },
+    });
+    const renewal = await make(orm.em.fork()).renewConsent(
+      handoffActivity.id,
+      actor,
+    );
+    assert.equal(renewal.updated, 0);
+    assert.equal(
+      (
+        await orm.em
+          .fork()
+          .findOneOrFail(ActivityRegistration, { id: registered.id })
+      ).consentPublicationId,
+      beforeRenewal,
+    );
     console.log(
       'PASS cash-only card allocation, atomic handoff, duplicate prevention, correction, permissions and explicit plan application',
     );

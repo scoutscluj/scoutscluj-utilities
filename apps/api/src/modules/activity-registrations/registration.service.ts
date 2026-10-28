@@ -1680,7 +1680,7 @@ export class RegistrationService {
   }
   async renewConsent(activityId: number, user: CurrentUser) {
     return this.mutate(activityId, async (tx) => {
-      await this.requireManager(user, activityId, tx);
+      const { data } = await this.requireManager(user, activityId, tx);
       const publication = await tx.findOneOrFail(ParentalConsentPublication, {
         activityId,
         status: ParentalConsentPublicationStatus.Active,
@@ -1692,7 +1692,14 @@ export class RegistrationService {
         consentPublicationId: { $ne: publication.id },
         state: { $nin: ['withdrawn', 'rejected'] },
       });
-      for (const row of rows) {
+      const units = await this.eligibleUnits(data, tx);
+      const applicable = rows.filter(
+        (row) =>
+          publication.draftSnapshot.branches[row.branch as BranchCode]
+            ?.enabled &&
+          (!row.unitId || units.some((unit) => unit.id === row.unitId)),
+      );
+      for (const row of applicable) {
         row.consentPublicationId = publication.id;
         row.consentState = 'update_required';
         row.revision++;
@@ -1705,7 +1712,10 @@ export class RegistrationService {
           { publicationId: publication.id },
         );
       }
-      return { updated: rows.length };
+      return {
+        updated: applicable.length,
+        skipped: rows.length - applicable.length,
+      };
     });
   }
   async generate(

@@ -89,9 +89,18 @@
 		message = '';
 		failed = false;
 		try {
-			await registrationRequest(activityId, path, body, undefined, method);
+			const result = await registrationRequest<{ updated?: number; skipped?: number }>(
+				activityId,
+				path,
+				body,
+				undefined,
+				method
+			);
 			await invalidateAll();
-			message = 'Modificările au fost salvate.';
+			message =
+				path === 'renew-consent'
+					? `Actualizarea acordului a fost solicitată pentru ${result.updated ?? 0} participanți.${result.skipped ? ` Pentru ${result.skipped} participanți din afara grupurilor curente, acordul anterior a fost păstrat.` : ''}`
+					: 'Modificările au fost salvate.';
 			return true;
 		} catch (e) {
 			failed = true;
@@ -381,7 +390,8 @@
 	>
 		{#if action === 'renew'}<p>
 				Acordurile înscrierilor afectate vor folosi publicația curentă și vor fi marcate „Necesită
-				acord actualizat”. Documentele anterioare rămân în istoric.
+				acord actualizat”. Participanții din afara unităților și ramurilor pregătite păstrează
+				acordul anterior. Documentele deja emise rămân în istoric.
 			</p>
 		{:else if action === 'close_checkout'}<p>
 				Verifică încercarea la procesator. Pentru Stripe, aplicația solicită închiderea sesiunii și

@@ -27,11 +27,15 @@ unei înscrieri noi de minor se pregătește PDF-ul completat; plata rămâne op
 în acel moment. Membrii autentificați văd activitățile eligibile în submeniul
 Activități, iar coordonatorii păstrează accesul la gestionarea activităților.
 
-Rendererul formatului fix necesită `python3`, `python3-lxml`, LibreOffice Writer și
+Rendererul formatului fix necesită `python3`, `python3-lxml`, `python3-pypdf`,
+`python3-reportlab`, LibreOffice Writer și
 fonturile Liberation/Carlito, instalate în imaginea API și verificate prin CI.
 Pentru dezvoltare se pot seta `PARENTAL_CONSENT_PYTHON` și `LIBREOFFICE_PATH`.
 Fișierele temporare sunt izolate și eliminate, inclusiv după eșec. Semnătura și
-data semnării nu sunt completate în numele reprezentantului legal.
+data semnării nu sunt completate în numele reprezentantului legal. PDF-ul conține
+un câmp nesemnat `/Sig` pentru semnare cu certificat și antetul de referință pe
+fiecare pagină. Carlito asigură metrici apropiate de Calibri când Aptos nu este
+disponibil în Linux; păstrăm fonturile și licențele instalate în imagine.
 
 Configurația nouă nu modifică retroactiv taxele sau tranșele înscrierilor existente.
 Schimbările individuale de taxă și confirmarea familiei sunt operațiuni explicite,

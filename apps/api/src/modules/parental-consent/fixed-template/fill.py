@@ -1,5 +1,6 @@
 """Fill a trusted, versioned OOXML template. No user supplied XML or paths."""
 import copy
+from io import BytesIO
 import json
 from pathlib import Path
 import re
@@ -46,6 +47,19 @@ def cell_text(cell, value):
 
 def prepare(root):
     tables = root.findall('.//w:tbl', NS)
+    # Match the reference's four information pages followed by the two form pages.
+    divider = ET.Element(f'{{{W}}}p')
+    properties = ET.SubElement(divider, f'{{{W}}}pPr')
+    ET.SubElement(properties, f'{{{W}}}pageBreakBefore')
+    ET.SubElement(properties, f'{{{W}}}spacing', {f'{{{W}}}line': '1', f'{{{W}}}lineRule': 'exact', f'{{{W}}}after': '0'})
+    tables[1].addprevious(divider)
+    for paragraph in root.findall('.//w:p', NS):
+        if text(paragraph).startswith(('1.5. Riscuri', '2.4. Fotografiere')):
+            properties = paragraph.find('w:pPr', NS)
+            if properties is None:
+                properties = ET.Element(f'{{{W}}}pPr')
+                paragraph.insert(0, properties)
+            ET.SubElement(properties, f'{{{W}}}pageBreakBefore')
     essential = ['organization', 'representative', 'coordinators', 'title', 'period', 'location', 'communication']
     for row, key in zip(tables[0].findall('w:tr', NS), essential):
         cell_text(row.findall('w:tc', NS)[1], '{{activity.' + key + '}}')
@@ -142,8 +156,19 @@ def transform(source, destination, values=None):
     with zipfile.ZipFile(source) as original, zipfile.ZipFile(destination, 'w', zipfile.ZIP_DEFLATED) as output:
         for item in original.infolist():
             data = original.read(item.filename)
-            if item.filename == 'word/document.xml' or re.fullmatch(r'word/(header|footer)\d+\.xml', item.filename):
+            if item.filename in ['word/document.xml', 'word/styles.xml', 'word/theme/theme1.xml'] or re.fullmatch(r'word/(header|footer)\d+\.xml', item.filename):
                 root = ET.fromstring(data, ET.XMLParser(resolve_entities=False, no_network=True))
+                if values is not None:
+                    # Explicit, installed Calibri-compatible metrics; avoid wide DejaVu fallback.
+                    for node in root.iter():
+                        for key, value in list(node.attrib.items()):
+                            if value in ['Aptos', 'Aptos Display', 'Calibri', 'Calibri Light']:
+                                node.set(key, 'Carlito')
+                    if item.filename == 'word/document.xml':
+                        for height in root.findall('.//w:trHeight', NS):
+                            height.set(f'{{{W}}}hRule', 'atLeast')
+                        for no_split in root.findall('.//w:cantSplit', NS):
+                            no_split.getparent().remove(no_split)
                 if values is None and item.filename == 'word/document.xml':
                     prepare(root)
                 for paragraph in root.findall('.//w:p', NS):
@@ -182,9 +207,75 @@ def transform(source, destination, values=None):
             output.writestr(item, data)
 
 
+def add_signature(path):
+    from pypdf import PdfReader, PdfWriter
+    from pypdf.generic import DictionaryObject, NameObject, ArrayObject, NumberObject, TextStringObject, FloatObject, DecodedStreamObject
+    from reportlab.pdfgen.canvas import Canvas
+    from reportlab.lib.utils import ImageReader
+    writer = PdfWriter()
+    writer.clone_document_from_reader(PdfReader(path))
+    # LibreOffice can omit a table header on continued pages. Stamp the three
+    # trusted embedded logos at the exact reference PDF coordinates on every page.
+    overlay = BytesIO()
+    canvas = Canvas(overlay, pagesize=(612, 792))
+    canvas.setFillColorRGB(1, 1, 1)
+    canvas.rect(0, 690, 612, 102, fill=1, stroke=0)
+    positions = [(56.9, 707.63, 44.6, 47.573), (225.57, 706.66, 161.25, 49.5), (499.35, 703.78, 56.134, 55.25)]
+    with zipfile.ZipFile(Path(__file__).with_name('participation.docx')) as template:
+        for index, position in enumerate(positions, start=1):
+            canvas.drawImage(ImageReader(BytesIO(template.read(f'word/media/image{index}.png'))), *position, mask='auto')
+    canvas.save()
+    overlay.seek(0)
+    header = PdfReader(overlay).pages[0]
+    for page in writer.pages:
+        page.merge_page(header)
+    anchor = []
+    for index, page in enumerate(writer.pages):
+        def visit(value, cm, tm, font, size):
+            if 'Semnătură digitală' in value:
+                anchor.append((index, float(tm[5])))
+        page.extract_text(visitor_text=visit)
+    if not anchor:
+        raise ValueError('Signature area not found')
+    index, baseline = anchor[-1]
+    page = writer.pages[index]
+    rectangle = [201.8, baseline - 7.5, 551, baseline + 12.2]
+    appearance = DecodedStreamObject()
+    appearance.set_data(b'q Q')
+    appearance.update({NameObject('/Type'): NameObject('/XObject'), NameObject('/Subtype'): NameObject('/Form'), NameObject('/BBox'): ArrayObject([FloatObject(v) for v in [0, 0, 349.2, 19.7]]), NameObject('/Resources'): DictionaryObject()})
+    field = DictionaryObject({
+        NameObject('/Type'): NameObject('/Annot'), NameObject('/Subtype'): NameObject('/Widget'),
+        NameObject('/FT'): NameObject('/Sig'), NameObject('/T'): TextStringObject('digital_signature'),
+        NameObject('/TU'): TextStringObject('Semnătura digitală a reprezentantului legal'),
+        NameObject('/Rect'): ArrayObject([FloatObject(v) for v in rectangle]), NameObject('/F'): NumberObject(4),
+        NameObject('/P'): page.indirect_reference,
+        NameObject('/AP'): DictionaryObject({NameObject('/N'): writer._add_object(appearance)}),
+        NameObject('/Lock'): DictionaryObject({NameObject('/Type'): NameObject('/SigFieldLock'), NameObject('/Action'): NameObject('/All')}),
+    })
+    reference = writer._add_object(field)
+    page.setdefault(NameObject('/Annots'), ArrayObject()).append(reference)
+    form = writer.root_object.get('/AcroForm')
+    if form is None:
+        form = DictionaryObject()
+        writer.root_object[NameObject('/AcroForm')] = writer._add_object(form)
+    else:
+        form = form.get_object()
+    form.setdefault(NameObject('/Fields'), ArrayObject()).append(reference)
+    form[NameObject('/SigFlags')] = NumberObject(3)
+    destination = Path(path).with_suffix('.with-signature.pdf')
+    with destination.open('wb') as stream:
+        writer.write(stream)
+    fields = PdfReader(destination).get_fields()
+    if fields['digital_signature']['/FT'] != '/Sig' or '/V' in fields['digital_signature']:
+        raise ValueError('Invalid unsigned signature field')
+    destination.replace(path)
+
+
 if __name__ == '__main__':
     if sys.argv[1] == '--prepare':
         transform(sys.argv[2], sys.argv[3])
+    elif sys.argv[1] == '--signature':
+        add_signature(sys.argv[2])
     else:
         values = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
         transform(Path(__file__).with_name('participation.docx'), sys.argv[2], values)

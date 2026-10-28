@@ -152,6 +152,15 @@ export async function renderFixedConsent(
       ],
       { timeout: 90000, maxBuffer: 4096 },
     );
+    await execute(
+      process.env.PARENTAL_CONSENT_PYTHON || 'python3',
+      [
+        join(__dirname, 'fixed-template', 'fill.py'),
+        '--signature',
+        join(directory, 'acord.pdf'),
+      ],
+      { timeout: 20000, maxBuffer: 4096 },
+    );
     const bytes = await readFile(join(directory, 'acord.pdf'));
     if (!bytes.subarray(0, 5).equals(Buffer.from('%PDF-')))
       throw new Error('Invalid output');

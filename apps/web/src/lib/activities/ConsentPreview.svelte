@@ -117,7 +117,7 @@
 <style>
 	aside {
 		position: sticky;
-		top: 16px;
+		top: 80px;
 		align-self: start;
 		display: grid;
 		gap: 12px;

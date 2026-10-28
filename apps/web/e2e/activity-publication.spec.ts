@@ -147,6 +147,16 @@ test('agreement editor adapts to eligible units, previews unsaved text and saves
 	expect(
 		(await (await request.get('http://127.0.0.1:3019/test/settings')).json()).data.consent.equipment
 	).toBe('Bocanci\nPelerină');
+	await page.locator('#consent-equipment').scrollIntoViewIfNeeded();
+	await expect
+		.poll(async () => {
+			const preview = await page
+				.getByRole('complementary', { name: 'Previzualizarea acordului' })
+				.boundingBox();
+			const topbar = await page.locator('.topbar').boundingBox();
+			return (preview?.y ?? 0) - (topbar?.height ?? 0);
+		})
+		.toBeGreaterThanOrEqual(0);
 	await page.evaluate(() => window.scrollTo(0, 0));
 	await page.screenshot({ path: '../../tmp/agreement-editor-desktop.png', fullPage: true });
 	await request.post('http://127.0.0.1:3019/test/configure', {

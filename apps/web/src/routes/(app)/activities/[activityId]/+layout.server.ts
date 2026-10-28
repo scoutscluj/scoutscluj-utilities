@@ -15,6 +15,8 @@ export type Activity = {
 	status: ActivityStatus;
 	departments: ActivityDepartment[];
 	coordinatorId: number;
+	administratorIds?: number[];
+	createdById?: number | null;
 	coordinatorName: string;
 	startDate?: string;
 	endDate?: string;

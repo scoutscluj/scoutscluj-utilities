@@ -1,3 +1,4 @@
+import { isActivityAdministrator } from '../activities/activity-access';
 import { UserRole } from '../users/entities/user-role.enum';
 import type { CurrentUser } from '../users/users.types';
 
@@ -34,8 +35,8 @@ export const canViewGlobalAudit = (user: CurrentUser) =>
 
 export const canViewActivityAudit = (
   user: CurrentUser,
-  activity: { coordinatorId: number },
+  activity: { coordinatorId: number; administratorIds?: number[] },
 ) =>
-  activity.coordinatorId === user.id ||
+  isActivityAdministrator(activity, user.id) ||
   user.roles.includes(UserRole.FinanceManager) ||
   user.roles.includes(UserRole.SuperAdmin);

@@ -82,18 +82,16 @@
 
 					{#if !activity.publicRegistration && activity.id === currentActivityId}
 						<div class="department-items">
-							{#if hasDepartment(activity, 'finance')}
-								<a
-									href={financeHref(activity.id)}
-									class:active={isPathActive(financeHref(activity.id), pathname)}
-									onclick={closeMobile}
-									aria-current={isPathActive(financeHref(activity.id), pathname)
-										? 'page'
-										: undefined}
-								>
-									{departmentLabels.finance}
-								</a>
-							{/if}
+							{#if hasDepartment(activity, 'finance')}<div class="department-feature-group">
+									<span class="department-heading">Financiar</span><a
+										href={financeHref(activity.id)}
+										onclick={closeMobile}>Documente financiare</a
+									><a
+										href={resolve(`/activities/${activity.id}/finance/participation`)}
+										class:active={pathname.includes('/finance/participation')}
+										onclick={closeMobile}>Plăți participare</a
+									>
+								</div>{/if}
 							{#if hasDepartment(activity, 'kitchen')}
 								<a
 									href={kitchenHref(activity.id)}
@@ -118,7 +116,12 @@
 							{/if}
 							{#if hasDepartment(activity, 'administrative')}
 								<div class="department-feature-group">
-									<span class="department-heading">{departmentLabels.administrative}</span>
+									<span class="department-heading">{departmentLabels.administrative}</span><a
+										class="feature-link"
+										href={resolve(`/activities/${activity.id}/registrations`)}
+										class:active={pathname.includes('/registrations')}
+										onclick={closeMobile}>Înscrieri</a
+									>
 									<a
 										class="feature-link"
 										href={parentalConsentHref(activity.id)}

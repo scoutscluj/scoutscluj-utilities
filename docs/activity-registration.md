@@ -6,8 +6,10 @@ inclusiv din pagina de autentificare. Setările noi sunt inițial nepublicate.
 
 ## Pregătirea activității
 
-1. Completează perioada, locația și descrierea activității.
-2. Deschide Înscrieri → Setări înscrieri → Acord parental și completează textele
+1. Folosește „Activitate nouă”: wizard-ul parcurge detaliile, echipa și departamentele,
+   înscrierile, acordul, taxa și verificarea finală. Pagina este inițial nepublicată.
+   Activitatea și setările inițiale se salvează într-o singură tranzacție.
+2. Din Setări activitate → Acord parental completează textele
    lungi specifice activității: coordonatori, program, transport, echipament,
    responsabili de prim ajutor și unități medicale. Numele, locația și perioada
    provin din activitate. Descarcă acordul de verificare după salvare.
@@ -21,6 +23,15 @@ inclusiv din pagina de autentificare. Setările noi sunt inițial nepublicate.
    întrebările și condițiile publice. Publică pagina și distribuie linkul ei.
    Poți adăuga o imagine prin URL HTTPS. Folosește „Copiază linkul public” din
    registrul înscrierilor; linkul este `/activitati/<id>`.
+
+Înscrierile sunt în meniul Administrativ, iar Plăți participare în Financiar
+(`/activities/<id>/finance/participation`). Butoanele cu rotiță din aceste pagini
+duc la secțiunea corespunzătoare din Setări activitate. Acolo se editează și echipa:
+un organizator și mai mulți administratori ai activității. Ei au aceleași drepturi
+de gestionare pentru activitatea desemnată; nu primesc roluri globale. Creatorul
+este păstrat separat în istoric și nu își păstrează automat dreptul de administrare
+după o predare completă. Activitățile existente păstrează coordonatorul ca creator
+istoric la migrare, deoarece nu există o sursă mai veche pentru această informație.
 
 Pagina publică separă înscrierea de plata unei înscrieri existente. La finalul
 unei înscrieri noi de minor se pregătește PDF-ul completat; plata rămâne opțională

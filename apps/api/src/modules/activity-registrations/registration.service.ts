@@ -1,3 +1,4 @@
+import { isActivityAdministrator } from '../activities/activity-access';
 import { EntityManager } from '@mikro-orm/postgresql';
 import {
   BadRequestException,
@@ -116,7 +117,7 @@ export class RegistrationService {
   }
   private manager(user: CurrentUser, activity: Activity) {
     return (
-      activity.coordinatorId === user.id ||
+      isActivityAdministrator(activity, user.id) ||
       user.roles.some((r) => [UserRole.Admin, UserRole.SuperAdmin].includes(r))
     );
   }
@@ -147,10 +148,15 @@ export class RegistrationService {
       consent: manage || data.administrativeUserIds.includes(user.id),
     };
   }
-  async saveSettings(user: CurrentUser, activityId: number, input: unknown) {
+  async saveSettings(
+    user: CurrentUser,
+    activityId: number,
+    input: unknown,
+    transaction?: EntityManager,
+  ) {
     const b = record(input),
       data = parseSettings(b.data);
-    return this.mutate(activityId, async (tx) => {
+    const save = async (tx: EntityManager) => {
       const context = await this.requireManager(user, activityId, tx);
       if ((context.settings?.revision ?? 0) !== b.revision)
         throw new ConflictException(
@@ -233,7 +239,8 @@ export class RegistrationService {
         { revision: row.revision },
       );
       return { revision: row.revision, data };
-    });
+    };
+    return transaction ? save(transaction) : this.mutate(activityId, save);
   }
   async catalog() {
     const settings = await this.em.find(Settings, {});
@@ -262,8 +269,36 @@ export class RegistrationService {
       departments: a.departments,
     }));
   }
+  async setupOptions() {
+    const payment = await this.em.findOne(MembershipPaymentSettings, {
+      id: 'membership',
+    });
+    const provider =
+      payment?.activeProvider === 'stripe' ? 'stripe' : 'netopia';
+    return {
+      settings: defaultSettings(),
+      fee:
+        payment?.processingFees?.[provider] ??
+        DEFAULT_PROCESSING_FEES[provider],
+      lists: {
+        structures: await this.em.find(LocalStructure, {}),
+        units: await this.em.find(ScoutUnit, { archived: false }),
+        groups: await this.em.find(ScoutSubunit, { archived: false }),
+      },
+    };
+  }
   async eligibleActivities(user: CurrentUser) {
     const catalog = await this.catalog();
+    const managedIds = new Set(
+      (catalog.length
+        ? await this.em.find(Activity, {
+            id: { $in: catalog.map((activity) => activity.id) },
+          })
+        : []
+      )
+        .filter((activity) => isActivityAdministrator(activity, user.id))
+        .map((activity) => activity.id),
+    );
     const member = user.orgoConnection?.orgoUserId
       ? await this.em.findOne(ScoutMember, {
           orgoId: user.orgoConnection.orgoUserId,
@@ -276,7 +311,7 @@ export class RegistrationService {
     });
     return catalog.filter(
       (activity) =>
-        activity.coordinatorId === user.id ||
+        managedIds.has(activity.id) ||
         mine.some((row) => row.activityId === activity.id) ||
         (member &&
           this.eligible(

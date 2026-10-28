@@ -44,52 +44,14 @@
 	{/if}
 
 	<div class="content-grid">
-		<form class="panel activity-form" method="POST" action="?/create">
-			<div>
-				<p class="panel-title">Activitate nouă</p>
-				<p class="panel-subtitle">Creatorul devine coordonator.</p>
-			</div>
-
-			<label>
-				<span>Titlu</span>
-				<input name="title" type="text" maxlength="255" required />
-			</label>
-
-			<label>
-				<span>Tip</span>
-				<select name="type" required>
-					<option value="camp">Camp</option>
-					<option value="hike">Drumeție</option>
-					<option value="festival">Festival</option>
-					<option value="training">Formare</option>
-					<option value="meeting">Întâlnire</option>
-					<option value="other" selected>Alt tip</option>
-				</select>
-			</label>
-
-			<div class="date-grid">
-				<label>
-					<span>Început</span>
-					<input name="startDate" type="date" />
-				</label>
-				<label>
-					<span>Final</span>
-					<input name="endDate" type="date" />
-				</label>
-			</div>
-
-			<label>
-				<span>Loc</span>
-				<input name="location" type="text" maxlength="255" />
-			</label>
-
-			<label>
-				<span>Notițe</span>
-				<textarea name="description" rows="4"></textarea>
-			</label>
-
-			<button type="submit">Creează activitatea</button>
-		</form>
+		<section class="panel">
+			<h2>Activitate nouă</h2>
+			<p>
+				Configurează detaliile, echipa, departamentele, înscrierile, acordul și plata într-un singur
+				proces ghidat.
+			</p>
+			<a href={resolve('/activities/new')}>Configurează o activitate nouă →</a>
+		</section>
 
 		<section class="activity-list" aria-label="Lista activităților">
 			{#if data.activities.length}
@@ -205,31 +167,6 @@
 		font-weight: 600;
 	}
 
-	label {
-		display: grid;
-		gap: 7px;
-		color: var(--sc-ink);
-		font-size: 0.88rem;
-		font-weight: 700;
-	}
-
-	input,
-	select,
-	textarea {
-		width: 100%;
-		min-width: 0;
-		border: 1px solid var(--sc-border-strong);
-		border-radius: 8px;
-		padding: 10px 11px;
-		color: var(--sc-ink);
-		font: inherit;
-	}
-
-	textarea {
-		resize: vertical;
-	}
-
-	button,
 	.activity-card a {
 		min-height: 40px;
 		display: inline-flex;
@@ -238,13 +175,6 @@
 		border-radius: 8px;
 		font-weight: 600;
 		text-decoration: none;
-	}
-
-	button {
-		border: 0;
-		background: #0f766e;
-		color: var(--sc-surface);
-		cursor: pointer;
 	}
 
 	.activity-card a {
@@ -337,7 +267,6 @@
 			grid-template-columns: 1fr;
 		}
 
-		button,
 		.activity-card a {
 			width: 100%;
 		}

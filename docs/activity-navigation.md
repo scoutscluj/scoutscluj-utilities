@@ -77,12 +77,13 @@ from department links in the expanded activity menu.
 `Setări activitate` should edit the activity container: title, type, status,
 dates, location, description, enabled departments, and responsible people when
 the model supports them. Orgo-linked metadata should be read-only unless a
-specific admin workflow needs to change it. Department-specific setup stays
-inside the owning department workspace, and dangerous actions such as delete,
+specific admin workflow needs to change it. Registration, agreement and participation
+payment setup also belongs here, with settings-icon links from the operational
+pages to the relevant section. Dangerous actions such as delete,
 cancel, or archive should be separated from normal edits.
 
-Only `super_admin` users and the activity's `Coordonator` should edit `Setări
-activitate`. Users with activity access may see `Prezentare`, but the settings
+Only `super_admin` users, the activity organizer and its explicitly assigned
+administrators should edit `Setări activitate`. Users with activity access may see `Prezentare`, but the settings
 link should only appear for users who can manage the activity container. Future
 department leads should manage settings for their own department, not the whole
 activity.
@@ -97,7 +98,7 @@ automatically: expand `Activități`, expand the current activity, highlight the
 current department, and let contextual department menus highlight the current
 subsection.
 
-The main sidebar should stop at the department level. For example, an expanded
-activity may show `Financiar`, `Bucătărie`, `Program`, and `Logistică` under
-the activity entry, but it should not also expand `Mese`, `Ingrediente`,
+The activity sidebar groups enrolments under `Administrativ` and participation
+payments under `Financiar`, alongside financial documents. Other departments keep
+their contextual navigation; the main sidebar should not also expand `Mese`, `Ingrediente`,
 `Rețete`, `Aprovizionare`, or `Rapoarte` inside the same tree.

@@ -1,3 +1,4 @@
+import { isActivityAdministrator } from '../activities/activity-access';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import {
@@ -834,7 +835,7 @@ export class FinanceService {
     const activity = await this.activitiesRepository.findOne({
       id: activityId,
     });
-    return activity?.coordinatorId === userId;
+    return !!activity && isActivityAdministrator(activity, userId);
   }
 
   private async getCoordinatedActivityIds(
@@ -848,9 +849,12 @@ export class FinanceService {
 
     const activities = await this.activitiesRepository.find({
       id: { $in: uniqueIds },
-      coordinatorId: userId,
     });
-    return new Set(activities.map((activity) => activity.id));
+    return new Set(
+      activities
+        .filter((activity) => isActivityAdministrator(activity, userId))
+        .map((activity) => activity.id),
+    );
   }
 
   private canManageFinance(user: CurrentUser) {

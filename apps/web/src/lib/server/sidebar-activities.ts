@@ -1,3 +1,4 @@
+import { managesActivity } from '$lib/auth/activity-access';
 import { apiFetch } from '$lib/server/api';
 import { SESSION_COOKIE_NAME } from '$lib/server/cookies';
 import { activityBelongsInSidebar, type SidebarActivity } from '$lib/activities/sidebar-activity';
@@ -24,7 +25,7 @@ export const loadSidebarActivities = async (sessionToken: string, user?: Current
 	const manager = user.roles.some((role) =>
 		['admin', 'super_admin', 'finance_manager'].includes(role)
 	);
-	const managed = activities.filter((activity) => manager || activity.coordinatorId === user.id);
+	const managed = activities.filter((activity) => manager || managesActivity(activity, user));
 	const merged = [
 		...managed,
 		...eligible

@@ -1,3 +1,4 @@
+import { isActivityAdministrator } from '../activities/activity-access';
 import {
   PARENTAL_CONSENT_SCHEMA_VERSION,
   participationFields,
@@ -1129,7 +1130,7 @@ export class ParentalConsentService {
   private async requireManagedActivity(user: CurrentUser, activityId: number) {
     const activity = await this.requireReadableActivity(activityId);
     if (
-      activity.coordinatorId !== user.id &&
+      !isActivityAdministrator(activity, user.id) &&
       !user.roles.includes(UserRole.SuperAdmin)
     ) {
       throw new ForbiddenException(

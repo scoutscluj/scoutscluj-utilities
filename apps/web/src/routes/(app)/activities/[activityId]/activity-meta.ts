@@ -1,3 +1,4 @@
+import { managesActivity } from '$lib/auth/activity-access';
 import type { CurrentUser } from '$lib/auth/types';
 import type { Activity, ActivityDepartment, ActivityStatus, ActivityType } from './+layout.server';
 
@@ -25,7 +26,7 @@ export const departmentOptions: Array<{
 	{
 		id: 'finance',
 		label: 'Financiar',
-		description: 'Documente, chitanțe, facturi și registrul activității.'
+		description: 'Plăți de participare, documente, chitanțe și facturi.'
 	},
 	{
 		id: 'kitchen',
@@ -45,7 +46,7 @@ export const departmentOptions: Array<{
 	{
 		id: 'administrative',
 		label: 'Administrativ',
-		description: 'Acorduri parentale și alte funcționalități administrative ale activității.'
+		description: 'Înscrieri, acorduri de participare și urmărirea documentelor.'
 	}
 ];
 
@@ -59,7 +60,7 @@ export const filterActivityDepartments = (values: FormDataEntryValue[]): Activit
 		);
 
 export const canManageActivity = (activity: Activity, user: CurrentUser) =>
-	activity.coordinatorId === user.id || user.roles.includes('super_admin');
+	managesActivity(activity, user) || user.roles.includes('super_admin');
 
 export const formatDate = (value?: string) =>
 	value

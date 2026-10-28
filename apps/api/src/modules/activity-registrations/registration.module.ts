@@ -15,5 +15,6 @@ import { RegistrationMailService } from './registration-mail.service';
     RegistrationPaymentsService,
     RegistrationMailService,
   ],
+  exports: [RegistrationService],
 })
 export class RegistrationModule {}

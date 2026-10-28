@@ -15,6 +15,11 @@ export const Activity = defineEntity({
   properties: {
     id: p.integer().primary().autoincrement(),
     coordinatorId: p.integer().fieldName('coordinator_id'),
+    createdById: p.integer().nullable().fieldName('created_by_id'),
+    administratorIds: p
+      .json<number[]>()
+      .default([])
+      .fieldName('administrator_ids'),
     title: p.string(),
     type: p
       .enum(() => ActivityType)

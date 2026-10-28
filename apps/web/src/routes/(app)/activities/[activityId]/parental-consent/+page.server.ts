@@ -1,3 +1,4 @@
+import { managesActivity } from '$lib/auth/activity-access';
 import type { ParentalConsentPublication } from '$lib/parental-consent/types';
 import { parentalConsentJsonOrNull } from '$lib/server/parental-consent-api';
 import { fail } from '@sveltejs/kit';
@@ -9,7 +10,7 @@ export const load: PageServerLoad = async ({ cookies, parent }) => {
 			cookies,
 			`/api/activities/${activity.id}/parental-consent/publication`
 		),
-		canManage: activity.coordinatorId === user.id || user.roles.includes('super_admin')
+		canManage: managesActivity(activity, user) || user.roles.includes('super_admin')
 	};
 };
 const paused = () =>

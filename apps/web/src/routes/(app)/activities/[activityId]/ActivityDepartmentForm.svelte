@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { managesActivity } from '$lib/auth/activity-access';
 	import type { CurrentUser } from '$lib/auth/types';
 	import type { Activity, ActivityDepartment } from './+layout.server';
 	import { departmentOptions } from './activity-meta';
@@ -12,7 +13,7 @@
 	let { activity, user, message }: Props = $props();
 
 	const canManageDepartments = $derived(
-		activity.coordinatorId === user.id || user.roles.includes('super_admin')
+		managesActivity(activity, user) || user.roles.includes('super_admin')
 	);
 	const hasDepartment = (department: ActivityDepartment) =>
 		activity.departments.includes(department);

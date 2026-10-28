@@ -1,3 +1,4 @@
+import { managesActivity } from '$lib/auth/activity-access';
 import { resolve } from '$app/paths';
 import { hasRole } from '$lib/auth/roles';
 import type { AppHref, CurrentUser, MenuItem } from '$lib/auth/types';
@@ -137,12 +138,12 @@ export const hasDepartment = (activity: SidebarActivity, department: SidebarActi
 	activity.departments.includes(department);
 
 export const canViewActivityAudit = (activity: SidebarActivity, user: CurrentUser) =>
-	activity.coordinatorId === user.id ||
+	managesActivity(activity, user) ||
 	hasRole(user, 'finance_manager') ||
 	hasRole(user, 'super_admin');
 
 export const canManageActivity = (activity: SidebarActivity, user: CurrentUser) =>
-	activity.coordinatorId === user.id || hasRole(user, 'super_admin');
+	managesActivity(activity, user) || hasRole(user, 'super_admin');
 
 const formatDate = (value?: string) =>
 	value

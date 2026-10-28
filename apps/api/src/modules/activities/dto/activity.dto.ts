@@ -5,6 +5,9 @@ import { ActivityStatus } from '../entities/activity-status.enum';
 import { ActivityType } from '../entities/activity-type.enum';
 
 export class CreateActivityDto {
+  coordinatorId?: number;
+  administratorIds?: number[];
+  registrationSettings?: unknown;
   @ApiProperty({ example: 'Camp Lupișori 2026' })
   title!: string;
 
@@ -34,6 +37,8 @@ export class CreateActivityDto {
 }
 
 export class UpdateActivityDto {
+  coordinatorId?: number;
+  administratorIds?: number[];
   @ApiPropertyOptional({ example: 'Camp Lupișori 2026' })
   title?: string;
 
@@ -81,6 +86,8 @@ export class ActivityFinanceSummaryDto {
 }
 
 export class ActivityDto {
+  createdById?: number | null;
+  administratorIds?: number[];
   @ApiProperty()
   id!: number;
 

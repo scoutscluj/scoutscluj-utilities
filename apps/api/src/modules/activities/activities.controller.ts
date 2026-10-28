@@ -40,6 +40,10 @@ export class ActivitiesController {
   ) {
     return this.activitiesService.createActivity(user, body);
   }
+  @Get('team-options')
+  teamOptions() {
+    return this.activitiesService.teamOptions();
+  }
 
   @Get(':id')
   @ApiOkResponse({ type: ActivityDto })

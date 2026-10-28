@@ -168,6 +168,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@internationalized/date':
+        specifier: ^3.12.2
+        version: 3.12.2
       '@lucide/svelte':
         specifier: ^1.23.0
         version: 1.23.0(svelte@5.56.3(@typescript-eslint/types@8.61.0))

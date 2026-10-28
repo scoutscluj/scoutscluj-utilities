@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import TableView from '$lib/components/ui/TableView.svelte';
 	import { resolve } from '$app/paths';
 	import OrgoProfile from '$lib/members/OrgoProfile.svelte';
@@ -79,7 +80,7 @@
 						readonly={!a.identity}
 					/></label
 				><label
-					>Data nașterii<input
+					>Data nașterii<DateInput
 						type="date"
 						name={a.identity ? 'birthDate' : undefined}
 						value={m.birthDate ?? ''}
@@ -312,7 +313,7 @@
 									>{/each}</select
 							></label
 						>{/if}<label
-						>Data promisiunii de lider (opțional)<input
+						>Data promisiunii de lider (opțional)<DateInput
 							type="date"
 							name="promiseDate"
 							value={m.promiseDate ?? ''}

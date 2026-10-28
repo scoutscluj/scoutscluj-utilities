@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
@@ -110,8 +111,9 @@
 					></label
 				>
 				<div class="grid">
-					<label>Început<input type="date" bind:value={value.startDate} required /></label><label
-						>Final<input
+					<label>Început<DateInput type="date" bind:value={value.startDate} required /></label
+					><label
+						>Final<DateInput
 							type="date"
 							bind:value={value.endDate}
 							min={value.startDate}
@@ -155,6 +157,10 @@
 			</section>{/if}
 		{#if step === 5}<section>
 				<h2>6. Verifică înainte de creare</h2>
+				<label class="choice"
+					><input type="checkbox" bind:checked={value.registrationSettings.published} />Publică
+					activitatea imediat după creare</label
+				>
 				<dl>
 					<dt>Activitate</dt>
 					<dd>{value.title}</dd>

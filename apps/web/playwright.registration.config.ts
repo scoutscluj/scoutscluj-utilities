@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
 	testDir: './e2e',
-	testMatch: ['activity-registration.spec.ts'],
+	testMatch: ['activity-registration.spec.ts', 'activity-publication.spec.ts'],
 	workers: 1,
 	timeout: 60000,
 	use: {

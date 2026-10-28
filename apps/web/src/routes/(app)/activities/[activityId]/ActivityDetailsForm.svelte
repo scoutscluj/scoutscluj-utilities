@@ -1,4 +1,11 @@
 <script lang="ts">
+	import DateInput from '$lib/components/ui/DateInput.svelte';
+	import { getContext, onDestroy } from 'svelte';
+	import { activityEditContext, type ActivityEditState } from '$lib/activities/activity-edit-state';
+	const editing = getContext<ActivityEditState | undefined>(activityEditContext);
+	onDestroy(() => {
+		if (editing) editing.dirty = false;
+	});
 	import type { Activity } from './+layout.server';
 	import { activityStatusOptions, activityTypeOptions, dateInputValue } from './activity-meta';
 
@@ -10,7 +17,14 @@
 	let { activity, message }: Props = $props();
 </script>
 
-<form class="panel details-form" method="POST" action="?/details">
+<form
+	class="panel details-form"
+	method="POST"
+	action="?/details"
+	oninput={() => {
+		if (editing) editing.dirty = true;
+	}}
+>
 	<div>
 		<p class="panel-title">Detalii</p>
 		<p>Editează datele generale ale activității.</p>
@@ -43,11 +57,11 @@
 		</label>
 		<label>
 			<span>Început</span>
-			<input name="startDate" type="date" value={dateInputValue(activity.startDate)} />
+			<DateInput name="startDate" type="date" value={dateInputValue(activity.startDate)} />
 		</label>
 		<label>
 			<span>Final</span>
-			<input name="endDate" type="date" value={dateInputValue(activity.endDate)} />
+			<DateInput name="endDate" type="date" value={dateInputValue(activity.endDate)} />
 		</label>
 		<label class="wide">
 			<span>Loc</span>

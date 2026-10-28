@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import TableView from '$lib/components/ui/TableView.svelte';
 	import MembershipAdminPage from '$lib/membership/MembershipAdminPage.svelte';
 	import { money } from '$lib/membership/types';
@@ -201,8 +202,8 @@
 		<form method="POST" class="grid">
 			<input type="hidden" name="action" value="period" />
 			<label>Denumirea perioadei ORGO<input name="name" required maxlength="100" /></label><label
-				>Început<input type="date" name="startsOn" required /></label
-			><label>Sfârșit<input type="date" name="endsOn" required /></label>
+				>Început<DateInput type="date" name="startsOn" required /></label
+			><label>Sfârșit<DateInput type="date" name="endsOn" required /></label>
 			{#each plans as [key, label, total] (key)}<label
 					>{label} — total RON<input
 						name={key}

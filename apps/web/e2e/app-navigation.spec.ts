@@ -204,7 +204,7 @@ test('opens fee details from the member menu and confirms only a local bank cont
 		.filter({ hasText: 'Național achitat în Orgo — confirmă partea locală' })
 		.click();
 	await page.getByLabel('Referință transfer bancar').fill('BT-local');
-	await page.getByLabel('Data încasării').fill('2026-10-20');
+	await page.getByLabel('Data încasării').fill('20.10.2026');
 	await page
 		.getByRole('button', { name: 'Verifică naționalul și confirmă partea locală', exact: true })
 		.click();

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import { highlightSearch, matchesSearch } from '$lib/components/ui/table-search';
 	import TableToolbar from '$lib/components/ui/TableToolbar.svelte';
 	import TablePagination from '$lib/components/ui/TablePagination.svelte';
@@ -275,7 +276,7 @@
 						>{/each}
 				</fieldset>
 				<label>Referință decont / extras<input name="reference" required /></label>
-				<label>Data intrării în bancă<input name="receivedOn" type="date" required /></label>
+				<label>Data intrării în bancă<DateInput name="receivedOn" type="date" required /></label>
 				<label
 					>Costuri reținute, inclusiv TVA (RON)<input
 						name="charges"

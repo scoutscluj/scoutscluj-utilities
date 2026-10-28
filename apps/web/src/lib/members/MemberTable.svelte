@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import FeePlanDialog from '$lib/membership/FeePlanDialog.svelte';
 	let planOpen = $state(false),
 		planId = $state<string>(),
@@ -573,7 +574,7 @@
 										required
 										maxlength="200"
 									/></label
-								><label>Data încasării<input type="date" name="receivedOn" required /></label>
+								><label>Data încasării<DateInput type="date" name="receivedOn" required /></label>
 								<label
 									>Suma totală din extras (lei)<input
 										type="number"

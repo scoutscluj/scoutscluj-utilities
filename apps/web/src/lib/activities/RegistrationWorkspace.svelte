@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import { resolve } from '$app/paths';
 	import { invalidateAll } from '$app/navigation';
 	import Modal from '$lib/components/ui/Modal.svelte';
@@ -401,7 +402,11 @@
 					bind:value={amountLei}
 				/></label
 			><label
-				>Data încasării / operațiunii<input type="date" bind:value={receivedOn} required /></label
+				>Data încasării / operațiunii<DateInput
+					type="date"
+					bind:value={receivedOn}
+					required
+				/></label
 			><label>Referință și explicație<textarea bind:value={note} required></textarea></label>
 			<p>Înregistrează o operațiune deja efectuată. Restituirea banilor se face separat.</p>
 		{:else if action === 'plan_refund'}<label
@@ -442,7 +447,7 @@
 				></label
 			><label>Motivul corecției<textarea bind:value={note} required></textarea></label>
 		{:else if action === 'extend_deadline'}<label
-				>Noul termen<input type="date" bind:value={receivedOn} required /></label
+				>Noul termen<DateInput type="date" bind:value={receivedOn} required /></label
 			>
 		{:else if action === 'withdraw'}<p>
 				Participantul va fi retras și locul va fi eliberat. Încasările rămân în evidență. Verifică

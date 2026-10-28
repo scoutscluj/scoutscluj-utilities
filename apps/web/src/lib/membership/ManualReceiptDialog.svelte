@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import { Dialog } from 'bits-ui';
 	import Banknote from '@lucide/svelte/icons/banknote';
 	import Landmark from '@lucide/svelte/icons/landmark';
@@ -141,7 +142,7 @@
 							/></label
 						>
 						<label
-							>Data încasării<input
+							>Data încasării<DateInput
 								name="receivedOn"
 								type="date"
 								bind:value={receivedOn}

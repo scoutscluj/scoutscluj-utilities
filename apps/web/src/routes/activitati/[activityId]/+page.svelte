@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
 	import {
@@ -303,8 +304,13 @@
 										required={field.required}
 										oninput={(e) => (answers[field.code] = e.currentTarget.value)}
 									></textarea>
-								{:else}<input
-										type={field.type === 'date' ? 'date' : field.type === 'phone' ? 'tel' : 'text'}
+								{:else if field.type === 'date'}<DateInput
+										value={String(answers[field.code] ?? '')}
+										required={field.required}
+										disabled={false}
+										onValueChange={(value) => (answers[field.code] = value)}
+									/>{:else}<input
+										type={field.type === 'phone' ? 'tel' : 'text'}
 										value={String(answers[field.code] ?? '')}
 										required={field.required}
 										oninput={(e) => (answers[field.code] = e.currentTarget.value)}
@@ -334,12 +340,12 @@
 										><option value="">Alege</option
 										>{#each question.options as option (option)}<option>{option}</option
 											>{/each}</select
-									>{:else}<input
-										type={question.type === 'date'
-											? 'date'
-											: question.type === 'number'
-												? 'number'
-												: 'text'}
+									>{:else if question.type === 'date'}<DateInput
+										value={String(answers[code] ?? '')}
+										required={question.required}
+										onValueChange={(value) => (answers[code] = value)}
+									/>{:else}<input
+										type={question.type === 'number' ? 'number' : 'text'}
 										value={String(answers[code] ?? '')}
 										required={question.required}
 										oninput={(e) =>

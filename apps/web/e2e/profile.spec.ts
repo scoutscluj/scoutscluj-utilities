@@ -108,7 +108,7 @@ test('creates through a dialog and preserves the objective after reload', async 
 	await page
 		.getByLabel('Descriere', { exact: true })
 		.fill('Pregătesc traseul.\nVerific echipamentul.');
-	await page.getByLabel('Termen limită').fill('2026-11-15');
+	await page.getByLabel('Termen limită').fill('15.11.2026');
 	await page.screenshot({ path: testInfo.outputPath('desktop-objective-dialog.png') });
 	await page.getByRole('button', { name: 'Salvează obiectiv' }).click();
 	await expect(dialog).toHaveCount(0);
@@ -172,7 +172,7 @@ test('validates required text and retains values on a failed save', async ({ pag
 	await expect(page.getByRole('dialog')).toBeVisible();
 	await page.getByLabel('Titlu', { exact: true }).fill('   ');
 	await page.getByLabel('Descriere', { exact: true }).fill('Descrierea obiectivului');
-	await page.getByLabel('Termen limită').fill('2026-11-15');
+	await page.getByLabel('Termen limită').fill('15.11.2026');
 	await page.getByRole('button', { name: 'Salvează obiectiv' }).click();
 	await expect(
 		page.getByRole('alert').filter({ hasText: 'Completează titlul și descrierea.' })

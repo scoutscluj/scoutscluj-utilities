@@ -244,7 +244,7 @@ test('bank admission can share one transfer with membership and leaves membershi
 	await expect(memberChoices.locator('option[value="99999"]')).toHaveCount(1);
 	await expect(memberChoices.locator('option[value="36802"]')).toHaveCount(0);
 	await panel.getByLabel('Selectez un membru din istoricul inactiv').uncheck();
-	await panel.getByLabel('Data din extras').fill('2026-10-20');
+	await panel.getByLabel('Data din extras').fill('20.10.2026');
 	await panel.getByLabel('Referința unică din extras').fill('BT-ADEZIUNE-200');
 	await panel
 		.getByLabel('Detalii din extras')

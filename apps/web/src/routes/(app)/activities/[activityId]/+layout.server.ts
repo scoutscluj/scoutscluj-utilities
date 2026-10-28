@@ -112,5 +112,13 @@ export const load: LayoutServerLoad = async ({ cookies, params, url }) => {
 				consent: boolean;
 			})
 		: { manage: false, finance: false, sensitive: false, consent: false };
-	return { activity, registrationAccess };
+	let publication: import('$lib/activities/registration').Publication | null = null;
+	if (registrationAccess.manage) {
+		const state = await apiFetch(`/api/activity-registrations/${activityId}/publication`, {
+			headers: authHeaders(sessionToken)
+		});
+		if (!state.ok) error(state.status, await readApiMessage(state));
+		publication = await state.json();
+	}
+	return { activity, registrationAccess, publication };
 };

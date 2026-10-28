@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import { enhance } from '$app/forms';
 	import TableToolbar from '$lib/components/ui/TableToolbar.svelte';
 	import TablePagination from '$lib/components/ui/TablePagination.svelte';
@@ -124,7 +125,7 @@
 						>{#each ledger.periods as p (p.id)}<option value={p.id}>{p.name}</option>{/each}</select
 					></label
 				>
-				<label>Data din extras<input type="date" name="receivedOn" required /></label><label
+				<label>Data din extras<DateInput type="date" name="receivedOn" required /></label><label
 					>Referința unică din extras<input name="reference" required maxlength="200" /></label
 				>
 				<label

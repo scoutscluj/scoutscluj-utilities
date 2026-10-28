@@ -66,6 +66,28 @@ export class RegistrationController {
   @Get() catalog() {
     return this.registrations.catalog();
   }
+  @Get('eligible')
+  @UseGuards(AuthGuard)
+  eligible(@Actor() user: CurrentUser) {
+    return this.registrations.eligibleActivities(user);
+  }
+  @Get(':activityId/consent-preview/:branch')
+  @UseGuards(AuthGuard)
+  async consentPreview(
+    @Actor() user: CurrentUser,
+    @Param('activityId', ParseIntPipe) id: number,
+    @Param('branch') branch: string,
+    @Res() response: Response,
+  ) {
+    const bytes = await this.registrations.consentPreview(user, id, branch);
+    response
+      .set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': 'attachment; filename="acord-preview.pdf"',
+        'Cache-Control': 'private, no-store',
+      })
+      .send(bytes);
+  }
   @Get(':activityId') async info(
     @Param('activityId', ParseIntPipe) id: number,
     @Req() request: Request,

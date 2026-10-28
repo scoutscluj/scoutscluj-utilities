@@ -30,7 +30,10 @@
 			return item.children ? visibleChildren(item, user).length > 0 : true;
 		})
 	);
-	const activitiesAreActive = $derived(isPathActive(menuHref('/activities'), pathname));
+	const activitiesAreActive = $derived(
+		isPathActive(menuHref('/activities'), pathname) ||
+			isPathActive(menuHref('/activitati'), pathname)
+	);
 
 	const isGroupOpen = (label: string, defaultOpen = false) => openGroups[label] ?? defaultOpen;
 	const toggleGroup = (label: string, defaultOpen = false) => {

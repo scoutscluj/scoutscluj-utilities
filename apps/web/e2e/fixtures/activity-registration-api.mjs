@@ -100,7 +100,8 @@ createServer(async (req, res) => {
 	for await (const chunk of req) body += chunk;
 	const input = body ? JSON.parse(body) : {};
 	const path = new URL(req.url, 'http://127.0.0.1').pathname;
-	const authenticated = !!req.headers.cookie?.includes('synthetic-admin');
+	const memberMode = !!req.headers.cookie?.includes('synthetic-member');
+	const authenticated = memberMode || !!req.headers.cookie?.includes('synthetic-admin');
 	if (path === '/test/reset') {
 		reset();
 		return send(res, {});
@@ -108,10 +109,10 @@ createServer(async (req, res) => {
 	if (path === '/api/auth/me')
 		return authenticated
 			? send(res, {
-					id: 1,
+					id: memberMode ? 2 : 1,
 					displayName: 'Coordonator de test',
 					email: 'coordinator@example.test',
-					roles: ['super_admin'],
+					roles: memberMode ? [] : ['super_admin'],
 					orgoConnection: { orgoUserId: 36805 }
 				})
 			: send(res, { message: 'Autentificare necesară' }, 401);
@@ -119,6 +120,7 @@ createServer(async (req, res) => {
 	if (path === '/api/activities/1') return send(res, activity);
 	if (path.startsWith('/api/audit')) return send(res, []);
 	if (path === '/api/activity-registrations') return send(res, [activity]);
+	if (path === '/api/activity-registrations/eligible') return send(res, [activity]);
 	if (path === '/api/activity-registrations/1')
 		return send(res, {
 			activity,

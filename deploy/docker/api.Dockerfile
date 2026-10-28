@@ -33,7 +33,7 @@ ENV PLAYWRIGHT_BROWSERS_PATH="/ms-playwright"
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends fonts-dejavu-core fonts-liberation \
+    && apt-get install -y --no-install-recommends fonts-dejavu-core fonts-liberation fonts-crosextra-carlito python3 python3-lxml libreoffice-writer \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=deps /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./

@@ -2,6 +2,11 @@
 	import { untrack } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import {
+		emptyFixedConsent,
+		fixedConsentLabels,
+		type FixedConsentDetails
+	} from '@scouts-cluj/parental-consent-schema';
+	import {
 		registrationRequest,
 		money,
 		type RegistrationSettings,
@@ -100,6 +105,13 @@
 >
 	<fieldset>
 		<legend>Publicare și înscriere</legend>
+		<label
+			>Imaginea activității (opțional, adresă HTTPS)<input
+				type="url"
+				bind:value={settings.coverImageUrl}
+				placeholder="https://…"
+			/></label
+		>
 		<label class="choice"
 			><input type="checkbox" bind:checked={settings.published} />Publică pagina activității și
 			înscrierile</label
@@ -122,6 +134,44 @@
 			Restanțele sunt semnalate. Eliberarea locurilor și promovarea de pe lista de așteptare se
 			decid manual.
 		</p>
+	</fieldset>
+	<fieldset>
+		<legend>Acord parental · format fix</legend>
+		<p>
+			Folosim formatul documentului Cântul Vâlvelor 2026. Textele generale și structura documentului
+			sunt fixe; editorul de șabloane este suspendat temporar. Completează mai jos informațiile
+			specifice acestei activități. Numele, perioada și locația sunt preluate din activitate.
+		</p>
+		{#if !settings.consent}<button
+				type="button"
+				onclick={() => (settings.consent = emptyFixedConsent())}
+				>Pregătește acordul acestei activități</button
+			>{/if}
+		{#if settings.consent}
+			{#each Object.entries(fixedConsentLabels) as [key, label] (key)}
+				<label
+					>{label}<textarea
+						rows={['representative', 'coordinators'].includes(key) ? 2 : 5}
+						maxlength="12000"
+						bind:value={settings.consent[key as keyof FixedConsentDetails]}
+						placeholder={key === 'commonActivities'
+							? 'Descrie aici, pe larg, activitățile. Nu copia programul unei alte tabere.'
+							: ''}
+					></textarea></label
+				>
+			{/each}
+			<p>
+				Scrie explicit „Nu se aplică” unde este cazul. Pentru echipament: cel mult 20 de elemente.
+				Salvarea unei pagini publicate păstrează o versiune nouă a acordului; documentele
+				participanților deja înscriși nu sunt înlocuite automat.
+			</p>
+			<p>
+				După salvare, verifică formatul: <a
+					href={`/activitati/${activityId}/api/consent-preview/temerari`}
+					>Descarcă un acord de verificare, fără date de participant</a
+				>.
+			</p>
+		{/if}
 	</fieldset>
 	<fieldset>
 		<legend>Locuri</legend>

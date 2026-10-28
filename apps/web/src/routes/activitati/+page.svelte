@@ -10,6 +10,12 @@
 	<p>Descoperă activitățile, înscrie un participant și achită taxa de participare.</p>
 	{#each data.activities as activity (activity.id)}
 		<article>
+			{#if activity.coverImageUrl}<img
+					src={activity.coverImageUrl}
+					alt={activity.title}
+					loading="lazy"
+					referrerpolicy="no-referrer"
+				/>{/if}
 			<h2><a href={resolve(`/activitati/${activity.id}`)}>{activity.title}</a></h2>
 			<p>
 				{activity.location}
@@ -22,6 +28,12 @@
 </main>
 
 <style>
+	article img {
+		width: 100%;
+		max-height: 240px;
+		object-fit: cover;
+		border-radius: 8px;
+	}
 	main {
 		max-width: 960px;
 		margin: 32px auto;

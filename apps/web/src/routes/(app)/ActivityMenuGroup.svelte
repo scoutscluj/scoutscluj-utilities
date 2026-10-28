@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { CurrentUser } from '$lib/auth/types';
+	import { resolve } from '$app/paths';
 	import type { SidebarActivity } from '$lib/activities/sidebar-activity';
 	import {
 		activitiesGroupKey,
@@ -51,6 +52,11 @@
 	{#if open}
 		<div id={activitiesGroupKey} class="group-items activity-items">
 			<a
+				href={resolve('/activitati')}
+				class:active={pathname === '/activitati'}
+				onclick={closeMobile}>Activități publice și înscriere</a
+			>
+			<a
 				href={menuHref('/activities')}
 				class:active={isActiveExact(menuHref('/activities'))}
 				onclick={closeMobile}
@@ -60,18 +66,21 @@
 			</a>
 
 			{#each activities as activity (activity.id)}
+				{@const href = activity.publicRegistration
+					? resolve(`/activitati/${activity.id}`)
+					: activityHref(activity.id)}
 				<section class="activity-branch">
 					<a
-						href={activityHref(activity.id)}
+						{href}
 						class="activity-link"
-						class:active={activity.id === currentActivityId}
+						class:active={isPathActive(href, pathname)}
 						onclick={closeMobile}
-						aria-current={isActiveExact(activityHref(activity.id)) ? 'page' : undefined}
+						aria-current={isActiveExact(href) ? 'page' : undefined}
 					>
 						<span class="activity-title">{activity.title}</span>
 					</a>
 
-					{#if activity.id === currentActivityId}
+					{#if !activity.publicRegistration && activity.id === currentActivityId}
 						<div class="department-items">
 							{#if hasDepartment(activity, 'finance')}
 								<a

@@ -7,15 +7,31 @@ inclusiv din pagina de autentificare. Setările noi sunt inițial nepublicate.
 ## Pregătirea activității
 
 1. Completează perioada, locația și descrierea activității.
-2. În Administrare → Acorduri parentale creează un draft folosind opțiunea
-   „Folosește modelul de participare bazat pe acordul Cântul Vâlvelor”. Modelul
-   reutilizează structura și opțiunile exemplului, fără numele, datele și traseele
-   taberei din exemplu. Administratorul verifică textul și super_admin activează
-   versiunea prin fluxul existent. Șabloanele și publicațiile anterioare rămân intacte.
-3. În activitate, configurează și publică acordurile pentru ramurile participante.
-   Minorii se pot înscrie numai când ramura lor are un acord publicat.
+2. Deschide Înscrieri → Setări înscrieri → Acord parental și completează textele
+   lungi specifice activității: coordonatori, program, transport, echipament,
+   responsabili de prim ajutor și unități medicale. Numele, locația și perioada
+   provin din activitate. Descarcă acordul de verificare după salvare.
+3. Editorul global și vechiul wizard sunt suspendate temporar. Formatul fix este
+   DOCX-ul primit pentru Temerari și Exploratori, cu paragrafele variabile înlocuite
+   prin marcaje și păstrarea clauzelor, antetului, tabelelor și zonelor de semnătură.
+   Publicarea setărilor păstrează automat o publicație imuabilă pentru înscrierile
+   noi. Nu este necesar un draft sau activarea unui șablon global. Publicațiile și
+   documentele înscrierilor vechi rămân intacte.
 4. Configurează eligibilitatea, aprobarea, limitele de locuri, tarifele, tranșele,
    întrebările și condițiile publice. Publică pagina și distribuie linkul ei.
+   Poți adăuga o imagine prin URL HTTPS. Folosește „Copiază linkul public” din
+   registrul înscrierilor; linkul este `/activitati/<id>`.
+
+Pagina publică separă înscrierea de plata unei înscrieri existente. La finalul
+unei înscrieri noi de minor se pregătește PDF-ul completat; plata rămâne opțională
+în acel moment. Membrii autentificați văd activitățile eligibile în submeniul
+Activități, iar coordonatorii păstrează accesul la gestionarea activităților.
+
+Rendererul formatului fix necesită `python3`, `python3-lxml`, LibreOffice Writer și
+fonturile Liberation/Carlito, instalate în imaginea API și verificate prin CI.
+Pentru dezvoltare se pot seta `PARENTAL_CONSENT_PYTHON` și `LIBREOFFICE_PATH`.
+Fișierele temporare sunt izolate și eliminate, inclusiv după eșec. Semnătura și
+data semnării nu sunt completate în numele reprezentantului legal.
 
 Configurația nouă nu modifică retroactiv taxele sau tranșele înscrierilor existente.
 Schimbările individuale de taxă și confirmarea familiei sunt operațiuni explicite,

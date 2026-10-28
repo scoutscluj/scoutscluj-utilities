@@ -7,7 +7,7 @@ export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
 	const sessionToken = cookies.get(SESSION_COOKIE_NAME);
 	const sidebarActivities =
 		locals.user && sessionToken && usesAuthenticatedShell(url.pathname, true)
-			? await loadSidebarActivities(sessionToken)
+			? await loadSidebarActivities(sessionToken, locals.user)
 			: [];
 
 	return {

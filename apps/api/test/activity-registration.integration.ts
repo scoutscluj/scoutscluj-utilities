@@ -44,6 +44,7 @@ import {
   createRepresentativeOrganizerDraft,
   defaultLayoutSettings,
   participationTemplate,
+  emptyFixedConsent,
 } from '@scouts-cluj/parental-consent-schema';
 
 // Opt-in only; refuse any real or ambiguous database target.
@@ -612,6 +613,108 @@ async function main() {
     assert.equal(staffRow.consentState, 'not_required');
     console.log(
       'PASS adult-staff certificate gate without fee, agreement or additional form',
+    );
+    const fixedActivity = em.create(Activity, {
+      coordinatorId: user.id,
+      title: `Fixed ${randomUUID()}`,
+      type: ActivityType.Camp,
+      startDate: new Date('2027-08-24'),
+      endDate: new Date('2027-08-28'),
+      location: 'Synthetic location',
+    });
+    em.persist(fixedActivity);
+    await em.flush();
+    const fixedSettings = {
+      ...defaultSettings(),
+      published: true,
+      consent: Object.fromEntries(
+        Object.keys(emptyFixedConsent()).map((key) => [
+          key,
+          `Synthetic ${key}`,
+        ]),
+      ),
+    };
+    await make(orm.em.fork()).saveSettings(actor, fixedActivity.id, {
+      revision: 0,
+      data: fixedSettings,
+    });
+    const fixedRegistration = await make(orm.em.fork()).register(
+      fixedActivity.id,
+      {
+        identifier: String(roster[0].orgoId),
+        role: 'beneficiary',
+        email: 'parent@example.test',
+        answers: { ...answers, medical_relevant: 'no' },
+      },
+    );
+    const fixedRow = await orm.em
+      .fork()
+      .findOneOrFail(ActivityRegistration, { id: fixedRegistration.id });
+    const fixedPublication = await orm.em
+      .fork()
+      .findOneOrFail(ParentalConsentPublication, {
+        id: fixedRow.consentPublicationId!,
+      });
+    assert.equal(
+      fixedPublication.templateSnapshot.document.fixedFormat,
+      'participation-2026',
+    );
+    assert.equal(fixedRow.consentState, 'awaiting');
+    await make(orm.em.fork()).saveSettings(actor, fixedActivity.id, {
+      revision: 1,
+      data: fixedSettings,
+    });
+    assert.equal(
+      await orm.em
+        .fork()
+        .count(ParentalConsentPublication, { activityId: fixedActivity.id }),
+      1,
+    );
+    await make(orm.em.fork()).saveSettings(actor, fixedActivity.id, {
+      revision: 2,
+      data: {
+        ...fixedSettings,
+        consent: {
+          ...fixedSettings.consent,
+          outboundTransport: 'Changed transport',
+        },
+      },
+    });
+    assert.equal(
+      await orm.em
+        .fork()
+        .count(ParentalConsentPublication, { activityId: fixedActivity.id }),
+      2,
+    );
+    assert.equal(
+      (
+        await orm.em
+          .fork()
+          .findOneOrFail(ActivityRegistration, { id: fixedRow.id })
+      ).consentPublicationId,
+      fixedPublication.id,
+    );
+    assert.equal(
+      (
+        await orm.em.fork().findOneOrFail(ParentalConsentPublication, {
+          id: fixedPublication.id,
+        })
+      ).draftSnapshot.fixedDetails?.outboundTransport,
+      'Synthetic outboundTransport',
+    );
+    const memberActor = {
+      ...actor,
+      id: medicalUser.id,
+      roles: [],
+      orgoConnection: { orgoUserId: roster[0].orgoId! },
+    } as CurrentUser;
+    assert(
+      (await make(orm.em.fork()).eligibleActivities(memberActor)).some(
+        (item) => item.id === fixedActivity.id,
+      ),
+    );
+    console.log(
+      'PASS fixed agreement without template draft, stable publications and immutable participant snapshot',
     );
   } finally {
     await orm.close(true);

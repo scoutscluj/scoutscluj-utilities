@@ -1,5 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
 import {
+  emptyFixedConsent,
+  fixedConsentLabels,
+  type FixedConsentDetails,
+} from '@scouts-cluj/parental-consent-schema';
+import {
   cardPaymentAmount,
   record,
   text,
@@ -17,6 +22,8 @@ export type Question = {
   inPdf: boolean;
 };
 export type RegistrationSettings = {
+  coverImageUrl?: string;
+  consent?: FixedConsentDetails | null;
   published: boolean;
   opensAt: string;
   closesAt: string;
@@ -40,6 +47,8 @@ export type RegistrationSettings = {
   terms: string;
 };
 export const defaultSettings = (): RegistrationSettings => ({
+  coverImageUrl: '',
+  consent: null,
   published: false,
   opensAt: '',
   closesAt: '',
@@ -94,6 +103,38 @@ const date = (value: unknown) => {
 export function parseSettings(input: unknown): RegistrationSettings {
   const b = record(input);
   const s = defaultSettings();
+  s.coverImageUrl = b.coverImageUrl ? text(b.coverImageUrl, 2000) : '';
+  if (s.coverImageUrl) {
+    let url: URL;
+    try {
+      url = new URL(s.coverImageUrl);
+    } catch {
+      throw new BadRequestException('Adresa imaginii nu este validă.');
+    }
+    if (url.protocol !== 'https:' || url.username || url.password)
+      throw new BadRequestException(
+        'Folosește o imagine accesibilă prin HTTPS.',
+      );
+  }
+  if (b.consent) {
+    const source = record(b.consent);
+    const details = emptyFixedConsent();
+    for (const key of Object.keys(details) as (keyof FixedConsentDetails)[])
+      details[key] = source[key] ? text(source[key], 12000) : '';
+    const optional = ['activityNotes', 'equipmentNotes'];
+    if (b.published === true)
+      for (const key of Object.keys(details) as (keyof FixedConsentDetails)[]) {
+        if (!details[key] && !optional.includes(key))
+          throw new BadRequestException(
+            `Completează acordul parental: ${fixedConsentLabels[key]}.`,
+          );
+      }
+    if (details.equipment.split('\n').filter((v) => v.trim()).length > 20)
+      throw new BadRequestException(
+        'Formatul fix permite cel mult 20 de elemente de echipament.',
+      );
+    s.consent = details;
+  }
   for (const k of [
     'published',
     'approvalRequired',

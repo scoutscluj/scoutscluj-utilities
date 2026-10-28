@@ -8,6 +8,7 @@ const proxy: RequestHandler = async ({ params, request, cookies }) => {
 	const path = params.path ?? '';
 	const uuid = '[0-9a-f-]{36}';
 	const allowed =
+		/^consent-preview\/(lupisori|temerari|exploratori)$/.test(path) ||
 		/^(register|lookup|checkout|prefill|settings|family|renew-consent|overview|mine)$/.test(path) ||
 		new RegExp(`^registrations/${uuid}(?:/(?:generate|upload|answers|documents/${uuid}))?$`).test(
 			path

@@ -1,6 +1,10 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
+	import {
+		fixedConsentTerms,
+		type FixedConsentDetails
+	} from '@scouts-cluj/parental-consent-schema';
 	import RegistrationPayment from '$lib/activities/RegistrationPayment.svelte';
 	import { registrationRequest, money, states, type Answer } from '$lib/activities/registration';
 	let { data } = $props();
@@ -64,7 +68,9 @@
 				'register',
 				{ identifier, role, email, answers, exception, exceptionNote }
 			);
-			await goto(resolve(`/activitati/${activity.id}/inscriere/${result.managementToken}`));
+			await goto(
+				`${resolve(`/activitati/${activity.id}/inscriere/${result.managementToken}`)}?nou=1`
+			);
 		} catch (e) {
 			message = (e as Error).message;
 			busy = false;
@@ -77,14 +83,26 @@
 </script>
 
 <svelte:head
-	><title>{activity.title} | Scouts Cluj</title><meta
-		name="referrer"
-		content="same-origin"
-	/></svelte:head
+	><title>{activity.title} | Scouts Cluj</title><meta name="referrer" content="same-origin" /><meta
+		property="og:title"
+		content={activity.title}
+	/><meta
+		property="og:description"
+		content={activity.description ?? ''}
+	/>{#if settings.coverImageUrl}<meta
+			property="og:image"
+			content={settings.coverImageUrl}
+		/>{/if}</svelte:head
 >
 <main>
 	<a href={resolve('/activitati')}>← Activități</a>
 	<header>
+		{#if settings.coverImageUrl}<img
+				class="cover"
+				src={settings.coverImageUrl}
+				alt={activity.title}
+				referrerpolicy="no-referrer"
+			/>{/if}
 		<h1>{activity.title}</h1>
 		<p class="logistics">
 			{activity.location} · {activity.startDate
@@ -95,16 +113,18 @@
 		</p>
 		<p class="description">{activity.description}</p>
 		<div class="facts">
-			<span><strong>{money(settings.feeBani)}</strong> taxa implicită</span><span
+			<span><strong>{money(settings.feeBani)}</strong> taxa de participare</span><span
 				><strong>{data.page.counts.beneficiaries}</strong> beneficiari cu loc</span
 			><span><strong>{data.page.counts.staff}</strong> membri în echipa adultă</span>
 		</div>
-		<button
-			onclick={() => {
-				formOpen = true;
-				document.getElementById('registration')?.scrollIntoView({ behavior: 'smooth' });
-			}}>Înscrie un participant</button
-		>
+		<div class="actions">
+			<a class="primary-link" href="#registration">Înscrie un participant</a>
+			<a class="primary-link secondary-link" href="#payment">Plătește o înscriere existentă</a>
+		</div>
+		<p>
+			Înscrierea se face cu un cont Orgo sau doar cu ID-ul membrului. La final descarci acordul
+			completat și alegi dacă plătești acum sau mai târziu.
+		</p>
 	</header>
 	{#if settings.closesAt}<p>
 			Înscrieri până la {new Date(settings.closesAt).toLocaleString('ro-RO')}. {settings.approvalRequired
@@ -156,6 +176,14 @@
 					· {states[item.state]} · {states[item.paymentState ?? '']}
 				</p>{/each}
 		</section>{/if}
+	{#if data.page.information?.fixedDetails}<details class="agreement-terms">
+			<summary>Siguranță, sănătate și protecția datelor · citește acordul</summary
+			>{#each fixedConsentTerms as paragraph, index (index)}<p class="description">
+					{paragraph.replace(/\{\{activity\.([^}]+)\}\}/g, (_, key: string) =>
+						String(data.page.information?.fixedDetails?.[key as keyof FixedConsentDetails] ?? '')
+					)}
+				</p>{/each}
+		</details>{/if}
 	<section id="registration">
 		<h2>Înscriere</h2>
 		{#if !data.user}<div class="notice">
@@ -166,9 +194,19 @@
 					)}>Autentifică-te cu Orgo</a
 				>
 			</div>{/if}
-		{#if !formOpen}<button onclick={() => (formOpen = true)}
-				>Deschide formularul de înscriere</button
-			>{:else}
+		{#if !formOpen}
+			<div class="actions">
+				{#if data.user}<button
+						onclick={() => {
+							formOpen = true;
+							void prefill(true);
+						}}>Înscriere pentru mine</button
+					>{/if}
+				<button class="secondary" onclick={() => (formOpen = true)}
+					>Înscrie folosind ID-ul unui membru</button
+				>
+			</div>
+		{:else}
 			<form
 				onsubmit={(e) => {
 					e.preventDefault();
@@ -329,10 +367,42 @@
 				>
 			</form>{/if}
 	</section>
-	<section><RegistrationPayment activityId={activity.id} /></section>
+	<section id="payment">
+		<h2>Plătește o înscriere existentă</h2>
+		<p>
+			Introdu ID-ul membrului după ce a fost înscris la această activitate. Plata este disponibilă
+			când înscrierea are un loc și o taxă de achitat.
+		</p>
+		<RegistrationPayment activityId={activity.id} />
+	</section>
 </main>
 
 <style>
+	.cover {
+		width: 100%;
+		max-height: 360px;
+		object-fit: cover;
+		border-radius: 12px;
+	}
+	.primary-link {
+		display: inline-flex;
+		justify-content: center;
+		padding: 12px 18px;
+		border-radius: 7px;
+		background: var(--sc-accent);
+		color: white;
+		text-decoration: none;
+		font-weight: 600;
+	}
+	.secondary-link {
+		background: var(--sc-surface);
+		color: var(--sc-accent);
+		border: 1px solid var(--sc-border);
+	}
+	#registration,
+	#payment {
+		scroll-margin-top: 24px;
+	}
 	main {
 		max-width: 960px;
 		margin: 24px auto;

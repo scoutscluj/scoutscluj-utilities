@@ -3,7 +3,7 @@ import { apiFetch } from '$lib/server/api';
 import { SESSION_COOKIE_NAME } from '$lib/server/cookies';
 import type { Registration } from '$lib/activities/registration';
 import type { PageServerLoad } from './$types';
-export const load: PageServerLoad = async ({ params, locals, cookies, setHeaders }) => {
+export const load: PageServerLoad = async ({ params, locals, cookies, setHeaders, url }) => {
 	setHeaders({ 'cache-control': 'private, no-store', 'referrer-policy': 'no-referrer' });
 	const id = Number(params.activityId),
 		key = params.key;
@@ -23,6 +23,7 @@ export const load: PageServerLoad = async ({ params, locals, cookies, setHeaders
 			'Folosește linkul personal sau contul autorizat pentru această înscriere.'
 		);
 	return {
+		justRegistered: url.searchParams.get('nou') === '1',
 		registration: (await response.json()) as Registration,
 		token,
 		key,

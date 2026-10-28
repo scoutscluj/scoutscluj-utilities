@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { invalidateAll } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import RegistrationPayment from '$lib/activities/RegistrationPayment.svelte';
 	import RegistrationAnswers from '$lib/activities/RegistrationAnswers.svelte';
 	import { registrationRequest, money, states } from '$lib/activities/registration';
@@ -17,6 +18,9 @@
 				d.answerRevision === row.answerRevision
 		)
 	);
+	onMount(() => {
+		if (data.justRegistered && row.minor && row.role !== 'staff' && !generated) void generate();
+	});
 	async function generate() {
 		busy = true;
 		message = '';
@@ -90,12 +94,13 @@
 		<div><small>Acord parental</small><strong>{states[row.consentState]}</strong></div>
 	</section>
 	{#if message}<p role="status">{message}</p>{/if}
-	{#if row.role !== 'staff'}<section>
+	{#if row.role !== 'staff'}<details>
+			<summary>Verifică sau corectează datele înscrierii</summary>
 			<RegistrationAnswers {row} activityId={data.activityId} token={data.token} />
-		</section>{/if}
+		</details>{/if}
 	{#if row.minor && row.role !== 'staff'}
 		<section>
-			<h2>Acordul parental</h2>
+			<h2>1. Descarcă acordul parental completat</h2>
 			<ol>
 				<li>Descarcă PDF-ul completat cu datele introduse.</li>
 				<li>
@@ -134,7 +139,11 @@
 				</form>{/if}
 		</section>{/if}
 	{#if row.role !== 'staff' && row.totalBani !== undefined}<section>
-			<h2>Situația taxei</h2>
+			<h2>{row.minor ? '2. ' : ''}Plată opțională acum</h2>
+			<p>
+				Înscrierea este salvată. Poți plăti acum sau poți reveni în pagina activității, folosind
+				ID-ul membrului.
+			</p>
 			{#if row.refundDueBani != null}<p>
 					Restituire aprobată: {money(row.refundDueBani)} · Restituire rămasă: {money(
 						row.refundRemainingBani

@@ -14,7 +14,7 @@ export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
 	const sessionToken = cookies.get(SESSION_COOKIE_NAME);
 
 	const [sidebarActivities, documentsAdmin] = await Promise.all([
-		sessionToken ? loadSidebarActivities(sessionToken) : Promise.resolve([]),
+		sessionToken ? loadSidebarActivities(sessionToken, locals.user) : Promise.resolve([]),
 		sessionToken ? canManageAdultDocuments(sessionToken) : Promise.resolve(false)
 	]);
 	return {

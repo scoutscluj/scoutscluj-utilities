@@ -46,10 +46,19 @@ const settings = {
 };
 let row;
 let created = null;
+let savedSettings = null;
+let settingsRevision = 1;
+let concurrentAfterSave = false;
+const originalSettings = structuredClone(settings);
 const originalActivity = structuredClone(activity);
 function reset() {
 	Object.assign(activity, originalActivity);
 	created = null;
+	savedSettings = null;
+	settingsRevision = 1;
+	concurrentAfterSave = false;
+	for (const key of Object.keys(settings)) delete settings[key];
+	Object.assign(settings, structuredClone(originalSettings));
 	row = {
 		id,
 		orgoId: 36805,
@@ -111,6 +120,26 @@ createServer(async (req, res) => {
 		return send(res, {});
 	}
 	if (path === '/test/created') return send(res, created);
+	if (path === '/test/settings') return send(res, savedSettings);
+	if (path === '/test/current-settings')
+		return send(res, { revision: settingsRevision, data: settings });
+	if (path === '/test/concurrent-next-save') {
+		concurrentAfterSave = true;
+		return send(res, {});
+	}
+	if (path === '/api/activity-registrations/1/settings' && req.method === 'POST') {
+		if (input.revision !== settingsRevision)
+			return send(res, { message: 'Setările au fost modificate. Reîncarcă pagina.' }, 409);
+		savedSettings = input;
+		Object.assign(settings, structuredClone(input.data));
+		const saved = { revision: ++settingsRevision, data: structuredClone(settings) };
+		if (concurrentAfterSave) {
+			concurrentAfterSave = false;
+			settingsRevision++;
+			settings.terms = 'Condiții schimbate de alt organizator';
+		}
+		return send(res, saved);
+	}
 	if (path === '/api/activities/team-options')
 		return send(res, [
 			{ id: 1, displayName: 'Coordonator de test' },
@@ -158,7 +187,7 @@ createServer(async (req, res) => {
 		});
 	if (path.endsWith('/overview'))
 		return send(res, {
-			revision: 1,
+			revision: settingsRevision,
 			settings,
 			capabilities: { manage: true, finance: true, sensitive: true, consent: true },
 			rows: [row],

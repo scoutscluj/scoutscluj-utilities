@@ -33,6 +33,14 @@ este păstrat separat în istoric și nu își păstrează automat dreptul de ad
 după o predare completă. Activitățile existente păstrează coordonatorul ca creator
 istoric la migrare, deoarece nu există o sursă mai veche pentru această informație.
 
+Setările sunt împărțite în General, Echipă, Departamente, Înscrieri, Acord de
+participare și Plată. În Plată se editează un singur câmp „Taxă de participare”;
+introducerea sumei arată o sugestie compactă despre comision, care poate fi ascunsă
+sau aplicată în același câmp. Recomandarea păstrează suma introdusă ca net și
+rotunjește în sus la 5 lei. Confirmarea locului și termenul de plată sunt tot aici.
+Salvarea unei secțiuni păstrează valorile celorlalte secțiuni și verifică revizia
+configurației editate. Sincronizarea automată cu calendarul este amânată la cererea utilizatorului.
+
 Pagina publică separă înscrierea de plata unei înscrieri existente. La finalul
 unei înscrieri noi de minor se pregătește PDF-ul completat; plata rămâne opțională
 în acel moment. Membrii autentificați văd activitățile eligibile în submeniul

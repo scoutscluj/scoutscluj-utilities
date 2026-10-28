@@ -1,0 +1,4 @@
+- [x] Replace the two fee inputs with one field and dismissible/applicable commission advice.
+- [x] Split activity settings into focused subpages and update operational links.
+- [x] Move activity creation into the listing header and simplify the Activities entry point.
+- [x] Verify saving, concurrency revisions, desktop/mobile navigation and the final build.

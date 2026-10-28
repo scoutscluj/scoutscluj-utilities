@@ -42,13 +42,118 @@ test('authenticated organizer sees separate money, support and agreement states 
 	await page.evaluate(() => window.scrollTo(0, 0));
 	await page.screenshot({ path: '../../tmp/registration-organizer-desktop.png', fullPage: true });
 	await page.getByRole('link', { name: 'Setări înscrieri', exact: true }).click();
-	await expect(page.getByText('Comision configurat:', { exact: false })).toBeVisible();
+	await expect(page.getByRole('group', { name: 'Locuri', exact: true })).toBeVisible();
+	await expect(page.getByLabel('Taxă de participare, în lei')).not.toBeVisible();
+	await page
+		.getByRole('navigation', { name: 'Setările activității', exact: true })
+		.getByRole('link', { name: 'Acord de participare', exact: true })
+		.click();
 	await page.getByRole('button', { name: 'Pregătește acordul acestei activități' }).click();
 	await expect(page.getByLabel('Activități comune')).toBeVisible();
 	await expect(page.getByLabel('Transport la plecare')).toBeVisible();
 	await page.evaluate(() => window.scrollTo(0, 0));
 	await page.screenshot({ path: '../../tmp/registration-settings-desktop.png', fullPage: true });
 });
+test('activity settings use separate submenus and one fee field with dismissible advice', async ({
+	page,
+	request
+}) => {
+	await page
+		.context()
+		.addCookies([
+			{ name: 'scoutscluj_session', value: 'synthetic-admin', url: 'http://127.0.0.1:5186' }
+		]);
+	await page.goto('/activities');
+	await page.screenshot({ path: '../../tmp/activities-list-compact-desktop.png', fullPage: true });
+	await expect(page.getByRole('link', { name: '＋ Activitate nouă', exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Activitate nouă', exact: true })).toHaveCount(0);
+	await expect(page.getByRole('link', { name: 'Toate activitățile', exact: true })).toHaveCount(0);
+	await expect(
+		page.getByRole('link', { name: 'Activități publice și înscriere', exact: true })
+	).toHaveCount(0);
+	await page.goto('/activities/1/settings/payments');
+	const fee = page.getByLabel('Taxă de participare, în lei', { exact: true });
+	const advice = page.getByRole('complementary', { name: 'Comisionul plății cu cardul' });
+	await expect(fee).toHaveCount(1);
+	await expect(page.getByLabel('Suma netă dorită, în lei')).toHaveCount(0);
+	await expect(page.getByLabel('Nume', { exact: true })).toHaveCount(0);
+	await expect(advice).toHaveCount(0);
+	await fee.fill('300');
+	await expect(advice).toContainText('305,00');
+	await advice.getByRole('button', { name: 'Ascunde', exact: true }).click();
+	await expect(advice).toHaveCount(0);
+	await expect(fee).toHaveValue('300');
+	await page.getByRole('button', { name: 'Informații despre comision', exact: true }).click();
+	await advice.getByRole('button', { name: 'Aplică prețul recomandat', exact: true }).click();
+	await expect(fee).toHaveValue('305');
+	await expect(advice).toHaveCount(0);
+	await page.getByRole('button', { name: 'Informații despre comision', exact: true }).click();
+	await expect(advice).toContainText('305,00');
+	await expect(advice).not.toContainText('310,00');
+	await advice.getByRole('button', { name: 'Ascunde', exact: true }).click();
+	await page.getByRole('button', { name: 'Salvează setările de plată', exact: true }).click();
+	await expect(page.getByRole('status')).toContainText('Setările de plată au fost salvate.');
+	const saved = await (await request.get('http://127.0.0.1:3019/test/settings')).json();
+	expect(saved.data.feeBani).toBe(30500);
+	expect(saved.data.published).toBe(true);
+	expect(saved.data.familyFees).toEqual([50000, 40000, 30000]);
+	await page.evaluate(() => window.scrollTo(0, 0));
+	await page.screenshot({
+		path: '../../tmp/activity-settings-payments-desktop.png',
+		fullPage: true
+	});
+	const settingsNav = page.getByRole('navigation', { name: 'Setările activității', exact: true });
+	await settingsNav.getByRole('link', { name: 'Echipă', exact: true }).click();
+	await expect(page.getByRole('combobox', { name: 'Organizator', exact: true })).toBeVisible();
+	await expect(fee).toHaveCount(0);
+	await page.getByRole('button', { name: 'Salvează echipa', exact: true }).click();
+	await expect(page.getByRole('status')).toContainText('Echipa activității a fost salvată.');
+	await settingsNav.getByRole('link', { name: 'General', exact: true }).click();
+	await expect(page.getByLabel('Nume', { exact: true })).toBeVisible();
+	await expect(page.getByRole('combobox', { name: 'Organizator', exact: true })).toHaveCount(0);
+	await page
+		.getByRole('complementary', { name: 'Meniu principal' })
+		.getByRole('link', { name: 'Activități', exact: true })
+		.click();
+	await expect(page).toHaveURL(/\/activities$/);
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto('/activities/1/settings/payments');
+	await fee.fill('300');
+	await expect(advice).toBeVisible();
+	expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+		true
+	);
+	await page.screenshot({
+		path: '../../tmp/activity-settings-payments-mobile.png',
+		fullPage: true
+	});
+});
+
+test('settings keep the edited revision when another organizer changes configuration during revalidation', async ({
+	page,
+	request
+}) => {
+	await page
+		.context()
+		.addCookies([
+			{ name: 'scoutscluj_session', value: 'synthetic-admin', url: 'http://127.0.0.1:5186' }
+		]);
+	await page.goto('/activities/1/settings/payments');
+	await request.post('http://127.0.0.1:3019/test/concurrent-next-save');
+	const fee = page.getByLabel('Taxă de participare, în lei', { exact: true });
+	await fee.fill('300');
+	await page.getByRole('button', { name: 'Salvează setările de plată', exact: true }).click();
+	await expect(page.getByRole('status')).toContainText('Setările de plată au fost salvate.');
+	await fee.fill('310');
+	await page.getByRole('button', { name: 'Salvează setările de plată', exact: true }).click();
+	await expect(page.getByRole('status')).toContainText(
+		'Setările au fost modificate. Reîncarcă pagina.'
+	);
+	const current = await (await request.get('http://127.0.0.1:3019/test/current-settings')).json();
+	expect(current.data.feeBani).toBe(30000);
+	expect(current.data.terms).toBe('Condiții schimbate de alt organizator');
+});
+
 test('new activity wizard configures a different organizer, departments and participation payment', async ({
 	page,
 	request
@@ -74,7 +179,7 @@ test('new activity wizard configures a different organizer, departments and part
 	await expect(page.getByRole('link', { name: /Descarcă un acord de verificare/ })).toHaveCount(0);
 	await page.getByRole('button', { name: 'Continuă →' }).click();
 	await expect(page.getByRole('heading', { name: '5. Taxă și plată' })).toBeVisible();
-	await page.getByLabel('Taxa finală, în lei', { exact: true }).fill('525');
+	await page.getByLabel('Taxă de participare, în lei', { exact: true }).fill('525');
 	await page.getByRole('button', { name: 'Continuă →' }).click();
 	await page.getByRole('button', { name: 'Creează activitatea', exact: true }).click();
 	await expect(
@@ -89,14 +194,14 @@ test('new activity wizard configures a different organizer, departments and part
 	await page.goto('/activities/1/registrations');
 	await expect(page.getByRole('link', { name: 'Setări înscrieri', exact: true })).toHaveAttribute(
 		'href',
-		'/activities/1/settings#inscrieri'
+		'/activities/1/settings/registrations'
 	);
 	await expect(page.getByRole('link', { name: 'Înscrieri', exact: true })).toBeVisible();
 	await page.getByRole('link', { name: 'Plăți participare', exact: true }).click();
 	await expect(page.getByRole('heading', { name: 'Plăți participare', exact: true })).toBeVisible();
 	await expect(page.getByRole('link', { name: 'Setări plată', exact: true })).toHaveAttribute(
 		'href',
-		'/activities/1/settings#plati'
+		'/activities/1/settings/payments'
 	);
 	await page.screenshot({ path: '../../tmp/activity-wizard-payments.png', fullPage: true });
 	await page.setViewportSize({ width: 390, height: 844 });

@@ -1,5 +1,11 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
+	import { activitySettingsHref } from './activity-settings';
+	const sections = {
+		inscrieri: 'registrations',
+		acord: 'consent',
+		plati: 'payments',
+		echipa: 'team'
+	} as const;
 	let {
 		activityId,
 		section,
@@ -8,7 +14,7 @@
 		$props();
 </script>
 
-<a href={resolve(`/activities/${activityId}/settings#${section}`)} aria-label={label} title={label}
+<a href={activitySettingsHref(activityId, sections[section])} aria-label={label} title={label}
 	><svg
 		aria-hidden="true"
 		viewBox="0 0 24 24"

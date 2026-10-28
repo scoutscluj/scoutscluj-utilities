@@ -2,8 +2,11 @@
 
 Individual registration answers, completed PDFs, signed uploads, physical receipt
 confirmation and renewed consent are described in [activity registrations](activity-registration.md).
-The new participation template can be selected when creating an administrative
-draft; activation and publication retain the existing versioned workflow.
+The general template editor and activity wizard are temporarily suspended.
+The current workflow uses the supplied fixed Word format, with long activity-specific
+texts entered in registration settings. Saving published settings creates immutable
+publications directly. The sections below document the retained legacy implementation;
+its editing endpoints return an explicit paused response while historical files remain readable.
 
 ## Scope and access
 

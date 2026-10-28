@@ -68,9 +68,7 @@
 				'register',
 				{ identifier, role, email, answers, exception, exceptionNote }
 			);
-			await goto(
-				`${resolve(`/activitati/${activity.id}/inscriere/${result.managementToken}`)}?nou=1`
-			);
+			await goto(resolve(`/activitati/${activity.id}/inscriere/${result.managementToken}?nou=1`));
 		} catch (e) {
 			message = (e as Error).message;
 			busy = false;

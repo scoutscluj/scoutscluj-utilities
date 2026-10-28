@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import {
 		emptyFixedConsent,
 		fixedConsentLabels,
@@ -167,7 +168,7 @@
 			</p>
 			<p>
 				După salvare, verifică formatul: <a
-					href={`/activitati/${activityId}/api/consent-preview/temerari`}
+					href={resolve(`/activitati/${activityId}/api/consent-preview/temerari`)}
 					>Descarcă un acord de verificare, fără date de participant</a
 				>.
 			</p>

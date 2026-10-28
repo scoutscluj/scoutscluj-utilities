@@ -201,3 +201,31 @@ export function unitName(units: Unit[], id: string | null, empty = '—') {
 		unit.name + (unit.parentId && unit.grades?.length ? ` · clasa ${unit.grades.join(', ')}` : '')
 	);
 }
+export function hasSchoolGrade(member: Pick<Member, 'category' | 'branch' | 'adultKind'>) {
+	const category = member.category ?? member.branch;
+	return category ? ['lupisori', 'temerari', 'exploratori'].includes(category) : !member.adultKind;
+}
+export function memberPlacement(units: Unit[], member: Member) {
+	const category = member.category ?? member.branch;
+	if (
+		['lideri', 'voluntari', 'scouteri'].includes(category ?? '') ||
+		(!category && member.adultKind)
+	) {
+		return (
+			[...new Set(member.responsibilityUnitIds ?? [])]
+				.map((id) =>
+					units.find(
+						(u) =>
+							u.id === id &&
+							!u.parentId &&
+							!u.archived &&
+							(u.structureId ?? 'cluj') === (member.structureId ?? 'cluj')
+					)
+				)
+				.filter((u) => !!u)
+				.map((u) => u.name)
+				.join(', ') || '—'
+		);
+	}
+	return `${unitName(units, member.unitId)} / ${member.groupId ? unitName(units, member.groupId) : 'Nerepartizat'}`;
+}

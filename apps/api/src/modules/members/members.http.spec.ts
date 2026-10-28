@@ -442,7 +442,6 @@ describe('member HTTP scope and lifecycle', () => {
   it('preserves adult responsibilities when council transfers primary affiliation and flags pending admissions', async () => {
     const adult = f.list('member').find((m) => m.id === adultId)!;
     adult.birthDate = '1990-01-01';
-    f.list('unit').find((u) => u.id === otherUnit)!.structureId = 'floresti';
     await http()
       .post(`/members/${adultId}/assignments`)
       .set('x-actor', '2')

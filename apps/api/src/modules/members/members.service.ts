@@ -39,6 +39,7 @@ import {
 } from './entities/member.entity';
 import {
   adultRoles,
+  hasSchoolGrade,
   emptyProfile,
   permissions,
   targetYear,
@@ -829,8 +830,12 @@ export class MembersService {
               .filter(
                 (a) =>
                   a.memberId === m.id &&
+                  a.role !== 'beneficiary' &&
                   a.unitId &&
-                  units.some((u) => u.id === a.unitId),
+                  units.some(
+                    (u) =>
+                      u.id === a.unitId && u.structureId === structureOf(m),
+                  ),
               )
               .map((a) => a.unitId!),
           ),
@@ -841,8 +846,12 @@ export class MembersService {
               .filter(
                 (a) =>
                   a.memberId === m.id &&
+                  a.role !== 'beneficiary' &&
                   a.groupId &&
-                  units.some((u) => u.id === a.groupId),
+                  units.some(
+                    (u) =>
+                      u.id === a.groupId && u.structureId === structureOf(m),
+                  ),
               )
               .map((a) => a.groupId!),
           ),
@@ -851,7 +860,7 @@ export class MembersService {
         name: m.name,
         structureId: structureOf(m),
         orgoId: grants.get(m.id)?.detail ? m.orgoId : null,
-        grade: grants.get(m.id)?.detail ? m.grade : null,
+        grade: grants.get(m.id)?.detail && hasSchoolGrade(m) ? m.grade : null,
         unitId: m.unitId,
         groupId: m.groupId,
         syncState: pendingSync.find((s) => s.memberId === m.id)?.state,
@@ -932,7 +941,7 @@ export class MembersService {
         name: m.name,
         structureId: structureOf(m),
         birthDate: m.birthDate,
-        grade: m.grade,
+        grade: hasSchoolGrade(m) ? m.grade : null,
         unitId: m.unitId,
         groupId: m.groupId,
         status: m.status,
@@ -1235,6 +1244,10 @@ export class MembersService {
     }
     if ('grade' in b) {
       const grade = b.grade == null || b.grade === '' ? null : Number(b.grade);
+      if (grade !== null && !hasSchoolGrade(m))
+        throw new BadRequestException(
+          'Clasa se completează numai pentru beneficiarii școlari.',
+        );
       if (
         grade !== null &&
         (!Number.isInteger(grade) || grade < 1 || grade > 12)
@@ -1347,9 +1360,7 @@ export class MembersService {
     const destination = await this.unit(tx, unitId, groupId);
     const structureId = b.structureId
       ? stringValue(b.structureId)
-      : destination
-        ? structureOf(destination)
-        : structureOf(m);
+      : structureOf(m);
     const ctx = await this.context(tx, user);
     if (structureId !== structureOf(m) && !ctx.admin) denied();
     if (!this.inStructure(ctx, structureId)) denied();
@@ -1613,7 +1624,12 @@ export class MembersService {
       if (!this.inStructure(ctx, structureOf(m))) denied();
       if (role === 'council' && structureOf(m) !== 'cluj') denied();
       if (structureId && structureId !== structureOf(m)) denied();
-      if (['leader', 'helper'].includes(role) && !groupId)
+      if (
+        ['leader', 'helper'].includes(role) &&
+        !groupId &&
+        unitId &&
+        (await tx.count(ScoutSubunit, { parentId: unitId, archived: false }))
+      )
         throw new BadRequestException('Alege subunitatea responsabilitatii.');
       const parentMandate = ctx.admin
         ? (ctx.assignments.find((a) => a.role === 'council') ?? null)
@@ -1626,7 +1642,8 @@ export class MembersService {
                 : false,
           );
       if (!ctx.admin && !parentMandate) denied();
-      if (unit && structureOf(unit) !== structureOf(m) && !ctx.admin) denied();
+      if (unit && structureOf(unit) !== structureOf(m))
+        throw new BadRequestException('Unitatea aparține altei structuri.');
       if (
         role === 'chief' &&
         !ctx.admin &&
@@ -1661,15 +1678,15 @@ export class MembersService {
           ? dateValue(b.promiseDate)
           : m.promiseDate;
         if (
-          (!promise && m.promiseSource !== 'orgo-leader') ||
           (promise && promise > localDate(new Date())) ||
           !m.birthDate ||
           m.birthDate >
             `${Number(localDate(new Date()).slice(0, 4)) - 18}${localDate(new Date()).slice(4)}` ||
+          m.category === 'seniori' ||
           ownUnit?.branch === 'seniori'
         )
           throw new BadRequestException(
-            'Rolul cere un adult cu promisiunea de lider, care nu este beneficiar la Seniori.',
+            'Rolul cere un adult care nu este beneficiar la Seniori; data promisiunii, dacă este completată, nu poate fi în viitor.',
           );
         m.promiseDate = promise;
       }

@@ -590,6 +590,112 @@ async function main() {
     } finally {
       global.fetch = originalFetch;
     }
+    const assignedUnit = await reader.findOneOrFail(ScoutUnit, {
+      fixed: true,
+      structureId: 'floresti',
+      branch: 'exploratori',
+    });
+    const commonUnit = await reader.findOneOrFail(ScoutUnit, {
+      fixed: true,
+      structureId: 'floresti',
+      branch: 'temerari',
+    });
+    const adultUnit = await reader.findOneOrFail(ScoutUnit, {
+      fixed: true,
+      structureId: 'floresti',
+      branch: 'voluntari',
+    });
+    const adult = await service().createMember(actor, {
+      name: 'Responsabil fără dată de promisiune',
+      kind: 'adult',
+      structureId: 'floresti',
+      unitId: adultUnit.id,
+      birthDate: '1990-01-01',
+    });
+    const subgroup = await service().createUnit(actor, {
+      name: 'Patrula responsabilități test',
+      branch: 'exploratori',
+      parentId: assignedUnit.id,
+      structureId: 'floresti',
+    });
+    await assert.rejects(
+      service().assignment(actor, adult.id, {
+        role: 'leader',
+        unitId: assignedUnit.id,
+      }),
+    );
+    await service().assignment(actor, adult.id, {
+      role: 'leader',
+      unitId: assignedUnit.id,
+      groupId: subgroup.id,
+    });
+    assert.equal(
+      (await orm.em.fork().findOneOrFail(ScoutMember, adult.id)).promiseDate,
+      null,
+    );
+    await service().assignment(actor, adult.id, {
+      role: 'helper',
+      unitId: commonUnit.id,
+    });
+    await assert.rejects(
+      service().assignment(actor, adult.id, {
+        role: 'leader',
+        unitId: assignedUnit.id,
+        groupId: subgroup.id,
+        promiseDate: '2100-01-01',
+      }),
+    );
+    await assert.rejects(
+      service().assignment(actor, adult.id, {
+        role: 'helper',
+        unitId: unit.id,
+        groupId: group.id,
+      }),
+    );
+    await assert.rejects(
+      service().transfer(actor, adult.id, {
+        unitId: unit.id,
+        groupId: group.id,
+      }),
+    );
+    const seniorUnit = await reader.findOneOrFail(ScoutUnit, {
+      fixed: true,
+      structureId: 'floresti',
+      branch: 'seniori',
+    });
+    const senior = await service().createMember(actor, {
+      name: 'Senior beneficiar test',
+      kind: 'beneficiary',
+      structureId: 'floresti',
+      unitId: seniorUnit.id,
+      birthDate: '2006-01-01',
+    });
+    await assert.rejects(
+      service().assignment(actor, senior.id, {
+        role: 'leader',
+        unitId: assignedUnit.id,
+        groupId: subgroup.id,
+      }),
+    );
+    await orm.em
+      .fork()
+      .nativeUpdate(ScoutMember, { id: adult.id }, { grade: 9 });
+    const snapshot = await orm.em.fork().findOneOrFail(ScoutMember, adult.id);
+    await assert.rejects(
+      service().updateMember(actor, adult.id, {
+        revision: snapshot.revision,
+        grade: 8,
+      }),
+    );
+    const roster = await service().dashboard(actor);
+    const adultRow = roster.members.find((row) => row.id === adult.id)!;
+    assert.equal(adultRow.grade, null);
+    assert(!adultRow.responsibilityUnitIds.includes(adultUnit.id));
+    assert(adultRow.responsibilityUnitIds.includes(assignedUnit.id));
+    assert(adultRow.responsibilityUnitIds.includes(commonUnit.id));
+    console.log(
+      'PASS optional leader promise, common-collective responsibilities, same-structure movement and adult grade exclusion',
+    );
     console.log(
       'PostgreSQL migrations, scoped structures, admission allocation concurrency and transaction rollback checks passed.',
     );

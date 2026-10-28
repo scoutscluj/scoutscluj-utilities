@@ -236,6 +236,7 @@ _Avoid_: Unit leader
 
 **Subunitate (subgrupă de unitate)**:
 A configurable stable group within a unit, with one or more responsible adults. A Temerari cohort retains its identity and responsible adults as its school grade advances. A beneficiary has at most one current subgroup. Units can also work as one common collective.
+When a unit has no active subunits, leader/helper responsibilities target the common collective without selecting a subgroup. A common-collective mandate grants access to ungrouped members of that unit, not to other subunits. Responsibility and ordinary unit-transfer choices use the edited member's current structure, including for central administrators; changing primary structure remains a separate explicit operation. A leader's group column lists the units of their active responsibilities, while their primary category remains unchanged. School grade applies only to Lupișori, Temerari and Exploratori. Adult categories and Seniori have no school-grade field. A leader/chief promise date is optional; a supplied date cannot be in the future, and verified adult age and Seniori ineligibility still apply.
 _Avoid_: Treating the school grade as the group's identity
 
 **Retras din activitate**:

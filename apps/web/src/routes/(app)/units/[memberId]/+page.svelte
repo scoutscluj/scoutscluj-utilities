@@ -3,12 +3,17 @@
 	import { resolve } from '$app/paths';
 	import OrgoProfile from '$lib/members/OrgoProfile.svelte';
 	import type { PageData, ActionData } from './$types';
-	import { profileLabels, roleLabels, syncLabels, unitName } from '$lib/members/types';
+	import {
+		hasSchoolGrade,
+		profileLabels,
+		roleLabels,
+		syncLabels,
+		unitName
+	} from '$lib/members/types';
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	const m = $derived(data.detail.member),
 		a = $derived(data.detail.access);
-	let transferStructure = $state(''),
-		transferUnit = $state(''),
+	let transferUnit = $state(''),
 		transferGroup = $state('');
 	let role = $state('helper'),
 		roleUnit = $state(''),
@@ -16,7 +21,6 @@
 	let returnUnit = $state(''),
 		returnGroup = $state('');
 	$effect(() => {
-		transferStructure = m.structureId ?? 'cluj';
 		transferUnit = m.unitId ?? '';
 		transferGroup = m.groupId ?? '';
 	});
@@ -81,17 +85,19 @@
 						value={m.birthDate ?? ''}
 						readonly={!a.identity}
 					/></label
-				><label
-					>Clasa<input
-						type="number"
-						min="1"
-						max="12"
-						name={a.edit ? 'grade' : undefined}
-						value={m.grade ?? ''}
-						readonly={!a.edit}
-					/></label
 				>
-				{#if a.edit}<label
+				{#if hasSchoolGrade(m)}<label
+						>Clasa<input
+							type="number"
+							min="1"
+							max="12"
+							name={a.edit ? 'grade' : undefined}
+							value={m.grade ?? ''}
+							readonly={!a.edit}
+						/></label
+					>
+				{/if}
+				{#if a.edit && hasSchoolGrade(m)}<label
 						>Excepție de la progresia anuală (an)<input
 							type="number"
 							name="skipProgressionYear"
@@ -176,35 +182,25 @@
 	{#if a.transfer || (a.edit && m.unitId) || a.withdraw}<section>
 			<h2>Repartizare și status</h2>
 			{#if m.status === 'active'}<form method="POST" class="grid">
-					<input type="hidden" name="action" value="transfer" />{#if data.registry.admin}<label
-							>Structură<select
-								name="structureId"
-								bind:value={transferStructure}
-								onchange={() => {
-									transferUnit = '';
-									transferGroup = '';
-								}}
-								>{#each structures as st (st.id)}<option value={st.id}>{st.name}</option
-									>{/each}</select
-							></label
-						>{/if}<label
+					<input type="hidden" name="action" value="transfer" /><label
 						>Unitate<select
 							name="unitId"
 							bind:value={transferUnit}
 							onchange={() => (transferGroup = '')}
 							>{#if a.transfer}<option value="">Voluntar adult fără unitate</option
-								>{/if}{#each units.filter((u) => (u.structureId ?? 'cluj') === transferStructure && (a.transfer || u.id === m.unitId)) as u (u.id)}<option
+								>{/if}{#each units.filter((u) => (u.structureId ?? 'cluj') === (m.structureId ?? 'cluj') && (a.transfer || u.id === m.unitId)) as u (u.id)}<option
 									value={u.id}>{u.name}</option
 								>{/each}</select
 						></label
-					><label
-						>Grupă<select name="groupId" bind:value={transferGroup}
-							><option value="">Colectiv comun / nerepartizat</option
-							>{#each data.registry.units.filter((u) => u.parentId === transferUnit && !u.archived) as u (u.id)}<option
-									value={u.id}>{name(u.parentId)} / {u.name}</option
-								>{/each}</select
-						></label
-					><button>Mută membrul</button>
+					>
+					{#if data.registry.units.some((u) => u.parentId === transferUnit && !u.archived)}<label
+							>Grupă<select name="groupId" bind:value={transferGroup}
+								><option value="">Colectiv comun / nerepartizat</option
+								>{#each data.registry.units.filter((u) => u.parentId === transferUnit && !u.archived) as u (u.id)}<option
+										value={u.id}>{name(u.parentId)} / {u.name}</option
+									>{/each}</select
+							></label
+						>{/if}<button>Mută membrul</button>
 				</form>
 				{#if a.withdraw ?? a.edit}<details>
 						<summary>Retragere din activitate</summary>
@@ -275,7 +271,8 @@
 				<div class="grid">
 					{#if role === 'structure_admin'}<label
 							>Structură<select name="structureId" value={m.structureId ?? 'cluj'}
-								>{#each structures as st (st.id)}<option value={st.id}>{st.name}</option
+								>{#each structures.filter((st) => st.id === (m.structureId ?? 'cluj')) as st (st.id)}<option
+										value={st.id}>{st.name}</option
 									>{/each}</select
 							></label
 						>{/if}
@@ -298,23 +295,24 @@
 							disabled={['structure_admin', 'council', 'scouter'].includes(role)}
 							onchange={() => (roleGroup = '')}
 							><option value="">La nivel de centru</option
-							>{#each units.filter((u) => u.delegateRoles?.includes(role) && (data.registry.admin || (u.structureId ?? 'cluj') === (m.structureId ?? 'cluj'))) as u (u.id)}<option
+							>{#each units.filter((u) => u.delegateRoles?.includes(role) && (u.structureId ?? 'cluj') === (m.structureId ?? 'cluj')) as u (u.id)}<option
 									value={u.id}>{u.name}</option
 								>{/each}</select
 						></label
-					><label
-						>Grupă<select
-							name="groupId"
-							bind:value={roleGroup}
-							disabled={!roleUnit || role === 'chief'}
-							required={['leader', 'helper'].includes(role)}
-							><option value="">Colectiv comun / întreaga unitate</option
-							>{#each data.registry.units.filter((u) => u.parentId === roleUnit && !u.archived) as u (u.id)}<option
-									value={u.id}>{name(u.parentId)} / {u.name}</option
-								>{/each}</select
-						></label
-					><label
-						>Data promisiunii de lider<input
+					>
+					{#if ['leader', 'helper'].includes(role) && data.registry.units.some((u) => u.parentId === roleUnit && !u.archived)}<label
+							>Grupă<select
+								name="groupId"
+								bind:value={roleGroup}
+								disabled={!roleUnit || role === 'chief'}
+								required={['leader', 'helper'].includes(role)}
+								><option value="">Colectiv comun / întreaga unitate</option
+								>{#each data.registry.units.filter((u) => u.parentId === roleUnit && !u.archived) as u (u.id)}<option
+										value={u.id}>{name(u.parentId)} / {u.name}</option
+									>{/each}</select
+							></label
+						>{/if}<label
+						>Data promisiunii de lider (opțional)<input
 							type="date"
 							name="promiseDate"
 							value={m.promiseDate ?? ''}

@@ -528,23 +528,23 @@
 			<label
 				>Unitate<select name="unitId" bind:value={responsibilityUnit} required
 					><option value="">Alege unitatea</option>
-					{#each units.filter((u) => u.delegateRoles?.includes(responsibilityRole) && (data.registry.admin || (u.structureId ?? 'cluj') === (responsibilityMember?.structureId ?? 'cluj'))) as u (u.id)}<option
+					{#each units.filter((u) => u.delegateRoles?.includes(responsibilityRole) && (u.structureId ?? 'cluj') === (responsibilityMember?.structureId ?? 'cluj')) as u (u.id)}<option
 							value={u.id}
 							>{structures.find((s) => s.id === (u.structureId ?? 'cluj'))?.name} · {u.name}</option
 						>{/each}
 				</select></label
 			>
-			{#if ['leader', 'helper'].includes(responsibilityRole)}<label
-					>Subunitate<select name="groupId" required
-						><option value="">Alege subunitatea</option
-						>{#each data.registry.units.filter((u) => u.parentId === responsibilityUnit && !u.archived) as u (u.id)}<option
-								value={u.id}>{u.name}</option
-							>{/each}</select
-					></label
-				>{/if}
+			{#if ['leader', 'helper'].includes(responsibilityRole) && data.registry.units.some((u) => u.parentId === responsibilityUnit && !u.archived)}{#key responsibilityUnit}<label
+						>Subunitate<select name="groupId" required
+							><option value="">Alege subunitatea</option
+							>{#each data.registry.units.filter((u) => u.parentId === responsibilityUnit && !u.archived) as u (u.id)}<option
+									value={u.id}>{u.name}</option
+								>{/each}</select
+						></label
+					>{/key}{/if}
 		{/if}
 		{#if ['leader', 'chief'].includes(responsibilityRole)}<label
-				>Data promisiunii de lider<input type="date" name="promiseDate" /></label
+				>Data promisiunii de lider (opțional)<input type="date" name="promiseDate" /></label
 			>{/if}
 		{#if responsibilityRole === 'helper'}
 			<label class="check"><input type="checkbox" name="canEdit" />Poate modifica membrii</label>

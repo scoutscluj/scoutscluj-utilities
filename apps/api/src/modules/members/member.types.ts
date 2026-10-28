@@ -14,6 +14,16 @@ export const adultRoles = [
   'structure_admin',
 ] as const;
 export type AssignmentRole = 'beneficiary' | (typeof adultRoles)[number];
+export function hasSchoolGrade(member: {
+  category?: string | null;
+  branch?: string | null;
+  adultKind?: string | null;
+}) {
+  const category = member.category ?? member.branch;
+  return category
+    ? ['lupisori', 'temerari', 'exploratori'].includes(category)
+    : !member.adultKind;
+}
 export const structureOf = (value: { structureId?: string | null }) =>
   value.structureId ?? 'cluj';
 export const proposedStructure = (name: string) =>
@@ -90,10 +100,10 @@ export function permissions(
   const leaders = unit.filter(
     (a) =>
       a.role === 'chief' ||
-      (a.role === 'leader' && !!a.groupId && a.groupId === target.groupId),
+      (a.role === 'leader' && a.groupId === target.groupId),
   );
   const direct = unit.filter(
-    (a) => (!!a.groupId && a.groupId === target.groupId) || a.role === 'chief',
+    (a) => a.groupId === target.groupId || a.role === 'chief',
   );
   const read =
     admin ||

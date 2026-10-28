@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import {
   emptyFixedConsent,
   fixedConsentLabels,
+  fixedConsentOptionalFields,
   type FixedConsentDetails,
 } from '@scouts-cluj/parental-consent-schema';
 import {
@@ -53,6 +54,7 @@ export type Question = {
 export type RegistrationSettings = {
   coverImageUrl?: string;
   consent?: FixedConsentDetails | null;
+  unitActivities?: Record<string, string>;
   published: boolean;
   opensAt: string;
   closesAt: string;
@@ -69,7 +71,12 @@ export type RegistrationSettings = {
   feeBani: number;
   branchFees: Record<string, number>;
   familyFees: number[];
-  installments: { amountBani: number; due: string }[];
+  installments: {
+    amountBani: number;
+    due: string;
+    key?: string;
+    method?: 'platform' | 'cash';
+  }[];
   questions: Question[];
   medicalUserIds: number[];
   administrativeUserIds: number[];
@@ -78,6 +85,7 @@ export type RegistrationSettings = {
 export const defaultSettings = (): RegistrationSettings => ({
   coverImageUrl: '',
   consent: null,
+  unitActivities: {},
   published: false,
   opensAt: '',
   closesAt: '',
@@ -150,20 +158,41 @@ export function parseSettings(input: unknown): RegistrationSettings {
     const details = emptyFixedConsent();
     for (const key of Object.keys(details) as (keyof FixedConsentDetails)[])
       details[key] = source[key] ? text(source[key], 12000) : '';
-    const optional = ['activityNotes', 'equipmentNotes'];
-    if (b.published === true)
-      for (const key of Object.keys(details) as (keyof FixedConsentDetails)[]) {
-        if (!details[key] && !optional.includes(key))
-          throw new BadRequestException(
-            `Completează acordul parental: ${fixedConsentLabels[key]}.`,
-          );
-      }
+    if (b.published === true) {
+      const missing = (
+        Object.keys(details) as (keyof FixedConsentDetails)[]
+      ).filter(
+        (key) =>
+          !details[key].trim() && !fixedConsentOptionalFields.includes(key),
+      );
+      if (missing.length)
+        throw new BadRequestException({
+          message:
+            'Completează informațiile obligatorii ale acordului de participare.',
+          issues: missing.map((key) => ({
+            field: `consent.${key}`,
+            label: fixedConsentLabels[key],
+            message: 'Acest câmp este obligatoriu pentru publicare.',
+          })),
+        });
+    }
     if (details.equipment.split('\n').filter((v) => v.trim()).length > 20)
       throw new BadRequestException(
         'Formatul fix permite cel mult 20 de elemente de echipament.',
       );
     s.consent = details;
   }
+  if (b.unitActivities !== undefined) {
+    const entries = Object.entries(record(b.unitActivities));
+    if (entries.length > 100)
+      throw new BadRequestException('Prea multe unități în acord.');
+    s.unitActivities = Object.fromEntries(
+      entries.map(([key, value]) => [
+        text(key, 100),
+        value ? text(value, 12000) : '',
+      ]),
+    );
+  } else s.unitActivities = undefined;
   for (const k of [
     'published',
     'approvalRequired',
@@ -207,10 +236,28 @@ export function parseSettings(input: unknown): RegistrationSettings {
   s.familyFees = b.familyFees.map((v) => amount(v));
   if (!Array.isArray(b.installments) || b.installments.length > 20)
     throw new BadRequestException('Tranșe invalide.');
-  s.installments = b.installments.map((v) => {
+  s.installments = b.installments.map((v, installmentIndex) => {
     const x = record(v);
-    return { amountBani: amount(x.amountBani, false), due: date(x.due) };
+    if (
+      x.method !== undefined &&
+      x.method !== 'platform' &&
+      x.method !== 'cash'
+    )
+      throw new BadRequestException('Alege modalitatea de plată a tranșei.');
+    const key = x.key ? text(x.key, 100) : `installment-${installmentIndex}`;
+    if (!/^[a-zA-Z0-9_-]+$/.test(key))
+      throw new BadRequestException('Identificator de tranșă invalid.');
+    return {
+      amountBani: amount(x.amountBani, false),
+      due: date(x.due),
+      key,
+      method: x.method === 'cash' ? 'cash' : 'platform',
+    };
   });
+  if (new Set(s.installments.map((x) => x.key)).size !== s.installments.length)
+    throw new BadRequestException(
+      'Identificatorii tranșelor trebuie să fie distincți.',
+    );
   if (
     s.installments.some((x) => !x.due) ||
     s.installments.some((x, i) => i > 0 && x.due < s.installments[i - 1].due)
@@ -340,4 +387,66 @@ export function hasCapacity(
       occupying.filter((r) => r.role !== 'staff' && r.branch === branch)
         .length < settings.branchCapacities[branch])
   );
+}
+
+/** Cash tranches remain due, but are never offered to the card processor.
+ * Explicit handoff receipts keep their allocation; other receipts/support cover
+ * the platform portion first. Discounted fees clip the original schedule. */
+export function paymentBreakdown(
+  total: number,
+  covered: number,
+  installments: RegistrationSettings['installments'],
+  entries: { amountBani: number; installmentKey?: string | null }[] = [],
+) {
+  let scheduled = 0;
+  const plan = installments.map((item, index) => {
+    const amountBani = Math.max(
+      0,
+      Math.min(item.amountBani, total - scheduled),
+    );
+    scheduled += amountBani;
+    return { ...item, key: item.key ?? `installment-${index}`, amountBani };
+  });
+  const cash = plan.filter((item) => item.method === 'cash');
+  const cashTotal = cash.reduce((sum, item) => sum + item.amountBani, 0);
+  const platformTotal = total - cashTotal;
+  let credit = Math.max(0, covered);
+  const cashInstallments = cash.map((item) => {
+    const explicit = Math.min(
+      credit,
+      item.amountBani,
+      Math.max(
+        0,
+        entries
+          .filter((e) => e.installmentKey === item.key)
+          .reduce((sum, e) => sum + e.amountBani, 0),
+      ),
+    );
+    credit -= explicit;
+    return { ...item, remainingBani: item.amountBani - explicit };
+  });
+  const platformCovered = Math.min(platformTotal, credit);
+  credit -= platformCovered;
+  for (const item of cashInstallments) {
+    const used = Math.min(item.remainingBani, credit);
+    item.remainingBani -= used;
+    credit -= used;
+  }
+  const cashRemainingBani = cashInstallments.reduce(
+    (sum, item) => sum + item.remainingBani,
+    0,
+  );
+  return {
+    cashInstallments,
+    cashRemainingBani,
+    cardRemainingBani: Math.max(
+      0,
+      total - Math.max(0, covered) - cashRemainingBani,
+    ),
+    installment: installmentBalance(
+      platformTotal,
+      platformCovered,
+      plan.filter((item) => item.method !== 'cash'),
+    ),
+  };
 }

@@ -1,11 +1,16 @@
 <script lang="ts">
+	import FormFeedback from '$lib/components/ui/FormFeedback.svelte';
 	import DateInput from '$lib/components/ui/DateInput.svelte';
-	import { untrack } from 'svelte';
+	import { untrack, tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import RegistrationSettingsEditor from '$lib/activities/RegistrationSettings.svelte';
 	import ActivityTeamFields from '$lib/activities/ActivityTeamFields.svelte';
-	import { money, type RegistrationSettings } from '$lib/activities/registration';
+	import {
+		money,
+		registrationIssues,
+		type RegistrationSettings
+	} from '$lib/activities/registration';
 	import { departmentOptions, activityTypeOptions } from '../[activityId]/activity-meta';
 	let { data, form } = $props();
 	type Values = {
@@ -42,6 +47,9 @@
 	let step = $state(untrack(() => (form?.message ? 5 : 0)));
 	let busy = $state(false);
 	let node = $state<HTMLFormElement>();
+	const submissionIssues = $derived(
+		registrationIssues(form && 'issues' in form ? form.issues : [])
+	);
 	const steps = [
 		'Detalii',
 		'Echipă și departamente',
@@ -145,6 +153,8 @@
 		{#if step >= 2 && step <= 4}<section>
 				<h2>{step + 1}. {steps[step]}</h2>
 				<RegistrationSettingsEditor
+					{submissionIssues}
+					activity={value}
 					embedded
 					{section}
 					activityId={0}
@@ -188,7 +198,19 @@
 					verifica PDF-ul din Setări înainte să distribui pagina.
 				</p>
 			</section>{/if}
-		{#if form?.message}<p role="alert">{form.message}</p>{/if}
+		{#if form?.message}<FormFeedback
+				message={form.message}
+				issues={submissionIssues}
+				onField={async (field) => {
+					if (field.startsWith('consent.')) {
+						step = 3;
+						await tick();
+						const node = document.getElementById(`consent-${field.slice(8)}`);
+						node?.scrollIntoView({ block: 'center' });
+						node?.focus();
+					}
+				}}
+			/>{/if}
 		<footer>
 			{#if step > 0}<button type="button" class="secondary" onclick={() => step--} disabled={busy}
 					>Înapoi</button

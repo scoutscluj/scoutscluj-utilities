@@ -3,16 +3,27 @@
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Globe from '@lucide/svelte/icons/globe';
-	import { registrationRequest, type Publication } from './registration';
+	import FormFeedback from '$lib/components/ui/FormFeedback.svelte';
+	import { focusSettingIssue } from './setting-issues';
+	import {
+		registrationRequest,
+		RegistrationError,
+		type RegistrationIssue,
+		type Publication
+	} from './registration';
 	import { activityEditContext, type ActivityEditState } from './activity-edit-state';
 	let { activityId, publication }: { activityId: number; publication: Publication } = $props();
 	const editing = getContext<ActivityEditState>(activityEditContext);
+	let failed = $state(false),
+		issues = $state<RegistrationIssue[]>([]);
 	let busy = $state(false),
 		message = $state('');
 	const ended = $derived(['ended', 'cancelled'].includes(publication.state));
 	async function toggle() {
 		busy = true;
 		message = '';
+		failed = false;
+		issues = [];
 		try {
 			const saved = await registrationRequest<{ revision: number }>(activityId, 'publication', {
 				revision: publication.revision,
@@ -24,6 +35,8 @@
 				? 'Activitatea este publică. Poți distribui linkul.'
 				: 'Pagina publică a fost retrasă.';
 		} catch (error) {
+			failed = true;
+			issues = error instanceof RegistrationError ? error.issues : [];
 			message = (error as Error).message;
 		} finally {
 			busy = false;
@@ -69,7 +82,14 @@
 						: 'Publică activitatea'}</button
 			>{/if}
 	</div>
-	{#if message}<p class="message" role="status">{message}</p>{/if}
+	{#if message}<div class="message">
+			<FormFeedback
+				{message}
+				kind={failed ? 'error' : 'success'}
+				{issues}
+				onField={(field) => void focusSettingIssue(activityId, field)}
+			/>
+		</div>{/if}
 </section>
 
 <style>

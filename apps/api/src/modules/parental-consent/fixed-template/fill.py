@@ -177,6 +177,10 @@ def transform(source, destination, values=None):
                         # Keep native PAGE/NUMPAGES fields and run formatting in footers.
                         for node in paragraph.findall('.//w:t', NS):
                             node.text = (node.text or '').replace('Cântul Vâlvelor 2026', '{{activity.shortTitle}}').replace('Temerari și exploratori', '{{answer.branch}}')
+                    elif values is not None and value == 'Activități comune':
+                        set_text(paragraph, 'Activități')
+                    elif values is not None and value == 'Activități specifice participanților':
+                        set_text(paragraph, 'Activități specifice unității')
                     elif values is not None and '{{' in value:
                         replaced = re.sub(r'\{\{([^{}]+)\}\}', lambda match: str(values.get(match.group(1), '')), value)
                         # Footers include page number field codes: replace only token text runs.

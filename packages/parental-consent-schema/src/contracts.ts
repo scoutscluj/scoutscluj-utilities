@@ -181,6 +181,7 @@ export type ToggleDetails = { enabled: boolean; details: string };
 
 export type OrganizerDraft = {
   fixedDetails?: import('./fixed.js').FixedConsentDetails;
+  unitActivities?: Record<string, string>;
   schemaVersion: typeof PARENTAL_CONSENT_SCHEMA_VERSION;
   general: {
     title: string;

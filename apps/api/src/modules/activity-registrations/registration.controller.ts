@@ -5,6 +5,7 @@ import {
   Headers,
   HttpException,
   Param,
+  Query,
   ParseIntPipe,
   Patch,
   Post,
@@ -83,8 +84,14 @@ export class RegistrationController {
     @Param('activityId', ParseIntPipe) id: number,
     @Param('branch') branch: string,
     @Res() response: Response,
+    @Query('unitId') unitId?: string,
   ) {
-    const bytes = await this.registrations.consentPreview(user, id, branch);
+    const bytes = await this.registrations.consentPreview(
+      user,
+      id,
+      branch,
+      unitId,
+    );
     response
       .set({
         'Content-Type': 'application/pdf',
@@ -92,6 +99,67 @@ export class RegistrationController {
         'Cache-Control': 'private, no-store',
       })
       .send(bytes);
+  }
+  @Post('consent-preview')
+  @UseGuards(AuthGuard)
+  async draftConsentPreview(
+    @Body() body: unknown,
+    @Req() request: Request,
+    @Res() response: Response,
+  ) {
+    this.limit(request);
+    const bytes = await this.registrations.draftConsentPreview(body);
+    response
+      .set({
+        'Content-Type': 'application/pdf',
+        'Cache-Control': 'private, no-store',
+      })
+      .send(bytes);
+  }
+  @Post(':activityId/consent-preview/:branch')
+  @UseGuards(AuthGuard)
+  async liveConsentPreview(
+    @Actor() user: CurrentUser,
+    @Param('activityId', ParseIntPipe) id: number,
+    @Param('branch') branch: string,
+    @Query('unitId') unitId: string | undefined,
+    @Body() body: unknown,
+    @Req() request: Request,
+    @Res() response: Response,
+  ) {
+    this.limit(request);
+    const bytes = await this.registrations.consentPreview(
+      user,
+      id,
+      branch,
+      unitId,
+      body,
+    );
+    response
+      .set({
+        'Content-Type': 'application/pdf',
+        'Cache-Control': 'private, no-store',
+      })
+      .send(bytes);
+  }
+  @Post(':activityId/registrations/:id/check-in')
+  @UseGuards(AuthGuard)
+  checkIn(
+    @Actor() user: CurrentUser,
+    @Param('activityId', ParseIntPipe) activityId: number,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.registrations.checkIn(activityId, id, body, user);
+  }
+  @Post(':activityId/apply-installments')
+  @UseGuards(AuthGuard)
+  applyInstallments(
+    @Actor() user: CurrentUser,
+    @Param('activityId', ParseIntPipe) activityId: number,
+    @Body() body: unknown,
+  ) {
+    return this.registrations.applyInstallments(activityId, body, user);
   }
   @Get(':activityId') async info(
     @Param('activityId', ParseIntPipe) id: number,

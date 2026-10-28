@@ -7,7 +7,7 @@ test('guest starts with empty answers and can only pay after registration', asyn
 	await expect(page.getByRole('heading', { name: 'Camp de test — Cântul Vâlvelor' })).toBeVisible();
 	await page.getByRole('button', { name: 'Înscrie folosind ID-ul unui membru' }).click();
 	await expect(
-		page.getByText('Autentifică-te pentru a completa automat informațiile cunoscute.', {
+		page.getByText('Fără autentificare, completezi formularul de la zero.', {
 			exact: false
 		})
 	).toBeVisible();
@@ -49,7 +49,7 @@ test('authenticated organizer sees separate money, support and agreement states 
 		.getByRole('link', { name: 'Acord de participare', exact: true })
 		.click();
 	await page.getByRole('button', { name: 'Pregătește acordul acestei activități' }).click();
-	await expect(page.getByLabel('Activități comune')).toBeVisible();
+	await expect(page.locator('#consent-commonActivities')).toBeVisible();
 	await expect(page.getByLabel('Transport la plecare')).toBeVisible();
 	await page.evaluate(() => window.scrollTo(0, 0));
 	await page.screenshot({ path: '../../tmp/registration-settings-desktop.png', fullPage: true });
@@ -146,7 +146,7 @@ test('settings keep the edited revision when another organizer changes configura
 	await expect(page.getByRole('status')).toContainText('Setările de plată au fost salvate.');
 	await fee.fill('310');
 	await page.getByRole('button', { name: 'Salvează setările de plată', exact: true }).click();
-	await expect(page.getByRole('status')).toContainText(
+	await expect(page.getByRole('alert')).toContainText(
 		'Setările au fost modificate. Reîncarcă pagina.'
 	);
 	const current = await (await request.get('http://127.0.0.1:3019/test/current-settings')).json();
@@ -175,7 +175,7 @@ test('new activity wizard configures a different organizer, departments and part
 	await page.getByRole('button', { name: 'Continuă →' }).click();
 	await expect(page.getByRole('heading', { name: '4. Acord de participare' })).toBeVisible();
 	await page.getByRole('button', { name: 'Pregătește acordul acestei activități' }).click();
-	await page.getByLabel('Activități comune').fill('Drumeții și ateliere pentru participanți.');
+	await page.locator('#consent-commonActivities').fill('Drumeții și ateliere pentru participanți.');
 	await expect(page.getByRole('link', { name: /Descarcă un acord de verificare/ })).toHaveCount(0);
 	await page.getByRole('button', { name: 'Continuă →' }).click();
 	await expect(page.getByRole('heading', { name: '5. Taxă și plată' })).toBeVisible();
@@ -277,4 +277,36 @@ test('eligible activities appear inside Activities and the global editor is visi
 	await page.goto('/admin/parental-consent');
 	await expect(page.getByText('Editor de șabloane · suspendat temporar')).toBeVisible();
 	await expect(page.getByRole('button', { name: /Creează/ })).toHaveCount(0);
+});
+
+test('single eligible branch is locked and absent personal medication hides its dependent fields', async ({
+	page,
+	request
+}) => {
+	await request.post('http://127.0.0.1:3019/test/configure', {
+		data: { settings: { unitIds: ['cluj-temerari'] } }
+	});
+	await page.goto('/activitati/1');
+	await expect(page.getByRole('heading', { name: 'Continuă fără autentificare' })).toBeVisible();
+	await page.getByRole('button', { name: 'Înscrie folosind ID-ul unui membru' }).click();
+	const branch = page.getByRole('combobox', { name: 'Ramură', exact: true });
+	await expect(branch).toBeDisabled();
+	await expect(branch).toHaveValue('temerari');
+	await expect(branch.locator('option')).toHaveText(['Temerari']);
+	const medication = page.getByRole('textbox', { name: /^Medicație personală Scrie/ });
+	await medication.fill('Nu există');
+	await expect(
+		page.getByRole('combobox', { name: 'Mod de administrare a medicației personale', exact: true })
+	).toHaveCount(0);
+	await expect(
+		page.getByRole('textbox', { name: 'Medicație personală: doza și orarul', exact: true })
+	).toHaveCount(0);
+	await medication.fill('Medicament prescris');
+	await expect(
+		page.getByRole('combobox', { name: 'Mod de administrare a medicației personale', exact: true })
+	).toBeVisible();
+	await medication.fill('Nu exista.');
+	await expect(
+		page.getByRole('combobox', { name: 'Mod de administrare a medicației personale', exact: true })
+	).toHaveCount(0);
 });

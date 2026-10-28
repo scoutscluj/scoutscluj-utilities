@@ -66,9 +66,16 @@ const members = {
       sensitive: actor.roles.includes(UserRole.SuperAdmin),
     }),
 } as unknown as MembersService;
+let renderedUnitId: string | null | undefined;
 const consent = {
-  renderRegistration: () =>
-    Promise.resolve(Buffer.from('%PDF-1.7\nimmutable registration test')),
+  renderRegistration: (
+    ...args: Parameters<ParentalConsentService['renderRegistration']>
+  ) => {
+    renderedUnitId = args[5];
+    return Promise.resolve(
+      Buffer.from('%PDF-1.7\nimmutable registration test'),
+    );
+  },
 } as unknown as ParentalConsentService;
 const make = (em: EntityManager) =>
   new RegistrationService(em, members, consent, config);
@@ -804,6 +811,312 @@ async function main() {
     );
     console.log(
       'PASS fixed-unit catalog, scoped revision-safe publication and automatic expiry without losing administration',
+    );
+
+    // Resolve legacy roots only when the replacement is unique, without a write on read.
+    const root = await orm.em.fork().findOneOrFail(ScoutUnit, {
+      structureId: 'cluj',
+      branch: 'temerari',
+      fixed: true,
+      parentId: null,
+    });
+    const legacyData = {
+      ...defaultSettings(),
+      unitIds: [legacy.id],
+      structureIds: ['cluj'],
+    };
+    await orm.em
+      .fork()
+      .nativeUpdate(
+        ActivityRegistrationSettings,
+        { activityId: fixedActivity.id },
+        { data: legacyData },
+      );
+    const normalized = await make(orm.em.fork()).settings(fixedActivity.id);
+    assert.deepEqual(normalized.data.unitIds, [root.id]);
+    assert.deepEqual(
+      (
+        await orm.em.fork().findOneOrFail(ActivityRegistrationSettings, {
+          activityId: fixedActivity.id,
+        })
+      ).data.unitIds,
+      [legacy.id],
+    );
+    console.log(
+      'PASS legacy unit compatibility without modifying stored selections',
+    );
+
+    const handoffActivity = em.create(Activity, {
+      coordinatorId: user.id,
+      title: 'Synthetic handoff',
+      type: ActivityType.Camp,
+      startDate: new Date('2027-08-24'),
+      endDate: new Date('2027-08-28'),
+    });
+    em.persist(handoffActivity);
+    await em.flush();
+    const handoffUnit = await orm.em.fork().findOneOrFail(ScoutUnit, {
+      structureId: 'cluj',
+      branch: 'lupisori',
+      fixed: true,
+      parentId: null,
+    });
+    await orm.em
+      .fork()
+      .nativeUpdate(
+        ScoutMember,
+        { id: roster[0].id },
+        { unitId: handoffUnit.id },
+      );
+    const handoffSettings = {
+      ...defaultSettings(),
+      published: true,
+      consent: fixedSettings.consent,
+      unitIds: [handoffUnit.id],
+      unitActivities: {
+        [handoffUnit.id]: 'Activități doar pentru unitatea participantului',
+      },
+      feeBani: 35000,
+      paymentConfirmsPlace: true,
+      installments: [
+        {
+          key: 'platform',
+          method: 'platform' as const,
+          amountBani: 20000,
+          due: '2027-08-01',
+        },
+        {
+          key: 'cash',
+          method: 'cash' as const,
+          amountBani: 15000,
+          due: '2027-08-24',
+        },
+      ],
+    };
+    await make(orm.em.fork()).saveSettings(actor, handoffActivity.id, {
+      revision: 0,
+      data: handoffSettings,
+    });
+    const registered = await make(orm.em.fork()).register(handoffActivity.id, {
+      identifier: String(roster[0].orgoId),
+      email: 'parent@example.test',
+      answers: {
+        ...answers,
+        medical_relevant: 'no',
+        medication: 'Nu există',
+        medication_mode: 'self',
+        medication_dose: 'stale',
+      },
+    });
+    let handoffRow = await orm.em
+      .fork()
+      .findOneOrFail(ActivityRegistration, { id: registered.id });
+    assert.equal(handoffRow.unitId, handoffUnit.id);
+    assert.deepEqual(
+      (await make(orm.em.fork()).publicPage(handoffActivity.id))
+        .eligibleBranches,
+      ['lupisori'],
+    );
+    assert.equal(handoffRow.answers.medication_mode, undefined);
+    assert.equal(handoffRow.answers.medication_dose, undefined);
+    assert.equal(
+      (await make(orm.em.fork()).balance(handoffRow)).cardRemainingBani,
+      20000,
+    );
+    await assert.rejects(
+      payments().checkout(handoffActivity.id, {
+        identifier: String(roster[0].orgoId),
+        acceptTerms: true,
+        full: true,
+        amountBani: 35000,
+      }),
+      /Suma s-a schimbat/,
+    );
+    await make(orm.em.fork()).generate(
+      handoffActivity.id,
+      registered.id,
+      registered.managementToken,
+    );
+    assert.equal(renderedUnitId, handoffUnit.id);
+    const staffForUnit = await make(orm.em.fork()).register(
+      handoffActivity.id,
+      staffInput,
+    );
+    assert.equal(
+      (
+        await orm.em
+          .fork()
+          .findOneOrFail(ActivityRegistration, { id: staffForUnit.id })
+      ).totalBani,
+      0,
+    );
+    assert(
+      (
+        await make(orm.em.fork()).eligibleActivities({
+          ...actor,
+          id: 99998,
+          roles: [],
+          orgoConnection: { orgoUserId: staff.orgoId! },
+        })
+      ).some((a) => a.id === handoffActivity.id),
+    );
+    // Combined confirmation must roll back the paper flag if the displayed cash changed.
+    await assert.rejects(
+      make(orm.em.fork()).checkIn(
+        handoffActivity.id,
+        registered.id,
+        {
+          revision: handoffRow.revision,
+          paper: true,
+          cashKeys: ['cash'],
+          cashBani: 1,
+        },
+        actor,
+      ),
+    );
+    assert.equal(
+      (
+        await orm.em
+          .fork()
+          .findOneOrFail(ActivityRegistration, { id: registered.id })
+      ).consentState,
+      'awaiting',
+    );
+    const attempts = await Promise.allSettled(
+      [1, 2].map(() =>
+        make(orm.em.fork()).checkIn(
+          handoffActivity.id,
+          registered.id,
+          {
+            revision: handoffRow.revision,
+            paper: true,
+            cashKeys: ['cash'],
+            cashBani: 15000,
+          },
+          actor,
+        ),
+      ),
+    );
+    assert.equal(attempts.filter((r) => r.status === 'fulfilled').length, 1);
+    handoffRow = await orm.em
+      .fork()
+      .findOneOrFail(ActivityRegistration, { id: registered.id });
+    assert.equal(handoffRow.consentState, 'paper_received');
+    let handoffBalance = await make(orm.em.fork()).balance(handoffRow);
+    assert.equal(handoffBalance.cashRemainingBani, 0);
+    assert.equal(handoffBalance.remainingBani, 20000);
+    assert.equal(handoffBalance.cardRemainingBani, 20000);
+    assert.equal(
+      handoffBalance.entries.filter((e) => e.installmentKey === 'cash').length,
+      1,
+    );
+    const cashEntry = handoffBalance.entries.find(
+      (e) => e.installmentKey === 'cash',
+    )!;
+    await make(orm.em.fork()).update(
+      handoffActivity.id,
+      registered.id,
+      {
+        revision: handoffRow.revision,
+        action: 'reversal',
+        entryId: cashEntry.id,
+        note: 'Synthetic correction',
+      },
+      actor,
+    );
+    handoffRow = await orm.em
+      .fork()
+      .findOneOrFail(ActivityRegistration, { id: registered.id });
+    handoffBalance = await make(orm.em.fork()).balance(handoffRow);
+    assert.equal(handoffBalance.cashRemainingBani, 15000);
+    assert.equal(handoffBalance.remainingBani, 35000);
+    await assert.rejects(
+      make(orm.em.fork()).checkIn(
+        handoffActivity.id,
+        registered.id,
+        { revision: handoffRow.revision, cashKeys: ['cash'], cashBani: 15000 },
+        { ...actor, id: medicalUser.id, roles: [] },
+      ),
+    );
+    const revised = await make(orm.em.fork()).saveSettings(
+      actor,
+      handoffActivity.id,
+      {
+        revision: 1,
+        data: {
+          ...handoffSettings,
+          installments: handoffSettings.installments.map((i) => ({
+            ...i,
+            method: 'platform',
+          })),
+        },
+      },
+    );
+    assert.equal(
+      (
+        await orm.em
+          .fork()
+          .findOneOrFail(ActivityRegistration, { id: registered.id })
+      ).installments[1].method,
+      'cash',
+    );
+    const pendingCheckout = em.create(ActivityRegistrationCheckout, {
+      registrationId: registered.id,
+      amountBani: 1000,
+      provider: 'stripe',
+      environment: 'test',
+      providerConfigId: providerConfig.id,
+      state: 'pending',
+    });
+    em.persist(pendingCheckout);
+    await em.flush();
+    await assert.rejects(
+      make(orm.em.fork()).applyInstallments(
+        handoffActivity.id,
+        { revision: revised.revision, confirm: true },
+        actor,
+      ),
+      /plăți în curs/,
+    );
+    await orm.em
+      .fork()
+      .nativeDelete(ActivityRegistrationCheckout, { id: pendingCheckout.id });
+    await make(orm.em.fork()).applyInstallments(
+      handoffActivity.id,
+      { revision: revised.revision, confirm: true },
+      actor,
+    );
+    handoffRow = await orm.em
+      .fork()
+      .findOneOrFail(ActivityRegistration, { id: registered.id });
+    assert.equal(
+      (await make(orm.em.fork()).balance(handoffRow)).cardRemainingBani,
+      35000,
+    );
+    assert.equal(handoffRow.totalBani, 35000);
+    const beforeRenewal = handoffRow.consentPublicationId;
+    const finalSettings = await make(orm.em.fork()).settings(
+      handoffActivity.id,
+    );
+    await make(orm.em.fork()).saveSettings(actor, handoffActivity.id, {
+      revision: finalSettings.settings!.revision,
+      data: { ...finalSettings.data, unitIds: [root.id], unitActivities: {} },
+    });
+    const renewal = await make(orm.em.fork()).renewConsent(
+      handoffActivity.id,
+      actor,
+    );
+    assert.equal(renewal.updated, 0);
+    assert.equal(
+      (
+        await orm.em
+          .fork()
+          .findOneOrFail(ActivityRegistration, { id: registered.id })
+      ).consentPublicationId,
+      beforeRenewal,
+    );
+    console.log(
+      'PASS cash-only card allocation, atomic handoff, duplicate prevention, correction, permissions and explicit plan application',
     );
   } finally {
     await orm.close(true);

@@ -1,9 +1,11 @@
 <script lang="ts">
+	import FormFeedback from '$lib/components/ui/FormFeedback.svelte';
 	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
 	import {
 		fixedConsentTerms,
+		participationFieldVisible,
 		type FixedConsentDetails
 	} from '@scouts-cluj/parental-consent-schema';
 	import RegistrationPayment from '$lib/activities/RegistrationPayment.svelte';
@@ -17,7 +19,19 @@
 		busy = $state(false),
 		message = $state(''),
 		formOpen = $state(false);
+	let failed = $state(false);
+	const branchNames: Record<string, string> = {
+		lupisori: 'Lupișori',
+		temerari: 'Temerari',
+		exploratori: 'Exploratori',
+		seniori: 'Seniori'
+	};
+	const allowedBranches = $derived(data.page.eligibleBranches ?? Object.keys(branchNames));
 	let branch = $state('');
+	$effect(() => {
+		if (allowedBranches.length === 1) branch = allowedBranches[0];
+		else if (!allowedBranches.includes(branch)) branch = '';
+	});
 	let exception = $state(false),
 		exceptionNote = $state('');
 	const activity = $derived(data.page.activity);
@@ -25,19 +39,21 @@
 	const fields = $derived(
 		data.page.fields.filter(
 			(f) =>
-				!major ||
-				![
-					'guardian_name',
-					'guardian_relation',
-					'guardian_phone',
-					'secondary_phone',
-					'acknowledgement'
-				].includes(f.code)
+				participationFieldVisible(f.code, answers) &&
+				(!major ||
+					![
+						'guardian_name',
+						'guardian_relation',
+						'guardian_phone',
+						'secondary_phone',
+						'acknowledgement'
+					].includes(f.code))
 		)
 	);
 	async function prefill(own = false) {
 		busy = true;
 		message = '';
+		failed = false;
 		if (own) identifier = String(data.user?.orgoConnection?.orgoUserId ?? '');
 		try {
 			const value = await registrationRequest<{
@@ -47,7 +63,11 @@
 			}>(activity.id, 'prefill', { identifier });
 			answers = value.answers;
 			email = value.email;
-			branch = value.branch;
+			branch = allowedBranches.includes(value.branch)
+				? value.branch
+				: allowedBranches.length === 1
+					? allowedBranches[0]
+					: '';
 			const birth = String(answers.birth_date ?? '');
 			if (birth && activity.startDate)
 				major =
@@ -55,6 +75,7 @@
 			message =
 				'Datele cunoscute au fost completate. Verifică informațiile de contact și medicale pentru această activitate. Acordurile se aleg din nou.';
 		} catch (e) {
+			failed = true;
 			message = (e as Error).message;
 		} finally {
 			busy = false;
@@ -63,6 +84,7 @@
 	async function register() {
 		busy = true;
 		message = '';
+		failed = false;
 		try {
 			const result = await registrationRequest<{ managementToken: string }>(
 				activity.id,
@@ -71,6 +93,7 @@
 			);
 			await goto(resolve(`/activitati/${activity.id}/inscriere/${result.managementToken}?nou=1`));
 		} catch (e) {
+			failed = true;
 			message = (e as Error).message;
 			busy = false;
 		}
@@ -138,7 +161,7 @@
 		<section>
 			<h2>Program, transport și echipament</h2>
 			{#each Object.entries(data.page.information.branches) as [code, details] (code)}
-				{#if details.enabled}<details>
+				{#if details.enabled && allowedBranches.includes(code)}<details>
 						<summary
 							>{(
 								{
@@ -185,27 +208,49 @@
 		</details>{/if}
 	<section id="registration">
 		<h2>Înscriere</h2>
-		{#if !data.user}<div class="notice">
-				Autentifică-te pentru a completa automat informațiile cunoscute. Fără autentificare,
-				formularul se completează de la zero. <a
-					href={resolve(
-						`/auth/orgo/start?redirectTo=${encodeURIComponent(`/activitati/${activity.id}`)}`
-					)}>Autentifică-te cu Orgo</a
-				>
-			</div>{/if}
 		{#if !formOpen}
-			<div class="actions">
-				{#if data.user}<button
-						onclick={() => {
-							formOpen = true;
-							void prefill(true);
-						}}>Înscriere pentru mine</button
-					>{/if}
-				<button class="secondary" onclick={() => (formOpen = true)}
-					>Înscrie folosind ID-ul unui membru</button
-				>
+			<div class="flow-grid">
+				<div class="flow-card">
+					<div class="flow-icon" aria-hidden="true">◎</div>
+					<h3>{data.user ? 'Din contul tău' : 'Ai cont Orgo?'}</h3>
+					<p>
+						{data.user
+							? 'Datele cunoscute se completează automat. Verifici formularul și descarci acordul la final.'
+							: 'Autentifică-te pentru completarea automată a informațiilor cunoscute și acces la înscrierile gestionate.'}
+					</p>
+					{#if data.user}<button
+							onclick={() => {
+								formOpen = true;
+								void prefill(true);
+							}}>Înscriere pentru mine</button
+						>{:else}<a
+							class="primary-link"
+							href={resolve(
+								`/auth/orgo/start?redirectTo=${encodeURIComponent(`/activitati/${activity.id}`)}`
+							)}>Autentifică-te cu Orgo</a
+						>{/if}
+				</div>
+				<div class="flow-card">
+					<div class="flow-icon" aria-hidden="true">#</div>
+					<h3>{data.user ? 'Înscrie alt membru' : 'Continuă fără autentificare'}</h3>
+					<p>
+						{data.user
+							? 'Folosește ID-ul membrului și completează automat datele la care ai acces.'
+							: 'Ai nevoie doar de ID-ul Orgo sau ID-ul de pe cardul membrului. Completezi formularul de la zero.'}
+					</p>
+					<button class="secondary" onclick={() => (formOpen = true)}
+						>Înscrie folosind ID-ul unui membru</button
+					>
+				</div>
 			</div>
 		{:else}
+			{#if !data.user}<p class="guest-info">
+					Fără autentificare, completezi formularul de la zero. <a
+						href={resolve(
+							`/auth/orgo/start?redirectTo=${encodeURIComponent(`/activitati/${activity.id}`)}`
+						)}>Autentifică-te pentru completare automată</a
+					>.
+				</p>{/if}
 			<form
 				onsubmit={(e) => {
 					e.preventDefault();
@@ -256,13 +301,13 @@
 						/></label
 					>
 					<label
-						>Ramură<select bind:value={branch} required
-							><option value="">Alege ramura</option><option value="lupisori">Lupișori</option
-							><option value="temerari">Temerari</option><option value="exploratori"
-								>Exploratori</option
-							><option value="seniori">Seniori</option></select
-						></label
-					>
+						>Ramură<select bind:value={branch} required disabled={allowedBranches.length === 1}>
+							{#if allowedBranches.length !== 1}<option value="">Alege ramura</option>{/if}
+							{#each allowedBranches as code (code)}<option value={code}
+									>{branchNames[code] ?? code}</option
+								>{/each}</select
+						>
+					</label>
 					{#each fields as field (field.code)}
 						{#if field.type === 'multiple_choice'}<fieldset>
 								<legend>{field.label}</legend>
@@ -362,7 +407,8 @@
 						activitate.
 					</p>
 				{/if}
-				{#if message}<p role="alert">{message}</p>{/if}<button disabled={busy}
+				{#if message}<FormFeedback {message} kind={failed ? 'error' : 'info'} />{/if}<button
+					disabled={busy}
 					>{busy
 						? 'Se salvează…'
 						: role === 'staff'
@@ -372,16 +418,50 @@
 			</form>{/if}
 	</section>
 	<section id="payment">
-		<h2>Plătește o înscriere existentă</h2>
-		<p>
-			Introdu ID-ul membrului după ce a fost înscris la această activitate. Plata este disponibilă
-			când înscrierea are un loc și o taxă de achitat.
-		</p>
 		<RegistrationPayment activityId={activity.id} />
 	</section>
 </main>
 
 <style>
+	.flow-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 16px;
+	}
+	.flow-card {
+		display: flex;
+		flex-direction: column;
+		align-items: start;
+		gap: 12px;
+		padding: 24px;
+		border: 1px solid var(--sc-border);
+		border-radius: 10px;
+		background: var(--sc-surface);
+	}
+	.flow-card h3,
+	.flow-card p {
+		margin: 0;
+	}
+	.flow-card p {
+		flex: 1;
+		color: var(--sc-muted);
+	}
+	.flow-icon {
+		width: 38px;
+		height: 38px;
+		display: grid;
+		place-items: center;
+		background: var(--sc-accent-soft);
+		color: var(--sc-accent);
+		border-radius: 8px;
+		font-size: 22px;
+	}
+	@media (max-width: 650px) {
+		.flow-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+
 	.cover {
 		width: 100%;
 		max-height: 360px;
@@ -506,13 +586,6 @@
 	legend {
 		font-weight: 600;
 	}
-	.notice {
-		padding: 16px;
-		background: var(--sc-canvas);
-		border-radius: 7px;
-		margin-bottom: 16px;
-		line-height: 1.6;
-	}
 	button {
 		width: fit-content;
 		min-height: 38px;
@@ -545,9 +618,6 @@
 	summary {
 		cursor: pointer;
 		font-weight: 600;
-	}
-	[role='alert'] {
-		color: var(--sc-accent);
 	}
 	@media (max-width: 600px) {
 		main {

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import FormFeedback from '$lib/components/ui/FormFeedback.svelte';
+	let failed = $state(false);
 	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import { resolve } from '$app/paths';
 	import { invalidateAll } from '$app/navigation';
@@ -85,12 +87,23 @@
 	async function run(path: string, body: unknown, method = 'POST') {
 		busy = true;
 		message = '';
+		failed = false;
 		try {
-			await registrationRequest(activityId, path, body, undefined, method);
+			const result = await registrationRequest<{ updated?: number; skipped?: number }>(
+				activityId,
+				path,
+				body,
+				undefined,
+				method
+			);
 			await invalidateAll();
-			message = 'Modificările au fost salvate.';
+			message =
+				path === 'renew-consent'
+					? `Actualizarea acordului a fost solicitată pentru ${result.updated ?? 0} participanți.${result.skipped ? ` Pentru ${result.skipped} participanți din afara grupurilor curente, acordul anterior a fost păstrat.` : ''}`
+					: 'Modificările au fost salvate.';
 			return true;
 		} catch (e) {
+			failed = true;
 			message = (e as Error).message;
 			return false;
 		} finally {
@@ -233,7 +246,10 @@
 			<div><small>Susținere din centrul local</small><strong>{money(totals.support)}</strong></div>
 			<div><small>Sold de acoperit</small><strong>{money(totals.remaining)}</strong></div>
 		</div>{/if}
-	{#if overview.capabilities.manage}<ActivitySettingsLink
+	{#if overview.capabilities.manage}<a href={resolve(`/activities/${activityId}/check-in`)}
+			>Primire participanți →</a
+		>
+		<ActivitySettingsLink
 			{activityId}
 			section={paymentsView ? 'plati' : 'inscrieri'}
 			label={paymentsView ? 'Setări plată' : 'Setări înscrieri'}
@@ -243,7 +259,7 @@
 			`/activities/${activityId}/${paymentsView ? 'registrations' : 'finance/participation'}`
 		)}>{paymentsView ? 'Vezi înscrierile și acordurile' : 'Vezi plățile participării'} →</a
 	>
-	{#if message}<p role="status" class="notice">{message}</p>{/if}
+	{#if message}<FormFeedback {message} kind={failed ? 'error' : 'info'} />{/if}
 
 	<div class="toolbar">
 		<label
@@ -374,7 +390,8 @@
 	>
 		{#if action === 'renew'}<p>
 				Acordurile înscrierilor afectate vor folosi publicația curentă și vor fi marcate „Necesită
-				acord actualizat”. Documentele anterioare rămân în istoric.
+				acord actualizat”. Participanții din afara unităților și ramurilor pregătite păstrează
+				acordul anterior. Documentele deja emise rămân în istoric.
 			</p>
 		{:else if action === 'close_checkout'}<p>
 				Verifică încercarea la procesator. Pentru Stripe, aplicația solicită închiderea sesiunii și
@@ -463,8 +480,8 @@
 				Confirmă că ai primit fizic acordul semnat pentru versiunea curentă a activității.
 			</p>
 		{:else}<p>Confirmă respingerea înscrierii.</p>{/if}
-		{#if message}<p role="status">{message}</p>{/if}<button disabled={busy}
-			>{busy ? 'Se salvează…' : 'Confirmă modificarea'}</button
+		{#if message}<FormFeedback {message} kind={failed ? 'error' : 'success'} />{/if}<button
+			disabled={busy}>{busy ? 'Se salvează…' : 'Confirmă modificarea'}</button
 		>
 	</form>
 </Modal>
@@ -501,8 +518,8 @@
 		<label
 			>Confirmarea relației și motivul ajustării<textarea bind:value={familyNote} required
 			></textarea></label
-		>{#if message}<p role="status">{message}</p>{/if}<button disabled={busy}
-			>Confirmă familia și aplică tarifele</button
+		>{#if message}<FormFeedback {message} kind={failed ? 'error' : 'success'} />{/if}<button
+			disabled={busy}>Confirmă familia și aplică tarifele</button
 		>
 	</form>
 </Modal>

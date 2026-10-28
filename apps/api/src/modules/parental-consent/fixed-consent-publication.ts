@@ -21,6 +21,8 @@ export async function publishFixedConsent(
   details: FixedConsentDetails,
   actorId: number,
   revision: number,
+  unitActivities?: Record<string, string>,
+  eligibleBranches?: string[],
 ) {
   const draft = createEmptyOrganizerDraft();
   const date = (value: Date | string | undefined | null) =>
@@ -35,9 +37,11 @@ export async function publishFixedConsent(
     emergencyContactPhone: '',
   };
   draft.fixedDetails = structuredClone(details);
+  if (unitActivities !== undefined)
+    draft.unitActivities = structuredClone(unitActivities);
   for (const branch of branchCodes)
     draft.branches[branch] = {
-      enabled: true,
+      enabled: !eligibleBranches || eligibleBranches.includes(branch),
       startDate: draft.general.startDate,
       endDate: draft.general.endDate,
       activities: [

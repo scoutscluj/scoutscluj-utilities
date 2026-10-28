@@ -3,6 +3,7 @@ import { execFile } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { promisify } from 'node:util';
+import { consentForUnit } from '@scouts-cluj/parental-consent-schema';
 import { renderFixedConsent } from '../src/modules/parental-consent/fixed-consent-renderer';
 
 async function main() {
@@ -35,7 +36,11 @@ async function main() {
     startDate: '2027-05-15',
     endDate: '2027-05-16',
     branch: 'temerari',
-    details,
+    details: consentForUnit(
+      details,
+      { one: details.specificActivities, two: 'OTHER_UNIT_MUST_NOT_APPEAR' },
+      'one',
+    ),
     answers: {
       participant_name: 'Participant de test Ștefan',
       birth_date: '2013-03-14',
@@ -50,7 +55,9 @@ async function main() {
       medical_relevant: 'no',
       acknowledgement: true,
       photo_uses: ['closed_groups'],
-      medication_mode: 'none',
+      medication: 'Nu există',
+      medication_mode: 'self',
+      medication_dose: 'STALE_MEDICATION_MUST_NOT_APPEAR',
     },
   });
   assert(bytes.subarray(0, 5).equals(Buffer.from('%PDF-')));
@@ -78,6 +85,8 @@ async function main() {
     'Opriș Dan',
     'Gabriel Boer',
     'Roșia Montană',
+    'OTHER_UNIT_MUST_NOT_APPEAR',
+    'STALE_MEDICATION_MUST_NOT_APPEAR',
   ])
     assert(!stdout.includes(stale), `Stale template content: ${stale}`);
   console.log(

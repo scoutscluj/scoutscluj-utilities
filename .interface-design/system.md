@@ -77,6 +77,10 @@ and row expansions that move the rest of the register.
 - Avoid redundant eyebrows, subtitles and “Registru” headings on the member
   screens. Use one page title and a compact inline member/unit summary.
 
+- `FormFeedback.svelte` presents submission errors as prominent alerts, with optional links to affected fields. Error panels receive focus; ordinary success messages do not steal input focus.
+- The fixed activity agreement editor places a live PDF preview beside its fields on desktop and below them on mobile. Reuse PDF.js for page navigation and zoom; no browser PDF plugin is required. Keep common activities separate from optional activities selected by participant unit, and equipment as an add/remove list.
+- Participant handoff uses explicit, revision-checked receipt actions for physical agreements and cash-only tranches. Display the exact cash amount and already-completed states; combine document/cash confirmation atomically. Existing installment plans change only after explicit application of a saved plan.
+
 ## Implementation
 
 The Interface Design and official shadcn-svelte agent skills are installed.

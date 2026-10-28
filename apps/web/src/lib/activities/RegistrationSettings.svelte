@@ -7,14 +7,19 @@
 		if (editing) editing.dirty = false;
 	});
 	import { invalidateAll } from '$app/navigation';
-	import { resolve } from '$app/paths';
+	import ConsentEditor from './ConsentEditor.svelte';
+	import Modal from '$lib/components/ui/Modal.svelte';
 	import ParticipationFeeField from './ParticipationFeeField.svelte';
+	import FormFeedback from '$lib/components/ui/FormFeedback.svelte';
+	import { focusSettingIssue } from './setting-issues';
+	import { emptyFixedConsent } from '@scouts-cluj/parental-consent-schema';
 	import {
-		emptyFixedConsent,
-		fixedConsentLabels,
-		type FixedConsentDetails
-	} from '@scouts-cluj/parental-consent-schema';
-	import { registrationRequest, type RegistrationSettings, type Overview } from './registration';
+		registrationRequest,
+		RegistrationError,
+		type RegistrationIssue,
+		type RegistrationSettings,
+		type Overview
+	} from './registration';
 	let {
 		activityId,
 		initial,
@@ -23,9 +28,13 @@
 		fee,
 		embedded = false,
 		section = 'all',
+		activity,
+		submissionIssues = [],
 		value = $bindable()
 	}: {
 		activityId: number;
+		submissionIssues?: RegistrationIssue[];
+		activity?: { title?: string; location?: string; startDate?: string; endDate?: string };
 		initial: RegistrationSettings;
 		revision: number;
 		lists: Overview['lists'];
@@ -86,6 +95,30 @@
 	});
 	let busy = $state(false),
 		message = $state('');
+	let failed = $state(false),
+		issues = $state<RegistrationIssue[]>([]),
+		applyOpen = $state(false);
+	async function applyPlan() {
+		busy = true;
+		message = '';
+		try {
+			const result = await registrationRequest<{ count: number }>(
+				activityId,
+				'apply-installments',
+				{ revision: baseRevision, confirm: true }
+			);
+			applyOpen = false;
+			failed = false;
+			message = `Planul de plată a fost aplicat pentru ${result.count} înscrieri. Taxele și încasările au fost păstrate.`;
+			await invalidateAll();
+		} catch (error) {
+			failed = true;
+			message = (error as Error).message;
+			applyOpen = false;
+		} finally {
+			busy = false;
+		}
+	}
 	const branches = [
 		{ id: 'lupisori', name: 'Lupișori' },
 		{ id: 'temerari', name: 'Temerari' },
@@ -108,6 +141,8 @@
 	async function save() {
 		busy = true;
 		message = '';
+		failed = false;
+		issues = [];
 		try {
 			const saved = await registrationRequest<{ revision: number; data: RegistrationSettings }>(
 				activityId,
@@ -136,6 +171,8 @@
 						? 'Datele acordului au fost salvate. Documentele existente rămân în istoric.'
 						: 'Setările înscrierilor au fost salvate.';
 		} catch (e) {
+			failed = true;
+			issues = e instanceof RegistrationError ? e.issues : [];
 			message = (e as Error).message;
 		} finally {
 			busy = false;
@@ -151,6 +188,12 @@
 		void save();
 	}}
 >
+	{#if message}<FormFeedback
+			{message}
+			kind={failed ? 'error' : 'success'}
+			{issues}
+			onField={(field) => void focusSettingIssue(activityId, field)}
+		/>{/if}
 	<fieldset
 		id="inscrieri"
 		hidden={section !== 'all' && section !== 'registration'}
@@ -189,32 +232,15 @@
 				onclick={() => (settings.consent = emptyFixedConsent())}
 				>Pregătește acordul acestei activități</button
 			>{/if}
-		{#if settings.consent}
-			{#each Object.entries(fixedConsentLabels) as [key, label] (key)}
-				<label
-					>{label}<textarea
-						rows={['representative', 'coordinators'].includes(key) ? 2 : 5}
-						maxlength="12000"
-						bind:value={settings.consent[key as keyof FixedConsentDetails]}
-						placeholder={key === 'commonActivities'
-							? 'Descrie aici, pe larg, activitățile. Nu copia programul unei alte tabere.'
-							: ''}
-					></textarea></label
-				>
-			{/each}
-			<p>
-				Scrie explicit „Nu se aplică” unde este cazul. Pentru echipament: cel mult 20 de elemente.
-				Salvarea unei pagini publicate păstrează o versiune nouă a acordului; documentele
-				participanților deja înscriși nu sunt înlocuite automat.
-			</p>
-			{#if !embedded}<p>
-					După salvare, verifică formatul: <a
-						href={resolve(`/activitati/${activityId}/api/consent-preview/temerari`)}
-						>Descarcă un acord de verificare, fără date de participant</a
-					>.
-				</p>{:else}<p>
-					După creare, poți descărca și verifica PDF-ul din Setările activității.
-				</p>{/if}
+		{#if settings.consent && (section === 'all' || section === 'consent')}
+			<ConsentEditor
+				{settings}
+				{lists}
+				{activityId}
+				{activity}
+				issues={[...issues, ...submissionIssues]}
+				saved={!embedded && !!initial.consent}
+			/>
 		{/if}
 	</fieldset>
 	<fieldset
@@ -396,7 +422,8 @@
 		<legend>Tranșe</legend>
 		<p>
 			Fără tranșe, se achită soldul integral. Pentru taxele reduse, tranșele se limitează la taxa
-			participantului; soldul neacoperit de tranșe rămâne achitabil.
+			participantului; soldul neacoperit de tranșe rămâne achitabil. Tranșele cash rămân în sold și
+			se validează la primirea participantului. Plata cu cardul le exclude.
 		</p>
 		{#each settings.installments as installment, index (index)}<div class="row">
 				<label
@@ -409,6 +436,14 @@
 						oninput={(e) =>
 							(installment.amountBani = Math.round(Number(e.currentTarget.value) * 100))}
 					/></label
+				><label
+					>Modalitate<select
+						value={installment.method ?? 'platform'}
+						onchange={(e) => (installment.method = e.currentTarget.value as 'platform' | 'cash')}
+						><option value="platform">Card / transfer / înregistrare manuală</option><option
+							value="cash">Doar cash la predare</option
+						></select
+					></label
 				><label>Scadența<DateInput type="date" bind:value={installment.due} required /></label
 				><button
 					type="button"
@@ -419,8 +454,24 @@
 		<button
 			type="button"
 			class="secondary"
-			onclick={() => settings.installments.push({ amountBani: 0, due: '' })}>Adaugă tranșă</button
+			onclick={() =>
+				settings.installments.push({
+					amountBani: 0,
+					due: '',
+					key: crypto.randomUUID(),
+					method: 'platform'
+				})}>Adaugă tranșă</button
 		>
+		{#if !embedded}<p>
+				Modificările se aplică înscrierilor viitoare. Pentru cele existente, salvează și aplică
+				explicit planul.
+			</p>
+			<button
+				type="button"
+				class="secondary"
+				disabled={busy || JSON.stringify(settings) !== baseline}
+				onclick={() => (applyOpen = true)}>Aplică planul salvat înscrierilor existente</button
+			>{/if}
 	</fieldset>
 	<fieldset
 		id="intrebari"
@@ -527,7 +578,7 @@
 			>
 		</details>
 	</fieldset>
-	{#if message}<p role="status">{message}</p>{/if}{#if !embedded}<button disabled={busy}
+	{#if !embedded}<button disabled={busy}
 			>{busy
 				? 'Se salvează…'
 				: section === 'payment'
@@ -537,6 +588,14 @@
 						: 'Salvează setările înscrierilor'}</button
 		>{/if}
 </svelte:element>
+
+<Modal
+	bind:open={applyOpen}
+	title="Aplică planul de plată înscrierilor existente"
+	description="Toate înscrierile active primesc tranșele salvate. Taxele individuale și încasările rămân aceleași. Plățile cu cardul în curs trebuie rezolvate înainte."
+	><button type="button" disabled={busy} onclick={applyPlan}>Confirmă aplicarea planului</button
+	></Modal
+>
 
 <style>
 	fieldset[hidden] {

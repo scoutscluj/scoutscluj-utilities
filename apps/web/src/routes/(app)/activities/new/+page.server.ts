@@ -1,7 +1,11 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { apiFetch } from '$lib/server/api';
 import { SESSION_COOKIE_NAME } from '$lib/server/cookies';
-import type { Overview, RegistrationSettings } from '$lib/activities/registration';
+import type {
+	Overview,
+	RegistrationSettings,
+	RegistrationIssue
+} from '$lib/activities/registration';
 import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ cookies }) => {
 	const headers = {
@@ -41,11 +45,15 @@ export const actions: Actions = {
 			body: JSON.stringify(values)
 		});
 		if (!response.ok) {
-			const result = (await response.json()) as { message?: string | string[] };
+			const result = (await response.json()) as {
+				message?: string | string[];
+				issues?: RegistrationIssue[];
+			};
 			return fail(response.status, {
 				message: Array.isArray(result.message)
 					? result.message.join(' ')
 					: (result.message ?? 'Activitatea nu a putut fi salvată.'),
+				issues: result.issues ?? [],
 				values
 			});
 		}

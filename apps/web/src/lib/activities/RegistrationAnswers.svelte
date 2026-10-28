@@ -1,8 +1,14 @@
 <script lang="ts">
+	import FormFeedback from '$lib/components/ui/FormFeedback.svelte';
+	let failed = $state(false);
 	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import { untrack } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
-	import { participationFields, type FormField } from '@scouts-cluj/parental-consent-schema';
+	import {
+		participationFields,
+		participationFieldVisible,
+		type FormField
+	} from '@scouts-cluj/parental-consent-schema';
 	import { registrationRequest, type Answer, type Registration } from './registration';
 	let { row, activityId, token }: { row: Registration; activityId: number; token: string } =
 		$props();
@@ -13,6 +19,7 @@
 	const fields = $derived<FormField[]>([
 		...participationFields.filter(
 			(f) =>
+				participationFieldVisible(f.code, editing ? answers : (row.answers ?? {})) &&
 				f.type !== 'signature' &&
 				(row.minor ||
 					![
@@ -56,6 +63,7 @@
 	async function save() {
 		busy = true;
 		message = '';
+		failed = false;
 		try {
 			await registrationRequest(
 				activityId,
@@ -68,6 +76,7 @@
 			message =
 				'Informațiile au fost actualizate. Descarcă și semnează din nou acordul actualizat, dacă este necesar.';
 		} catch (e) {
+			failed = true;
 			message = (e as Error).message;
 		} finally {
 			busy = false;
@@ -156,7 +165,7 @@
 				>
 			</div>
 		</form>{/if}
-	{#if message}<p role="status">{message}</p>{/if}
+	{#if message}<FormFeedback {message} kind={failed ? 'error' : 'success'} />{/if}
 </section>
 
 <style>

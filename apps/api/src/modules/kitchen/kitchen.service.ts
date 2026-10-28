@@ -1,3 +1,4 @@
+import { isActivityAdministrator } from '../activities/activity-access';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import {
@@ -1660,7 +1661,7 @@ export class KitchenService {
 
   private ensureCanReadKitchen(user: CurrentUser, activity: Activity) {
     if (
-      activity.coordinatorId !== user.id &&
+      !isActivityAdministrator(activity, user.id) &&
       !user.roles.includes(UserRole.FinanceManager) &&
       !user.roles.includes(UserRole.SuperAdmin)
     ) {
@@ -1670,7 +1671,7 @@ export class KitchenService {
 
   private ensureCanManageKitchen(user: CurrentUser, activity: Activity) {
     if (
-      activity.coordinatorId !== user.id &&
+      !isActivityAdministrator(activity, user.id) &&
       !user.roles.includes(UserRole.SuperAdmin)
     ) {
       throw new ForbiddenException(
@@ -1684,7 +1685,7 @@ export class KitchenService {
     activity: Activity,
   ) {
     if (
-      activity.coordinatorId !== user.id &&
+      !isActivityAdministrator(activity, user.id) &&
       !user.roles.includes(UserRole.FinanceManager) &&
       !user.roles.includes(UserRole.SuperAdmin)
     ) {

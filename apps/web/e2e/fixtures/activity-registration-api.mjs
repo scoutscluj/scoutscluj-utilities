@@ -45,7 +45,11 @@ const settings = {
 	terms: 'Taxa este aceeași pentru toate metodele de plată. Retragerea se discută cu organizatorul.'
 };
 let row;
+let created = null;
+const originalActivity = structuredClone(activity);
 function reset() {
+	Object.assign(activity, originalActivity);
+	created = null;
 	row = {
 		id,
 		orgoId: 36805,
@@ -105,6 +109,28 @@ createServer(async (req, res) => {
 	if (path === '/test/reset') {
 		reset();
 		return send(res, {});
+	}
+	if (path === '/test/created') return send(res, created);
+	if (path === '/api/activities/team-options')
+		return send(res, [
+			{ id: 1, displayName: 'Coordonator de test' },
+			{ id: 2, displayName: 'Organizator delegat' }
+		]);
+	if (path === '/api/activity-registrations/setup-options')
+		return send(res, {
+			settings: { ...settings, published: false, consent: null },
+			fee: { percentageBasisPoints: 119, fixedBani: 30 },
+			lists: { structures: [{ id: 'cluj', name: 'Cluj' }], units: [], groups: [] }
+		});
+	if (path === '/api/activities' && req.method === 'POST') {
+		created = input;
+		Object.assign(activity, {
+			title: input.title,
+			coordinatorId: input.coordinatorId,
+			administratorIds: input.administratorIds,
+			departments: input.departments
+		});
+		return send(res, activity);
 	}
 	if (path === '/api/auth/me')
 		return authenticated

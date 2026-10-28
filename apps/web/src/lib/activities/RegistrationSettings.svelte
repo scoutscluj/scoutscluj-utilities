@@ -18,26 +18,33 @@
 		initial,
 		revision,
 		lists,
-		fee
+		fee,
+		embedded = false,
+		section = 'all',
+		value = $bindable()
 	}: {
 		activityId: number;
 		initial: RegistrationSettings;
 		revision: number;
 		lists: Overview['lists'];
 		fee: { percentageBasisPoints: number; fixedBani: number };
+		embedded?: boolean;
+		section?: 'all' | 'registration' | 'consent' | 'payment';
+		value?: RegistrationSettings;
 	} = $props();
 	function localInput(value: string) {
 		if (!value || !value.includes('Z')) return value;
 		const date = new Date(value);
 		return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 	}
-	let settings = $state(
+	let internal = $state(
 		untrack(() => ({
 			...structuredClone(initial),
 			opensAt: localInput(initial.opensAt),
 			closesAt: localInput(initial.closesAt)
 		}))
 	);
+	const settings = $derived(value ?? internal);
 	let busy = $state(false),
 		message = $state('');
 	let desired = $state(untrack(() => initial.feeBani / 100));
@@ -98,13 +105,19 @@
 	}
 </script>
 
-<form
-	onsubmit={(e) => {
+<svelte:element
+	this={embedded ? 'div' : 'form'}
+	class="settings-form"
+	onsubmit={(e: SubmitEvent) => {
 		e.preventDefault();
 		void save();
 	}}
 >
-	<fieldset>
+	<fieldset
+		id="inscrieri"
+		hidden={section !== 'all' && section !== 'registration'}
+		disabled={section !== 'all' && section !== 'registration'}
+	>
 		<legend>Publicare și înscriere</legend>
 		<label
 			>Imaginea activității (opțional, adresă HTTPS)<input
@@ -136,7 +149,11 @@
 			decid manual.
 		</p>
 	</fieldset>
-	<fieldset>
+	<fieldset
+		id="acord"
+		hidden={section !== 'all' && section !== 'consent'}
+		disabled={section !== 'all' && section !== 'consent'}
+	>
 		<legend>Acord parental · format fix</legend>
 		<p>
 			Folosim formatul documentului Cântul Vâlvelor 2026. Textele generale și structura documentului
@@ -166,15 +183,21 @@
 				Salvarea unei pagini publicate păstrează o versiune nouă a acordului; documentele
 				participanților deja înscriși nu sunt înlocuite automat.
 			</p>
-			<p>
-				După salvare, verifică formatul: <a
-					href={resolve(`/activitati/${activityId}/api/consent-preview/temerari`)}
-					>Descarcă un acord de verificare, fără date de participant</a
-				>.
-			</p>
+			{#if !embedded}<p>
+					După salvare, verifică formatul: <a
+						href={resolve(`/activitati/${activityId}/api/consent-preview/temerari`)}
+						>Descarcă un acord de verificare, fără date de participant</a
+					>.
+				</p>{:else}<p>
+					După creare, poți descărca și verifica PDF-ul din Setările activității.
+				</p>{/if}
 		{/if}
 	</fieldset>
-	<fieldset>
+	<fieldset
+		id="locuri"
+		hidden={section !== 'all' && section !== 'registration'}
+		disabled={section !== 'all' && section !== 'registration'}
+	>
 		<legend>Locuri</legend>
 		<div class="grid">
 			{#each [{ key: 'beneficiaryCapacity', label: 'Beneficiari' }, { key: 'staffCapacity', label: 'Echipa adultă' }, { key: 'totalCapacity', label: 'Capacitate totală' }] as item (item.key)}
@@ -205,7 +228,11 @@
 				>{/each}
 		</div>
 	</fieldset>
-	<fieldset>
+	<fieldset
+		id="eligibilitate"
+		hidden={section !== 'all' && section !== 'registration'}
+		disabled={section !== 'all' && section !== 'registration'}
+	>
 		<legend>Grupuri eligibile</legend>
 		<p>
 			Fără selecții înseamnă toți membrii. Dacă alegi mai multe niveluri, participantul trebuie să
@@ -256,7 +283,11 @@
 			>
 		</div>
 	</fieldset>
-	<fieldset>
+	<fieldset
+		id="plati"
+		hidden={section !== 'all' && section !== 'payment'}
+		disabled={section !== 'all' && section !== 'payment'}
+	>
 		<legend>Taxă și comisionul procesatorului</legend>
 		<label
 			>Suma netă dorită, în lei<input
@@ -315,7 +346,11 @@
 			</div>
 		</details>
 	</fieldset>
-	<fieldset>
+	<fieldset
+		id="familie"
+		hidden={section !== 'all' && section !== 'payment'}
+		disabled={section !== 'all' && section !== 'payment'}
+	>
 		<legend>Reduceri de familie</legend>
 		<p>
 			Tarifele se aplică după confirmarea grupului familial participant la aceeași activitate.
@@ -343,7 +378,11 @@
 			onclick={() => settings.familyFees.push(settings.feeBani)}>Adaugă tarif de familie</button
 		>
 	</fieldset>
-	<fieldset>
+	<fieldset
+		id="transe"
+		hidden={section !== 'all' && section !== 'payment'}
+		disabled={section !== 'all' && section !== 'payment'}
+	>
 		<legend>Tranșe</legend>
 		<p>
 			Fără tranșe, se achită soldul integral. Pentru taxele reduse, tranșele se limitează la taxa
@@ -372,7 +411,11 @@
 			onclick={() => settings.installments.push({ amountBani: 0, due: '' })}>Adaugă tranșă</button
 		>
 	</fieldset>
-	<fieldset>
+	<fieldset
+		id="intrebari"
+		hidden={section !== 'all' && section !== 'registration'}
+		disabled={section !== 'all' && section !== 'registration'}
+	>
 		<legend>Întrebări suplimentare</legend>
 		{#each settings.questions as question, index (index)}<div class="question">
 				<div class="grid">
@@ -428,7 +471,11 @@
 				})}>Adaugă întrebare</button
 		>
 	</fieldset>
-	<fieldset>
+	<fieldset
+		id="conditii"
+		hidden={section !== 'all' && section !== 'payment'}
+		disabled={section !== 'all' && section !== 'payment'}
+	>
 		<legend>Condiții și responsabilități</legend><label
 			>Condiții publice de participare, plată și retragere<textarea
 				bind:value={settings.terms}
@@ -462,13 +509,19 @@
 			>
 		</details>
 	</fieldset>
-	{#if message}<p role="status">{message}</p>{/if}<button disabled={busy}
-		>{busy ? 'Se salvează…' : 'Salvează setările înscrierilor'}</button
-	>
-</form>
+	{#if message}<p role="status">{message}</p>{/if}{#if !embedded}<button disabled={busy}
+			>{busy ? 'Se salvează…' : 'Salvează setările înscrierilor'}</button
+		>{/if}
+</svelte:element>
 
 <style>
-	form,
+	fieldset[hidden] {
+		display: none;
+	}
+	fieldset {
+		scroll-margin-top: 24px;
+	}
+	.settings-form,
 	fieldset,
 	.question {
 		display: grid;

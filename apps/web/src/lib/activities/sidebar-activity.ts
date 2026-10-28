@@ -15,6 +15,8 @@ export type SidebarActivity = {
 	status: SidebarActivityStatus;
 	departments: SidebarActivityDepartment[];
 	coordinatorId: number;
+	administratorIds?: number[];
+	createdById?: number | null;
 	startDate?: string;
 	endDate?: string;
 	location?: string;

@@ -1,8 +1,9 @@
-import { error, fail } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { apiFetch } from '$lib/server/api';
 import { SESSION_COOKIE_NAME } from '$lib/server/cookies';
 import type { Cookies } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import type { Overview } from '$lib/activities/registration';
 import { canManageActivity, filterActivityDepartments } from '../activity-meta';
 import { authHeaders, parseActivityId, readApiMessage } from '../kitchen/kitchen-api';
 
@@ -15,7 +16,7 @@ const patchActivity = async (
 	cookies: Cookies,
 	activityId: number,
 	body: Record<string, unknown>,
-	messageKey: 'detailsMessage' | 'departmentMessage',
+	messageKey: 'detailsMessage' | 'departmentMessage' | 'teamMessage',
 	successMessage: string,
 	pathSuffix = ''
 ) => {
@@ -40,16 +41,50 @@ const patchActivity = async (
 	return { [messageKey]: successMessage };
 };
 
-export const load: PageServerLoad = async ({ parent }) => {
+export const load: PageServerLoad = async ({ parent, cookies }) => {
 	const { activity, user } = await parent();
 	if (!canManageActivity(activity, user)) {
 		error(403, 'Nu poți modifica setările acestei activități.');
 	}
 
-	return {};
+	const headers = authHeaders(cookies.get(SESSION_COOKIE_NAME) ?? '');
+	const [overview, team] = await Promise.all([
+		apiFetch(`/api/activity-registrations/${activity.id}/overview`, { headers }),
+		apiFetch('/api/activities/team-options', { headers })
+	]);
+	if (!overview.ok || !team.ok) error(503, 'Setările activității nu pot fi încărcate.');
+	return {
+		registrationOverview: (await overview.json()) as Overview,
+		teamOptions: (await team.json()) as { id: number; displayName: string }[]
+	};
 };
 
 export const actions: Actions = {
+	team: async ({ request, cookies, params, locals }) => {
+		const data = await request.formData();
+		const coordinatorId = Number(data.get('coordinatorId'));
+		const administratorIds = data.getAll('administratorIds').map(Number);
+		const result = await patchActivity(
+			cookies,
+			parseActivityId(params.activityId),
+			{
+				coordinatorId,
+				administratorIds
+			},
+			'teamMessage',
+			'Echipa activității a fost salvată.'
+		);
+		if (
+			!('status' in result) &&
+			locals.user &&
+			coordinatorId !== locals.user.id &&
+			!administratorIds.includes(locals.user.id) &&
+			!locals.user.roles.includes('super_admin')
+		) {
+			redirect(303, `/activities/${params.activityId}`);
+		}
+		return result;
+	},
 	details: async ({ request, cookies, params }) => {
 		const activityId = parseActivityId(params.activityId);
 		const formData = await request.formData();

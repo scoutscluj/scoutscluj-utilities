@@ -71,6 +71,11 @@ export class RegistrationController {
   eligible(@Actor() user: CurrentUser) {
     return this.registrations.eligibleActivities(user);
   }
+  @Get('setup-options')
+  @UseGuards(AuthGuard)
+  setupOptions() {
+    return this.registrations.setupOptions();
+  }
   @Get(':activityId/consent-preview/:branch')
   @UseGuards(AuthGuard)
   async consentPreview(

@@ -1,12 +1,18 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { branchLabels } from '@scouts-cluj/parental-consent-schema';
+	import ActivitySettingsLink from '$lib/activities/ActivitySettingsLink.svelte';
 	let { data } = $props();
 </script>
 
 <svelte:head><title>Acord parental | {data.activity.title}</title></svelte:head>
 <section>
 	<h1>Acord parental</h1>
+	{#if data.canManage}<ActivitySettingsLink
+			activityId={data.activity.id}
+			section="acord"
+			label="Setări acord de participare"
+		/>{/if}
 	<p><strong>Format fix activ · editorul general este suspendat temporar.</strong></p>
 	<p>
 		Completează textele specifice activității în Setări înscrieri → Acord parental. Nu mai este

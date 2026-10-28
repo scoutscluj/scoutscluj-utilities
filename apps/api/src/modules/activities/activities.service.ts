@@ -1,3 +1,7 @@
+import { isActivityAdministrator } from './activity-access';
+import { EntityManager as SqlEntityManager } from '@mikro-orm/postgresql';
+import { Optional } from '@nestjs/common';
+import { RegistrationService } from '../activity-registrations/registration.service';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import {
@@ -45,8 +49,9 @@ export class ActivitiesService {
     @InjectRepository(User)
     private readonly usersRepository: EntityRepository<User>,
     @Inject(EntityManager)
-    private readonly em: EntityManager,
+    private readonly em: SqlEntityManager,
     private readonly auditService: AuditService,
+    @Optional() private readonly registrations?: RegistrationService,
   ) {}
 
   async createActivity(
@@ -65,20 +70,45 @@ export class ActivitiesService {
       );
     }
 
-    const activity = this.activitiesRepository.create({
-      coordinatorId: user.id,
-      title: cleanRequiredText(input.title, 'Titlul activității'),
-      type: input.type,
-      status: ActivityStatus.Planned,
-      departments: normalizeDepartments(input.departments),
-      startDate,
-      endDate,
-      location: cleanOptionalText(input.location)?.slice(0, 255),
-      description: cleanOptionalText(input.description),
-    });
+    await this.validateTeam(
+      input.coordinatorId ?? user.id,
+      input.administratorIds ?? [],
+    );
+    const activity = await this.em.transactional(async (tx) => {
+      const created = tx.create(Activity, {
+        coordinatorId: input.coordinatorId ?? user.id,
+        createdById: user.id,
+        administratorIds: [
+          ...new Set([...(input.administratorIds ?? []), user.id]),
+        ],
+        title: cleanRequiredText(input.title, 'Titlul activității'),
+        type: input.type,
+        status: ActivityStatus.Planned,
+        departments: normalizeDepartments(input.departments),
+        startDate,
+        endDate,
+        location: cleanOptionalText(input.location)?.slice(0, 255),
+        description: cleanOptionalText(input.description),
+      });
 
-    this.em.persist(activity);
-    await this.em.flush();
+      tx.persist(created);
+      await tx.flush();
+
+      if (input.registrationSettings !== undefined) {
+        if (!this.registrations)
+          throw new BadRequestException(
+            'Configurarea înscrierilor nu este disponibilă.',
+          );
+        await this.registrations.saveSettings(
+          user,
+          created.id,
+          { revision: 0, data: input.registrationSettings },
+          tx,
+        );
+      }
+      created.administratorIds = input.administratorIds ?? [];
+      return created;
+    });
 
     const [serialized] = await this.serializeActivities([activity]);
     return serialized;
@@ -91,6 +121,18 @@ export class ActivitiesService {
   ): Promise<ActivityDto> {
     const activity = await this.getManagedActivity(user, activityId);
     const before = this.activityAuditSnapshot(activity);
+    if (
+      input.coordinatorId !== undefined ||
+      input.administratorIds !== undefined
+    ) {
+      await this.validateTeam(
+        input.coordinatorId ?? activity.coordinatorId,
+        input.administratorIds ?? activity.administratorIds,
+      );
+      activity.coordinatorId = input.coordinatorId ?? activity.coordinatorId;
+      activity.administratorIds =
+        input.administratorIds ?? activity.administratorIds;
+    }
 
     if (input.title !== undefined) {
       activity.title = cleanRequiredText(input.title, 'Titlul activității');
@@ -203,6 +245,8 @@ export class ActivitiesService {
       type: activity.type,
       status: activity.status,
       coordinatorId: activity.coordinatorId,
+      createdById: activity.createdById,
+      administratorIds: activity.administratorIds,
       coordinatorName:
         coordinatorNames.get(activity.coordinatorId) ??
         `Utilizator #${activity.coordinatorId}`,
@@ -236,7 +280,7 @@ export class ActivitiesService {
     const coordinatedActivityIds = new Set(
       user
         ? activities
-            .filter((activity) => activity.coordinatorId === user.id)
+            .filter((activity) => isActivityAdministrator(activity, user.id))
             .map((activity) => activity.id)
         : [],
     );
@@ -294,11 +338,39 @@ export class ActivitiesService {
 
   private canManageActivity(user: CurrentUser, activity: Activity) {
     return (
-      activity.coordinatorId === user.id ||
+      isActivityAdministrator(activity, user.id) ||
       user.roles.includes(UserRole.SuperAdmin)
     );
   }
 
+  async teamOptions() {
+    const users = await this.usersRepository.findAll({
+      fields: ['id', 'displayName'],
+      orderBy: { displayName: 'asc' },
+    });
+    return users.map((user) => ({
+      id: user.id,
+      displayName: user.displayName,
+    }));
+  }
+  private async validateTeam(coordinatorId: number, administrators: number[]) {
+    if (
+      !Number.isSafeInteger(coordinatorId) ||
+      coordinatorId <= 0 ||
+      !Array.isArray(administrators) ||
+      administrators.length > 50 ||
+      administrators.some((id) => !Number.isSafeInteger(id) || id <= 0) ||
+      new Set(administrators).size !== administrators.length
+    )
+      throw new BadRequestException(
+        'Verifică organizatorul și administratorii activității.',
+      );
+    const ids = [...new Set([coordinatorId, ...administrators])];
+    if ((await this.usersRepository.count({ id: { $in: ids } })) !== ids.length)
+      throw new BadRequestException(
+        'Selectează persoane cu un cont existent în Resurse.',
+      );
+  }
   private async getManagedActivity(user: CurrentUser, activityId: number) {
     const activity = await this.activitiesRepository.findOne({
       id: activityId,
@@ -319,6 +391,8 @@ export class ActivitiesService {
   private activityAuditSnapshot(activity: Activity) {
     return {
       title: activity.title,
+      coordinatorId: activity.coordinatorId,
+      administratorIds: activity.administratorIds,
       type: activity.type,
       status: activity.status,
       departments: [...activity.departments].sort(),

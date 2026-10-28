@@ -41,13 +41,71 @@ test('authenticated organizer sees separate money, support and agreement states 
 	await expect(page.getByRole('main').getByText('Modificările au fost salvate.')).toBeVisible();
 	await page.evaluate(() => window.scrollTo(0, 0));
 	await page.screenshot({ path: '../../tmp/registration-organizer-desktop.png', fullPage: true });
-	await page.getByRole('button', { name: 'Setări înscrieri' }).click();
+	await page.getByRole('link', { name: 'Setări înscrieri', exact: true }).click();
 	await expect(page.getByText('Comision configurat:', { exact: false })).toBeVisible();
 	await page.getByRole('button', { name: 'Pregătește acordul acestei activități' }).click();
 	await expect(page.getByLabel('Activități comune')).toBeVisible();
 	await expect(page.getByLabel('Transport la plecare')).toBeVisible();
 	await page.evaluate(() => window.scrollTo(0, 0));
 	await page.screenshot({ path: '../../tmp/registration-settings-desktop.png', fullPage: true });
+});
+test('new activity wizard configures a different organizer, departments and participation payment', async ({
+	page,
+	request
+}) => {
+	await page
+		.context()
+		.addCookies([
+			{ name: 'scoutscluj_session', value: 'synthetic-admin', url: 'http://127.0.0.1:5186' }
+		]);
+	await page.goto('/activities/new');
+	await page.getByLabel('Nume', { exact: true }).fill('Activitate pregătită prin wizard');
+	await page.getByLabel('Început', { exact: true }).fill('2027-08-24');
+	await page.getByLabel('Final', { exact: true }).fill('2027-08-28');
+	await page.getByLabel('Locație', { exact: true }).fill('Locație de test');
+	await page.getByRole('button', { name: 'Continuă →' }).click();
+	await page.getByRole('combobox', { name: 'Organizator', exact: true }).selectOption('2');
+	await page.getByRole('button', { name: 'Continuă →' }).click();
+	await expect(page.getByRole('heading', { name: '3. Înscrieri' })).toBeVisible();
+	await page.getByRole('button', { name: 'Continuă →' }).click();
+	await expect(page.getByRole('heading', { name: '4. Acord de participare' })).toBeVisible();
+	await page.getByRole('button', { name: 'Pregătește acordul acestei activități' }).click();
+	await page.getByLabel('Activități comune').fill('Drumeții și ateliere pentru participanți.');
+	await expect(page.getByRole('link', { name: /Descarcă un acord de verificare/ })).toHaveCount(0);
+	await page.getByRole('button', { name: 'Continuă →' }).click();
+	await expect(page.getByRole('heading', { name: '5. Taxă și plată' })).toBeVisible();
+	await page.getByLabel('Taxa finală, în lei', { exact: true }).fill('525');
+	await page.getByRole('button', { name: 'Continuă →' }).click();
+	await page.getByRole('button', { name: 'Creează activitatea', exact: true }).click();
+	await expect(
+		page.getByRole('heading', { name: 'Setările activității', exact: true })
+	).toBeVisible();
+	const values = await (await request.get('http://127.0.0.1:3019/test/created')).json();
+	expect(values.coordinatorId).toBe(2);
+	expect(values.administratorIds).toContain(1);
+	expect(values.registrationSettings.published).toBe(false);
+	expect(values.registrationSettings.feeBani).toBe(52500);
+	expect(values.registrationSettings.consent.commonActivities).toContain('Drumeții');
+	await page.goto('/activities/1/registrations');
+	await expect(page.getByRole('link', { name: 'Setări înscrieri', exact: true })).toHaveAttribute(
+		'href',
+		'/activities/1/settings#inscrieri'
+	);
+	await expect(page.getByRole('link', { name: 'Înscrieri', exact: true })).toBeVisible();
+	await page.getByRole('link', { name: 'Plăți participare', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'Plăți participare', exact: true })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Setări plată', exact: true })).toHaveAttribute(
+		'href',
+		'/activities/1/settings#plati'
+	);
+	await page.screenshot({ path: '../../tmp/activity-wizard-payments.png', fullPage: true });
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto('/activities/new');
+	await expect(page.getByRole('heading', { name: 'Pregătește o activitate nouă' })).toBeVisible();
+	expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+		true
+	);
+	await page.screenshot({ path: '../../tmp/activity-wizard-mobile.png', fullPage: true });
 });
 test('authenticated prefill works for another identifier and the personal agreement stays separate from payment', async ({
 	page

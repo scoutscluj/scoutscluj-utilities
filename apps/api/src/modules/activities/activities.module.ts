@@ -1,5 +1,6 @@
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { Module } from '@nestjs/common';
+import { RegistrationModule } from '../activity-registrations/registration.module';
 import { AuditModule } from '../audit/audit.module';
 import { AuthModule } from '../auth/auth.module';
 import { FinancialDocument } from '../finance/entities/financial-document.entity';
@@ -10,6 +11,7 @@ import { Activity } from './entities/activity.entity';
 
 @Module({
   imports: [
+    RegistrationModule,
     AuthModule,
     AuditModule,
     MikroOrmModule.forFeature([Activity, FinancialDocument, User]),

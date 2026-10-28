@@ -1,3 +1,4 @@
+import { managesActivity } from '$lib/auth/activity-access';
 import type { CurrentUser } from '$lib/auth/types';
 import type { AuditEntry } from '$lib/audit/audit-entry';
 import type { Cookies } from '@sveltejs/kit';
@@ -6,12 +7,12 @@ import type { PageServerLoad } from './$types';
 import { apiJson, type KitchenOverview } from './kitchen/kitchen-api';
 
 const canViewKitchenOverview = (activity: Activity, user: CurrentUser) =>
-	activity.coordinatorId === user.id ||
+	managesActivity(activity, user) ||
 	user.roles.includes('finance_manager') ||
 	user.roles.includes('super_admin');
 
 const canViewActivityAudit = (activity: Activity, user: CurrentUser) =>
-	activity.coordinatorId === user.id ||
+	managesActivity(activity, user) ||
 	user.roles.includes('finance_manager') ||
 	user.roles.includes('super_admin');
 

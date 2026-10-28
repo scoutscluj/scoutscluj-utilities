@@ -1,0 +1,5 @@
+- [x] Add creator provenance, scoped administrators, validated delegation and atomic initial settings persistence.
+- [x] Build and verify the creation wizard with error recovery and final review.
+- [x] Consolidate settings and add operational-page settings links.
+- [x] Put enrolments under Administrative and participation payments under Finance.
+- [x] Verify scoped permissions, atomic rollback, browser flows and migration compatibility.

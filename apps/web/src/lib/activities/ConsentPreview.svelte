@@ -89,7 +89,9 @@
 		>
 	</div>
 	{#if units.length > 1}<label
-			>Verifică acordul pentru unitatea<select bind:value={selected}
+			>Verifică acordul pentru unitatea<select
+				value={unit?.id ?? ''}
+				onchange={(event) => (selected = event.currentTarget.value)}
 				>{#each units as item (item.id)}<option value={item.id}>{item.displayName}</option
 					>{/each}</select
 			></label

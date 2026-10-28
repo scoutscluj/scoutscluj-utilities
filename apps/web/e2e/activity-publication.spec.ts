@@ -166,6 +166,7 @@ test('agreement editor adapts to eligible units, previews unsaved text and saves
 	await expect(
 		page.getByRole('group', { name: 'Activități specifice unităților · opțional' })
 	).toBeVisible();
+	await expect(page.getByLabel('Verifică acordul pentru unitatea')).toHaveValue('cluj-temerari');
 	await page.locator('#unit-activities-cluj-temerari').fill('Activitate doar Cluj');
 	await page.locator('#unit-activities-floresti-temerari').fill('Activitate doar Florești');
 	await page.getByLabel('Verifică acordul pentru unitatea').selectOption('floresti-temerari');

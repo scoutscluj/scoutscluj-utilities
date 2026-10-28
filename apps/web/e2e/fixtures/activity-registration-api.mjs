@@ -4,6 +4,25 @@ import schema from '../../../../packages/parental-consent-schema/dist/index.js';
 const { participationFields, createRepresentativeOrganizerDraft } = schema;
 const id = '11111111-1111-4111-8111-111111111111';
 const token = 'a'.repeat(43);
+const lists = {
+	structures: [
+		{ id: 'cluj', name: 'Cluj' },
+		{ id: 'floresti', name: 'Florești' }
+	],
+	units: [
+		{ id: 'cluj-temerari', name: 'Temerari', structureId: 'cluj' },
+		{ id: 'floresti-temerari', name: 'Temerari', structureId: 'floresti' }
+	],
+	groups: [
+		{ id: 'cluj-group', name: 'Patrula Cluj', parentId: 'cluj-temerari', structureId: 'cluj' },
+		{
+			id: 'floresti-group',
+			name: 'Patrula Florești',
+			parentId: 'floresti-temerari',
+			structureId: 'floresti'
+		}
+	]
+};
 const activity = {
 	id: 1,
 	title: 'Camp de test — Cântul Vâlvelor',
@@ -140,6 +159,21 @@ createServer(async (req, res) => {
 		}
 		return send(res, saved);
 	}
+	if (path === '/api/activity-registrations/1/publication') {
+		if (req.method === 'POST') {
+			if (input.revision !== settingsRevision)
+				return send(res, { message: 'Setările au fost modificate. Reîncarcă pagina.' }, 409);
+			settings.published = input.published;
+			settingsRevision++;
+			return send(res, { ok: true, revision: settingsRevision });
+		}
+		return send(res, {
+			revision: settingsRevision,
+			published: settings.published,
+			public: settings.published,
+			state: settings.published ? 'published' : 'draft'
+		});
+	}
 	if (path === '/api/activities/team-options')
 		return send(res, [
 			{ id: 1, displayName: 'Coordonator de test' },
@@ -149,7 +183,7 @@ createServer(async (req, res) => {
 		return send(res, {
 			settings: { ...settings, published: false, consent: null },
 			fee: { percentageBasisPoints: 119, fixedBani: 30 },
-			lists: { structures: [{ id: 'cluj', name: 'Cluj' }], units: [], groups: [] }
+			lists
 		});
 	if (path === '/api/activities' && req.method === 'POST') {
 		created = input;
@@ -173,6 +207,13 @@ createServer(async (req, res) => {
 			: send(res, { message: 'Autentificare necesară' }, 401);
 	if (path === '/api/activities') return send(res, [activity]);
 	if (path === '/api/activities/1') return send(res, activity);
+	if (path === '/api/activity-registrations/1/access')
+		return send(res, {
+			manage: authenticated && !memberMode,
+			finance: authenticated && !memberMode,
+			sensitive: authenticated && !memberMode,
+			consent: authenticated && !memberMode
+		});
 	if (path.startsWith('/api/audit')) return send(res, []);
 	if (path === '/api/activity-registrations') return send(res, [activity]);
 	if (path === '/api/activity-registrations/eligible') return send(res, [activity]);
@@ -191,7 +232,7 @@ createServer(async (req, res) => {
 			settings,
 			capabilities: { manage: true, finance: true, sensitive: true, consent: true },
 			rows: [row],
-			lists: { structures: [{ id: 'cluj', name: 'Cluj' }], units: [], groups: [] },
+			lists,
 			priceAdvice: {
 				recommendedBani: 51000,
 				estimatedFeeBani: 637,

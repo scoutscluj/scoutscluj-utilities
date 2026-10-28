@@ -1,4 +1,9 @@
 <script lang="ts">
+	import { setContext } from 'svelte';
+	import ActivityPublication from '$lib/activities/ActivityPublication.svelte';
+	import { activityEditContext } from '$lib/activities/activity-edit-state';
+	const editing = $state({ dirty: false });
+	setContext(activityEditContext, editing);
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 
@@ -40,6 +45,10 @@
 </svelte:head>
 
 <section class="activity-shell">
+	{#if data.publication}<ActivityPublication
+			activityId={data.activity.id}
+			publication={data.publication}
+		/>{/if}
 	{#if isKitchenRoute}
 		<nav class="kitchen-tabs" aria-label="Meniu bucătărie">
 			{#each kitchenGroups as group (group.label)}

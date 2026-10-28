@@ -75,4 +75,6 @@ jobs:
           pnpm --filter web exec playwright install --with-deps chromium
           pnpm --filter web exec playwright test --config playwright.registration.config.ts
           pnpm --filter web exec playwright test --config playwright.members.config.ts
+          pnpm --filter web exec playwright test --config playwright.profile.config.ts --grep "creates through|validates required"
+          pnpm --filter web exec playwright test --config playwright.membership.config.ts e2e/membership-finance.spec.ts --grep "member modal saves cash|receipts modal accepts cash|bank admission can share"
       - run: pnpm --filter infra verify

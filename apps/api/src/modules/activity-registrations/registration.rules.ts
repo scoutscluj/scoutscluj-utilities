@@ -12,6 +12,35 @@ import {
 } from '../membership/membership.rules';
 
 export type Answer = string | number | boolean | string[];
+export function activityEnded(
+  activity: {
+    status?: string;
+    endDate?: Date | string | null;
+    startDate?: Date | string | null;
+  },
+  now = new Date(),
+) {
+  if (activity.status === 'completed' || activity.status === 'cancelled')
+    return true;
+  const end = activity.endDate ?? activity.startDate;
+  if (!end) return false;
+  const day =
+    end instanceof Date ? end.toISOString().slice(0, 10) : end.slice(0, 10);
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Bucharest',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
+  return day < today;
+}
+export function activityIsPublic(
+  activity: Parameters<typeof activityEnded>[0],
+  settings: { published: boolean },
+  now = new Date(),
+) {
+  return settings.published && !activityEnded(activity, now);
+}
 export type Question = {
   code: string;
   label: string;

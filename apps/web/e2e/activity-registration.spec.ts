@@ -165,8 +165,8 @@ test('new activity wizard configures a different organizer, departments and part
 		]);
 	await page.goto('/activities/new');
 	await page.getByLabel('Nume', { exact: true }).fill('Activitate pregătită prin wizard');
-	await page.getByLabel('Început', { exact: true }).fill('2027-08-24');
-	await page.getByLabel('Final', { exact: true }).fill('2027-08-28');
+	await page.getByLabel('Început', { exact: true }).fill('24.08.2027');
+	await page.getByLabel('Final', { exact: true }).fill('28.08.2027');
 	await page.getByLabel('Locație', { exact: true }).fill('Locație de test');
 	await page.getByRole('button', { name: 'Continuă →' }).click();
 	await page.getByRole('combobox', { name: 'Organizator', exact: true }).selectOption('2');

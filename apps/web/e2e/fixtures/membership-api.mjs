@@ -433,6 +433,7 @@ createServer(async (req, res) => {
 			...profileOptions.user
 		});
 	if (req.url === '/api/activities') return respond(res, []);
+	if (req.url === '/api/activity-registrations/eligible') return respond(res, []);
 	if (req.url === '/api/members/orgo/refresh' || req.url === '/api/members/orgo/refresh-status')
 		return respond(res, {
 			state: 'succeeded',

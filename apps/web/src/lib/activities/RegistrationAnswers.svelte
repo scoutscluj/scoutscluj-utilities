@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import { untrack } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { participationFields, type FormField } from '@scouts-cluj/parental-consent-schema';
@@ -125,8 +126,13 @@
 								required={field.required}
 								value={String(answers[field.code] ?? '')}
 								oninput={(e) => (answers[field.code] = e.currentTarget.value)}
-							></textarea>{:else}<input
-								type={field.type === 'date' ? 'date' : field.type === 'number' ? 'number' : 'text'}
+							></textarea>{:else if field.type === 'date'}<DateInput
+								value={String(answers[field.code] ?? '')}
+								required={field.required}
+								disabled={field.code === 'birth_date'}
+								onValueChange={(value) => (answers[field.code] = value)}
+							/>{:else}<input
+								type={field.type === 'number' ? 'number' : 'text'}
 								required={field.required}
 								disabled={field.code === 'birth_date'}
 								value={String(answers[field.code] ?? '')}

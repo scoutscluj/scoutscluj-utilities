@@ -60,6 +60,8 @@ import {
 } from './registration.entity';
 import {
   amount,
+  activityEnded,
+  activityIsPublic,
   defaultSettings,
   hasCapacity,
   installmentBalance,
@@ -148,6 +150,69 @@ export class RegistrationService {
       consent: manage || data.administrativeUserIds.includes(user.id),
     };
   }
+  async publication(activityId: number, user: CurrentUser) {
+    const { activity, settings, data } = await this.requireManager(
+      user,
+      activityId,
+    );
+    return {
+      revision: settings?.revision ?? 0,
+      published: data.published,
+      public: activityIsPublic(activity, data),
+      state:
+        activity.status === 'cancelled'
+          ? 'cancelled'
+          : activityEnded(activity)
+            ? 'ended'
+            : data.published
+              ? 'published'
+              : 'draft',
+    };
+  }
+  async setPublication(activityId: number, user: CurrentUser, input: unknown) {
+    const body = record(input);
+    if (typeof body.published !== 'boolean')
+      throw new BadRequestException('Alege starea publicării.');
+    return this.mutate(activityId, async (tx) => {
+      const context = await this.requireManager(user, activityId, tx);
+      if ((context.settings?.revision ?? 0) !== body.revision)
+        throw new ConflictException(
+          'Setările au fost modificate. Reîncarcă pagina.',
+        );
+      if (!body.published) {
+        const row =
+          context.settings ??
+          tx.create(Settings, { activityId, data: context.data, revision: 0 });
+        row.data = { ...context.data, published: false };
+        row.revision++;
+        row.updatedAt = new Date();
+        tx.persist(row);
+        this.audit(
+          tx,
+          activityId,
+          user.id,
+          'publication_changed',
+          String(activityId),
+          { published: false, revision: row.revision },
+        );
+        return { ok: true, revision: row.revision };
+      }
+      if (body.published && activityEnded(context.activity))
+        throw new BadRequestException(
+          'O activitate încheiată sau anulată nu poate fi publicată.',
+        );
+      const saved = await this.saveSettings(
+        user,
+        activityId,
+        {
+          revision: body.revision,
+          data: { ...context.data, published: body.published },
+        },
+        tx,
+      );
+      return { ok: true, revision: saved.revision };
+    });
+  }
   async saveSettings(
     user: CurrentUser,
     activityId: number,
@@ -161,6 +226,14 @@ export class RegistrationService {
       if ((context.settings?.revision ?? 0) !== b.revision)
         throw new ConflictException(
           'Setările au fost modificate. Reîncarcă pagina.',
+        );
+      if (
+        data.published &&
+        !context.data.published &&
+        activityEnded(context.activity)
+      )
+        throw new BadRequestException(
+          'O activitate încheiată sau anulată nu poate fi publicată.',
         );
       if (
         data.published &&
@@ -183,6 +256,8 @@ export class RegistrationService {
         ? await tx.find(ScoutUnit, {
             id: { $in: data.unitIds },
             archived: false,
+            fixed: true,
+            parentId: null,
           })
         : [];
       const groups = data.groupIds.length
@@ -254,20 +329,24 @@ export class RegistrationService {
           { orderBy: { startDate: 'asc' } },
         )
       : [];
-    return activities.map((a) => ({
-      id: a.id,
-      title: a.title,
-      location: a.location,
-      startDate: a.startDate,
-      endDate: a.endDate,
-      description: a.description,
-      coverImageUrl:
-        settings.find((s) => s.activityId === a.id)?.data.coverImageUrl ?? '',
-      type: a.type,
-      status: a.status,
-      coordinatorId: a.coordinatorId,
-      departments: a.departments,
-    }));
+    return activities
+      .filter((a) =>
+        activityIsPublic(a, settings.find((s) => s.activityId === a.id)!.data),
+      )
+      .map((a) => ({
+        id: a.id,
+        title: a.title,
+        location: a.location,
+        startDate: a.startDate,
+        endDate: a.endDate,
+        description: a.description,
+        coverImageUrl:
+          settings.find((s) => s.activityId === a.id)?.data.coverImageUrl ?? '',
+        type: a.type,
+        status: a.status,
+        coordinatorId: a.coordinatorId,
+        departments: a.departments,
+      }));
   }
   async setupOptions() {
     const payment = await this.em.findOne(MembershipPaymentSettings, {
@@ -282,7 +361,11 @@ export class RegistrationService {
         DEFAULT_PROCESSING_FEES[provider],
       lists: {
         structures: await this.em.find(LocalStructure, {}),
-        units: await this.em.find(ScoutUnit, { archived: false }),
+        units: await this.em.find(ScoutUnit, {
+          archived: false,
+          fixed: true,
+          parentId: null,
+        }),
         groups: await this.em.find(ScoutSubunit, { archived: false }),
       },
     };
@@ -342,7 +425,7 @@ export class RegistrationService {
   }
   async publicPage(activityId: number, user?: CurrentUser) {
     const { activity, data } = await this.settings(activityId);
-    if (!data.published || activity.status === 'cancelled')
+    if (!activityIsPublic(activity, data))
       throw new NotFoundException('Activitatea nu este publicată.');
     const publication = await this.em.findOne(ParentalConsentPublication, {
       activityId,
@@ -575,9 +658,7 @@ export class RegistrationService {
         b.exception === true && !!user && this.manager(user, activity);
       const now = Date.now();
       if (
-        !data.published ||
-        activity.status === 'cancelled' ||
-        activity.status === 'completed' ||
+        !activityIsPublic(activity, data) ||
         (!override &&
           ((data.opensAt && now < Date.parse(data.opensAt)) ||
             (data.closesAt && now > Date.parse(data.closesAt))))
@@ -922,7 +1003,11 @@ export class RegistrationService {
     const lists = manage
       ? {
           structures: await this.em.find(LocalStructure, {}),
-          units: await this.em.find(ScoutUnit, { archived: false }),
+          units: await this.em.find(ScoutUnit, {
+            archived: false,
+            fixed: true,
+            parentId: null,
+          }),
           groups: await this.em.find(ScoutSubunit, { archived: false }),
         }
       : undefined;

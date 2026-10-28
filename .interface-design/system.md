@@ -30,6 +30,14 @@ and row expansions that move the rest of the register.
 
 ## Components and interaction
 
+- `DateInput.svelte` owns date entry across the app: visible `zz.ll.aaaa` with
+  optional `oo:mm`, ISO form values, typed-date validation and a Bits UI calendar
+  in Romanian with Monday first. Reuse it instead of browser-localized native
+  date inputs. Preserve normal labels and required/min/max/readonly behavior.
+- Activity administration starts with a compact publication bar: saved public
+  state, public-page link and one explicit publish/withdraw action. Pending edits
+  must be saved first; ended activities show their automatic withdrawal state.
+
 - `ActionMenu.svelte`: accessible Bits UI dropdown, ellipsis trigger with the
   person's/unit's name in its accessible label, 36px items. Each entry names
   one operation. Destructive entries use the red semantic treatment.

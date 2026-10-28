@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import FeePlanDialog from './FeePlanDialog.svelte';
 	import { syncLabels } from '$lib/members/types';
 	let planOpen = $state(false);
@@ -296,7 +297,11 @@
 				</p>
 				<div class="grid">
 					<label
-						>Data transferului efectuat<input type="date" name="transferredOn" required /></label
+						>Data transferului efectuat<DateInput
+							type="date"
+							name="transferredOn"
+							required
+						/></label
 					><label>Referință bancară<input name="reference" required /></label><label
 						>Detalii transfer<textarea name="note" required></textarea></label
 					>

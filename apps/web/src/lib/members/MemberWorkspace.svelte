@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	type Refresh = { state: string; message: string | null; lastSucceededAt: string | null };
@@ -325,7 +326,7 @@
 						></select
 					></label
 				><label>Nume complet<input name="name" required maxlength="255" /></label><label
-					>Data nașterii<input type="date" name="birthDate" /></label
+					>Data nașterii<DateInput type="date" name="birthDate" /></label
 				>{#if newMemberKind === 'beneficiary'}<label
 						>Clasa<input type="number" name="grade" min="1" max="12" /></label
 					>{/if}<label
@@ -544,7 +545,7 @@
 					>{/key}{/if}
 		{/if}
 		{#if ['leader', 'chief'].includes(responsibilityRole)}<label
-				>Data promisiunii de lider (opțional)<input type="date" name="promiseDate" /></label
+				>Data promisiunii de lider (opțional)<DateInput type="date" name="promiseDate" /></label
 			>{/if}
 		{#if responsibilityRole === 'helper'}
 			<label class="check"><input type="checkbox" name="canEdit" />Poate modifica membrii</label>

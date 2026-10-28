@@ -1,0 +1,5 @@
+- [x] Reproduce eligibility, date-format and publication discoverability problems.
+- [x] Filter current units/subunits and distinguish structures in labels.
+- [x] Add revision-safe publication actions and automatic public expiry.
+- [x] Use shared Romanian date controls across existing date fields.
+- [x] Verify concurrent saves, expiry, ISO submissions, keyboard/calendar behavior and desktop/mobile views.

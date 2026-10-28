@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import type {
 		KitchenProcurementEvent,
 		ProcurementMethod,
@@ -43,7 +44,7 @@
 	</label>
 	<label>
 		<span>Dată</span>
-		<input name="date" type="date" value={dateValue(event?.date)} />
+		<DateInput name="date" type="date" value={dateValue(event?.date)} />
 	</label>
 	<label>
 		<span>Metodă</span>

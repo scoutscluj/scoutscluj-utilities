@@ -1,5 +1,7 @@
 import {
   defaultSettings,
+  activityEnded,
+  activityIsPublic,
   hasCapacity,
   installmentBalance,
   parseSettings,
@@ -8,6 +10,35 @@ import {
 } from './registration.rules';
 
 describe('activity registration rules', () => {
+  it('keeps the last day public until midnight in Romania, including DST changes', () => {
+    const activity = {
+      endDate: new Date('2026-10-25T00:00Z'),
+      status: 'planned',
+    };
+    expect(activityEnded(activity, new Date('2026-10-25T21:59:59Z'))).toBe(
+      false,
+    );
+    expect(activityEnded(activity, new Date('2026-10-25T22:00:00Z'))).toBe(
+      true,
+    );
+    expect(
+      activityIsPublic(
+        { ...activity, status: 'completed' },
+        { published: true },
+        new Date('2026-10-20T10:00Z'),
+      ),
+    ).toBe(false);
+    expect(
+      activityIsPublic(
+        activity,
+        { published: false },
+        new Date('2026-10-20T10:00Z'),
+      ),
+    ).toBe(false);
+    expect(
+      activityEnded({ startDate: '2026-10-25' }, new Date('2026-10-25T22:00Z')),
+    ).toBe(true);
+  });
   it('reserves beneficiary, staff, branch and total capacity independently', () => {
     const settings = {
       ...defaultSettings(),

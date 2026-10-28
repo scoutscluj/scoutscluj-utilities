@@ -1,5 +1,11 @@
 import type { FormField, OrganizerDraft } from '@scouts-cluj/parental-consent-schema';
 export type Answer = string | number | boolean | string[];
+export type Publication = {
+	revision: number;
+	published: boolean;
+	public: boolean;
+	state: 'draft' | 'published' | 'ended' | 'cancelled';
+};
 export type Question = {
 	code: string;
 	label: string;

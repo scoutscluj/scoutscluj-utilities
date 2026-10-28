@@ -1,5 +1,11 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import DateInput from '$lib/components/ui/DateInput.svelte';
+	import { getContext, onDestroy, untrack } from 'svelte';
+	import { activityEditContext, type ActivityEditState } from './activity-edit-state';
+	const editing = getContext<ActivityEditState | undefined>(activityEditContext);
+	onDestroy(() => {
+		if (editing) editing.dirty = false;
+	});
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import ParticipationFeeField from './ParticipationFeeField.svelte';
@@ -41,7 +47,43 @@
 		}))
 	);
 	const settings = $derived(value ?? internal);
+	const eligibleUnits = $derived(
+		(lists?.units ?? []).filter(
+			(u) => !settings.structureIds.length || settings.structureIds.includes(u.structureId)
+		)
+	);
+	const eligibleGroups = $derived(
+		(lists?.groups ?? []).filter(
+			(g) =>
+				eligibleUnits.some((u) => u.id === g.parentId) &&
+				(!settings.unitIds.length || settings.unitIds.includes(g.parentId))
+		)
+	);
+	const multipleStructures = $derived(
+		(settings.structureIds.length || lists?.structures.length || 0) > 1
+	);
+	const structureName = (id: string) => lists?.structures.find((s) => s.id === id)?.name ?? id;
 	let baseRevision = $state(untrack(() => revision));
+	let baseline = $state(untrack(() => JSON.stringify(internal)));
+	$effect(() => {
+		if (editing) editing.dirty = JSON.stringify(settings) !== baseline;
+	});
+	$effect(() => {
+		if (
+			!embedded &&
+			revision !== baseRevision &&
+			revision === editing?.publicationRevision &&
+			JSON.stringify(settings) === baseline
+		) {
+			internal = {
+				...structuredClone(initial),
+				opensAt: localInput(initial.opensAt),
+				closesAt: localInput(initial.closesAt)
+			};
+			baseline = JSON.stringify(internal);
+			baseRevision = revision;
+		}
+	});
 	let busy = $state(false),
 		message = $state('');
 	const branches = [
@@ -61,11 +103,7 @@
 					!values.length || lists?.units.some((u) => u.id === id && values.includes(u.structureId))
 			);
 		if (kind !== 'groupIds')
-			settings.groupIds = settings.groupIds.filter(
-				(id) =>
-					!settings.unitIds.length ||
-					lists?.groups.some((g) => g.id === id && settings.unitIds.includes(g.parentId))
-			);
+			settings.groupIds = settings.groupIds.filter((id) => eligibleGroups.some((g) => g.id === id));
 	}
 	async function save() {
 		busy = true;
@@ -89,6 +127,7 @@
 				opensAt: localInput(saved.data.opensAt),
 				closesAt: localInput(saved.data.closesAt)
 			};
+			baseline = JSON.stringify(internal);
 			await invalidateAll();
 			message =
 				section === 'payment'
@@ -125,14 +164,9 @@
 				placeholder="https://…"
 			/></label
 		>
-		<label class="choice"
-			><input type="checkbox" bind:checked={settings.published} />Publică pagina activității și
-			înscrierile</label
-		>
 		<div class="grid">
-			<label>Deschidere<input type="datetime-local" bind:value={settings.opensAt} /></label><label
-				>Închidere<input type="datetime-local" bind:value={settings.closesAt} /></label
-			>
+			<label>Deschidere<DateInput type="datetime-local" bind:value={settings.opensAt} /></label
+			><label>Închidere<DateInput type="datetime-local" bind:value={settings.closesAt} /></label>
 		</div>
 		<label class="choice"
 			><input type="checkbox" bind:checked={settings.approvalRequired} />Înscrierile beneficiarilor
@@ -252,8 +286,10 @@
 							'unitIds',
 							Array.from(e.currentTarget.selectedOptions, (o) => o.value)
 						)}
-					>{#each (lists?.units ?? []).filter((u) => !settings.structureIds.length || settings.structureIds.includes(u.structureId)) as unit (unit.id)}<option
-							value={unit.id}>{unit.name}</option
+					>{#each eligibleUnits as unit (unit.id)}<option value={unit.id}
+							>{multipleStructures
+								? `${structureName(unit.structureId)} · `
+								: ''}{unit.name}</option
 						>{/each}</select
 				></label
 			>
@@ -266,8 +302,10 @@
 							'groupIds',
 							Array.from(e.currentTarget.selectedOptions, (o) => o.value)
 						)}
-					>{#each (lists?.groups ?? []).filter((g) => !settings.unitIds.length || settings.unitIds.includes(g.parentId)) as group (group.id)}<option
-							value={group.id}>{group.name}</option
+					>{#each eligibleGroups as group (group.id)}<option value={group.id}
+							>{multipleStructures
+								? `${structureName(eligibleUnits.find((u) => u.id === group.parentId)!.structureId)} · `
+								: ''}{group.name}</option
 						>{/each}</select
 				></label
 			>
@@ -312,7 +350,7 @@
 			><input type="checkbox" bind:checked={settings.paymentConfirmsPlace} />Confirmă locul numai
 			după acoperirea taxei</label
 		>
-		<label>Termen de plată<input type="date" bind:value={settings.paymentDue} /></label>
+		<label>Termen de plată<DateInput type="date" bind:value={settings.paymentDue} /></label>
 		<p>
 			Restanțele sunt semnalate. Eliberarea locurilor și promovarea de pe lista de așteptare se
 			decid manual.
@@ -371,7 +409,8 @@
 						oninput={(e) =>
 							(installment.amountBani = Math.round(Number(e.currentTarget.value) * 100))}
 					/></label
-				><label>Scadența<input type="date" bind:value={installment.due} required /></label><button
+				><label>Scadența<DateInput type="date" bind:value={installment.due} required /></label
+				><button
 					type="button"
 					class="secondary"
 					onclick={() => settings.installments.splice(index, 1)}>Elimină tranșa {index + 1}</button

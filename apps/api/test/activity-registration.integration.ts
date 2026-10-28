@@ -8,7 +8,10 @@ import { Activity } from '../src/modules/activities/entities/activity.entity';
 import { ActivityType } from '../src/modules/activities/entities/activity-type.enum';
 import { User } from '../src/modules/users/entities/user.entity';
 import { UserRole } from '../src/modules/users/entities/user-role.enum';
-import { ScoutMember } from '../src/modules/members/entities/member.entity';
+import {
+  ScoutMember,
+  ScoutUnit,
+} from '../src/modules/members/entities/member.entity';
 import { emptyProfile } from '../src/modules/members/member.types';
 import type { MembersService } from '../src/modules/members/members.service';
 import type { CurrentUser } from '../src/modules/users/users.types';
@@ -715,6 +718,92 @@ async function main() {
     );
     console.log(
       'PASS fixed agreement without template draft, stable publications and immutable participant snapshot',
+    );
+    const legacy = em.create(ScoutUnit, {
+      name: 'Synthetic legacy source',
+      branch: 'temerari',
+      fixed: false,
+      structureId: 'cluj',
+    });
+    em.persist(legacy);
+    await em.flush();
+    assert(
+      !(await make(orm.em.fork()).setupOptions()).lists.units.some(
+        (unit) => unit.id === legacy.id,
+      ),
+    );
+    const state = await make(orm.em.fork()).publication(
+      fixedActivity.id,
+      actor,
+    );
+    await assert.rejects(
+      make(orm.em.fork()).setPublication(
+        fixedActivity.id,
+        { ...actor, id: 99999, roles: [] },
+        { revision: state.revision, published: false },
+      ),
+    );
+    await assert.rejects(
+      make(orm.em.fork()).setPublication(fixedActivity.id, actor, {
+        revision: state.revision - 1,
+        published: false,
+      }),
+    );
+    const prior = await make(orm.em.fork()).settings(fixedActivity.id);
+    await make(orm.em.fork()).setPublication(fixedActivity.id, actor, {
+      revision: state.revision,
+      published: false,
+    });
+    await assert.rejects(make(orm.em.fork()).publicPage(fixedActivity.id));
+    const withdrawn = await make(orm.em.fork()).settings(fixedActivity.id);
+    assert.deepEqual({ ...withdrawn.data, published: true }, prior.data);
+    await make(orm.em.fork()).setPublication(fixedActivity.id, actor, {
+      revision: withdrawn.settings!.revision,
+      published: true,
+    });
+    await orm.em
+      .fork()
+      .nativeUpdate(
+        Activity,
+        { id: fixedActivity.id },
+        { startDate: new Date('2020-01-01'), endDate: new Date('2020-01-01') },
+      );
+    await assert.rejects(make(orm.em.fork()).publicPage(fixedActivity.id));
+    assert(
+      !(await make(orm.em.fork()).catalog()).some(
+        (item) => item.id === fixedActivity.id,
+      ),
+    );
+    assert(
+      !(await make(orm.em.fork()).eligibleActivities(memberActor)).some(
+        (item) => item.id === fixedActivity.id,
+      ),
+    );
+    const expired = await make(orm.em.fork()).publication(
+      fixedActivity.id,
+      actor,
+    );
+    assert.equal(expired.public, false);
+    assert.equal(expired.state, 'ended');
+    await assert.rejects(
+      make(orm.em.fork()).setPublication(fixedActivity.id, actor, {
+        revision: expired.revision,
+        published: true,
+      }),
+    );
+    await assert.rejects(
+      make(orm.em.fork()).register(
+        fixedActivity.id,
+        { identifier: roster[0].orgoId },
+        actor,
+      ),
+    );
+    assert(
+      (await make(orm.em.fork()).overview(fixedActivity.id, actor)).capabilities
+        .manage,
+    );
+    console.log(
+      'PASS fixed-unit catalog, scoped revision-safe publication and automatic expiry without losing administration',
     );
   } finally {
     await orm.close(true);

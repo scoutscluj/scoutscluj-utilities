@@ -175,6 +175,19 @@ export class RegistrationController {
   ) {
     return this.registrations.saveSettings(user, id, body);
   }
+  @UseGuards(AuthGuard) @Get(':activityId/publication') publication(
+    @Param('activityId', ParseIntPipe) id: number,
+    @Actor() user: CurrentUser,
+  ) {
+    return this.registrations.publication(id, user);
+  }
+  @UseGuards(AuthGuard) @Post(':activityId/publication') setPublication(
+    @Param('activityId', ParseIntPipe) id: number,
+    @Actor() user: CurrentUser,
+    @Body() body: unknown,
+  ) {
+    return this.registrations.setPublication(id, user, body);
+  }
   @UseGuards(AuthGuard) @Patch(':activityId/registrations/:id') update(
     @Param('activityId', ParseIntPipe) activityId: number,
     @Param('id') id: string,

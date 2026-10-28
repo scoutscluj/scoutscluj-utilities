@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import { onMount } from 'svelte';
 	import { Dialog } from 'bits-ui';
 	import { enhance } from '$app/forms';
@@ -171,7 +172,7 @@
 							></textarea></label
 						>
 						<label for="objective-deadline"
-							>Termen limită<input
+							>Termen limită<DateInput
 								id="objective-deadline"
 								type="date"
 								name="deadline"

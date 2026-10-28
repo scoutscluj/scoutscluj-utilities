@@ -89,13 +89,22 @@ describe('member scope policies', () => {
       identity: false,
     });
   });
-  it('requires a designated subunit before leadership grants editing rights', () => {
+  it('allows leadership in the common collective without granting other subunits', () => {
     expect(
       permissions(false, false, [assignment('leader', null)], {
         ...child,
         groupId: null,
       }).edit,
+    ).toBe(true);
+    expect(
+      permissions(false, false, [assignment('leader', null)], child).read,
     ).toBe(false);
+    expect(
+      permissions(false, false, [assignment('helper', null)], {
+        ...child,
+        groupId: null,
+      }),
+    ).toMatchObject({ read: true, edit: false, sensitive: false });
   });
 });
 describe('September progression', () => {

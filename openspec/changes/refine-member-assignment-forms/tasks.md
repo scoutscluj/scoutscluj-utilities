@@ -1,0 +1,5 @@
+- [x] Reproduce subgroup, structure-choice, leader placement and adult grade regressions.
+- [x] Align roster and profile forms with current-structure and school-grade rules.
+- [x] Allow an unknown leader promise date and common-collective responsibilities in the API.
+- [x] Verify database operations, scoped permissions, browser flows and production build.
+- [x] Add the member browser regression suite to the pull-request checks.

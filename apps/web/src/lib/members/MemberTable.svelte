@@ -16,7 +16,7 @@
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import ActionMenu from '$lib/components/ui/ActionMenu.svelte';
 	import type { Member, Registry, Detail } from './types';
-	import { unitName, branchLabels, roleLabels } from './types';
+	import { hasSchoolGrade, memberPlacement, branchLabels, roleLabels } from './types';
 	type Preview = {
 		version: string;
 		members: { id: string; name: string; revision: number; from: string; unitId: string | null }[];
@@ -78,9 +78,11 @@
 		[...filtered].sort((a, b) => {
 			const value = (m: Member) =>
 				sort === 'grade'
-					? (m.grade ?? -1)
+					? hasSchoolGrade(m)
+						? (m.grade ?? -1)
+						: -1
 					: sort === 'unit'
-						? unitName(registry.units, m.unitId)
+						? memberPlacement(registry.units, m)
 						: sort === 'status'
 							? m.status
 							: m.name;
@@ -114,6 +116,17 @@
 			: undefined
 	);
 	const chosen = $derived(filtered.filter((m) => selected.includes(m.id)));
+	const chosenStructure = $derived(new Set(chosen.map((m) => m.structureId ?? 'cluj')));
+	const canChangeGrade = $derived(chosen.every(hasSchoolGrade));
+	const transferUnits = $derived(
+		registry.units.filter(
+			(u) =>
+				!u.parentId &&
+				!u.archived &&
+				chosenStructure.size === 1 &&
+				chosenStructure.has(u.structureId ?? 'cluj')
+		)
+	);
 	$effect(() => {
 		const valid = selected.filter((id) => filtered.some((m) => m.id === id));
 		if (valid.length !== selected.length) selected = valid;
@@ -185,7 +198,9 @@
 				? [
 						...(!inactive
 							? [
-									{ label: labels.grade, action: () => rowEdit(m, 'grade') },
+									...(hasSchoolGrade(m)
+										? [{ label: labels.grade, action: () => rowEdit(m, 'grade') }]
+										: []),
 									...(m.access?.transfer
 										? [{ label: labels.transfer, action: () => rowEdit(m, 'transfer') }]
 										: []),
@@ -244,7 +259,15 @@
 					activePreview = undefined;
 					rowAction = false;
 					editing = true;
-					if (inactive) kind = 'withdraw';
+					kind = inactive
+						? 'withdraw'
+						: canChangeGrade
+							? 'grade'
+							: chosenStructure.size === 1
+								? 'transfer'
+								: '';
+					unitId = '';
+					groupId = '';
 				}}>Modifică selecția</button
 			><button
 				type="button"
@@ -281,7 +304,9 @@
 			/><input type="hidden" name="changes" value={json(changes)} />
 			{#if !rowAction}<label
 					>Modificare<select bind:value={kind}>
-						{#if !inactive}<option value="grade">Schimbă clasa</option><option value="transfer"
+						<option value="" disabled>Alege modificarea</option>
+						{#if !inactive}{#if canChangeGrade}<option value="grade">Schimbă clasa</option
+								>{/if}<option value="transfer" disabled={chosenStructure.size !== 1}
 								>Mută în unitate / grupă</option
 							>{/if}
 						{#if registry.admin}<option value="structure">Schimbă structura</option>{/if}
@@ -296,20 +321,19 @@
 			{#if kind === 'transfer' || kind === 'reactivate'}
 				<label
 					>Unitate<select bind:value={unitId} onchange={() => (groupId = '')}
-						><option value="">Alege unitatea</option
-						>{#each registry.units.filter((u) => !u.parentId && !u.archived) as u (u.id)}<option
+						><option value="">Alege unitatea</option>{#each transferUnits as u (u.id)}<option
 								value={u.id}>{u.name}</option
 							>{/each}</select
 					></label
 				>
-				<label
-					>Grupă<select bind:value={groupId}
-						><option value="">Colectiv comun / nerepartizat</option
-						>{#each registry.units.filter((u) => u.parentId === unitId && !u.archived) as u (u.id)}<option
-								value={u.id}>{u.name}</option
-							>{/each}</select
-					></label
-				>
+				{#if registry.units.some((u) => u.parentId === unitId && !u.archived)}<label
+						>Grupă<select bind:value={groupId}
+							><option value="">Colectiv comun / nerepartizat</option
+							>{#each registry.units.filter((u) => u.parentId === unitId && !u.archived) as u (u.id)}<option
+									value={u.id}>{u.name}</option
+								>{/each}</select
+						></label
+					>{/if}
 			{/if}
 			{#if kind === 'structure'}<label
 					>Structură destinație<select bind:value={destinationStructure}
@@ -325,7 +349,7 @@
 			{#if kind === 'withdraw'}<p>
 					Retragerea încheie toate responsabilitățile persoanei. Istoricul și plățile se păstrează.
 				</p>{/if}
-			<button type="submit" disabled={pending}>Previzualizează modificarea</button><button
+			<button type="submit" disabled={pending || !kind}>Previzualizează modificarea</button><button
 				type="button"
 				onclick={() => (editing = false)}>Închide</button
 			>
@@ -463,14 +487,9 @@
 								.join(', ')}
 						</small></td
 					>
-					{#if !inactive}{#if showUnit}<td
-								>{m.unitId
-									? unitName(registry.units, m.unitId)
-									: m.responsibilityUnitIds?.map((id) => unitName(registry.units, id)).join(', ') ||
-										'—'}{m.groupId
-									? ` / ${unitName(registry.units, m.groupId)}`
-									: ' / Nerepartizat'}</td
-							>{/if}{#if showGrade}<td>{m.grade ?? '—'}</td>{/if}{#if showStatus}<td
+					{#if !inactive}{#if showUnit}<td>{memberPlacement(registry.units, m)}</td
+							>{/if}{#if showGrade}<td>{hasSchoolGrade(m) ? (m.grade ?? '—') : '—'}</td
+							>{/if}{#if showStatus}<td
 								>{m.status === 'active'
 									? 'Activ'
 									: m.status === 'withdrawn'

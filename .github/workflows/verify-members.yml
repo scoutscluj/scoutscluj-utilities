@@ -74,4 +74,5 @@ jobs:
         run: |
           pnpm --filter web exec playwright install --with-deps chromium
           pnpm --filter web exec playwright test --config playwright.registration.config.ts
+          pnpm --filter web exec playwright test --config playwright.members.config.ts
       - run: pnpm --filter infra verify

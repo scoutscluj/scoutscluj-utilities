@@ -8,7 +8,8 @@ export default defineConfig({
 	use: {
 		baseURL: 'http://127.0.0.1:5182',
 		trace: 'retain-on-failure',
-		...devices['Desktop Chrome']
+		...devices['Desktop Chrome'],
+		channel: process.env.PLAYWRIGHT_CHANNEL
 	},
 	webServer: [
 		{

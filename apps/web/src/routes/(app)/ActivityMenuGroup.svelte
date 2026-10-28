@@ -1,6 +1,10 @@
 <script lang="ts">
 	import type { CurrentUser } from '$lib/auth/types';
 	import { resolve } from '$app/paths';
+	import {
+		activitySettingsSections,
+		activitySettingsHref
+	} from '$lib/activities/activity-settings';
 	import type { SidebarActivity } from '$lib/activities/sidebar-activity';
 	import {
 		activitiesGroupKey,
@@ -37,34 +41,28 @@
 </script>
 
 <section class="menu-group activity-menu">
-	<button
-		type="button"
-		class="group-button"
-		class:active
-		onclick={toggle}
-		aria-expanded={open}
-		aria-controls={activitiesGroupKey}
-	>
-		<span>{label}</span>
-		<span aria-hidden="true">{open ? '-' : '+'}</span>
-	</button>
+	<div class="activity-heading" class:active>
+		<a
+			class="group-link"
+			href={menuHref('/activities')}
+			onclick={closeMobile}
+			aria-current={pathname === menuHref('/activities') ? 'page' : undefined}>{label}</a
+		>
+		<button
+			type="button"
+			class="group-button"
+			class:active
+			onclick={toggle}
+			aria-expanded={open}
+			aria-controls={activitiesGroupKey}
+			aria-label="Submeniul Activități"
+		>
+			<span aria-hidden="true">{open ? '-' : '+'}</span>
+		</button>
+	</div>
 
 	{#if open}
 		<div id={activitiesGroupKey} class="group-items activity-items">
-			<a
-				href={resolve('/activitati')}
-				class:active={pathname === '/activitati'}
-				onclick={closeMobile}>Activități publice și înscriere</a
-			>
-			<a
-				href={menuHref('/activities')}
-				class:active={isActiveExact(menuHref('/activities'))}
-				onclick={closeMobile}
-				aria-current={isActiveExact(menuHref('/activities')) ? 'page' : undefined}
-			>
-				Toate activitățile
-			</a>
-
 			{#each activities as activity (activity.id)}
 				{@const href = activity.publicRegistration
 					? resolve(`/activitati/${activity.id}`)
@@ -150,6 +148,19 @@
 										>
 											Setări
 										</a>
+										{#if isPathActive(settingsHref(activity.id), pathname)}<div
+												class="settings-submenu"
+											>
+												{#each activitySettingsSections as section (section.key)}
+													{@const sectionHref = activitySettingsHref(activity.id, section.key)}
+													<a
+														href={sectionHref}
+														class:active={pathname === sectionHref}
+														aria-current={pathname === sectionHref ? 'page' : undefined}
+														onclick={closeMobile}>{section.label}</a
+													>
+												{/each}
+											</div>{/if}
 									{/if}
 									{#if canViewActivityAudit(activity, user)}
 										<a
@@ -175,6 +186,33 @@
 </section>
 
 <style>
+	.activity-heading {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 38px;
+		border-radius: 8px;
+	}
+	.group-link {
+		display: flex;
+		align-items: center;
+		min-height: 38px;
+		padding: 0 12px;
+		color: inherit;
+		text-decoration: none;
+		font-size: 0.94rem;
+		font-weight: 600;
+		border-radius: 8px;
+	}
+	.activity-heading .group-button {
+		padding: 0;
+		justify-content: center;
+	}
+	.settings-submenu {
+		display: grid;
+		gap: 4px;
+		padding-left: 12px;
+		border-left: 1px solid var(--sc-border);
+		margin-left: 8px;
+	}
 	.menu-group,
 	.group-items,
 	.activity-branch,

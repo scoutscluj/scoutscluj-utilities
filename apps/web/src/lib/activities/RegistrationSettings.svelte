@@ -2,17 +2,13 @@
 	import { untrack } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import ParticipationFeeField from './ParticipationFeeField.svelte';
 	import {
 		emptyFixedConsent,
 		fixedConsentLabels,
 		type FixedConsentDetails
 	} from '@scouts-cluj/parental-consent-schema';
-	import {
-		registrationRequest,
-		money,
-		type RegistrationSettings,
-		type Overview
-	} from './registration';
+	import { registrationRequest, type RegistrationSettings, type Overview } from './registration';
 	let {
 		activityId,
 		initial,
@@ -45,26 +41,15 @@
 		}))
 	);
 	const settings = $derived(value ?? internal);
+	let baseRevision = $state(untrack(() => revision));
 	let busy = $state(false),
 		message = $state('');
-	let desired = $state(untrack(() => initial.feeBani / 100));
 	const branches = [
 		{ id: 'lupisori', name: 'Lupișori' },
 		{ id: 'temerari', name: 'Temerari' },
 		{ id: 'exploratori', name: 'Exploratori' },
 		{ id: 'seniori', name: 'Seniori' }
 	];
-	const suggestion = $derived(
-		desired > 0
-			? Math.ceil(
-					((Math.round(desired * 100) + fee.fixedBani) * 10000) /
-						((10000 - fee.percentageBasisPoints) * 500)
-				) * 500
-			: 0
-	);
-	const estimatedFee = $derived(
-		suggestion > 0 ? Math.ceil((suggestion * fee.percentageBasisPoints) / 10000) + fee.fixedBani : 0
-	);
 	function number(value: string) {
 		return value === '' ? null : Number(value);
 	}
@@ -86,17 +71,31 @@
 		busy = true;
 		message = '';
 		try {
-			await registrationRequest(activityId, 'settings', {
-				revision,
-				data: {
-					...settings,
-					opensAt: settings.opensAt ? new Date(settings.opensAt).toISOString() : '',
-					closesAt: settings.closesAt ? new Date(settings.closesAt).toISOString() : ''
+			const saved = await registrationRequest<{ revision: number; data: RegistrationSettings }>(
+				activityId,
+				'settings',
+				{
+					revision: baseRevision,
+					data: {
+						...settings,
+						opensAt: settings.opensAt ? new Date(settings.opensAt).toISOString() : '',
+						closesAt: settings.closesAt ? new Date(settings.closesAt).toISOString() : ''
+					}
 				}
-			});
+			);
+			baseRevision = saved.revision;
+			internal = {
+				...structuredClone(saved.data),
+				opensAt: localInput(saved.data.opensAt),
+				closesAt: localInput(saved.data.closesAt)
+			};
 			await invalidateAll();
 			message =
-				'Setările au fost salvate. Taxele înscrierilor existente se modifică doar explicit.';
+				section === 'payment'
+					? 'Setările de plată au fost salvate. Taxele înscrierilor existente se modifică doar explicit.'
+					: section === 'consent'
+						? 'Datele acordului au fost salvate. Documentele existente rămân în istoric.'
+						: 'Setările înscrierilor au fost salvate.';
 		} catch (e) {
 			message = (e as Error).message;
 		} finally {
@@ -139,15 +138,6 @@
 			><input type="checkbox" bind:checked={settings.approvalRequired} />Înscrierile beneficiarilor
 			necesită aprobare</label
 		>
-		<label class="choice"
-			><input type="checkbox" bind:checked={settings.paymentConfirmsPlace} />Confirmă locul numai
-			după acoperirea taxei</label
-		>
-		<label>Termen de plată<input type="date" bind:value={settings.paymentDue} /></label>
-		<p>
-			Restanțele sunt semnalate. Eliberarea locurilor și promovarea de pe lista de așteptare se
-			decid manual.
-		</p>
 	</fieldset>
 	<fieldset
 		id="acord"
@@ -288,42 +278,8 @@
 		hidden={section !== 'all' && section !== 'payment'}
 		disabled={section !== 'all' && section !== 'payment'}
 	>
-		<legend>Taxă și comisionul procesatorului</legend>
-		<label
-			>Suma netă dorită, în lei<input
-				type="number"
-				min="0"
-				step="0.01"
-				bind:value={desired}
-			/></label
-		>
-		<div class="notice">
-			<p>
-				Comision configurat: {fee.percentageBasisPoints / 100}% + {money(fee.fixedBani)}. Pentru o
-				sumă netă de {money(Math.round((desired || 0) * 100))}, prețul recomandat, rotunjit în sus
-				la 5 lei, este <strong>{money(suggestion)}</strong>.
-			</p>
-			<p>
-				Comision estimat: {money(estimatedFee)} · Net estimat: {money(suggestion - estimatedFee)}.
-			</p>
-			<button type="button" class="secondary" onclick={() => (settings.feeBani = suggestion)}
-				>Folosește prețul recomandat</button
-			>
-		</div>
-		<label
-			>Taxa finală, în lei<input
-				type="number"
-				min="0"
-				step="0.01"
-				required
-				value={settings.feeBani / 100}
-				oninput={(e) => (settings.feeBani = Math.round(Number(e.currentTarget.value) * 100))}
-			/></label
-		>
-		<p>
-			Aceeași taxă se aplică tuturor metodelor de plată. Comisionul este o estimare; susținerea
-			centrului se înregistrează distinct.
-		</p>
+		<legend>Taxă de participare</legend>
+		<ParticipationFeeField bind:value={settings.feeBani} {fee} />
 		<details>
 			<summary>Tarife pe ramuri</summary>
 			<div class="grid">
@@ -348,6 +304,22 @@
 	</fieldset>
 	<fieldset
 		id="familie"
+		hidden={section !== 'all' && section !== 'payment'}
+		disabled={section !== 'all' && section !== 'payment'}
+	>
+		<legend>Confirmare și termene de plată</legend>
+		<label class="choice"
+			><input type="checkbox" bind:checked={settings.paymentConfirmsPlace} />Confirmă locul numai
+			după acoperirea taxei</label
+		>
+		<label>Termen de plată<input type="date" bind:value={settings.paymentDue} /></label>
+		<p>
+			Restanțele sunt semnalate. Eliberarea locurilor și promovarea de pe lista de așteptare se
+			decid manual.
+		</p>
+	</fieldset>
+	<fieldset
+		id="reduceri-familie"
 		hidden={section !== 'all' && section !== 'payment'}
 		disabled={section !== 'all' && section !== 'payment'}
 	>
@@ -476,12 +448,19 @@
 		hidden={section !== 'all' && section !== 'payment'}
 		disabled={section !== 'all' && section !== 'payment'}
 	>
-		<legend>Condiții și responsabilități</legend><label
+		<legend>Condiții de participare și plată</legend><label
 			>Condiții publice de participare, plată și retragere<textarea
 				bind:value={settings.terms}
 				rows="5"
 			></textarea></label
 		>
+	</fieldset>
+	<fieldset
+		id="acces-inscrieri"
+		hidden={section !== 'all' && section !== 'registration'}
+		disabled={section !== 'all' && section !== 'registration'}
+	>
+		<legend>Acces la înscrieri</legend>
 		<details>
 			<summary>Acces delegat la înscrieri</summary>
 			<p>
@@ -510,7 +489,13 @@
 		</details>
 	</fieldset>
 	{#if message}<p role="status">{message}</p>{/if}{#if !embedded}<button disabled={busy}
-			>{busy ? 'Se salvează…' : 'Salvează setările înscrierilor'}</button
+			>{busy
+				? 'Se salvează…'
+				: section === 'payment'
+					? 'Salvează setările de plată'
+					: section === 'consent'
+						? 'Salvează acordul'
+						: 'Salvează setările înscrierilor'}</button
 		>{/if}
 </svelte:element>
 
@@ -593,7 +578,6 @@
 		line-height: 1.6;
 		color: var(--sc-ink-muted);
 	}
-	.notice,
 	.question {
 		padding: 16px;
 		background: var(--sc-canvas);

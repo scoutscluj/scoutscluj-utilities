@@ -34,9 +34,11 @@
 
 <section class="activities-page">
 	<div class="page-heading">
-		<p class="eyebrow">Activități</p>
-		<h1>Activități locale</h1>
-		<p>Campuri, drumeții, festivaluri și alte activități cu documente financiare urmărite local.</p>
+		<div>
+			<h1>Activități locale</h1>
+			<p>Campuri, drumeții, festivaluri și alte activități ale centrului local.</p>
+		</div>
+		<a class="new-activity" href={resolve('/activities/new')}>＋ Activitate nouă</a>
 	</div>
 
 	{#if form?.message}
@@ -44,15 +46,6 @@
 	{/if}
 
 	<div class="content-grid">
-		<section class="panel">
-			<h2>Activitate nouă</h2>
-			<p>
-				Configurează detaliile, echipa, departamentele, înscrierile, acordul și plata într-un singur
-				proces ghidat.
-			</p>
-			<a href={resolve('/activities/new')}>Configurează o activitate nouă →</a>
-		</section>
-
 		<section class="activity-list" aria-label="Lista activităților">
 			{#if data.activities.length}
 				{#each data.activities as activity (activity.id)}
@@ -99,12 +92,31 @@
 	}
 
 	.page-heading {
+		display: flex;
+		gap: 16px;
+		justify-content: space-between;
+		align-items: start;
+		flex-wrap: wrap;
+	}
+	.page-heading > div {
 		display: grid;
 		gap: 8px;
-		max-width: 780px;
+	}
+	.new-activity {
+		display: inline-flex;
+		align-items: center;
+		min-height: 38px;
+		padding: 8px 16px;
+		background: var(--sc-accent);
+		color: var(--sc-surface);
+		border-radius: 7px;
+		text-decoration: none;
+		white-space: nowrap;
+	}
+	.new-activity:hover {
+		background: var(--sc-accent-hover);
 	}
 
-	.eyebrow,
 	.activity-type {
 		margin: 0;
 		color: #2563eb;
@@ -131,7 +143,6 @@
 	}
 
 	.page-heading p:last-child,
-	.panel-subtitle,
 	.meta-grid,
 	.empty-state p {
 		color: var(--sc-muted);
@@ -139,12 +150,10 @@
 
 	.content-grid {
 		display: grid;
-		grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
 		gap: 18px;
 		align-items: start;
 	}
 
-	.panel,
 	.activity-card,
 	.empty-state {
 		border: 1px solid #dbe3ef;
@@ -153,18 +162,11 @@
 		box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
 	}
 
-	.activity-form,
 	.activity-card,
 	.empty-state {
 		display: grid;
 		gap: 16px;
 		padding: 18px;
-	}
-
-	.panel-title {
-		color: var(--sc-ink);
-		font-size: 1rem;
-		font-weight: 600;
 	}
 
 	.activity-card a {
@@ -191,12 +193,6 @@
 		border-radius: 8px;
 		padding: 12px 14px;
 		color: #1e3a8a;
-	}
-
-	.date-grid {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 10px;
 	}
 
 	.activity-list {
@@ -263,10 +259,6 @@
 	}
 
 	@media (max-width: 560px) {
-		.date-grid {
-			grid-template-columns: 1fr;
-		}
-
 		.activity-card a {
 			width: 100%;
 		}

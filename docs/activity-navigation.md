@@ -10,7 +10,10 @@ The sidebar activity list should stay curated rather than exhaustive:
 - active and upcoming activities
 - coordinated activities only while they are active or upcoming
 
-The full activity archive remains available through `Toate activitățile`.
+The full activity archive opens directly when clicking the `Activități` menu label.
+The separate toggle expands activity entries. The redundant all-activities and
+public-catalog menu links are omitted; organizers share each event's public URL.
+The activity list uses its full width, with `Activitate nouă` in the top-right header.
 Pinning should not be part of the first implementation slice.
 
 Clicking an activity entry in the sidebar opens that activity's `Prezentare`
@@ -73,6 +76,13 @@ Activity settings should follow the same utility pattern rather than the
 department pattern. `Setări activitate` lives at `/activities/:activityId/settings`,
 is visible only to users who can manage that activity, and is visually separated
 from department links in the expanded activity menu.
+
+Settings has focused subpages: General at `/settings`, Echipă at `/settings/team`,
+Departamente at `/settings/departments`, Înscrieri at `/settings/registrations`,
+Acord de participare at `/settings/consent`, and Plată at `/settings/payments`,
+all relative to the activity. The page navigation and expanded settings submenu
+highlight the current section. Operational settings icons open these subpages.
+Legacy registration/agreement/payment/team fragment links still resolve to the matching section.
 
 `Setări activitate` should edit the activity container: title, type, status,
 dates, location, description, enabled departments, and responsible people when

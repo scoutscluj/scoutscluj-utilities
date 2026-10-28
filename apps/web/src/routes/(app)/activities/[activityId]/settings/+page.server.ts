@@ -1,10 +1,9 @@
-import { error, fail, redirect } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import { apiFetch } from '$lib/server/api';
 import { SESSION_COOKIE_NAME } from '$lib/server/cookies';
 import type { Cookies } from '@sveltejs/kit';
-import type { Actions, PageServerLoad } from './$types';
-import type { Overview } from '$lib/activities/registration';
-import { canManageActivity, filterActivityDepartments } from '../activity-meta';
+import type { Actions } from './$types';
+import { filterActivityDepartments } from '../activity-meta';
 import { authHeaders, parseActivityId, readApiMessage } from '../kitchen/kitchen-api';
 
 const cleanValue = (value: FormDataEntryValue | null) => {
@@ -39,24 +38,6 @@ const patchActivity = async (
 	}
 
 	return { [messageKey]: successMessage };
-};
-
-export const load: PageServerLoad = async ({ parent, cookies }) => {
-	const { activity, user } = await parent();
-	if (!canManageActivity(activity, user)) {
-		error(403, 'Nu poți modifica setările acestei activități.');
-	}
-
-	const headers = authHeaders(cookies.get(SESSION_COOKIE_NAME) ?? '');
-	const [overview, team] = await Promise.all([
-		apiFetch(`/api/activity-registrations/${activity.id}/overview`, { headers }),
-		apiFetch('/api/activities/team-options', { headers })
-	]);
-	if (!overview.ok || !team.ok) error(503, 'Setările activității nu pot fi încărcate.');
-	return {
-		registrationOverview: (await overview.json()) as Overview,
-		teamOptions: (await team.json()) as { id: number; displayName: string }[]
-	};
 };
 
 export const actions: Actions = {

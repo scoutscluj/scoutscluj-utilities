@@ -168,6 +168,7 @@ createServer(async (req, res) => {
 	}
 	if (path === '/test/row') return send(res, row);
 	if (path === '/test/configure') {
+		Object.assign(activity, input.activity ?? {});
 		Object.assign(settings, input.settings ?? {});
 		if (input.eligibleBranches) eligibleBranchesOverride = input.eligibleBranches;
 		Object.assign(row, input.row ?? {});

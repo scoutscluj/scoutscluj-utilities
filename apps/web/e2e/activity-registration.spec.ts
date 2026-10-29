@@ -317,6 +317,7 @@ test('adult prefill suggests the staff role and a different minor resets the for
 }) => {
 	await request.post('http://127.0.0.1:3019/test/configure', {
 		data: {
+			activity: { startDate: '2027-08-23T22:30:00Z' },
 			settings: { unitIds: ['cluj-temerari'] },
 			row: {
 				branch: 'lideri',

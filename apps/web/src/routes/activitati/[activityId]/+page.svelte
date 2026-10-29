@@ -61,13 +61,21 @@
 	}
 	function updateAge(birthDate: string) {
 		const parsed = new Date(birthDate);
+		const start = new Date(activity.startDate ?? '');
+		const startDay = Number.isFinite(start.getTime())
+			? new Intl.DateTimeFormat('en-CA', {
+					timeZone: 'Europe/Bucharest',
+					year: 'numeric',
+					month: '2-digit',
+					day: '2-digit'
+				}).format(start)
+			: '';
 		major =
 			/^\d{4}-\d{2}-\d{2}$/.test(birthDate) &&
 			Number.isFinite(parsed.getTime()) &&
 			parsed.toISOString().slice(0, 10) === birthDate &&
-			!!activity.startDate &&
-			`${Number(birthDate.slice(0, 4)) + 18}${birthDate.slice(4)}` <=
-				activity.startDate.slice(0, 10);
+			!!startDay &&
+			`${Number(birthDate.slice(0, 4)) + 18}${birthDate.slice(4)}` <= startDay;
 		suggestAdultRole();
 	}
 	async function prefill(own = false) {

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import RegistrationReceipt from './RegistrationReceipt.svelte';
 	import FormFeedback from '$lib/components/ui/FormFeedback.svelte';
 	let failed = $state(false);
 	import DateInput from '$lib/components/ui/DateInput.svelte';
@@ -42,21 +43,18 @@
 		receivedOn = $state(new Date().toISOString().slice(0, 10)),
 		entryId = $state('');
 	const overview = $derived(data.overview),
-		publicPath = $derived(resolve(`/activitati/${data.activity.id}`)),
 		activityId = $derived(data.activity.id);
-	async function copyPublicLink() {
-		try {
-			await navigator.clipboard.writeText(`${location.origin}${publicPath}`);
-			message = 'Linkul public al activității a fost copiat.';
-		} catch {
-			message = `Link public: ${location.origin}${publicPath}`;
-		}
-	}
 	const rows = $derived(
 		overview.rows.filter(
 			(row) =>
 				(!paymentsView || row.role !== 'staff') &&
 				(filter === 'all' ||
+					(filter === 'handoff' &&
+						['accepted', 'reserved'].includes(row.state) &&
+						((overview.capabilities.consent &&
+							row.minor &&
+							!['paper_received', 'signed_accepted', 'not_required'].includes(row.consentState)) ||
+							(overview.capabilities.finance && (row.cashRemainingBani ?? 0) > 0))) ||
 					(filter === 'unpaid' && row.remainingBani! > 0) ||
 					row.state === filter ||
 					(filter === 'missing_consent' &&
@@ -165,10 +163,7 @@
 			if (row.state === 'pending') add('Respinge', 'reject', true);
 			add('Prelungește termenul', 'extend_deadline');
 		}
-		if (!paymentsView && overview.capabilities.consent && row.consentState !== 'not_required') {
-			add('Acord fizic primit', 'paper_received');
-			if (row.consentState === 'uploaded') add('Acceptă PDF-ul semnat', 'signed_accepted');
-		}
+
 		return items;
 	}
 	function csv() {
@@ -220,45 +215,39 @@
 	></svelte:head
 >
 <section class="workspace">
-	{#if overview.capabilities.manage && overview.mailConfigured === false}<p class="notice">
-			Confirmările prin e-mail rămân în așteptare până la configurarea trimiterii. Pagina personală
-			este disponibilă imediat după înscriere.
-		</p>{/if}
 	<header>
 		<div>
 			<a href={resolve(`/activities/${activityId}`)}>← {data.activity.title}</a>
 			<h1>{paymentsView ? 'Plăți participare' : 'Înscrieri'}</h1>
 		</div>
-		<a class="button secondary" href={resolve(`/activitati/${activityId}`)}
-			>Deschide pagina publică ↗</a
-		>
+		<div class="header-actions">
+			{#if overview.capabilities.manage}<ActivitySettingsLink
+					{activityId}
+					section={paymentsView ? 'plati' : 'inscrieri'}
+					label={paymentsView ? 'Setări plată' : 'Setări înscrieri'}
+				/>{/if}
+			<a
+				class="button secondary"
+				href={resolve(
+					`/activities/${activityId}/${paymentsView ? 'registrations' : 'finance/participation'}`
+				)}>{paymentsView ? 'Înscrieri și acorduri' : 'Vezi plățile participării'}</a
+			>
+		</div>
 	</header>
-	{#if overview.capabilities.manage}<section class="notice">
-			<strong>Pagina pe care o distribui participanților</strong>
+	{#if overview.capabilities.manage && overview.mailConfigured === false}<details
+			class="mail-notice"
+		>
+			<summary>Confirmările prin e-mail sunt în așteptare</summary>
 			<p>
-				<code>/activitati/{activityId}</code> · Completează acordul, verifică taxa și bifează „Publică
-				pagina activității și înscrierile” în Setări înscrieri.
+				Trimiterea e-mailurilor nu este configurată. Pagina personală este disponibilă imediat după
+				înscriere.
 			</p>
-			<button class="secondary" onclick={copyPublicLink}>Copiază linkul public</button>
-		</section>{/if}
+		</details>{/if}
 	{#if overview.capabilities.finance}<div class="totals">
 			<div><small>Încasări nete de restituiri</small><strong>{money(totals.cash)}</strong></div>
 			<div><small>Susținere din centrul local</small><strong>{money(totals.support)}</strong></div>
 			<div><small>Sold de acoperit</small><strong>{money(totals.remaining)}</strong></div>
 		</div>{/if}
-	{#if overview.capabilities.manage}<a href={resolve(`/activities/${activityId}/check-in`)}
-			>Primire participanți →</a
-		>
-		<ActivitySettingsLink
-			{activityId}
-			section={paymentsView ? 'plati' : 'inscrieri'}
-			label={paymentsView ? 'Setări plată' : 'Setări înscrieri'}
-		/>{/if}
-	<a
-		href={resolve(
-			`/activities/${activityId}/${paymentsView ? 'registrations' : 'finance/participation'}`
-		)}>{paymentsView ? 'Vezi înscrierile și acordurile' : 'Vezi plățile participării'} →</a
-	>
 	{#if message}<FormFeedback {message} kind={failed ? 'error' : 'info'} />{/if}
 
 	<div class="toolbar">
@@ -270,23 +259,30 @@
 					>Participare confirmată</option
 				><option value="reserved">Loc rezervat</option><option value="unpaid"
 					>Sold de acoperit</option
-				>{#if !paymentsView}<option value="missing_consent">Acorduri de urmărit</option>{/if}<option
-					value="withdrawn">Retrageri</option
-				></select
+				>{#if !paymentsView}<option value="missing_consent">Acorduri de urmărit</option><option
+						value="handoff">Documente sau cash de primit</option
+					>{/if}<option value="withdrawn">Retrageri</option></select
 			></label
-		><button class="secondary" onclick={csv}>Exportă CSV</button>
-		{#if overview.capabilities.manage}<button
-				class="secondary"
-				onclick={() => (familyOpen = true)}
-				disabled={!selected.length}>Confirmă familia ({selected.length})</button
-			>{#if !paymentsView}<button
-					class="secondary"
-					onclick={() => {
-						action = 'renew';
-						active = null;
-						dialogOpen = true;
-					}}>Solicită acord actualizat</button
-				><a href={resolve(`/activitati/${activityId}?exceptie=1`)}>Înscrie o excepție</a>{/if}{/if}
+		>
+		<details class="more-actions">
+			<summary>Mai multe acțiuni</summary>
+			<div class="bulk-actions">
+				<button class="secondary" onclick={csv}>Exportă CSV</button>
+				{#if overview.capabilities.manage}<button
+						class="secondary"
+						onclick={() => (familyOpen = true)}
+						disabled={!selected.length}>Confirmă familia ({selected.length})</button
+					>{#if !paymentsView}<button
+							class="secondary"
+							onclick={() => {
+								action = 'renew';
+								active = null;
+								dialogOpen = true;
+							}}>Solicită acord actualizat</button
+						><a href={resolve(`/activitati/${activityId}?exceptie=1`)}>Înscrie o excepție</a
+						>{/if}{/if}
+			</div>
+		</details>
 	</div>
 	{#if !rows.length}<div class="empty">
 			<h2>Nicio înscriere în această selecție</h2>
@@ -300,13 +296,12 @@
 							>Participant</th
 						><th scope="col">Participare</th>{#if overview.capabilities.finance}<th scope="col"
 								>Taxă / încasări / susținere</th
-							><th scope="col">Sold</th>{/if}{#if !paymentsView}<th scope="col">Acord</th>{/if}<th
-							scope="col">Acțiuni</th
-						></tr
+							><th scope="col">Sold</th>{/if}{#if !paymentsView}<th scope="col">Acord / primire</th
+							>{/if}<th scope="col">Acțiuni</th></tr
 					></thead
 				><tbody>
 					{#each rows as row (row.id)}<tr>
-							{#if overview.capabilities.manage}<td
+							{#if overview.capabilities.manage}<td data-label="Familie"
 									><input
 										type="checkbox"
 										aria-label={`Include ${row.memberName} în familie`}
@@ -318,7 +313,7 @@
 												: selected.filter((id) => id !== row.id))}
 									/></td
 								>{/if}
-							<td
+							<td data-label="Participant"
 								><strong class="member-name">{row.memberName}</strong><small
 									>ID {row.orgoId} · {row.branch} · {row.role === 'staff'
 										? 'Echipa adultă'
@@ -331,12 +326,12 @@
 										>E-mail de confirmare în așteptare</small
 									>{/if}</td
 							>
-							<td><span class="badge">{states[row.state]}</span></td>
-							{#if overview.capabilities.finance}<td
+							<td data-label="Participare"><span class="badge">{states[row.state]}</span></td>
+							{#if overview.capabilities.finance}<td data-label="Taxă / încasări / susținere"
 									>{money(row.totalBani)}<small>{money(row.cashBani)} încasat</small><small
 										>{money(row.supportBani)} susținere CL</small
 									></td
-								><td
+								><td data-label="Sold"
 									><strong>{money(row.remainingBani)}</strong>{#if row.refundRemainingBani}<small
 											class="attention">De restituit: {money(row.refundRemainingBani)}</small
 										>{:else if row.state === 'withdrawn' && row.refundDueBani == null && (row.cashBani ?? 0) > 0}<small
@@ -349,7 +344,13 @@
 												class="attention">Termen depășit — verifică încasările</small
 											>{/if}{/if}</td
 								>{/if}
-							{#if !paymentsView}<td>{states[row.consentState]}</td>{/if}<td
+							{#if !paymentsView}<td data-label="Acord / primire"
+									><RegistrationReceipt
+										{activityId}
+										{row}
+										capabilities={overview.capabilities}
+									/></td
+								>{/if}<td data-label="Acțiuni"
 								><div class="row-actions">
 									{#if overview.capabilities.sensitive}<a
 											href={resolve(`/activitati/${activityId}/inscriere/${row.id}`)}
@@ -473,12 +474,6 @@
 		{:else if action === 'accept'}<p>
 				Se verifică locurile disponibile. Plata devine disponibilă după acceptare.
 			</p>
-		{:else if action === 'signed_accepted'}<p>
-				Confirmă numai după ce ai deschis și verificat PDF-ul încărcat din fișa înscrierii.
-			</p>
-		{:else if action === 'paper_received'}<p>
-				Confirmă că ai primit fizic acordul semnat pentru versiunea curentă a activității.
-			</p>
 		{:else}<p>Confirmă respingerea înscrierii.</p>{/if}
 		{#if message}<FormFeedback {message} kind={failed ? 'error' : 'success'} />{/if}<button
 			disabled={busy}>{busy ? 'Se salvează…' : 'Confirmă modificarea'}</button
@@ -525,12 +520,45 @@
 </Modal>
 
 <style>
+	.more-actions {
+		font-size: 14px;
+	}
+	.more-actions summary {
+		padding: 10px 12px;
+		cursor: pointer;
+		border: 1px solid var(--sc-border);
+		border-radius: 7px;
+	}
+	.bulk-actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px;
+		padding-top: 8px;
+	}
+	.header-actions {
+		display: flex;
+		gap: 8px;
+		flex-wrap: wrap;
+		align-items: center;
+	}
+	.mail-notice {
+		font-size: 13px;
+		color: var(--sc-ink-muted);
+	}
+	.mail-notice summary {
+		cursor: pointer;
+	}
+	.mail-notice p {
+		margin: 8px 0;
+	}
 	td:has(.member-name) {
 		min-width: 180px;
 	}
 	.workspace {
 		display: grid;
-		gap: 20px;
+		gap: 12px;
+		min-width: 0;
 	}
 	header {
 		display: flex;
@@ -552,7 +580,7 @@
 		gap: 32px;
 		flex-wrap: wrap;
 		background: var(--sc-surface);
-		padding: 20px;
+		padding: 12px 16px;
 		border: 1px solid var(--sc-border);
 		border-radius: 10px;
 	}
@@ -561,7 +589,7 @@
 		gap: 6px;
 	}
 	.totals strong {
-		font-size: 1.5rem;
+		font-size: 1.1rem;
 		font-variant-numeric: tabular-nums;
 	}
 	small {
@@ -648,9 +676,8 @@
 		border-radius: 6px;
 		padding: 4px 8px;
 	}
-	.notice,
 	.empty {
-		padding: 20px;
+		padding: 12px 16px;
 		background: var(--sc-surface);
 		border: 1px solid var(--sc-border);
 		border-radius: 10px;
@@ -660,6 +687,57 @@
 	}
 	.attention {
 		color: var(--sc-accent);
+	}
+	@media (max-width: 760px) {
+		table,
+		tbody {
+			display: block;
+		}
+		thead {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+		}
+		tr {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr);
+			border: 1px solid var(--sc-border);
+			border-radius: 10px;
+			margin-bottom: 12px;
+		}
+		tr:global([hidden]) {
+			display: none;
+		}
+		td {
+			display: block;
+			min-width: 0 !important;
+			padding: 8px 12px;
+			overflow-wrap: anywhere;
+		}
+		td::before {
+			content: attr(data-label);
+			display: block;
+			font-size: 12px;
+			color: var(--sc-ink-muted);
+			margin-bottom: 4px;
+		}
+		td:last-child {
+			border-bottom: 0;
+		}
+		.row-actions {
+			min-width: 0;
+		}
+		.header-actions {
+			width: 100%;
+		}
+		.toolbar label {
+			width: 100%;
+		}
+		.toolbar select {
+			width: 100%;
+		}
 	}
 	@media (max-width: 600px) {
 		.totals {

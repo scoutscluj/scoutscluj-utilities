@@ -18,7 +18,6 @@
 		isPathActive,
 		kitchenHref,
 		menuHref,
-		parentalConsentHref,
 		parseCurrentActivityId,
 		settingsHref
 	} from './app-shell';
@@ -120,23 +119,6 @@
 										class:active={pathname.includes('/registrations')}
 										onclick={closeMobile}>Înscrieri</a
 									>
-									<a
-										class="feature-link"
-										href={resolve(`/activities/${activity.id}/check-in`)}
-										class:active={pathname.includes('/check-in')}
-										onclick={closeMobile}>Primire participanți</a
-									>
-									<a
-										class="feature-link"
-										href={parentalConsentHref(activity.id)}
-										class:active={isPathActive(parentalConsentHref(activity.id), pathname)}
-										onclick={closeMobile}
-										aria-current={isPathActive(parentalConsentHref(activity.id), pathname)
-											? 'page'
-											: undefined}
-									>
-										Acord parental
-									</a>
 								</div>
 							{/if}
 							{#if canManageActivity(activity, user) || canViewActivityAudit(activity, user)}

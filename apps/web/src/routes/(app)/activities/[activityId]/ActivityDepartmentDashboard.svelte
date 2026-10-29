@@ -83,11 +83,7 @@
 									href: resolve(`/activities/${activity.id}/registrations`)
 								}
 							]
-						: []),
-					{
-						label: 'Acord parental',
-						href: resolve(`/activities/${activity.id}/parental-consent`)
-					}
+						: [])
 				]
 			});
 		}

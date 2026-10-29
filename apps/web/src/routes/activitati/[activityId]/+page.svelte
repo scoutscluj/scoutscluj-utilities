@@ -5,7 +5,11 @@
 	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
-	import { participationFieldVisible } from '@scouts-cluj/parental-consent-schema';
+	import {
+		participationFieldVisible,
+		fixedConsentTerms,
+		type FixedConsentDetails
+	} from '@scouts-cluj/parental-consent-schema';
 	import RegistrationPayment from '$lib/activities/RegistrationPayment.svelte';
 	import {
 		registrationRequest,
@@ -24,6 +28,7 @@
 		message = $state(''),
 		formOpen = $state(false);
 	let failed = $state(false);
+	let agreementOpen = $state(false);
 	const branchNames: Record<string, string> = {
 		lupisori: 'Lupișori',
 		temerari: 'Temerari',
@@ -391,6 +396,9 @@
 				datele personale. Îl verifici și îl aduci semnat pe hârtie sau îl semnezi digital și îl
 				încarci.
 			</p>
+			<button type="button" class="secondary" onclick={() => (agreementOpen = true)}
+				>Consultă regulile și protecția datelor</button
+			>
 		</section>{/if}
 	<section id="registration">
 		<h2>Înscriere</h2>
@@ -664,6 +672,23 @@
 </main>
 
 <Modal
+	bind:open={agreementOpen}
+	title="Siguranță, sănătate și date personale"
+	description="Informațiile activității pe care le poți consulta înainte de confirmarea participării."
+>
+	<div class="agreement-full">
+		{#each fixedConsentTerms as paragraph, index (index)}
+			{@const content = paragraph.replace(/\{\{activity\.([^}]+)\}\}/g, (_, key: string) =>
+				String(data.page.information?.fixedDetails?.[key as keyof FixedConsentDetails] ?? '')
+			)}
+			{#if /^\d+(?:\.\d+)*\.\s/.test(content)}<h3>{content}</h3>{:else if content.trim()}<p>
+					{content}
+				</p>{/if}
+		{/each}
+	</div>
+</Modal>
+
+<Modal
 	bind:open={discardOpen}
 	title="Ștergi înscrierea în curs?"
 	description="Datele salvate pentru acest formular vor fi șterse. Înscrierile deja trimise nu sunt afectate."
@@ -678,6 +703,21 @@
 >
 
 <style>
+	.agreement-summary button {
+		margin-top: 16px;
+	}
+	.agreement-full {
+		display: grid;
+		gap: 12px;
+		font-size: 14px;
+	}
+	.agreement-full h3 {
+		margin: 8px 0 0;
+		font-size: 16px;
+	}
+	.agreement-full p {
+		white-space: pre-wrap;
+	}
 	.registration-fields {
 		display: contents;
 	}

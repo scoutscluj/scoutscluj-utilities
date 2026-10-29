@@ -547,6 +547,13 @@ test('public activity emphasizes the Romanian deadline and shows practical infor
 	const safety = page.getByRole('region', { name: 'Siguranță și acord', exact: true });
 	await expect(safety).toBeVisible();
 	expect((await safety.innerText()).length).toBeLessThan(600);
+	await safety
+		.getByRole('button', { name: 'Consultă regulile și protecția datelor', exact: true })
+		.click();
+	await expect(
+		page.getByRole('dialog').getByRole('heading', { name: /Riscuri previzibile/ })
+	).toBeVisible();
+	await page.keyboard.press('Escape');
 	await expect(
 		page.getByRole('link', { name: 'Autentifică-te cu Orgo', exact: true })
 	).toBeVisible();

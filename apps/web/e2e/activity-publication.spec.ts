@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { emptyFixedConsent } from '@scouts-cluj/parental-consent-schema';
 test.beforeEach(async ({ page, request }) => {
 	await request.post('http://127.0.0.1:3019/test/reset');
 	await page
@@ -259,4 +260,86 @@ test('handoff confirms paper and cash with one explicit action and displays the 
 		true
 	);
 	await page.screenshot({ path: '../../tmp/activity-handoff-mobile.png', fullPage: true });
+});
+
+test.describe('live agreement date serialization', () => {
+	test.use({ timezoneId: 'Europe/Bucharest' });
+	test('agreement preview accepts configured registration dates', async ({ page, request }) => {
+		await request.post('http://127.0.0.1:3019/test/configure', {
+			data: {
+				settings: {
+					consent: emptyFixedConsent(),
+					opensAt: '2027-06-01T08:00:00Z',
+					closesAt: '2027-08-10T15:30:00Z',
+					unitIds: ['cluj-temerari']
+				}
+			}
+		});
+		const responsePromise = page.waitForResponse(
+			(response) =>
+				response.url().includes('/api/consent-preview/') && response.request().method() === 'POST'
+		);
+		await page.goto('/activities/1/settings/consent');
+		const response = await responsePromise;
+		expect(response.status(), response.ok() ? '' : await response.text()).toBe(200);
+		expect(response.request().postDataJSON()).toMatchObject({
+			opensAt: '2027-06-01T08:00:00.000Z',
+			closesAt: '2027-08-10T15:30:00.000Z',
+			paymentDue: '2027-08-01'
+		});
+		await expect(
+			page.getByRole('region', { name: 'Acord de participare fără date de participant' })
+		).toBeVisible();
+		await page.route(
+			/\/activitati\/1\/api\/consent-preview\//,
+			(route) =>
+				route.fulfill({
+					status: 503,
+					json: { message: 'Previzualizarea este indisponibilă momentan.' }
+				}),
+			{ times: 1 }
+		);
+		await page.locator('#consent-commonActivities').fill('Activități păstrate după reîncercare');
+		const retry = page.getByRole('button', { name: 'Reîncearcă previzualizarea' });
+		await expect(retry).toBeVisible();
+		const retried = page.waitForResponse(
+			(response) =>
+				response.url().includes('/api/consent-preview/') && response.request().method() === 'POST'
+		);
+		await retry.click();
+		expect((await retried).status()).toBe(200);
+		await expect(retry).toHaveCount(0);
+		await expect(page.locator('#consent-commonActivities')).toHaveValue(
+			'Activități păstrate după reîncercare'
+		);
+	});
+	test('new activity wizard preview serializes entered local registration times', async ({
+		page
+	}) => {
+		await page.goto('/activities/new');
+		await page.getByLabel('Nume', { exact: true }).fill('Activitate de test');
+		await page.getByLabel('Început', { exact: true }).fill('24.08.2027');
+		await page.getByLabel('Final', { exact: true }).fill('28.08.2027');
+		await page.getByLabel('Locație', { exact: true }).fill('Locație de test');
+		await page.getByRole('button', { name: 'Continuă →' }).click();
+		await page.getByRole('button', { name: 'Continuă →' }).click();
+		await page.getByLabel('Deschidere', { exact: true }).fill('01.06.2027 11:00');
+		await page.getByLabel('Închidere', { exact: true }).fill('10.08.2027 18:30');
+		await page.getByRole('button', { name: 'Continuă →' }).click();
+		const responsePromise = page.waitForResponse(
+			(response) =>
+				response.url().includes('/activities/new/consent-preview') &&
+				response.request().method() === 'POST'
+		);
+		await page.getByRole('button', { name: 'Pregătește acordul acestei activități' }).click();
+		const response = await responsePromise;
+		expect(response.status(), response.ok() ? '' : await response.text()).toBe(200);
+		expect(response.request().postDataJSON().settings).toMatchObject({
+			opensAt: '2027-06-01T08:00:00.000Z',
+			closesAt: '2027-08-10T15:30:00.000Z'
+		});
+		await expect(
+			page.getByRole('region', { name: 'Acord de participare fără date de participant' })
+		).toBeVisible();
+	});
 });

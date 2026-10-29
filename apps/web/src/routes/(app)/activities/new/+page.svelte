@@ -4,6 +4,7 @@
 	import { untrack, tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
+	import { registrationSettingsPayload } from '$lib/activities/settings-payload';
 	import RegistrationSettingsEditor from '$lib/activities/RegistrationSettings.svelte';
 	import ActivityTeamFields from '$lib/activities/ActivityTeamFields.svelte';
 	import {
@@ -62,15 +63,7 @@
 	const payload = $derived(
 		JSON.stringify({
 			...value,
-			registrationSettings: {
-				...value.registrationSettings,
-				opensAt: value.registrationSettings.opensAt
-					? new Date(value.registrationSettings.opensAt).toISOString()
-					: '',
-				closesAt: value.registrationSettings.closesAt
-					? new Date(value.registrationSettings.closesAt).toISOString()
-					: ''
-			}
+			registrationSettings: registrationSettingsPayload(value.registrationSettings)
 		})
 	);
 	function next() {

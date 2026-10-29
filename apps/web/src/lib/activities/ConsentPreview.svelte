@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { registrationSettingsPayload } from './settings-payload';
 	import ConsentPdfViewer from './ConsentPdfViewer.svelte';
 	import { onDestroy } from 'svelte';
 	import { resolve } from '$app/paths';
@@ -21,9 +22,19 @@
 		message = $state(''),
 		busy = $state(false);
 	const unit = $derived(units.find((u) => u.id === selected) ?? units[0]);
+	const wireSettings = $derived(registrationSettingsPayload(settings));
+	const endpoint = $derived(
+		unit?.branch
+			? activityId
+				? `/activitati/${activityId}/api/consent-preview/${unit.branch}?unitId=${encodeURIComponent(unit.id)}`
+				: '/activities/new/consent-preview'
+			: ''
+	);
 	const body = $derived(
 		JSON.stringify(
-			activityId ? settings : { ...activity, settings, branch: unit?.branch, unitId: unit?.id }
+			activityId
+				? wireSettings
+				: { ...activity, settings: wireSettings, branch: unit?.branch, unitId: unit?.id }
 		)
 	);
 	let running = false,
@@ -68,11 +79,9 @@
 	}
 	$effect(() => {
 		const serialized = body;
-		if (!unit?.branch || !settings.consent) return;
-		const endpoint = activityId
-			? `/activitati/${activityId}/api/consent-preview/${unit.branch}?unitId=${encodeURIComponent(unit.id)}`
-			: '/activities/new/consent-preview';
-		const timer = setTimeout(() => void refresh(serialized, endpoint), 1500);
+		if (!endpoint || !settings.consent) return;
+		const target = endpoint;
+		const timer = setTimeout(() => void refresh(serialized, target), 1500);
 		return () => clearTimeout(timer);
 	});
 	onDestroy(() => {
@@ -96,13 +105,22 @@
 					>{/each}</select
 			></label
 		>{:else if unit}<p>{unit.displayName}</p>{/if}
-	{#if message}<p role="status" class="error">
-			{message} Modificările din formular sunt păstrate.
-		</p>{/if}
+	{#if message}<div role="alert" class="error">
+			<p>{message} Modificările din formular sunt păstrate.</p>
+			<button
+				type="button"
+				disabled={busy || !endpoint}
+				onclick={() => void refresh(body, endpoint)}>Reîncearcă previzualizarea</button
+			>
+		</div>{/if}
 	{#if url}{#key url}<ConsentPdfViewer {url} />{/key}{:else}<div class="empty">
-			{units.length
-				? 'Previzualizarea PDF apare după completarea informațiilor.'
-				: 'Alege unitățile eligibile în setările înscrierilor.'}
+			{busy
+				? 'Se pregătește previzualizarea PDF…'
+				: message
+					? 'Reîncearcă pentru a afișa documentul.'
+					: units.length
+						? 'Previzualizarea PDF apare după completarea informațiilor.'
+						: 'Alege unitățile eligibile în setările înscrierilor.'}
 		</div>{/if}
 	<p class="hint">
 		Previzualizarea include textele introduse acum. Documentele emise se modifică numai printr-o
@@ -171,6 +189,22 @@
 	}
 	.error {
 		color: var(--sc-accent);
+		border: 1px solid var(--sc-accent);
+		border-radius: 7px;
+		padding: 12px;
+		background: var(--sc-accent-soft);
+		display: grid;
+		gap: 8px;
+	}
+	.error button {
+		justify-self: start;
+		min-height: 38px;
+		padding: 8px 12px;
+		border: 1px solid var(--sc-accent);
+		border-radius: 7px;
+		color: var(--sc-accent);
+		background: var(--sc-surface);
+		cursor: pointer;
 	}
 	@media (max-width: 1000px) {
 		aside {

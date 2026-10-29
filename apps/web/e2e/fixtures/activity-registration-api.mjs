@@ -1,6 +1,8 @@
 // Synthetic API for UI checks. It never reads real members or connects to a payment provider.
 import { createServer } from 'node:http';
 import schema from '../../../../packages/parental-consent-schema/dist/index.js';
+// Exercise the real preview validator; CI builds the API before browser tests.
+import rules from '../../../api/dist/modules/activity-registrations/registration.rules.js';
 const { participationFields, createRepresentativeOrganizerDraft } = schema;
 const id = '11111111-1111-4111-8111-111111111111';
 const token = 'a'.repeat(43);
@@ -170,6 +172,19 @@ createServer(async (req, res) => {
 	}
 	if (path === '/test/previews') return send(res, previews);
 	if (path.includes('/consent-preview')) {
+		try {
+			rules.parseSettings({
+				...(path === '/api/activity-registrations/consent-preview' ? input.settings : input),
+				published: false
+			});
+		} catch (error) {
+			const body = error.getResponse?.() ?? { message: error.message };
+			return send(
+				res,
+				typeof body === 'string' ? { message: body } : body,
+				error.getStatus?.() ?? 500
+			);
+		}
 		previews.push({
 			path,
 			unitId: new URL(req.url, 'http://127.0.0.1').searchParams.get('unitId'),

@@ -7,6 +7,7 @@
 		if (editing) editing.dirty = false;
 	});
 	import { invalidateAll } from '$app/navigation';
+	import { registrationSettingsPayload } from './settings-payload';
 	import ConsentEditor from './ConsentEditor.svelte';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import ParticipationFeeField from './ParticipationFeeField.svelte';
@@ -149,11 +150,7 @@
 				'settings',
 				{
 					revision: baseRevision,
-					data: {
-						...settings,
-						opensAt: settings.opensAt ? new Date(settings.opensAt).toISOString() : '',
-						closesAt: settings.closesAt ? new Date(settings.closesAt).toISOString() : ''
-					}
+					data: registrationSettingsPayload(settings)
 				}
 			);
 			baseRevision = saved.revision;

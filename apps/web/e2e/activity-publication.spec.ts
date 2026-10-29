@@ -152,7 +152,9 @@ test('agreement editor adapts to eligible units, previews unsaved text and saves
 		})
 		.toBe('Program actualizat fără salvare');
 	await page.getByRole('button', { name: 'Salvează acordul', exact: true }).click();
-	await expect(page.getByRole('status')).toContainText('Datele acordului au fost salvate');
+	await expect(
+		page.getByRole('status').filter({ hasText: 'Datele acordului au fost salvate' })
+	).toBeVisible();
 	await expect(
 		page.getByRole('link', { name: '↓ Descarcă acord de verificare fără date de participant' })
 	).toBeVisible();

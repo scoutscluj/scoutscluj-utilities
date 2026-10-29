@@ -123,7 +123,18 @@ test('agreement editor adapts to eligible units, previews unsaved text and saves
 	await request.post('http://127.0.0.1:3019/test/configure', {
 		data: { settings: { consent, unitActivities: {}, unitIds: ['cluj-temerari'] } }
 	});
+	await page.setViewportSize({ width: 1920, height: 1080 });
 	await page.goto('/activities/1/settings/consent');
+	const publication = await page
+		.getByRole('region', { name: 'Publicarea activității' })
+		.boundingBox();
+	const editor = await page.locator('#acord').boundingBox();
+	expect(publication).not.toBeNull();
+	expect(editor).not.toBeNull();
+	expect(
+		Math.abs(publication!.x + publication!.width - (editor!.x + editor!.width))
+	).toBeLessThanOrEqual(24);
+
 	await expect(
 		page.getByRole('group', { name: 'Activități specifice unităților · opțional' })
 	).toHaveCount(0);
@@ -141,14 +152,16 @@ test('agreement editor adapts to eligible units, previews unsaved text and saves
 		})
 		.toBe('Program actualizat fără salvare');
 	await page.getByRole('button', { name: 'Salvează acordul', exact: true }).click();
-	await expect(page.getByRole('status')).toContainText('Datele acordului au fost salvate');
+	await expect(
+		page.getByRole('status').filter({ hasText: 'Datele acordului au fost salvate' })
+	).toBeVisible();
 	await expect(
 		page.getByRole('link', { name: '↓ Descarcă acord de verificare fără date de participant' })
 	).toBeVisible();
 	expect(
 		(await (await request.get('http://127.0.0.1:3019/test/settings')).json()).data.consent.equipment
 	).toBe('Bocanci\nPelerină');
-	await page.locator('#consent-equipment').scrollIntoViewIfNeeded();
+	await page.locator('#consent-commonActivities').scrollIntoViewIfNeeded();
 	await expect
 		.poll(async () => {
 			const preview = await page
@@ -158,6 +171,11 @@ test('agreement editor adapts to eligible units, previews unsaved text and saves
 			return (preview?.y ?? 0) - (topbar?.height ?? 0);
 		})
 		.toBeGreaterThanOrEqual(0);
+	const preview = await page
+		.getByRole('complementary', { name: 'Previzualizarea acordului' })
+		.boundingBox();
+	expect(preview).not.toBeNull();
+	expect(preview!.y + preview!.height).toBeLessThanOrEqual(1080);
 	await page.evaluate(() => window.scrollTo(0, 0));
 	await page.screenshot({ path: '../../tmp/agreement-editor-desktop.png', fullPage: true });
 	await request.post('http://127.0.0.1:3019/test/configure', {

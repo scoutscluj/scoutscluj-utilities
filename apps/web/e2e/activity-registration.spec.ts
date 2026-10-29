@@ -310,3 +310,121 @@ test('single eligible branch is locked and absent personal medication hides its 
 		page.getByRole('combobox', { name: 'Mod de administrare a medicației personale', exact: true })
 	).toHaveCount(0);
 });
+
+test('adult prefill suggests the staff role and a different minor resets the form', async ({
+	page,
+	request
+}) => {
+	await request.post('http://127.0.0.1:3019/test/configure', {
+		data: {
+			activity: { startDate: '2027-08-23T22:30:00Z' },
+			settings: { unitIds: ['cluj-temerari'] },
+			row: {
+				branch: 'lideri',
+				answers: { participant_name: 'Adult de test', birth_date: '2009-08-24' }
+			}
+		}
+	});
+	await page
+		.context()
+		.addCookies([
+			{ name: 'scoutscluj_session', value: 'synthetic-admin', url: 'http://127.0.0.1:5186' }
+		]);
+	await page.goto('/activitati/1');
+	await page.getByRole('button', { name: 'Înscriere pentru mine', exact: true }).click();
+	const role = page.getByRole('combobox', { name: 'Particip în rol de' });
+	await expect(role).toHaveValue('staff');
+	await expect(page.getByLabel('Nume participant *')).toHaveCount(0);
+	await expect(
+		page.getByText('Certificatul de integritate comportamentală', { exact: false })
+	).toBeVisible();
+	await expect(
+		page.getByRole('button', { name: 'Anunță participarea', exact: true })
+	).toBeVisible();
+	await request.post('http://127.0.0.1:3019/test/configure', {
+		data: {
+			row: {
+				branch: 'temerari',
+				answers: { participant_name: 'Minor de test', birth_date: '2009-08-25' }
+			}
+		}
+	});
+	await page.locator('#registration').getByLabel('ID Orgo sau ID card').fill('36806');
+	await page.getByRole('button', { name: 'Completează datele cunoscute pentru acest ID' }).click();
+	await expect(role).toHaveValue('beneficiary');
+	await expect(page.getByLabel('Nume participant *')).toHaveValue('Minor de test');
+	await expect(
+		page.getByLabel('Participantul va fi major la începutul activității')
+	).not.toBeChecked();
+	await request.post('http://127.0.0.1:3019/test/configure', {
+		data: {
+			row: {
+				branch: 'voluntari',
+				answers: { participant_name: 'Alt adult de test', birth_date: '1997-03-23' }
+			}
+		}
+	});
+	await page.locator('#registration').getByLabel('ID Orgo sau ID card').fill('36807');
+	await page.getByRole('button', { name: 'Completează datele cunoscute pentru acest ID' }).click();
+	await expect(role).toHaveValue('staff');
+	await page.getByRole('button', { name: 'Anunță participarea', exact: true }).click();
+	await expect(page).toHaveURL(/\/inscriere\//);
+	expect((await (await request.get('http://127.0.0.1:3019/test/row')).json()).role).toBe('staff');
+});
+
+for (const adultGroup of ['seniori', 'lideri', 'voluntari', 'scouteri']) {
+	test(`adult remains a beneficiary when ${adultGroup} is eligible`, async ({ page, request }) => {
+		await request.post('http://127.0.0.1:3019/test/configure', {
+			data: {
+				eligibleBranches: ['temerari', adultGroup],
+				row: {
+					branch: adultGroup,
+					answers: { participant_name: 'Adult beneficiar de test', birth_date: '1997-03-23' }
+				}
+			}
+		});
+		await page
+			.context()
+			.addCookies([
+				{ name: 'scoutscluj_session', value: 'synthetic-admin', url: 'http://127.0.0.1:5186' }
+			]);
+		await page.goto('/activitati/1');
+		await page.getByRole('button', { name: 'Înscriere pentru mine', exact: true }).click();
+		const role = page.getByRole('combobox', { name: 'Particip în rol de' });
+		await expect(
+			page.getByLabel('Participantul va fi major la începutul activității')
+		).toBeChecked();
+		await expect(role).toHaveValue('beneficiary');
+		await expect(page.getByRole('combobox', { name: 'Ramură', exact: true })).toHaveValue(
+			adultGroup
+		);
+		await role.selectOption('staff');
+		await expect(role).toHaveValue('staff');
+	});
+}
+
+test('guest birth date suggests an adult role without prefilling member data', async ({
+	page,
+	request
+}) => {
+	await request.post('http://127.0.0.1:3019/test/configure', {
+		data: { settings: { unitIds: ['cluj-temerari'] } }
+	});
+	await page.goto('/activitati/1');
+	await page.getByRole('button', { name: 'Înscrie folosind ID-ul unui membru' }).click();
+	await expect(page.getByLabel('Nume participant *')).toHaveValue('');
+	const role = page.getByRole('combobox', { name: 'Particip în rol de' });
+	const birth = page.getByRole('textbox', { name: /^Data nașterii/ });
+	await birth.fill('25.08.2009');
+	await expect(role).toHaveValue('beneficiary');
+	await birth.fill('24.08.2009');
+	await expect(role).toHaveValue('staff');
+	await expect(
+		page.getByRole('button', { name: 'Anunță participarea', exact: true })
+	).toBeVisible();
+	await role.selectOption('beneficiary');
+	await expect(role).toHaveValue('beneficiary');
+	await page.getByLabel('Participantul va fi major la începutul activității').uncheck();
+	await page.getByLabel('Participantul va fi major la începutul activității').click();
+	await expect(role).toHaveValue('staff');
+});

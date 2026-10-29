@@ -66,6 +66,7 @@ const settings = {
 	terms: 'Taxa este aceeași pentru toate metodele de plată. Retragerea se discută cu organizatorul.'
 };
 let previews = [];
+let eligibleBranchesOverride = null;
 let row;
 let created = null;
 let savedSettings = null;
@@ -76,6 +77,7 @@ const originalActivity = structuredClone(activity);
 function reset() {
 	Object.assign(activity, originalActivity);
 	previews = [];
+	eligibleBranchesOverride = null;
 	created = null;
 	savedSettings = null;
 	settingsRevision = 1;
@@ -166,7 +168,9 @@ createServer(async (req, res) => {
 	}
 	if (path === '/test/row') return send(res, row);
 	if (path === '/test/configure') {
+		Object.assign(activity, input.activity ?? {});
 		Object.assign(settings, input.settings ?? {});
+		if (input.eligibleBranches) eligibleBranchesOverride = input.eligibleBranches;
 		Object.assign(row, input.row ?? {});
 		return send(res, {});
 	}
@@ -313,9 +317,10 @@ createServer(async (req, res) => {
 			activity,
 			settings,
 			eligibleBranches:
-				settings.unitIds.length || settings.structureIds.length
+				eligibleBranchesOverride ??
+				(settings.unitIds.length || settings.structureIds.length
 					? ['temerari']
-					: ['lupisori', 'temerari', 'exploratori', 'seniori'],
+					: ['lupisori', 'temerari', 'exploratori', 'seniori']),
 			fields: participationFields.filter((f) => f.type !== 'signature'),
 			information: createRepresentativeOrganizerDraft(),
 			counts: { beneficiaries: 1, staff: 0 },
@@ -341,7 +346,7 @@ createServer(async (req, res) => {
 			? send(res, {
 					answers: row.answers,
 					email: row.email,
-					branch: 'lupisori',
+					branch: row.branch,
 					canSeeMedical: true
 				})
 			: send(res, {}, 401);

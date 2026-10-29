@@ -24,9 +24,15 @@
 		lupisori: 'Lupișori',
 		temerari: 'Temerari',
 		exploratori: 'Exploratori',
-		seniori: 'Seniori'
+		seniori: 'Seniori',
+		lideri: 'Lideri',
+		voluntari: 'Voluntari adulți',
+		scouteri: 'Scouteri'
 	};
 	const allowedBranches = $derived(data.page.eligibleBranches ?? Object.keys(branchNames));
+	const acceptsAdultBeneficiaries = $derived(
+		allowedBranches.some((code) => ['seniori', 'lideri', 'voluntari', 'scouteri'].includes(code))
+	);
 	let branch = $state('');
 	$effect(() => {
 		if (allowedBranches.length === 1) branch = allowedBranches[0];
@@ -50,6 +56,28 @@
 					].includes(f.code))
 		)
 	);
+	function suggestAdultRole() {
+		if (major && !acceptsAdultBeneficiaries) role = 'staff';
+	}
+	function updateAge(birthDate: string) {
+		const parsed = new Date(birthDate);
+		const start = new Date(activity.startDate ?? '');
+		const startDay = Number.isFinite(start.getTime())
+			? new Intl.DateTimeFormat('en-CA', {
+					timeZone: 'Europe/Bucharest',
+					year: 'numeric',
+					month: '2-digit',
+					day: '2-digit'
+				}).format(start)
+			: '';
+		major =
+			/^\d{4}-\d{2}-\d{2}$/.test(birthDate) &&
+			Number.isFinite(parsed.getTime()) &&
+			parsed.toISOString().slice(0, 10) === birthDate &&
+			!!startDay &&
+			`${Number(birthDate.slice(0, 4)) + 18}${birthDate.slice(4)}` <= startDay;
+		suggestAdultRole();
+	}
 	async function prefill(own = false) {
 		busy = true;
 		message = '';
@@ -68,10 +96,8 @@
 				: allowedBranches.length === 1
 					? allowedBranches[0]
 					: '';
-			const birth = String(answers.birth_date ?? '');
-			if (birth && activity.startDate)
-				major =
-					`${Number(birth.slice(0, 4)) + 18}${birth.slice(4)}` <= activity.startDate.slice(0, 10);
+			role = 'beneficiary';
+			updateAge(String(answers.birth_date ?? ''));
 			message =
 				'Datele cunoscute au fost completate. Verifică informațiile de contact și medicale pentru această activitate. Acordurile se aleg din nou.';
 		} catch (e) {
@@ -290,7 +316,8 @@
 					</p>
 				{:else}
 					<label
-						><input type="checkbox" bind:checked={major} /> Participantul va fi major la începutul activității</label
+						><input type="checkbox" bind:checked={major} onchange={suggestAdultRole} /> Participantul
+						va fi major la începutul activității</label
 					>
 					<label
 						>E-mail pentru confirmare și linkul personal<input
@@ -353,7 +380,10 @@
 										value={String(answers[field.code] ?? '')}
 										required={field.required}
 										disabled={false}
-										onValueChange={(value) => (answers[field.code] = value)}
+										onValueChange={(value) => {
+											answers[field.code] = value;
+											if (field.code === 'birth_date') updateAge(value);
+										}}
 									/>{:else}<input
 										type={field.type === 'phone' ? 'tel' : 'text'}
 										value={String(answers[field.code] ?? '')}

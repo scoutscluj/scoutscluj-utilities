@@ -139,6 +139,9 @@
 		position: sticky;
 		top: 80px;
 		align-self: start;
+		max-height: calc(100dvh - 96px);
+		overflow: auto;
+		box-sizing: border-box;
 		display: grid;
 		gap: 12px;
 		min-width: 0;
@@ -209,6 +212,8 @@
 	@media (max-width: 1000px) {
 		aside {
 			position: static;
+			max-height: none;
+			overflow: visible;
 		}
 	}
 </style>

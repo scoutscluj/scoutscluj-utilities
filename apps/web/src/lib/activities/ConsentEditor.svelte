@@ -118,7 +118,7 @@
 <style>
 	.consent-layout {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(350px, 0.95fr);
+		grid-template-columns: minmax(0, min(44%, 640px)) minmax(0, 1fr);
 		gap: 24px;
 		align-items: start;
 	}

@@ -13,7 +13,7 @@
 </script>
 
 <svelte:head><title>{current?.label ?? 'Setări'} — {data.activity.title}</title></svelte:head>
-<section class="settings-page">
+<section class="settings-page" class:wide={current?.key === 'consent'}>
 	<h1>Setările activității</h1>
 	<nav aria-label="Setările activității">
 		{#each activitySettingsSections as section (section.key)}
@@ -33,6 +33,11 @@
 		display: grid;
 		gap: 20px;
 		max-width: 1100px;
+		min-width: 0;
+	}
+	.settings-page.wide {
+		max-width: none;
+		grid-template-columns: minmax(0, 1fr);
 	}
 	h1 {
 		margin: 0;

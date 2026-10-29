@@ -428,3 +428,89 @@ test('guest birth date suggests an adult role without prefilling member data', a
 	await page.getByLabel('Participantul va fi major la începutul activității').click();
 	await expect(role).toHaveValue('staff');
 });
+
+test('authenticated users save an incomplete registration in their account and resume after returning', async ({
+	page,
+	request
+}) => {
+	await page
+		.context()
+		.addCookies([
+			{ name: 'scoutscluj_session', value: 'synthetic-admin', url: 'http://127.0.0.1:5186' }
+		]);
+	await page.goto('/activitati/1');
+	await expect(page.getByText('Poți salva progresul', { exact: false })).toBeVisible();
+	await page
+		.getByRole('button', { name: 'Înscrie folosind ID-ul unui membru', exact: true })
+		.click();
+	const form = page.locator('#registration');
+	await form.getByLabel('ID Orgo sau ID card', { exact: true }).fill('900001');
+	await form.getByLabel('Nume participant *', { exact: true }).fill('Copil demonstrativ');
+	await form.getByRole('button', { name: 'Salvează și continuă mai târziu', exact: true }).click();
+	await expect(form.getByRole('heading', { name: 'Înscrieri în curs', exact: true })).toBeVisible();
+	const drafts = await (await request.get('http://127.0.0.1:3019/test/drafts')).json();
+	expect(drafts).toHaveLength(1);
+	expect(drafts[0].data.answers.participant_name).toBe('Copil demonstrativ');
+	expect((await (await request.get('http://127.0.0.1:3019/test/row')).json()).memberName).toBe(
+		'Participant de test'
+	);
+	await page.reload();
+	await form.getByRole('button', { name: 'Continuă înscrierea', exact: true }).click();
+	await expect(form.getByLabel('Nume participant *', { exact: true })).toHaveValue(
+		'Copil demonstrativ'
+	);
+	await expect(form.getByLabel('ID Orgo sau ID card', { exact: true })).toHaveValue('900001');
+	await form.getByRole('button', { name: 'Salvează și continuă mai târziu', exact: true }).click();
+	expect(await (await request.get('http://127.0.0.1:3019/test/drafts')).json()).toHaveLength(1);
+	await form.getByRole('button', { name: 'Șterge', exact: true }).click();
+	await page
+		.getByRole('dialog')
+		.getByRole('button', { name: 'Șterge înscrierea în curs', exact: true })
+		.click();
+	await expect(form.getByRole('heading', { name: 'Înscrieri în curs', exact: true })).toHaveCount(
+		0
+	);
+});
+
+test('drafts are unavailable to guests and private between authenticated accounts', async ({
+	page,
+	request,
+	browser
+}) => {
+	await page.goto('/activitati/1');
+	await page.getByRole('button', { name: 'Înscrie folosind ID-ul unui membru' }).click();
+	await expect(page.getByRole('button', { name: 'Salvează și continuă mai târziu' })).toHaveCount(
+		0
+	);
+	expect(
+		(await request.post('/activitati/1/api/drafts', { data: { revision: 0, data: {} } })).status()
+	).toBe(401);
+	const owner = await browser.newContext();
+	await owner.addCookies([
+		{ name: 'scoutscluj_session', value: 'synthetic-admin', url: 'http://127.0.0.1:5186' }
+	]);
+	const savedResponse = await owner.request.post('http://127.0.0.1:5186/activitati/1/api/drafts', {
+		data: {
+			revision: 0,
+			data: { identifier: '900001', answers: { participant_name: 'Private draft' } }
+		}
+	});
+	const draft = await savedResponse.json();
+	const other = await browser.newContext();
+	await other.addCookies([
+		{ name: 'scoutscluj_session', value: 'synthetic-member', url: 'http://127.0.0.1:5186' }
+	]);
+	const otherPage = await other.newPage();
+	await otherPage.goto('http://127.0.0.1:5186/activitati/1');
+	await expect(otherPage.getByText('Private draft', { exact: true })).toHaveCount(0);
+	expect(
+		(
+			await other.request.post(
+				`http://127.0.0.1:5186/activitati/1/api/drafts/${draft.id}/discard`,
+				{ data: {} }
+			)
+		).status()
+	).toBe(404);
+	await owner.close();
+	await other.close();
+});

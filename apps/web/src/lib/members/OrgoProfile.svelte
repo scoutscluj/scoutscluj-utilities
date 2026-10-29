@@ -47,7 +47,7 @@
 </script>
 
 <section>
-	<h2>Profilul din Orgo</h2>
+	<h2>Profilul din Orgo (membri.scout.ro)</h2>
 	{#if profile.logo}<img
 			class="avatar"
 			src={resolve(`/units/${m.id}/photo`)}
@@ -123,7 +123,8 @@
 		</form>
 	</details>
 	{#if m.promiseSource === 'orgo-leader'}<p>
-			Promisiunea de lider este confirmată prin rolul existent în Orgo. Data nu este consemnată.
+			Promisiunea de lider este confirmată prin rolul existent în Orgo (membri.scout.ro). Data nu
+			este consemnată.
 		</p>{/if}
 </section>
 

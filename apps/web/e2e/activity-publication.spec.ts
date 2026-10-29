@@ -1,5 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { emptyFixedConsent } from '@scouts-cluj/parental-consent-schema';
+import {
+	emptyFixedConsent,
+	createRepresentativeOrganizerDraft
+} from '@scouts-cluj/parental-consent-schema';
 test.beforeEach(async ({ page, request }) => {
 	await request.post('http://127.0.0.1:3019/test/reset');
 	await page
@@ -140,6 +143,10 @@ test('agreement editor adapts to eligible units, previews unsaved text and saves
 	).toHaveCount(0);
 	await expect(page.getByLabel('Verifică acordul pentru unitatea')).toHaveCount(0);
 	await page.locator('#consent-commonActivities').fill('Program actualizat fără salvare');
+	await page.getByRole('button', { name: '+ Adaugă activitate', exact: true }).click();
+	await page
+		.getByRole('textbox', { name: 'Activitate 2', exact: true })
+		.fill('Atelier de orientare');
 	await page.getByRole('button', { name: '+ Adaugă echipament' }).click();
 	await page.getByRole('textbox', { name: 'Echipament 2', exact: true }).fill('Pelerină');
 	await expect(
@@ -150,7 +157,7 @@ test('agreement editor adapts to eligible units, previews unsaved text and saves
 			const previews = await (await request.get('http://127.0.0.1:3019/test/previews')).json();
 			return previews.at(-1)?.input?.consent?.commonActivities;
 		})
-		.toBe('Program actualizat fără salvare');
+		.toBe('Program actualizat fără salvare\nAtelier de orientare');
 	await page.getByRole('button', { name: 'Salvează acordul', exact: true }).click();
 	await expect(
 		page.getByRole('status').filter({ hasText: 'Datele acordului au fost salvate' })
@@ -158,6 +165,10 @@ test('agreement editor adapts to eligible units, previews unsaved text and saves
 	await expect(
 		page.getByRole('link', { name: '↓ Descarcă acord de verificare fără date de participant' })
 	).toBeVisible();
+	expect(
+		(await (await request.get('http://127.0.0.1:3019/test/settings')).json()).data.consent
+			.commonActivities
+	).toBe('Program actualizat fără salvare\nAtelier de orientare');
 	expect(
 		(await (await request.get('http://127.0.0.1:3019/test/settings')).json()).data.consent.equipment
 	).toBe('Bocanci\nPelerină');
@@ -238,7 +249,7 @@ test('agreement validation is prominent and links focus the missing field', asyn
 	const alert = page.getByRole('alert');
 	await expect(alert).toBeVisible();
 	await expect(alert).toContainText('Completează informațiile obligatorii');
-	await alert.getByRole('button', { name: 'Activități', exact: true }).click();
+	await alert.getByRole('button', { name: 'Activități specifice', exact: true }).click();
 	await expect(page.locator('#consent-commonActivities')).toBeFocused();
 	await expect(page.locator('#consent-commonActivities')).toHaveAttribute('aria-invalid', 'true');
 });
@@ -501,4 +512,63 @@ test('outdated signed agreements remain accessible without accepting an old vers
 	await expect(dialog.getByRole('link', { name: 'acord-anterior.pdf' })).toBeVisible();
 	await expect(dialog.getByText('Versiune anterioară', { exact: false })).toBeVisible();
 	await expect(dialog.getByRole('button', { name: /acceptă acordul digital/ })).toHaveCount(0);
+});
+
+test('public activity emphasizes the Romanian deadline and shows practical information without accordions', async ({
+	page,
+	request
+}) => {
+	await request.post('http://127.0.0.1:3019/test/configure', {
+		data: {
+			eligibleBranches: ['temerari'],
+			settings: { closesAt: '2027-08-10T15:30:00Z' },
+			information: {
+				...createRepresentativeOrganizerDraft(),
+				fixedDetails: {
+					...emptyFixedConsent(),
+					communication: 'Părinții primesc informații de la coordonator.'
+				}
+			}
+		}
+	});
+	await page.context().clearCookies();
+	await page.goto('/activitati/1');
+	const deadline = page.getByRole('complementary', { name: 'Termen de înscriere' });
+	await expect(deadline).toContainText('10 august 2027');
+	await expect(deadline).toContainText('18:30');
+	expect(
+		await deadline.locator('strong').evaluate((el) => parseFloat(getComputedStyle(el).fontSize))
+	).toBeGreaterThanOrEqual(18);
+	const practical = page.getByRole('region', { name: 'Informații practice' });
+	await expect(practical.getByRole('heading', { name: 'Activități', exact: true })).toBeVisible();
+	await expect(practical.getByText('Program specific Temerari', { exact: true })).toBeVisible();
+	await expect(practical.locator('details')).toHaveCount(0);
+	await expect(practical.getByRole('combobox')).toHaveCount(0);
+	const safety = page.getByRole('region', { name: 'Siguranță și acord', exact: true });
+	await expect(safety).toBeVisible();
+	expect((await safety.innerText()).length).toBeLessThan(600);
+	await expect(
+		page.getByRole('link', { name: 'Autentifică-te cu Orgo', exact: true })
+	).toBeVisible();
+	await expect(page.getByText('Ai cont Orgo (membri.scout.ro)?', { exact: true })).toBeVisible();
+	await page.screenshot({ path: '../../tmp/activity-practical-desktop.png', fullPage: true });
+	await page.setViewportSize({ width: 390, height: 844 });
+	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+	await page.screenshot({ path: '../../tmp/activity-practical-mobile.png', fullPage: true });
+});
+
+test('public activity switches the visible program between eligible branches', async ({
+	page,
+	request
+}) => {
+	await request.post('http://127.0.0.1:3019/test/configure', {
+		data: { eligibleBranches: ['lupisori', 'temerari'] }
+	});
+	await page.goto('/activitati/1');
+	const practical = page.getByRole('region', { name: 'Informații practice' });
+	const choice = practical.getByRole('combobox', { name: 'Program pentru ramura', exact: true });
+	await expect(choice.locator('option')).toHaveText(['Lupișori', 'Temerari']);
+	await choice.selectOption('temerari');
+	await expect(practical.getByText('Program specific Temerari', { exact: true })).toBeVisible();
+	await expect(practical.getByText('Program specific Lupișori', { exact: true })).toHaveCount(0);
 });

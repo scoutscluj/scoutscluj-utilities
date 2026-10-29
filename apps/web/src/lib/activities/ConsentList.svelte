@@ -1,6 +1,22 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	let { value = $bindable(''), invalid = false }: { value?: string; invalid?: boolean } = $props();
+	let {
+		value = $bindable(''),
+		invalid = false,
+		id = 'consent-equipment',
+		itemLabel = 'Echipament',
+		removeLabel = 'Elimină echipamentul',
+		addLabel = '+ Adaugă echipament',
+		placeholder = 'De exemplu: bocanci de drumeție'
+	}: {
+		value?: string;
+		invalid?: boolean;
+		id?: string;
+		itemLabel?: string;
+		removeLabel?: string;
+		addLabel?: string;
+		placeholder?: string;
+	} = $props();
 	let items = $state(untrack(() => (value ? value.split('\n') : [''])));
 	$effect(() => {
 		if (value !== items.join('\n')) items = value ? value.split('\n') : [''];
@@ -20,18 +36,16 @@
 	{#each items as item, index (index)}
 		<div class="item">
 			<input
-				id={index === 0 ? 'consent-equipment' : undefined}
-				aria-label={`Echipament ${index + 1}`}
+				id={index === 0 ? id : undefined}
+				aria-label={`${itemLabel} ${index + 1}`}
 				aria-invalid={invalid}
 				maxlength="500"
 				value={item}
 				oninput={(e) => update(index, e.currentTarget.value)}
-				placeholder="De exemplu: bocanci de drumeție"
+				{placeholder}
 			/>
-			<button
-				type="button"
-				aria-label={`Elimină echipamentul ${index + 1}`}
-				onclick={() => remove(index)}>×</button
+			<button type="button" aria-label={`${removeLabel} ${index + 1}`} onclick={() => remove(index)}
+				>×</button
 			>
 		</div>
 	{/each}
@@ -42,7 +56,7 @@
 		onclick={() => {
 			items.push('');
 			value = items.join('\n');
-		}}>+ Adaugă echipament</button
+		}}>{addLabel}</button
 	>
 	<small>{items.filter((v) => v.trim()).length}/20 elemente</small>
 </div>

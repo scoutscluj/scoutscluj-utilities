@@ -24,14 +24,17 @@
 
 <svelte:head><title>Import Orgo · Membri</title></svelte:head>
 <div class="workspace">
-	<a href={resolve('/units')}>← Unități și membri</a>
-	<h1>Integrare Orgo</h1>
+	<a href={resolve('/units')}>← Membri și unități</a>
+	<h1>Integrare Orgo (membri.scout.ro)</h1>
 	{#if form?.message}<p role="status">{form.message}</p>{/if}{#if data.message}<p role="alert">
 			{data.message}
 		</p>{/if}{#if data.preview}<p>{data.preview.message}</p>
 		<p>Token server-to-server · Scrieri {data.preview.writesEnabled ? 'activate' : 'neactivate'}</p>
 		<h2>Structura identificată</h2>
-		<p>Patrulele din Orgo sunt excluse. Grupele se organizează separat în aplicație.</p>
+		<p>
+			Patrulele din Orgo (membri.scout.ro) sunt excluse. Grupele se organizează separat în
+			aplicație.
+		</p>
 		<p>
 			Unitățile se importă numai cu ramura și structura confirmate. Rolurile active și repartizările
 			compatibile sunt preluate din Orgo.

@@ -48,7 +48,12 @@ export async function publishFixedConsent(
         details.commonActivities,
         details.specificActivities,
         details.activityNotes,
-      ].filter(Boolean),
+      ].flatMap((value) =>
+        value
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean),
+      ),
       equipment: details.equipment.split('\n').filter(Boolean),
       outboundTransport: details.outboundTransport,
       returnTransport: details.returnTransport,

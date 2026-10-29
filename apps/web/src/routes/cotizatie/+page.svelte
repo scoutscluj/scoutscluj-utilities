@@ -132,7 +132,7 @@
 			width="42"
 			height="42"
 		/>
-		<p class="eyebrow">Contul meu ORGO</p>
+		<p class="eyebrow">Contul meu Orgo (membri.scout.ro)</p>
 		<h2 id="own-title">{data.admission ? 'Adeziunea ta' : 'Cotizația ta'}</h2>
 		{#if own}
 			<dl class="account-summary">
@@ -182,8 +182,9 @@
 				</div>
 			{:else if own && data.admission && !own.admissionEligible}
 				<p class="notice">
-					Adeziunea online este disponibilă pentru conturile ORGO create în ultimele 6 luni. Dacă
-					data lipsește sau ai nevoie de ajutor, contactează responsabilul financiar.
+					Adeziunea online este disponibilă pentru conturile Orgo (membri.scout.ro) create în
+					ultimele 6 luni. Dacă data lipsește sau ai nevoie de ajutor, contactează responsabilul
+					financiar.
 				</p>
 			{:else if own}
 				<form
@@ -215,7 +216,7 @@
 				</p>{/if}
 		{:else}
 			<p class="section-intro">
-				Autentifică-te cu ORGO pentru ca aplicația să identifice automat {data.admission
+				Autentifică-te cu Orgo (membri.scout.ro) pentru ca aplicația să identifice automat {data.admission
 					? 'adeziunea'
 					: 'cotizația'} și suma ta.
 			</p>
@@ -261,7 +262,7 @@
 		</h1>
 		<p class="section-intro">
 			{data.admission
-				? 'Taxa de adeziune este de 55 lei, respectiv 105 lei pentru membrii care au Florești în numele din ORGO. Se plătește o singură dată, la alăturarea în organizație. Plata online este disponibilă pentru conturile ORGO create în ultimele 6 luni.'
+				? 'Taxa de adeziune este de 55 lei, respectiv 105 lei pentru membrii care au Florești în numele din Orgo (membri.scout.ro). Se plătește o singură dată, la alăturarea în organizație. Plata online este disponibilă pentru conturile Orgo (membri.scout.ro) create în ultimele 6 luni.'
 				: 'Situația cotizației și plata cu cardul, într-un singur loc.'}
 		</p>
 		{#if data.admission}<p class="admission-link">

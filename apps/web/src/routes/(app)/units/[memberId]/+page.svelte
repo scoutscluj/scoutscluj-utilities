@@ -48,7 +48,7 @@
 
 <svelte:head><title>{m.name} · Membri</title></svelte:head>
 <div class="workspace">
-	<a href={resolve('/units')}>← Unități și membri</a>
+	<a href={resolve('/units')}>← Membri și unități</a>
 	<header>
 		<div>
 			<h1>{m.name}</h1>
@@ -138,7 +138,8 @@
 	{#if a.notes}<section>
 			<h2>Notițe interne</h2>
 			<p class="hint">
-				Vizibile liderilor unității curente. Nu sunt trimise în Orgo sau afișate membrului.
+				Vizibile liderilor unității curente. Nu sunt trimise în Orgo (membri.scout.ro) sau afișate
+				membrului.
 			</p>
 			{#each data.detail.notes as note (note.id)}<article>
 					<p>{note.body}</p>
@@ -342,8 +343,8 @@
 							>ID Orgo verificat<input type="number" name="orgoId" min="1" required /></label
 						>
 						<p class="hint">
-							Folosește ID-ul numai după ce ai verificat că fișa din Orgo aparține aceleiași
-							persoane.
+							Folosește ID-ul numai după ce ai verificat că fișa din Orgo (membri.scout.ro) aparține
+							aceleiași persoane.
 						</p>
 						<button>Asociază identitatea Orgo</button>
 					</form>{/if}

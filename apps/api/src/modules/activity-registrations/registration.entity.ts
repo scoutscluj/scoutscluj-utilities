@@ -1,12 +1,31 @@
 import { defineEntity, p, type InferEntity } from '@mikro-orm/core';
 import { randomUUID } from 'node:crypto';
 import type { Answer, RegistrationSettings } from './registration.rules';
+import type { RegistrationDraftData } from './registration-draft.rules';
 const id = () =>
   p
     .uuid()
     .primary()
     .onCreate(() => randomUUID());
 const created = () => p.datetime().onCreate(() => new Date());
+
+export const ActivityRegistrationDraft = defineEntity({
+  name: 'ActivityRegistrationDraft',
+  tableName: 'activity_registration_drafts',
+  indexes: [{ properties: ['ownerId', 'activityId'] }],
+  properties: {
+    id: id(),
+    activityId: p.integer(),
+    ownerId: p.integer(),
+    data: p.json<RegistrationDraftData>(),
+    revision: p.integer().default(1),
+    createdAt: created(),
+    updatedAt: created(),
+  },
+});
+export type ActivityRegistrationDraft = InferEntity<
+  typeof ActivityRegistrationDraft
+>;
 
 export const ActivityRegistrationSettings = defineEntity({
   name: 'ActivityRegistrationSettings',

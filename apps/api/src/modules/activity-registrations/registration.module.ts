@@ -7,6 +7,7 @@ import { RegistrationController } from './registration.controller';
 import { RegistrationService } from './registration.service';
 import { RegistrationPaymentsService } from './registration-payments.service';
 import { RegistrationMailService } from './registration-mail.service';
+import { RegistrationDraftsService } from './registration-drafts.service';
 @Module({
   imports: [AuthModule, MembersModule, MembershipModule, ParentalConsentModule],
   controllers: [RegistrationController],
@@ -14,6 +15,7 @@ import { RegistrationMailService } from './registration-mail.service';
     RegistrationService,
     RegistrationPaymentsService,
     RegistrationMailService,
+    RegistrationDraftsService,
   ],
   exports: [RegistrationService],
 })

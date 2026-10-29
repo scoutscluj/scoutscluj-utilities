@@ -205,7 +205,7 @@ export const routeTitle = (pathname: string) => {
 	if (pathname.startsWith('/admin')) return 'Administrare';
 	if (pathname.startsWith('/profile/notifications')) return 'Setări notificări';
 	if (pathname.startsWith('/profile')) return 'Profil';
-	if (pathname.startsWith('/units')) return 'Unități și membri';
+	if (pathname.startsWith('/units')) return 'Membri și unități';
 	if (pathname.startsWith('/info/calendar')) return 'Calendar';
 	if (pathname.startsWith('/info/statut')) return 'Statut ONCR';
 	if (pathname.startsWith('/programe/regulamente')) return 'Regulament ONCR';

@@ -1,5 +1,6 @@
 // Synthetic API for UI checks. It never reads real members or connects to a payment provider.
 import { createServer } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import schema from '../../../../packages/parental-consent-schema/dist/index.js';
 // Exercise the real preview validator; CI builds the API before browser tests.
 import rules from '../../../api/dist/modules/activity-registrations/registration.rules.js';
@@ -65,8 +66,10 @@ const settings = {
 	administrativeUserIds: [],
 	terms: 'Taxa este aceeași pentru toate metodele de plată. Retragerea se discută cu organizatorul.'
 };
+let drafts = [];
 let previews = [];
 let eligibleBranchesOverride = null;
+let informationOverride = null;
 let row;
 let created = null;
 let savedSettings = null;
@@ -77,7 +80,9 @@ const originalActivity = structuredClone(activity);
 function reset() {
 	Object.assign(activity, originalActivity);
 	previews = [];
+	drafts = [];
 	eligibleBranchesOverride = null;
+	informationOverride = null;
 	created = null;
 	savedSettings = null;
 	settingsRevision = 1;
@@ -166,11 +171,13 @@ createServer(async (req, res) => {
 		reset();
 		return send(res, {});
 	}
+	if (path === '/test/drafts') return send(res, drafts);
 	if (path === '/test/row') return send(res, row);
 	if (path === '/test/configure') {
 		Object.assign(activity, input.activity ?? {});
 		Object.assign(settings, input.settings ?? {});
 		if (input.eligibleBranches) eligibleBranchesOverride = input.eligibleBranches;
+		if (input.information) informationOverride = input.information;
 		Object.assign(row, input.row ?? {});
 		if (input.capabilities) settings.testCapabilities = input.capabilities;
 		return send(res, {});
@@ -323,7 +330,7 @@ createServer(async (req, res) => {
 					? ['temerari']
 					: ['lupisori', 'temerari', 'exploratori', 'seniori']),
 			fields: participationFields.filter((f) => f.type !== 'signature'),
-			information: createRepresentativeOrganizerDraft(),
+			information: informationOverride ?? createRepresentativeOrganizerDraft(),
 			counts: { beneficiaries: 1, staff: 0 },
 			canManage: authenticated
 		});
@@ -354,6 +361,41 @@ createServer(async (req, res) => {
 		});
 		return res.end(previewPdf());
 	}
+	if (path.endsWith('/drafts')) {
+		if (!authenticated) return send(res, {}, 401);
+		const ownerId = memberMode ? 2 : 1;
+		if (req.method === 'GET')
+			return send(
+				res,
+				drafts.filter((d) => d.ownerId === ownerId)
+			);
+		let draft = input.id ? drafts.find((d) => d.id === input.id && d.ownerId === ownerId) : null;
+		if (input.id && !draft && input.revision !== 0) return send(res, {}, 404);
+		if (
+			draft?.revision === 1 &&
+			input.revision === 0 &&
+			JSON.stringify(draft.data) === JSON.stringify(input.data)
+		)
+			return send(res, draft);
+		if ((draft?.revision ?? 0) !== input.revision)
+			return send(res, { message: 'Înscrierea în curs a fost modificată.' }, 409);
+		if (!draft) {
+			draft = { id: input.id ?? randomUUID(), revision: 0, ownerId };
+			drafts.push(draft);
+		}
+		draft.revision++;
+		draft.data = input.data;
+		draft.updatedAt = new Date().toISOString();
+		return send(res, draft);
+	}
+	if (/\/drafts\/[^/]+\/discard$/.test(path)) {
+		if (!authenticated) return send(res, {}, 401);
+		const draftId = path.split('/').at(-2),
+			ownerId = memberMode ? 2 : 1;
+		if (!drafts.some((d) => d.id === draftId && d.ownerId === ownerId)) return send(res, {}, 404);
+		drafts = drafts.filter((d) => d.id !== draftId || d.ownerId !== ownerId);
+		return send(res, { success: true });
+	}
 	if (path.endsWith('/mine')) return send(res, [row]);
 	if (path.endsWith('/prefill'))
 		return authenticated
@@ -370,6 +412,8 @@ createServer(async (req, res) => {
 	)
 		return send(res, row);
 	if (path.endsWith('/register')) {
+		if (authenticated && input.draftId)
+			drafts = drafts.filter((d) => d.id !== input.draftId || d.ownerId !== (memberMode ? 2 : 1));
 		row.answers = input.answers ?? {};
 		row.role = input.role;
 		return send(res, {

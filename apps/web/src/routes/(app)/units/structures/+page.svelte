@@ -26,11 +26,12 @@
 
 <svelte:head><title>Repartizare Cluj și Florești</title></svelte:head>
 <div class="setup">
-	<a href={resolve('/units')}>← Unități și membri</a>
+	<a href={resolve('/units')}>← Membri și unități</a>
 	<h1>Repartizare Cluj și Florești</h1>
 	<p>
-		Numele din Orgo propune apartenența inițială. Verifică structura și categoria fiecărui membru
-		înainte de confirmare. Schimbarea ulterioară a numelui nu va modifica apartenența.
+		Numele din Orgo (membri.scout.ro) propune apartenența inițială. Verifică structura și categoria
+		fiecărui membru înainte de confirmare. Schimbarea ulterioară a numelui nu va modifica
+		apartenența.
 	</p>
 	{#if form?.message}<p role="status">{form.message}</p>{/if}
 	{#if !data.preview.members.length && !data.preview.units.length}<p>

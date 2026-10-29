@@ -100,6 +100,7 @@ const registry = {
 	ownMemberId: null
 };
 let assignment = null;
+let assignmentError = false;
 const send = (res, body, status = 200) => {
 	res.writeHead(status, { 'Content-Type': 'application/json' });
 	res.end(JSON.stringify(body));
@@ -114,6 +115,13 @@ createServer(async (req, res) => {
 	}
 	if (path === '/test/reset') {
 		assignment = null;
+		assignmentError = false;
+		registry.notices = [];
+		return send(res, {});
+	}
+	if (path === '/test/configure') {
+		assignmentError = !!input.assignmentError;
+		if (input.notices) registry.notices = input.notices;
 		return send(res, {});
 	}
 	if (path === '/test/assignment') return send(res, assignment);
@@ -130,6 +138,12 @@ createServer(async (req, res) => {
 		return send(res, { state: 'idle', message: null, lastSucceededAt: new Date().toISOString() });
 	if (path === '/api/members') return send(res, registry);
 	if (path.endsWith('/assignments')) {
+		if (assignmentError)
+			return send(
+				res,
+				{ message: 'Responsabilitatea nu a putut fi salvată în verificarea locală.' },
+				400
+			);
 		assignment = input;
 		return send(res, { ok: true });
 	}

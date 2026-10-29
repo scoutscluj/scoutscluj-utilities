@@ -62,6 +62,7 @@
 <section aria-label="Plata participării">
 	<h2>Plătește participarea</h2>
 	<p>Plata este disponibilă după înscriere și acceptare. Poți plăti și pentru alt membru.</p>
+	<p class="id-help">Găsești ID-ul în Orgo (membri.scout.ro) sau pe cardul de membru.</p>
 	<form
 		onsubmit={(e) => {
 			e.preventDefault();

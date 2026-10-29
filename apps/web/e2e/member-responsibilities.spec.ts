@@ -104,3 +104,95 @@ test('adult leader placement comes from responsibilities and has no school grade
 	await page.goto('/units/11111111-1111-4111-8111-111111111111');
 	await expect(page.getByLabel('Clasa', { exact: true })).toHaveCount(0);
 });
+
+test('responsibility save shows pending feedback and does not reload the workspace', async ({
+	page
+}) => {
+	const dialog = await responsibilities(page);
+	await dialog
+		.getByRole('combobox', { name: 'Unitate', exact: true })
+		.selectOption('cluj-temerari');
+	await page.evaluate(() => (document.documentElement.dataset.saveProbe = 'preserved'));
+	await page.route('**/units', async (route) => {
+		if (route.request().method() === 'POST')
+			await new Promise((resolve) => setTimeout(resolve, 1200));
+		await route.continue();
+	});
+	await dialog
+		.getByRole('button', { name: 'Salvează responsabilitatea', exact: true })
+		.click({ noWaitAfter: true });
+	await expect(dialog.getByRole('button', { name: 'Se salvează…', exact: true })).toBeDisabled({
+		timeout: 600
+	});
+	await expect(dialog).not.toBeVisible();
+	expect(await page.evaluate(() => document.documentElement.dataset.saveProbe)).toBe('preserved');
+});
+
+test('unit management opens a centered dialog instead of a panel below the members', async ({
+	page
+}) => {
+	await page.goto('/units');
+	await page.getByRole('button', { name: 'Unități și subunități', exact: true }).click();
+	await expect(
+		page.getByRole('dialog', { name: 'Unități și subunități', exact: true })
+	).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('responsibility failure keeps entered choices in the dialog', async ({ page, request }) => {
+	await request.post('http://127.0.0.1:3020/test/configure', { data: { assignmentError: true } });
+	const dialog = await responsibilities(page);
+	await dialog
+		.getByRole('combobox', { name: 'Unitate', exact: true })
+		.selectOption('cluj-temerari');
+	await dialog.getByRole('checkbox', { name: 'Poate vedea cotizațiile', exact: true }).check();
+	await dialog.getByRole('button', { name: 'Salvează responsabilitatea', exact: true }).click();
+	await expect(dialog.getByRole('alert')).toContainText('Responsabilitatea nu a putut fi salvată');
+	await expect(dialog.getByRole('combobox', { name: 'Unitate', exact: true })).toHaveValue(
+		'cluj-temerari'
+	);
+	await expect(
+		dialog.getByRole('checkbox', { name: 'Poate vedea cotizațiile', exact: true })
+	).toBeChecked();
+	await expect(
+		dialog.getByRole('button', { name: 'Salvează responsabilitatea', exact: true })
+	).toBeEnabled();
+});
+
+test('transfer history is optional information and Orgo tools open in a dialog', async ({
+	page,
+	request
+}) => {
+	await request.post('http://127.0.0.1:3020/test/configure', {
+		data: {
+			notices: [
+				{
+					id: 'notice1',
+					memberId: '11111111-1111-4111-8111-111111111111',
+					unitId: 'cluj-temerari',
+					createdAt: '2026-10-29T10:00:00Z'
+				}
+			]
+		}
+	});
+	await page.goto('/units');
+	await expect(page.getByRole('heading', { name: 'Membri și unități', exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Membri primiți în unitate' })).toHaveCount(0);
+	await page.getByRole('button', { name: 'Istoric transferuri (1)', exact: true }).click();
+	await expect(page.getByRole('dialog', { name: 'Istoric transferuri' })).toContainText(
+		'nu necesită confirmare'
+	);
+	await page.keyboard.press('Escape');
+	await page.getByRole('button', { name: 'Mai multe acțiuni pentru registru' }).click();
+	await page.getByRole('menuitem', { name: 'Legătura cu Orgo', exact: true }).click();
+	await expect(page.getByRole('dialog', { name: 'Legătura cu Orgo', exact: true })).toBeVisible();
+	await page.keyboard.press('Escape');
+	await page.getByRole('button', { name: 'Mai multe acțiuni pentru registru' }).click();
+	await page
+		.getByRole('menuitem', { name: 'Actualizarea anuală a membrilor', exact: true })
+		.click();
+	await expect(
+		page.getByRole('dialog', { name: 'Actualizarea anuală a membrilor', exact: true })
+	).toBeVisible();
+});

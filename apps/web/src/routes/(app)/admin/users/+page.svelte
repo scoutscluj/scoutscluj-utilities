@@ -158,7 +158,7 @@
 						>Utilizator {sortDescending ? '↓' : '↑'}</button
 					></span
 				>
-				<span role="columnheader">Orgo</span>
+				<span role="columnheader">Orgo (membri.scout.ro)</span>
 				<span role="columnheader">Roluri</span>
 				<span role="columnheader">Notificări</span>
 				<span role="columnheader">Ultima autentificare</span>
@@ -252,7 +252,7 @@
 			<p>
 				{data.users.length
 					? 'Modifică termenul de căutare sau filtrul de rol.'
-					: 'Utilizatorii apar aici după prima autentificare prin Orgo.'}
+					: 'Utilizatorii apar aici după prima autentificare prin Orgo (membri.scout.ro).'}
 			</p>
 		</div>
 	{/if}

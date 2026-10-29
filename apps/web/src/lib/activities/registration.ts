@@ -90,6 +90,21 @@ export type Entry = {
 	note: string;
 	reversedEntryId?: string;
 };
+export type RegistrationDraft = {
+	id: string;
+	revision: number;
+	updatedAt: string;
+	data: {
+		identifier: string;
+		role: string;
+		email: string;
+		branch: string;
+		major: boolean;
+		exception: boolean;
+		exceptionNote: string;
+		answers: Record<string, Answer>;
+	};
+};
 export type Registration = {
 	id: string;
 	orgoId: number;

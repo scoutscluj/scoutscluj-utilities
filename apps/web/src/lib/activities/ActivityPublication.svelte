@@ -12,13 +12,28 @@
 		type Publication
 	} from './registration';
 	import { activityEditContext, type ActivityEditState } from './activity-edit-state';
-	let { activityId, publication }: { activityId: number; publication: Publication } = $props();
+	let {
+		activityId,
+		publication,
+		compact = false
+	}: { activityId: number; publication: Publication; compact?: boolean } = $props();
 	const editing = getContext<ActivityEditState>(activityEditContext);
 	let failed = $state(false),
 		issues = $state<RegistrationIssue[]>([]);
 	let busy = $state(false),
 		message = $state('');
 	const ended = $derived(['ended', 'cancelled'].includes(publication.state));
+	async function copyLink() {
+		failed = false;
+		try {
+			await navigator.clipboard.writeText(
+				`${location.origin}${resolve(`/activitati/${activityId}`)}`
+			);
+			message = 'Linkul public al activității a fost copiat.';
+		} catch {
+			message = `Link public: ${location.origin}${resolve(`/activitati/${activityId}`)}`;
+		}
+	}
 	async function toggle() {
 		busy = true;
 		message = '';
@@ -44,7 +59,7 @@
 	}
 </script>
 
-<section class="publication" aria-label="Publicarea activității">
+<section class="publication" class:compact aria-label="Publicarea activității">
 	<div class="summary">
 		<Globe size={20} />
 		<div>
@@ -69,7 +84,7 @@
 				href={resolve(`/activitati/${activityId}`)}
 				target="_blank"
 				rel="noreferrer">Deschide pagina publică ↗</a
-			>{/if}
+			><button type="button" class="secondary" onclick={copyLink}>Copiază linkul</button>{/if}
 		{#if !ended}<button
 				type="button"
 				class:secondary={publication.public}
@@ -99,7 +114,7 @@
 		justify-content: space-between;
 		flex-wrap: wrap;
 		gap: 12px 20px;
-		padding: 16px 20px;
+		padding: 10px 16px;
 		border: 1px solid var(--sc-border);
 		border-radius: 10px;
 		background: var(--sc-surface);
@@ -167,6 +182,12 @@
 	.message {
 		flex-basis: 100%;
 	}
+	.compact .summary {
+		flex: 0 1 auto;
+	}
+	.compact .summary p {
+		display: none;
+	}
 	@media (max-width: 600px) {
 		.publication {
 			padding: 16px;
@@ -176,6 +197,18 @@
 		}
 		.actions button {
 			width: 100%;
+		}
+		.compact {
+			padding: 10px 12px;
+			gap: 8px;
+		}
+		.compact .actions {
+			gap: 8px;
+		}
+		.compact .actions button {
+			width: auto;
+			min-height: 36px;
+			padding: 6px 10px;
 		}
 	}
 </style>

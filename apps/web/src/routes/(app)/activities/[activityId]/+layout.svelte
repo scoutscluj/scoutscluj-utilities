@@ -48,6 +48,8 @@
 	{#if data.publication}<ActivityPublication
 			activityId={data.activity.id}
 			publication={data.publication}
+			compact={page.url.pathname.endsWith('/registrations') ||
+				page.url.pathname.endsWith('/finance/participation')}
 		/>{/if}
 	{#if isKitchenRoute}
 		<nav class="kitchen-tabs" aria-label="Meniu bucătărie">

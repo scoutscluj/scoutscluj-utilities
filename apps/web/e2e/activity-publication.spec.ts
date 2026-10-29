@@ -266,7 +266,7 @@ test('handoff confirms paper and cash with one explicit action and displays the 
 	expect(row.consentState).toBe('paper_received');
 	expect(row.cashRemainingBani).toBe(0);
 	expect(row.remainingBani).toBe(20000);
-	await page.getByLabel('Doar cu documente sau cash de primit').uncheck();
+	await expect(page).toHaveURL(/\/activities\/1\/registrations$/);
 	await expect(page.getByText('Nimic de încasat cash')).toBeVisible();
 	await expect(page.getByRole('button', { name: /Cash .* primit/ })).toHaveCount(0);
 	await page.setViewportSize({ width: 390, height: 844 });
@@ -360,4 +360,115 @@ test.describe('live agreement date serialization', () => {
 			page.getByRole('region', { name: 'Acord de participare fără date de participant' })
 		).toBeVisible();
 	});
+});
+
+test('registration table opens signed agreements and keeps the public controls in one section', async ({
+	page,
+	request
+}) => {
+	await request.post('http://127.0.0.1:3019/test/configure', {
+		data: {
+			row: {
+				consentState: 'uploaded',
+				consentPublicationId: 1,
+				answerRevision: 1,
+				documents: [
+					{
+						id: 'bbbbbbbb-bbbb-4bbb-abbb-bbbbbbbbbbbb',
+						kind: 'signed',
+						filename: 'acord-semnat.pdf',
+						publicationId: 1,
+						answerRevision: 1,
+						createdAt: '2026-10-29T10:00:00Z'
+					}
+				]
+			}
+		}
+	});
+	await page.goto('/activities/1/registrations');
+	await expect(
+		page.getByRole('link', { name: 'Deschide pagina publică ↗', exact: true })
+	).toHaveCount(1);
+	await expect(page.getByText('Pagina pe care o distribui participanților')).toHaveCount(0);
+	await expect(page.getByRole('link', { name: 'Acord parental', exact: true })).toHaveCount(0);
+	await expect(page.getByRole('link', { name: 'Primire participanți', exact: true })).toHaveCount(
+		0
+	);
+	await page.getByRole('button', { name: 'Deschide acordul digital' }).click();
+	const dialog = page.getByRole('dialog');
+	await expect(dialog.getByRole('link', { name: 'acord-semnat.pdf' })).toHaveAttribute(
+		'href',
+		/documente\/bbbbbbbb-bbbb-4bbb-abbb-bbbbbbbbbbbb$/
+	);
+	await expect(dialog.getByText('Versiunea curentă', { exact: false })).toBeVisible();
+	await dialog
+		.getByRole('button', { name: 'Am verificat PDF-ul — acceptă acordul digital' })
+		.click();
+	await expect(dialog).not.toBeVisible();
+	await expect(
+		page.getByRole('cell').getByText('Acord digital acceptat', { exact: true })
+	).toBeVisible();
+	await page.setViewportSize({ width: 390, height: 844 });
+	await expect(page.getByRole('button', { name: 'Deschide acordul digital' })).toBeVisible();
+	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+	await page.screenshot({
+		path: '../../tmp/registration-inline-receipt-mobile.png',
+		fullPage: true
+	});
+	await page.setViewportSize({ width: 1440, height: 1000 });
+	await page.screenshot({
+		path: '../../tmp/registration-inline-receipt-desktop.png',
+		fullPage: true
+	});
+});
+
+test('receipt controls respect consent and financial capabilities', async ({ page, request }) => {
+	await request.post('http://127.0.0.1:3019/test/configure', {
+		data: {
+			capabilities: { manage: false, sensitive: false, consent: false, finance: true },
+			row: {
+				consentState: 'uploaded',
+				handoffPaperReady: true,
+				cashInstallments: [{ key: 'cash', remainingBani: 15000 }]
+			}
+		}
+	});
+	await page.goto('/activities/1/registrations');
+	await expect(page.getByRole('button', { name: 'Deschide acordul digital' })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: /Acord fizic primit|Confirmă acord/ })).toHaveCount(
+		0
+	);
+});
+
+test('authorized document readers can download without accepting agreements', async ({
+	page,
+	request
+}) => {
+	await request.post('http://127.0.0.1:3019/test/configure', {
+		data: {
+			capabilities: { manage: false, sensitive: true, consent: false, finance: false },
+			row: {
+				consentState: 'uploaded',
+				documents: [
+					{
+						id: 'bbbbbbbb-bbbb-4bbb-abbb-bbbbbbbbbbbb',
+						kind: 'signed',
+						filename: 'acord-semnat.pdf',
+						publicationId: 1,
+						answerRevision: 1,
+						createdAt: '2026-10-29T10:00:00Z'
+					}
+				]
+			}
+		}
+	});
+	await page.goto('/activities/1/registrations');
+	await page.getByRole('button', { name: 'Deschide acordul digital' }).click();
+	const dialog = page.getByRole('dialog');
+	const downloadPromise = page.waitForEvent('download');
+	await dialog.getByRole('link', { name: 'acord-semnat.pdf' }).click();
+	const download = await downloadPromise;
+	expect(download.suggestedFilename()).toBe('acord-semnat.pdf');
+	expect(await download.failure()).toBeNull();
+	await expect(dialog.getByRole('button', { name: /acceptă acordul digital/ })).toHaveCount(0);
 });

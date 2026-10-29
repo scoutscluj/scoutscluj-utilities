@@ -172,6 +172,7 @@ createServer(async (req, res) => {
 		Object.assign(settings, input.settings ?? {});
 		if (input.eligibleBranches) eligibleBranchesOverride = input.eligibleBranches;
 		Object.assign(row, input.row ?? {});
+		if (input.capabilities) settings.testCapabilities = input.capabilities;
 		return send(res, {});
 	}
 	if (path === '/test/previews') return send(res, previews);
@@ -330,7 +331,12 @@ createServer(async (req, res) => {
 		return send(res, {
 			revision: settingsRevision,
 			settings,
-			capabilities: { manage: true, finance: true, sensitive: true, consent: true },
+			capabilities: settings.testCapabilities ?? {
+				manage: true,
+				finance: true,
+				sensitive: true,
+				consent: true
+			},
 			rows: [row],
 			lists,
 			priceAdvice: {
@@ -340,6 +346,14 @@ createServer(async (req, res) => {
 				fee: { percentageBasisPoints: 119, fixedBani: 30 }
 			}
 		});
+	if (path.includes('/documents/') && req.method === 'GET') {
+		if (!authenticated) return send(res, {}, 403);
+		res.writeHead(200, {
+			'Content-Type': 'application/pdf',
+			'Content-Disposition': 'attachment; filename="acord-semnat.pdf"'
+		});
+		return res.end(previewPdf());
+	}
 	if (path.endsWith('/mine')) return send(res, [row]);
 	if (path.endsWith('/prefill'))
 		return authenticated
@@ -396,6 +410,7 @@ createServer(async (req, res) => {
 			503
 		);
 	if (req.method === 'PATCH' && path.endsWith(`/registrations/${id}`)) {
+		if (input.action === 'signed_accepted') row.consentState = 'signed_accepted';
 		if (input.action === 'receipt') {
 			row.cashBani += input.amountBani;
 			row.remainingBani -= input.amountBani;

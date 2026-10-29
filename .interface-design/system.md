@@ -92,3 +92,5 @@ components around existing Bits UI, not generated registry components.
 Validate interaction changes with the synthetic local API and Playwright suite
 in `apps/web/e2e`, including desktop/mobile screenshots. Do not test mutations
 against production.
+
+- Activity registrations own participant handoff: physical agreement and cash receipts live in each table row, with exact amounts and the existing atomic combined action. Authorized readers open uploaded signed PDFs from that row; acceptance remains limited to consent administrators. At widths up to 760px, table rows become labeled vertical cards while preserving filtering and pagination. Keep publication/link controls in one compact bar and secondary bulk actions in a disclosure. Legacy handoff and activity agreement pages redirect to registrations.

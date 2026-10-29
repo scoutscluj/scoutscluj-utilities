@@ -472,3 +472,33 @@ test('authorized document readers can download without accepting agreements', as
 	expect(await download.failure()).toBeNull();
 	await expect(dialog.getByRole('button', { name: /acceptă acordul digital/ })).toHaveCount(0);
 });
+
+test('outdated signed agreements remain accessible without accepting an old version', async ({
+	page,
+	request
+}) => {
+	await request.post('http://127.0.0.1:3019/test/configure', {
+		data: {
+			row: {
+				consentState: 'update_required',
+				answerRevision: 2,
+				documents: [
+					{
+						id: 'bbbbbbbb-bbbb-4bbb-abbb-bbbbbbbbbbbb',
+						kind: 'signed',
+						filename: 'acord-anterior.pdf',
+						publicationId: 1,
+						answerRevision: 1,
+						createdAt: '2026-10-29T10:00:00Z'
+					}
+				]
+			}
+		}
+	});
+	await page.goto('/activities/1/registrations');
+	await page.getByRole('button', { name: 'Acorduri digitale anterioare' }).click();
+	const dialog = page.getByRole('dialog');
+	await expect(dialog.getByRole('link', { name: 'acord-anterior.pdf' })).toBeVisible();
+	await expect(dialog.getByText('Versiune anterioară', { exact: false })).toBeVisible();
+	await expect(dialog.getByRole('button', { name: /acceptă acordul digital/ })).toHaveCount(0);
+});

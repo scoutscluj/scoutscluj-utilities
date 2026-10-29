@@ -105,8 +105,12 @@
 
 <div class="receipt" aria-label={`Primire ${row.memberName}`} aria-busy={busy}>
 	<span>{states[row.consentState] ?? row.consentState}</span>
-	{#if capabilities.sensitive && ['uploaded', 'signed_accepted'].includes(row.consentState)}
-		<button class="secondary" disabled={busy} onclick={documents}>Deschide acordul digital</button>
+	{#if capabilities.sensitive && ['uploaded', 'signed_accepted', 'update_required'].includes(row.consentState)}
+		<button class="secondary" disabled={busy} onclick={documents}
+			>{row.consentState === 'update_required'
+				? 'Acorduri digitale anterioare'
+				: 'Deschide acordul digital'}</button
+		>
 	{/if}
 	{#if paper && row.handoffPaperReady}
 		<button class="secondary" disabled={busy} onclick={() => receive(true)}
@@ -115,9 +119,11 @@
 	{:else if paper}<small
 			>Generează PDF-ul actual din fișa înscrierii înainte de confirmarea acordului fizic.</small
 		>{/if}
-	{#each cash as item (item.key)}
+	{#each cash as item, index (item.key)}
 		<button class="secondary" disabled={busy} onclick={() => receive(false, [item.key])}
-			>Cash {money(item.remainingBani)} primit</button
+			>Cash {money(item.remainingBani)} primit{cash.length > 1
+				? ` · tranșa ${index + 1}`
+				: ''}</button
 		>
 	{/each}
 	{#if capabilities.finance && eligible && !cash.length}<small>Nimic de încasat cash</small>{/if}

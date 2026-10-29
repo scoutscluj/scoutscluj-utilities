@@ -542,6 +542,9 @@ test('public activity emphasizes the Romanian deadline and shows practical infor
 	const practical = page.getByRole('region', { name: 'Informații practice' });
 	await expect(practical.getByRole('heading', { name: 'Activități', exact: true })).toBeVisible();
 	await expect(practical.getByText('Program specific Temerari', { exact: true })).toBeVisible();
+	await expect(
+		practical.getByText('Detaliile se comunică de coordonator.', { exact: true })
+	).toBeVisible();
 	await expect(practical.locator('details')).toHaveCount(0);
 	await expect(practical.getByRole('combobox')).toHaveCount(0);
 	const safety = page.getByRole('region', { name: 'Siguranță și acord', exact: true });
@@ -578,4 +581,23 @@ test('public activity switches the visible program between eligible branches', a
 	await choice.selectOption('temerari');
 	await expect(practical.getByText('Program specific Temerari', { exact: true })).toBeVisible();
 	await expect(practical.getByText('Program specific Lupișori', { exact: true })).toHaveCount(0);
+});
+
+test('fixed agreement communication is shown once beside the organizer contact', async ({
+	page,
+	request
+}) => {
+	const communication = 'Comunicare prin WhatsApp cu părinții.';
+	const information = createRepresentativeOrganizerDraft();
+	information.fixedDetails = { ...emptyFixedConsent(), communication };
+	information.branches.temerari.pickupDetails = communication;
+	await request.post('http://127.0.0.1:3019/test/configure', {
+		data: { eligibleBranches: ['temerari'], information }
+	});
+	await page.goto('/activitati/1');
+	await expect(
+		page
+			.getByRole('region', { name: 'Informații practice' })
+			.getByText(communication, { exact: true })
+	).toHaveCount(1);
 });

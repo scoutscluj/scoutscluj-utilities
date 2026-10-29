@@ -150,6 +150,12 @@
 			programCode = programOptions[0]?.[0] ?? '';
 	});
 	const programDetails = $derived(programOptions.find(([code]) => code === programCode)?.[1]);
+	const pickupDetails = $derived(programDetails?.pickupDetails?.trim() ?? '');
+	const showPickup = $derived(
+		!!pickupDetails &&
+			pickupDetails !== '-' &&
+			pickupDetails !== (data.page.information?.fixedDetails?.communication?.trim() ?? '')
+	);
 	function displayDate(value: string, time = false) {
 		const date = new Date(value);
 		return Number.isFinite(date.getTime())
@@ -336,8 +342,7 @@
 								.filter(Boolean) as item, index (index)}<li>{item}</li>{/each}
 						</ul>
 					</div>{/if}
-				{#if programDetails.outboundTransport || programDetails.returnTransport || programDetails.pickupDetails}<div
-					>
+				{#if programDetails.outboundTransport || programDetails.returnTransport || showPickup}<div>
 						<h3>Transport și preluare</h3>
 						{#if programDetails.outboundTransport}<p>
 								<strong>Plecare</strong><br />{programDetails.outboundTransport}
@@ -345,7 +350,7 @@
 						{#if programDetails.returnTransport}<p>
 								<strong>Întoarcere</strong><br />{programDetails.returnTransport}
 							</p>{/if}
-						{#if programDetails.pickupDetails}<p>{programDetails.pickupDetails}</p>{/if}
+						{#if showPickup}<p>{pickupDetails}</p>{/if}
 					</div>{/if}
 				{#if programDetails.equipment.length}<div>
 						<h3>Ce trebuie adus</h3>

@@ -5,7 +5,7 @@
 		fixedConsentOptionalFields,
 		type FixedConsentDetails
 	} from '@scouts-cluj/parental-consent-schema';
-	import EquipmentList from './EquipmentList.svelte';
+	import ConsentList from './ConsentList.svelte';
 	import ConsentPreview from './ConsentPreview.svelte';
 	import type { Overview, RegistrationSettings, RegistrationIssue } from './registration';
 	let {
@@ -57,10 +57,20 @@
 						></label
 					>
 					<p id={`help-${key}`}>{fixedConsentHelp[key as keyof FixedConsentDetails]}</p>
-					{#if key === 'equipment'}<EquipmentList
+					{#if key === 'equipment'}<ConsentList
 							bind:value={settings.consent.equipment}
 							invalid={issues.some((i) => i.field === 'consent.equipment')}
-						/>{:else}<textarea
+						/>
+					{:else if key === 'commonActivities'}<ConsentList
+							bind:value={settings.consent.commonActivities}
+							id="consent-commonActivities"
+							itemLabel="Activitate"
+							removeLabel="Elimină activitatea"
+							addLabel="+ Adaugă activitate"
+							placeholder="De exemplu: atelier de orientare"
+							invalid={issues.some((i) => i.field === 'consent.commonActivities')}
+						/>
+					{:else}<textarea
 							id={`consent-${key}`}
 							aria-describedby={`help-${key}`}
 							aria-invalid={issues.some((i) => i.field === `consent.${key}`)}
@@ -88,14 +98,14 @@
 										settings.consent.specificActivities = '';
 										settings.unitActivities = {};
 									}
-								}}>Include în Activități</button
+								}}>Include în Activități specifice</button
 							>
 						</div>{/if}
 					{#if units.length > 1 || units.some((u) => settings.unitActivities?.[u.id])}<fieldset>
 							<legend>Activități specifice unităților · opțional</legend>
 							<p>
-								Completează numai diferențele față de „Activități”. În acord apare doar textul
-								unității participantului.
+								Completează numai diferențele față de „Activități specifice”. În acord apare doar
+								textul unității participantului.
 							</p>
 							{#each units as unit (unit.id)}<label for={`unit-activities-${unit.id}`}
 									>{unit.displayName}</label

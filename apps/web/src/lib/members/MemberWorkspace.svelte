@@ -1,4 +1,8 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
+	import type { SubmitFunction } from '@sveltejs/kit';
+	import FormFeedback from '$lib/components/ui/FormFeedback.svelte';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
@@ -25,7 +29,7 @@
 				refresh = {
 					...refresh,
 					state: 'failed',
-					message: 'Actualizarea din Orgo a eșuat. Reîncearcă.'
+					message: 'Actualizarea din Orgo (membri.scout.ro) a eșuat. Reîncearcă.'
 				};
 		}
 	}
@@ -47,7 +51,7 @@
 						refresh = {
 							...refresh,
 							state: 'failed',
-							message: 'Actualizarea din Orgo a eșuat. Reîncearcă.'
+							message: 'Actualizarea din Orgo (membri.scout.ro) a eșuat. Reîncearcă.'
 						};
 				}
 			})();
@@ -80,6 +84,43 @@
 	import ActionMenu from '$lib/components/ui/ActionMenu.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
 	import type { Unit, Member } from '$lib/members/types';
+	let pendingAction = $state('');
+	let submissionError = $state('');
+	let actionFailed = $state(false);
+	let noticesOpen = $state(false);
+	const submitWorkspace: SubmitFunction = ({ formData, cancel }) => {
+		if (pendingAction) {
+			cancel();
+			return;
+		}
+		const operation = String(formData.get('action'));
+		pendingAction = operation;
+		submissionError = '';
+		actionFailed = false;
+		return async ({ result, update }) => {
+			try {
+				if (result.type === 'error') {
+					actionFailed = true;
+					submissionError = 'Salvarea nu a putut fi confirmată. Verifică conexiunea și reîncearcă.';
+					return;
+				}
+				actionFailed = result.type === 'failure';
+				await update({ reset: false });
+				if (result.type === 'success') {
+					if (operation === 'assignment') responsibilityOpen = false;
+					if (operation === 'end' && responsibilityMember)
+						responsibilityMember = data.registry.members.find(
+							(m) => m.id === responsibilityMember?.id
+						);
+					if (operation === 'unit') subunitOpen = false;
+					if (operation === 'archive') archiveOpen = false;
+					if (operation === 'progression') progressionOpen = false;
+				}
+			} finally {
+				pendingAction = '';
+			}
+		};
+	};
 	let responsibilityOpen = $state(false);
 	let responsibilityMember = $state<Member>();
 	let responsibilityRole = $state('helper');
@@ -103,7 +144,6 @@
 		orgoOpen = $state(false);
 	$effect(() => {
 		if (activeSection === 'create') createOpen = true;
-		if (activeSection === 'assignment' && responsibilityMember) responsibilityOpen = true;
 		if (['unit', 'archive'].includes(activeSection)) structureOpen = true;
 		if (activeSection === 'unit' && form?.message && !form.message.includes('adăugată'))
 			subunitOpen = true;
@@ -173,19 +213,16 @@
 	);
 </script>
 
-<svelte:head
-	><title>{management ? 'Membri și unități · Admin' : 'Unități și membri'} · Scouts Cluj</title
-	></svelte:head
->
+<svelte:head><title>Membri și unități · Scouts Cluj</title></svelte:head>
 <div class="workspace">
 	<header>
-		<h1>{management ? 'Membri și unități' : 'Unități și membri'}</h1>
+		<h1>Membri și unități</h1>
 		<div class="workspace-actions">
 			<button
 				type="button"
 				class="secondary"
-				aria-pressed={structureOpen}
-				onclick={() => (structureOpen = !structureOpen)}>Unități și subunități</button
+				aria-haspopup="dialog"
+				onclick={() => (structureOpen = true)}>Unități și subunități</button
 			>
 			{#if data.registry.admin}<ActionMenu
 					label="Mai multe acțiuni pentru registru"
@@ -200,35 +237,46 @@
 						{
 							label: 'Legătura cu Orgo',
 							action: () => {
-								window.location.href = resolve('/units/orgo');
+								orgoOpen = true;
 							}
 						}
 					]}
 				/>{/if}
 		</div>
 	</header>
-	{#if form?.message}<p class="notice" role="status">{form.message}</p>{/if}
+	{#if form?.message}<FormFeedback
+			message={form.message}
+			kind={actionFailed ? 'error' : 'success'}
+		/>{/if}
 	<div class="registry-summary" aria-label="Rezumat membri">
 		<span
 			><strong>{data.registry.members.filter((m) => m.status === 'active').length}</strong> membri activi</span
 		>
 		<span><strong>{units.length}</strong> unități</span>
 	</div>
-	{#if data.registry.notices.length}<section>
-			<h2>Membri primiți în unitate</h2>
-			{#each data.registry.notices as notice (notice.id)}<p>
-					<a href={resolve(`/units/${notice.memberId}`)}
-						>{data.registry.members.find((m) => m.id === notice.memberId)?.name ??
-							'Membru transferat'}</a
-					>
-					· {name(notice.unitId)} · {new Date(notice.createdAt).toLocaleDateString('ro-RO')}
-				</p>{/each}
-		</section>{/if}
+	{#if data.registry.notices.length}<button
+			class="secondary transfer-history"
+			onclick={() => (noticesOpen = true)}
+			>Istoric transferuri ({data.registry.notices.length})</button
+		>{/if}
+	<Modal
+		bind:open={noticesOpen}
+		title="Istoric transferuri"
+		description="Ultimele mutări ale membrilor către alte unități. Aceste informații nu necesită confirmare."
+	>
+		{#each data.registry.notices as notice (notice.id)}<p>
+				<a href={resolve(`/units/${notice.memberId}`)}
+					>{data.registry.members.find((m) => m.id === notice.memberId)?.name ??
+						'Membru transferat'}</a
+				>
+				· {name(notice.unitId)} · {new Date(notice.createdAt).toLocaleDateString('ro-RO')}
+			</p>{/each}
+	</Modal>
 	<div class="notice" role="status" aria-live="polite">
-		{#if refresh.state === 'running'}Se actualizează din Orgo…
+		{#if refresh.state === 'running'}Se actualizează din Orgo (membri.scout.ro)…
 		{:else if refresh.state === 'failed'}{refresh.message ?? 'Actualizarea a eșuat.'}
-		{:else if refresh.state === 'succeeded'}Date actualizate din Orgo.
-		{:else}Se pregătește actualizarea din Orgo.{/if}
+		{:else if refresh.state === 'succeeded'}Date actualizate din Orgo (membri.scout.ro).
+		{:else}Se pregătește actualizarea din Orgo (membri.scout.ro).{/if}
 		{#if refresh.lastSucceededAt}<small
 				>Ultima actualizare: {new Date(refresh.lastSucceededAt).toLocaleString('ro-RO')}</small
 			>{/if}
@@ -295,6 +343,8 @@
 				responsibilityMember = member;
 				responsibilityRole = data.registry.delegableRoles?.[0] ?? 'helper';
 				responsibilityUnit = '';
+				submissionError = '';
+				actionFailed = false;
 				responsibilityOpen = true;
 			}}
 			registry={data.registry}
@@ -308,7 +358,7 @@
 			title="Adaugă membru"
 			description="Înscrie un beneficiar sau un voluntar adult în structura potrivită."
 		>
-			<form method="POST" class="grid">
+			<form method="POST" use:enhance={submitWorkspace} class="grid">
 				<input type="hidden" name="action" value="create" /><label
 					>Structură<select
 						name="structureId"
@@ -351,83 +401,85 @@
 			</form>
 			<p class="hint">Alege unitatea și, dacă este cazul, grupa în care va fi înscris membrul.</p>
 		</Modal>{/if}
-	{#if structureOpen}<section aria-label="Unități și subunități">
-			<h2>Unități și subunități</h2>
-			{#snippet unitFilters()}<label
-					>Caută unitate sau subunitate<input
-						type="search"
-						bind:value={unitSearch}
-						oninput={() => (unitPage = 0)}
-						placeholder="Nume"
-					/></label
-				>{/snippet}
-			<TableToolbar filters={unitFilters}></TableToolbar>
-			<div class="unit-table">
-				<table use:highlightSearch={unitSearch}>
-					<thead
-						><tr
-							><th>Structură</th><th>Unitate</th><th>Subunitate</th><th
-								><span class="sr-only">Acțiuni</span></th
-							></tr
-						></thead
-					><tbody>
-						{#each unitRows.slice(unitCurrentPage * unitEffectiveSize, (unitCurrentPage + 1) * unitEffectiveSize) as u (u.id)}<tr
-							>
-								<td>{structures.find((st) => st.id === (u.structureId ?? 'cluj'))?.name}</td>
-								<td>{u.parentId ? name(u.parentId) : u.name}</td><td>{u.parentId ? u.name : '—'}</td
-								>
-								<td
-									>{#if u.canManage}
-										{#if !u.parentId}<button
-												type="button"
-												class="sc-icon-button"
-												aria-label={`Adaugă subunitate în ${u.name}`}
-												onclick={() => {
-													subunitEdit = undefined;
-													subunitParent = u.id;
-													subunitOpen = true;
-												}}><Plus size={18} /></button
-											>
-										{:else}<ActionMenu
-												label={`Acțiuni pentru ${u.name}`}
-												items={[
-													{
-														label: 'Redenumește',
-														action: () => {
-															subunitEdit = u;
-															subunitParent = u.parentId ?? '';
-															subunitOpen = true;
-														}
-													},
-													{
-														label: 'Arhivează',
-														destructive: true,
-														action: () => {
-															archiveUnit = u;
-															archiveOpen = true;
-														}
+	{#snippet unitFilters()}<label
+			>Caută unitate sau subunitate<input
+				type="search"
+				bind:value={unitSearch}
+				oninput={() => (unitPage = 0)}
+				placeholder="Nume"
+			/></label
+		>{/snippet}
+	<Modal
+		bind:open={structureOpen}
+		title="Unități și subunități"
+		description="Caută unitățile și gestionează subunitățile din structura selectată."
+	>
+		<TableToolbar filters={unitFilters}></TableToolbar>
+		<div class="unit-table">
+			<table use:highlightSearch={unitSearch}>
+				<thead
+					><tr
+						><th>Structură</th><th>Unitate</th><th>Subunitate</th><th
+							><span class="sr-only">Acțiuni</span></th
+						></tr
+					></thead
+				><tbody>
+					{#each unitRows.slice(unitCurrentPage * unitEffectiveSize, (unitCurrentPage + 1) * unitEffectiveSize) as u (u.id)}<tr
+						>
+							<td>{structures.find((st) => st.id === (u.structureId ?? 'cluj'))?.name}</td>
+							<td>{u.parentId ? name(u.parentId) : u.name}</td><td>{u.parentId ? u.name : '—'}</td>
+							<td
+								>{#if u.canManage}
+									{#if !u.parentId}<button
+											type="button"
+											class="sc-icon-button"
+											aria-label={`Adaugă subunitate în ${u.name}`}
+											onclick={() => {
+												subunitEdit = undefined;
+												subunitParent = u.id;
+												subunitOpen = true;
+											}}><Plus size={18} /></button
+										>
+									{:else}<ActionMenu
+											label={`Acțiuni pentru ${u.name}`}
+											items={[
+												{
+													label: 'Redenumește',
+													action: () => {
+														subunitEdit = u;
+														subunitParent = u.parentId ?? '';
+														subunitOpen = true;
 													}
-												]}
-											/>{/if}
-									{/if}</td
-								>
-							</tr>{/each}
-					</tbody>
-				</table>
-			</div>
-			<TablePagination
-				bind:page={unitPage}
-				bind:pageSize={unitPageSize}
-				total={unitRows.length}
-				loadedTotal={data.registry.units.filter((u) => !u.archived).length}
-			/>
-		</section>{/if}
+												},
+												{
+													label: 'Arhivează',
+													destructive: true,
+													action: () => {
+														archiveUnit = u;
+														archiveOpen = true;
+													}
+												}
+											]}
+										/>{/if}
+								{/if}</td
+							>
+						</tr>{/each}
+				</tbody>
+			</table>
+		</div>
+		<TablePagination
+			bind:page={unitPage}
+			bind:pageSize={unitPageSize}
+			total={unitRows.length}
+			loadedTotal={data.registry.units.filter((u) => !u.archived).length}
+		/>
+	</Modal>
 	<Modal
 		bind:open={subunitOpen}
 		title={subunitEdit ? 'Redenumește subunitatea' : 'Adaugă subunitate'}
 		description="Unitățile sunt fixe. Subunitățile se gestionează în cadrul lor."
 	>
-		<form method="POST" class="grid">
+		<form method="POST" use:enhance={submitWorkspace} class="grid">
 			<input type="hidden" name="action" value="unit" />
 			{#if subunitEdit}<input type="hidden" name="id" value={subunitEdit.id} />{/if}
 			<input type="hidden" name="parentId" value={subunitParent} />
@@ -457,7 +509,7 @@
 				Clasele și ramurile avansează la 1 septembrie. Grupele stabile își păstrează identitatea și
 				adulții responsabili. Verifică clasele și repartizările inițiale înainte de activare.
 			</p>
-			<form method="POST">
+			<form method="POST" use:enhance={submitWorkspace}>
 				<input type="hidden" name="action" value="progression" /><label class="check"
 					><input type="checkbox" name="enabled" checked={data.registry.progressionEnabled} />Datele
 					inițiale sunt verificate; activează actualizarea automată</label
@@ -469,93 +521,129 @@
 					<a href={resolve(`/units/${t.memberId}`)}>Verifică membrul</a> · {t.year}: {t.message}
 				</p>{/each}
 		</Modal>
-		<section>
-			<details bind:open={orgoOpen}>
-				<summary>Legătura cu Orgo</summary>
-				<a href={resolve('/units/orgo')}>Verifică accesul și previzualizează importul</a>
-				<p class="hint">Modificările locale sunt păstrate chiar dacă Orgo nu le poate confirma.</p>
-				{#each data.registry.sync.filter((s) => !['synced', 'superseded', 'local-only'].includes(s.state)) as s (s.id)}<div
-						class="sync"
-					>
-						<p>
-							<a href={resolve(`/units/${s.memberId}`)}>Fișa membrului</a> · {syncLabels[s.state] ??
-								s.state}<small>{s.message}</small>
-						</p>
-						<form method="POST">
-							<input type="hidden" name="action" value="retry" /><input
-								type="hidden"
-								name="id"
-								value={s.id}
-							/><button class="secondary">Reverifică</button>
-						</form>
-					</div>{:else}<p>Nicio operațiune în așteptare.</p>{/each}
-			</details>
-		</section>{/if}
+		<Modal
+			bind:open={orgoOpen}
+			title="Legătura cu Orgo"
+			description="Situația sincronizărilor cu Orgo (membri.scout.ro) și acces la importul registrului."
+		>
+			<a href={resolve('/units/orgo')}>Verifică accesul și previzualizează importul</a>
+			<p class="hint">
+				Modificările locale sunt păstrate chiar dacă Orgo (membri.scout.ro) nu le poate confirma.
+			</p>
+			{#each data.registry.sync.filter((s) => !['synced', 'superseded', 'local-only'].includes(s.state)) as s (s.id)}<div
+					class="sync"
+				>
+					<p>
+						<a href={resolve(`/units/${s.memberId}`)}>Fișa membrului</a> · {syncLabels[s.state] ??
+							s.state}<small>{s.message}</small>
+					</p>
+					<form method="POST" use:enhance={submitWorkspace}>
+						<input type="hidden" name="action" value="retry" /><input
+							type="hidden"
+							name="id"
+							value={s.id}
+						/><button class="secondary">Reverifică</button>
+					</form>
+				</div>{:else}<p>Nicio operațiune în așteptare.</p>{/each}
+		</Modal>{/if}
 </div>
 
 <Modal
 	bind:open={responsibilityOpen}
 	title={`Responsabilități · ${responsibilityMember?.name ?? ''}`}
-	description="Categoria principală rămâne aceeași. Drepturile se acordă numai în aria mandatului tău."
+	description="Alege rolul, unitatea și drepturile de acces. Categoria principală a membrului nu se schimbă."
 >
+	{#if responsibilityMember?.responsibilities?.length}<h2 class="current-heading">
+			Responsabilități curente
+		</h2>{/if}
 	{#each responsibilityMember?.responsibilities ?? [] as assignment (assignment.id)}
-		<form method="POST" class="responsibility-row">
+		<form method="POST" use:enhance={submitWorkspace} class="responsibility-row">
 			<input type="hidden" name="action" value="end" /><input
 				type="hidden"
 				name="targetId"
 				value={responsibilityMember?.id ?? ''}
 			/><input type="hidden" name="assignmentId" value={assignment.id} />
 			<span>{roleLabels[assignment.role]} · {name(assignment.groupId ?? assignment.unitId)}</span>
-			<button type="submit" class="secondary">Încheie responsabilitatea</button>
+			<button type="submit" class="secondary" disabled={!!pendingAction}
+				>{pendingAction === 'end' ? 'Se încheie…' : 'Încheie responsabilitatea'}</button
+			>
 		</form>
 	{/each}
 
-	<form method="POST" class="grid">
+	<form
+		method="POST"
+		use:enhance={submitWorkspace}
+		class="responsibility-form"
+		aria-busy={pendingAction === 'assignment'}
+	>
 		<input type="hidden" name="action" value="assignment" />
 		<input type="hidden" name="targetId" value={responsibilityMember?.id ?? ''} />
 		<input type="hidden" name="structureId" value={responsibilityMember?.structureId ?? 'cluj'} />
-		<label
-			>Responsabilitate<select
-				name="role"
-				bind:value={responsibilityRole}
-				onchange={() => (responsibilityUnit = '')}
-			>
-				{#each (data.registry.delegableRoles ?? []).filter((role) => role !== 'council' || responsibilityMember?.structureId !== 'floresti') as role (role)}<option
-						value={role}>{roleLabels[role]}</option
-					>{/each}
-			</select></label
-		>
-		{#if !['council', 'structure_admin'].includes(responsibilityRole)}
+		<fieldset disabled={!!pendingAction} class="assignment-fields">
+			<legend>Responsabilitate și arie</legend>
 			<label
-				>Unitate<select name="unitId" bind:value={responsibilityUnit} required
-					><option value="">Alege unitatea</option>
-					{#each units.filter((u) => u.delegateRoles?.includes(responsibilityRole) && (u.structureId ?? 'cluj') === (responsibilityMember?.structureId ?? 'cluj')) as u (u.id)}<option
-							value={u.id}
-							>{structures.find((s) => s.id === (u.structureId ?? 'cluj'))?.name} · {u.name}</option
+				>Responsabilitate<select
+					name="role"
+					bind:value={responsibilityRole}
+					onchange={() => (responsibilityUnit = '')}
+				>
+					{#each (data.registry.delegableRoles ?? []).filter((role) => role !== 'council' || responsibilityMember?.structureId !== 'floresti') as role (role)}<option
+							value={role}>{roleLabels[role]}</option
 						>{/each}
 				</select></label
 			>
-			{#if ['leader', 'helper'].includes(responsibilityRole) && data.registry.units.some((u) => u.parentId === responsibilityUnit && !u.archived)}{#key responsibilityUnit}<label
-						>Subunitate<select name="groupId" required
-							><option value="">Alege subunitatea</option
-							>{#each data.registry.units.filter((u) => u.parentId === responsibilityUnit && !u.archived) as u (u.id)}<option
-									value={u.id}>{u.name}</option
-								>{/each}</select
-						></label
-					>{/key}{/if}
-		{/if}
-		{#if ['leader', 'chief'].includes(responsibilityRole)}<label
-				>Data promisiunii de lider (opțional)<DateInput type="date" name="promiseDate" /></label
-			>{/if}
+			{#if !['council', 'structure_admin'].includes(responsibilityRole)}
+				<label
+					>Unitate<select name="unitId" bind:value={responsibilityUnit} required
+						><option value="">Alege unitatea</option>
+						{#each units.filter((u) => u.delegateRoles?.includes(responsibilityRole) && (u.structureId ?? 'cluj') === (responsibilityMember?.structureId ?? 'cluj')) as u (u.id)}<option
+								value={u.id}
+								>{structures.find((s) => s.id === (u.structureId ?? 'cluj'))?.name} · {u.name}</option
+							>{/each}
+					</select></label
+				>
+				{#if ['leader', 'helper'].includes(responsibilityRole) && data.registry.units.some((u) => u.parentId === responsibilityUnit && !u.archived)}{#key responsibilityUnit}<label
+							>Subunitate<select name="groupId" required
+								><option value="">Alege subunitatea</option
+								>{#each data.registry.units.filter((u) => u.parentId === responsibilityUnit && !u.archived) as u (u.id)}<option
+										value={u.id}>{u.name}</option
+									>{/each}</select
+							></label
+						>{/key}{/if}
+			{/if}
+			{#if ['leader', 'chief'].includes(responsibilityRole)}<label
+					>Data promisiunii de lider (opțional)<DateInput type="date" name="promiseDate" /></label
+				>{/if}
+		</fieldset>
 		{#if responsibilityRole === 'helper'}
-			<label class="check"><input type="checkbox" name="canEdit" />Poate modifica membrii</label>
-			<label class="check"><input type="checkbox" name="canSeeFees" />Poate vedea cotizațiile</label
+			<fieldset disabled={!!pendingAction} class="permission-fields">
+				<legend>Drepturi pentru unitatea selectată</legend>
+				<label class="check"><input type="checkbox" name="canEdit" />Poate modifica membrii</label>
+				<label class="check"
+					><input type="checkbox" name="canSeeFees" />Poate vedea cotizațiile</label
+				>
+				<label class="check"
+					><input type="checkbox" name="canSeeSensitive" />Poate vedea date medicale și notițe</label
+				>
+			</fieldset>{/if}
+		{#if submissionError}<FormFeedback
+				message={submissionError}
+				kind="error"
+			/>{:else if actionFailed && form?.message && ['assignment', 'end'].includes(activeSection)}<FormFeedback
+				message={form.message}
+				kind="error"
+			/>{/if}
+		<div class="dialog-actions">
+			<button
+				type="button"
+				class="secondary"
+				disabled={!!pendingAction}
+				onclick={() => (responsibilityOpen = false)}>Anulează</button
+			><button type="submit" disabled={!!pendingAction}
+				>{#if pendingAction === 'assignment'}<LoaderCircle size={16} class="saving-spinner" /> Se salvează…{:else}Salvează
+					responsabilitatea{/if}</button
 			>
-			<label class="check"
-				><input type="checkbox" name="canSeeSensitive" />Poate vedea date medicale și notițe</label
-			>
-		{/if}
-		<button type="submit">Salvează responsabilitatea</button>
+		</div>
 	</form>
 </Modal>
 
@@ -564,7 +652,7 @@
 	title={`Arhivează ${archiveUnit?.name ?? 'unitatea'}`}
 	description="Unitatea va fi arhivată. Istoricul este păstrat. Verifică repartizările înainte de a continua."
 >
-	<form method="POST">
+	<form method="POST" use:enhance={submitWorkspace}>
 		<input type="hidden" name="action" value="archive" /><input
 			type="hidden"
 			name="id"
@@ -576,6 +664,81 @@
 </Modal>
 
 <style>
+	.current-heading {
+		font-size: 14px;
+		font-weight: 600;
+		margin: 0 0 8px;
+	}
+	.transfer-history {
+		justify-self: start;
+		font-size: 13px;
+	}
+	.responsibility-form {
+		gap: 20px;
+	}
+	.assignment-fields {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 16px;
+		border: 0;
+		padding: 0;
+		margin: 0;
+		min-width: 0;
+	}
+	.assignment-fields legend,
+	.permission-fields legend {
+		padding: 0;
+		margin-bottom: 12px;
+		font-size: 14px;
+		font-weight: 600;
+	}
+	.permission-fields {
+		display: grid;
+		gap: 12px;
+		border: 1px solid var(--sc-border);
+		border-radius: 8px;
+		padding: 12px 16px 16px;
+		min-width: 0;
+	}
+	.dialog-actions {
+		display: flex;
+		justify-content: flex-end;
+		align-items: center;
+		gap: 8px;
+		padding-top: 16px;
+		border-top: 1px solid var(--sc-border);
+	}
+	.dialog-actions button {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+	}
+	button:disabled {
+		opacity: 0.55;
+		cursor: wait;
+	}
+	:global(.saving-spinner) {
+		animation: saving-spin 1s linear infinite;
+	}
+	@keyframes saving-spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		:global(.saving-spinner) {
+			animation: none;
+		}
+	}
+	@media (max-width: 520px) {
+		.assignment-fields {
+			grid-template-columns: minmax(0, 1fr);
+		}
+		.dialog-actions {
+			flex-wrap: wrap;
+		}
+	}
+
 	.workspace {
 		display: grid;
 		gap: 16px;
@@ -701,14 +864,6 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
-	}
-	summary {
-		cursor: pointer;
-		font-size: 14px;
-		font-weight: 500;
-	}
-	details[open] > summary {
-		margin-bottom: 16px;
 	}
 	@media (max-width: 640px) {
 		header {

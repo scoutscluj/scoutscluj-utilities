@@ -464,10 +464,14 @@ test('refreshes on opening, keeps cached rows visible, and permits retry after f
 	});
 	await page.goto('/units');
 	await expect(page.getByRole('link', { name: 'Ana Popescu', exact: true })).toBeVisible();
-	await expect(page.getByText('Se actualizează din Orgo…', { exact: false })).toBeVisible();
+	await expect(
+		page.getByText('Se actualizează din Orgo (membri.scout.ro)…', { exact: false })
+	).toBeVisible();
 	await expect(page.getByText('Actualizarea a eșuat.', { exact: false })).toBeVisible();
 	await page.getByRole('button', { name: 'Reîncearcă actualizarea' }).click();
-	await expect(page.getByText('Date actualizate din Orgo.', { exact: false })).toBeVisible();
+	await expect(
+		page.getByText('Date actualizate din Orgo (membri.scout.ro).', { exact: false })
+	).toBeVisible();
 	expect(starts).toBe(2);
 	expect(polls).toBe(2);
 });

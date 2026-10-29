@@ -389,7 +389,7 @@
 <TableToolbar>
 	{#snippet filters()}
 		{#if inactive}<label
-				>Caută în istoricul Orgo<input
+				>Caută în istoricul Orgo (membri.scout.ro)<input
 					type="search"
 					bind:value={inactiveSearch}
 					placeholder="Nume"

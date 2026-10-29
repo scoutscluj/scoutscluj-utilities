@@ -27,8 +27,8 @@
 		<summary>Membri inactivi din Orgo ({members.length})</summary>
 		{#if open}
 			<p>
-				Membrii istorici cu statusul „INACTIVE” în Orgo sunt păstrați aici, separat de registrul
-				curent.
+				Membrii istorici cu statusul „INACTIVE” în Orgo (membri.scout.ro) sunt păstrați aici,
+				separat de registrul curent.
 			</p>
 			<TableToolbar
 				>{#snippet filters()}<label

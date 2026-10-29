@@ -17,10 +17,12 @@ import type { MembersService } from '../src/modules/members/members.service';
 import type { CurrentUser } from '../src/modules/users/users.types';
 import { AdultDocument } from '../src/modules/adult-documents/entities/adult-document.entity';
 import { scoutingYear } from '../src/modules/adult-documents/adult-documents.rules';
+import { RegistrationDraftsService } from '../src/modules/activity-registrations/registration-drafts.service';
 import { RegistrationService } from '../src/modules/activity-registrations/registration.service';
 import { RegistrationPaymentsService } from '../src/modules/activity-registrations/registration-payments.service';
 import {
   ActivityRegistration,
+  ActivityRegistrationDraft,
   ActivityRegistrationEntry,
   ActivityRegistrationSettings,
   ActivityRegistrationCheckout,
@@ -897,17 +899,129 @@ async function main() {
       revision: 0,
       data: handoffSettings,
     });
-    const registered = await make(orm.em.fork()).register(handoffActivity.id, {
-      identifier: String(roster[0].orgoId),
-      email: 'parent@example.test',
-      answers: {
-        ...answers,
-        medical_relevant: 'no',
-        medication: 'Nu există',
-        medication_mode: 'self',
-        medication_dose: 'stale',
+    const draftParent = em.create(User, {
+      displayName: 'Synthetic draft parent',
+      roles: [],
+    });
+    em.persist(draftParent);
+    await em.flush();
+    const draftOwner: CurrentUser = {
+      id: draftParent.id,
+      displayName: draftParent.displayName,
+      roles: [],
+    };
+    const drafts = () =>
+      new RegistrationDraftsService(orm.em.fork(), make(orm.em.fork()));
+    const pending = await drafts().save(handoffActivity.id, draftOwner, {
+      revision: 0,
+      data: {
+        identifier: String(roster[0].orgoId),
+        email: 'incomplete@',
+        exception: true,
+        answers: {
+          participant_name: 'Draft participant',
+          medical_notes: 'Private draft note',
+        },
       },
     });
+    assert.equal(
+      (
+        await drafts().save(handoffActivity.id, draftOwner, {
+          id: pending.id,
+          revision: 0,
+          data: pending.data,
+        })
+      ).id,
+      pending.id,
+    );
+    assert.equal(pending.data.exception, false);
+    assert.equal(
+      await orm.em
+        .fork()
+        .count(ActivityRegistration, { activityId: handoffActivity.id }),
+      0,
+    );
+    assert.equal(
+      (await make(orm.em.fork()).publicPage(handoffActivity.id)).counts
+        .beneficiaries,
+      0,
+    );
+    assert.equal((await drafts().list(handoffActivity.id, actor)).length, 0);
+    await assert.rejects(
+      drafts().save(handoffActivity.id, actor, {
+        id: pending.id,
+        revision: 1,
+        data: {},
+      }),
+      /Not Found/,
+    );
+    await assert.rejects(
+      drafts().discard(handoffActivity.id, pending.id, actor),
+      /Not Found/,
+    );
+    const updatedDraft = await drafts().save(handoffActivity.id, draftOwner, {
+      id: pending.id,
+      revision: 1,
+      data: {
+        identifier: String(roster[0].orgoId),
+        answers: { participant_name: 'Updated draft participant' },
+      },
+    });
+    assert.equal(updatedDraft.revision, 2);
+    await assert.rejects(
+      drafts().save(handoffActivity.id, draftOwner, {
+        id: pending.id,
+        revision: 1,
+        data: {},
+      }),
+      /altă fereastră/,
+    );
+    assert.equal(
+      (await drafts().list(handoffActivity.id, draftOwner))[0].data.answers
+        .participant_name,
+      'Updated draft participant',
+    );
+    await assert.rejects(
+      make(orm.em.fork()).register(
+        handoffActivity.id,
+        {
+          draftId: pending.id,
+          identifier: String(roster[0].orgoId),
+          answers: {},
+        },
+        draftOwner,
+      ),
+    );
+    assert.equal(
+      await orm.em.fork().count(ActivityRegistrationDraft, { id: pending.id }),
+      1,
+    );
+    assert.equal(
+      await orm.em
+        .fork()
+        .count(ActivityRegistration, { activityId: handoffActivity.id }),
+      0,
+    );
+    const registered = await make(orm.em.fork()).register(
+      handoffActivity.id,
+      {
+        draftId: pending.id,
+        identifier: String(roster[0].orgoId),
+        email: 'parent@example.test',
+        answers: {
+          ...answers,
+          medical_relevant: 'no',
+          medication: 'Nu există',
+          medication_mode: 'self',
+          medication_dose: 'stale',
+        },
+      },
+      draftOwner,
+    );
+    assert.equal(
+      await orm.em.fork().count(ActivityRegistrationDraft, { id: pending.id }),
+      0,
+    );
     let handoffRow = await orm.em
       .fork()
       .findOneOrFail(ActivityRegistration, { id: registered.id });

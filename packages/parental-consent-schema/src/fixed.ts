@@ -17,7 +17,7 @@ export const fixedConsentLabels: Record<keyof FixedConsentDetails, string> = {
   representative: "Reprezentantul legal al organizatorului",
   coordinators: "Coordonatorii activității",
   communication: "Comunicarea cu părinții pe durata activității",
-  commonActivities: "Activități",
+  commonActivities: "Activități specifice",
   specificActivities: "Activități specifice unei ramuri sau grupe",
   activityNotes:
     "Precizări suplimentare despre program și condițiile de siguranță",
@@ -43,7 +43,7 @@ export const fixedConsentHelp: Record<keyof FixedConsentDetails, string> = {
   communication:
     "Cum primesc părinții informații: persoana de contact, canalul folosit și eventualele intervale pentru comunicare.",
   commonActivities:
-    "Descrie programul urmat de toți participanții: ateliere, activități în natură, drumeții și alte activități comune.",
+    "Adaugă fiecare activitate pe un rând separat: ateliere, activități în natură, drumeții și alte activități pregătite pentru participanți.",
   specificActivities:
     "Completează numai dacă anumite ramuri sau grupe au activități diferite de programul comun. Precizează cui i se aplică.",
   activityNotes:

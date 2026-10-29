@@ -33,7 +33,7 @@
 		/>
 		<p class="eyebrow">Scouts Cluj Utilities</p>
 		<h1 id="login-title">Autentificare</h1>
-		<p class="summary">Accesul in aplicatie se face prin contul tau Orgo.</p>
+		<p class="summary">Accesul în aplicație se face prin contul tău Orgo (membri.scout.ro).</p>
 
 		<button type="button" class="orgo-button" disabled={isStarting} onclick={startLogin}>
 			<img class="button-mark" src="/branding/orgo-symbol.png" alt="ORGO" width="34" height="34" />

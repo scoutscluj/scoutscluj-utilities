@@ -76,6 +76,9 @@ async function main() {
     'Părinte de test',
     'Siguranță, sănătate',
     'Fotografiere și filmare',
+    'Activități specifice',
+    '• Jocuri de echipă',
+    '• Activități de cooperare',
     '15.05.2027',
   ])
     assert(stdout.includes(value), `Missing rendered content: ${value}`);

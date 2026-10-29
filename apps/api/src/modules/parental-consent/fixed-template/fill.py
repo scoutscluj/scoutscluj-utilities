@@ -178,9 +178,21 @@ def transform(source, destination, values=None):
                         for node in paragraph.findall('.//w:t', NS):
                             node.text = (node.text or '').replace('Cântul Vâlvelor 2026', '{{activity.shortTitle}}').replace('Temerari și exploratori', '{{answer.branch}}')
                     elif values is not None and value == 'Activități comune':
-                        set_text(paragraph, 'Activități')
+                        set_text(paragraph, 'Activități specifice')
                     elif values is not None and value == 'Activități specifice participanților':
                         set_text(paragraph, 'Activități specifice unității')
+                    elif values is not None and value.strip() == '{{activity.commonActivities}}':
+                        # Preserve legacy strings while rendering every entered line as a list item.
+                        for line in str(values.get('activity.commonActivities', '')).splitlines():
+                            line = re.sub(r'^[•☐☑]\s*', '', line.strip())
+                            if not line:
+                                continue
+                            entry = copy.deepcopy(paragraph)
+                            for numbering in entry.findall('w:pPr/w:numPr', NS):
+                                numbering.getparent().remove(numbering)
+                            set_text(entry, '• ' + line)
+                            paragraph.addprevious(entry)
+                        paragraph.getparent().remove(paragraph)
                     elif values is not None and '{{' in value:
                         replaced = re.sub(r'\{\{([^{}]+)\}\}', lambda match: str(values.get(match.group(1), '')), value)
                         # Footers include page number field codes: replace only token text runs.

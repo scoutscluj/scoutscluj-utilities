@@ -113,7 +113,7 @@
 			<span class="heading-icon orgo-symbol"
 				><img src="/branding/orgo-symbol.png" alt="" width="25" height="25" /></span
 			>
-			<h2 id="orgo-information-title">Conexiune Orgo</h2>
+			<h2 id="orgo-information-title">Conexiune Orgo (membri.scout.ro)</h2>
 		</header>
 		<dl class="connection-details">
 			<div>

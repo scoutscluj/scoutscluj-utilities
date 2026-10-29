@@ -59,6 +59,7 @@ import {
   ActivityRegistrationDocument as Document,
   ActivityRegistrationCheckout as Checkout,
   ActivityRegistrationMail as Mail,
+  ActivityRegistrationDraft as Draft,
 } from './registration.entity';
 import {
   amount,
@@ -922,6 +923,12 @@ export class RegistrationService {
       });
       tx.persist(registration);
       await tx.flush();
+      if (user && b.draftId)
+        await tx.nativeDelete(Draft, {
+          id: uuid(b.draftId),
+          activityId,
+          ownerId: user.id,
+        });
       const managePath = `/activitati/${activityId}/inscriere/${token}`;
       const origin = this.config.get<string>('WEB_ORIGIN');
       const link = origin ? new URL(managePath, origin).href : managePath;

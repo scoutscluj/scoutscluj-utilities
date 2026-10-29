@@ -52,7 +52,8 @@
 			if (!confirm) preview = result;
 			else {
 				open = false;
-				saved = 'Tipul cotizației a fost salvat. Sincronizarea cu Orgo este în așteptare.';
+				saved =
+					'Tipul cotizației a fost salvat. Sincronizarea cu Orgo (membri.scout.ro) este în așteptare.';
 				await invalidateAll();
 			}
 		} catch {
@@ -100,8 +101,8 @@
 					{blocker.message}
 				</p>{/each}
 			<p>
-				Tipul ales se salvează în Resurse și se trimite către Orgo. În caz de modificări concurente,
-				Orgo are prioritate.
+				Tipul ales se salvează în Resurse și se trimite către Orgo (membri.scout.ro). În caz de
+				modificări concurente, Orgo are prioritate.
 			</p>
 		{/if}
 		<button type="submit" disabled={busy || (preview && !preview.canResolve)}

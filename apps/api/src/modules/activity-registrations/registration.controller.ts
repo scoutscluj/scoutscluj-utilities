@@ -24,6 +24,7 @@ import { CurrentUser as Actor } from '../auth/decorators/current-user.decorator'
 import type { CurrentUser } from '../users/users.types';
 import { RegistrationService } from './registration.service';
 import { RegistrationPaymentsService } from './registration-payments.service';
+import { RegistrationDraftsService } from './registration-drafts.service';
 
 class RegistrationNoStore implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler) {
@@ -45,6 +46,7 @@ export class RegistrationController {
     private readonly registrations: RegistrationService,
     private readonly payments: RegistrationPaymentsService,
     private readonly auth: AuthService,
+    private readonly drafts: RegistrationDraftsService,
   ) {}
   private limit(request: Request) {
     const now = Date.now();
@@ -216,6 +218,26 @@ export class RegistrationController {
     @Actor() user: CurrentUser,
   ) {
     return this.registrations.mine(id, user);
+  }
+  @UseGuards(AuthGuard) @Get(':activityId/drafts') ownDrafts(
+    @Param('activityId', ParseIntPipe) id: number,
+    @Actor() user: CurrentUser,
+  ) {
+    return this.drafts.list(id, user);
+  }
+  @UseGuards(AuthGuard) @Post(':activityId/drafts') saveDraft(
+    @Param('activityId', ParseIntPipe) id: number,
+    @Actor() user: CurrentUser,
+    @Body() body: unknown,
+  ) {
+    return this.drafts.save(id, user, body);
+  }
+  @UseGuards(AuthGuard) @Post(':activityId/drafts/:id/discard') discardDraft(
+    @Param('activityId', ParseIntPipe) activityId: number,
+    @Param('id') id: string,
+    @Actor() user: CurrentUser,
+  ) {
+    return this.drafts.discard(activityId, id, user);
   }
   @UseGuards(AuthGuard) @Get(':activityId/access') access(
     @Param('activityId', ParseIntPipe) id: number,

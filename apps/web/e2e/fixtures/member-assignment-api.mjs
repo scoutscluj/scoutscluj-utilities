@@ -79,6 +79,13 @@ const child = {
 	roles: ['beneficiary'],
 	access: { ...access, delegate: false }
 };
+const secondChild = {
+	...child,
+	id: '33333333-3333-4333-8333-333333333333',
+	name: 'Beneficiar secundar test',
+	grade: 5
+};
+const initialChildren = structuredClone([child, secondChild]);
 const registry = {
 	admin: true,
 	canManage: true,
@@ -92,7 +99,7 @@ const registry = {
 	delegableRoles: ['helper', 'leader', 'chief'],
 	chiefUnitIds: [],
 	units,
-	members: [leader, child],
+	members: [leader, child, secondChild],
 	notices: [],
 	progressionEnabled: false,
 	sync: [],
@@ -101,6 +108,8 @@ const registry = {
 };
 let assignment = null;
 let assignmentError = false;
+let bulkError = false;
+let bulkRequests = [];
 const send = (res, body, status = 200) => {
 	res.writeHead(status, { 'Content-Type': 'application/json' });
 	res.end(JSON.stringify(body));
@@ -116,15 +125,25 @@ createServer(async (req, res) => {
 	if (path === '/test/reset') {
 		assignment = null;
 		assignmentError = false;
+		bulkError = false;
+		bulkRequests = [];
+		Object.assign(child, structuredClone(initialChildren[0]));
+		Object.assign(secondChild, structuredClone(initialChildren[1]));
+		registry.admin = true;
 		registry.notices = [];
 		return send(res, {});
 	}
 	if (path === '/test/configure') {
 		assignmentError = !!input.assignmentError;
+		bulkError = !!input.bulkError;
+		if (input.mixedStructures) secondChild.structureId = 'floresti';
+		if (input.admin === false) registry.admin = false;
 		if (input.notices) registry.notices = input.notices;
 		return send(res, {});
 	}
 	if (path === '/test/assignment') return send(res, assignment);
+	if (path === '/test/bulk') return send(res, bulkRequests);
+	if (path === '/test/members') return send(res, registry.members);
 	if (path === '/api/auth/me')
 		return send(res, {
 			id: 1,
@@ -137,6 +156,29 @@ createServer(async (req, res) => {
 	if (path === '/api/members/orgo/refresh' || path === '/api/members/orgo/refresh-status')
 		return send(res, { state: 'idle', message: null, lastSucceededAt: new Date().toISOString() });
 	if (path === '/api/members') return send(res, registry);
+	if (path === '/api/members/bulk') {
+		bulkRequests.push(input);
+		if (bulkError)
+			return send(res, { message: 'Selecția s-a schimbat. Reîncarcă registrul.' }, 409);
+		if (!input.confirm) return send(res, { applied: false, version: 'synthetic-version' });
+		if (input.version !== 'synthetic-version')
+			return send(res, { message: 'Versiune invalidă.' }, 409);
+		for (const selected of input.members) {
+			const member = registry.members.find((m) => m.id === selected.id);
+			if (input.changes.kind === 'grade') member.grade = Number(input.changes.grade);
+			if (input.changes.kind === 'transfer') {
+				member.unitId = input.changes.unitId;
+				member.groupId = input.changes.groupId || null;
+			}
+			if (input.changes.kind === 'structure') {
+				member.structureId = input.changes.structureId;
+				member.unitId = member.structureId + '-' + member.category;
+				member.groupId = null;
+			}
+			member.revision += 1;
+		}
+		return send(res, { applied: true });
+	}
 	if (path.endsWith('/assignments')) {
 		if (assignmentError)
 			return send(

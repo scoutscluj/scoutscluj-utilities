@@ -133,12 +133,12 @@ export async function memberAction(event: RequestEvent) {
 			path += `/assignments/${encodeURIComponent(String(form.get('assignmentId')))}/end`;
 		else return fail(400, { message: 'Acțiune necunoscută.' });
 	} else return fail(400, { message: 'Acțiune necunoscută.' });
-	const response = await apiFetch(`/api/members${path}`, {
+	let response = await apiFetch(`/api/members${path}`, {
 		method: 'POST',
 		headers: { ...memberHeaders(event), 'Content-Type': 'application/json' },
 		body: JSON.stringify(body)
 	});
-	const result = (await response.json()) as {
+	let result = (await response.json()) as {
 		message?: string;
 		id?: string;
 		added?: number;
@@ -149,20 +149,34 @@ export async function memberAction(event: RequestEvent) {
 		members?: { id: string; name: string; revision: number; from: string; unitId: string | null }[];
 		changes?: Record<string, unknown>;
 	};
+	if (response.ok && action === 'bulk' && !result.applied) {
+		if (!result.version)
+			return fail(502, {
+				section: action,
+				message: 'Modificarea nu a putut fi verificată. Reîncearcă.'
+			});
+		// Keep revision and authorization checks on both API calls within one user submission.
+		response = await apiFetch('/api/members/bulk', {
+			method: 'POST',
+			headers: { ...memberHeaders(event), 'Content-Type': 'application/json' },
+			body: JSON.stringify({ ...body, confirm: true, version: result.version })
+		});
+		result = await response.json();
+	}
 	if (!response.ok)
 		return fail(response.status, {
 			section: action,
 			message: result.message ?? 'Modificarea nu a putut fi salvată.'
 		});
 	if (action === 'bulk' && !result.applied)
-		return {
+		return fail(502, {
 			section: action,
-			message: 'Verifică persoanele și modificarea înainte de confirmare.',
-			bulkPreview: { version: result.version!, members: result.members!, changes: result.changes! }
-		};
+			message: 'Salvarea nu a putut fi confirmată. Reîncarcă registrul.'
+		});
 	if (action === 'create' && result.id) redirect(303, `/units/${result.id}`);
 	return {
 		section: action,
+		success: true,
 		message:
 			action === 'import'
 				? `Import finalizat: ${result.added ?? 0} membri și ${result.unitsAdded ?? 0} unități adăugate, ${result.conflicts ?? 0} cazuri de verificat.`

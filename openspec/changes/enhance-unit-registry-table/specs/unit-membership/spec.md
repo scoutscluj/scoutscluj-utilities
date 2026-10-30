@@ -13,6 +13,13 @@ initial status selection SHALL remain active members.
 - **THEN** results include either selected category within either selected structure
 - **AND** changing structure or category clears stale subunit choices.
 
+#### Scenario: Balanced filters and reversible selections
+
+- **WHEN** the registry is shown on desktop, tablet or mobile
+- **THEN** search and table actions occupy a separate row above an evenly sized filter grid
+- **AND** selected filters appear as removable chips alongside the result count
+- **AND** reset clears search and every filter without changing authorization.
+
 ### Requirement: Age and voting eligibility
 
 The roster SHALL display and sort age in completed years as of today's date in

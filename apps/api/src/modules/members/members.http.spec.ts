@@ -382,6 +382,75 @@ describe('member HTTP scope and lifecycle', () => {
     expect(f.list('member').find((m) => m.id === childId)?.grade).toBe(5);
     expect(f.list('sync')).toHaveLength(0);
   });
+  it.each([
+    [0, 0, 30000],
+    [5000, 10000, 15000],
+    [20000, 10000, 0],
+  ])(
+    'projects current fees with local %i and national %i credits',
+    async (local, national, remaining) => {
+      f.list('period').push(
+        {
+          id: 'current',
+          active: true,
+          name: '2026–2027',
+          startsOn: '2026-09-01',
+        },
+        { id: 'old', active: false, name: '2025–2026', startsOn: '2025-09-01' },
+      );
+      f.list('obligation').push(
+        {
+          id: 'current-fee',
+          orgoUserId: 201,
+          periodId: 'current',
+          totalBani: 30000,
+          nationalDirectBani: national,
+        },
+        { id: 'old-fee', orgoUserId: 201, periodId: 'old', totalBani: 40000 },
+        {
+          id: 'other-fee',
+          orgoUserId: 202,
+          periodId: 'current',
+          totalBani: 90000,
+        },
+      );
+      f.list('allocation').push(
+        { obligationId: 'current-fee', amountBani: local, reversed: false },
+        { obligationId: 'current-fee', amountBani: 99999, reversed: true },
+      );
+      const service = new MembersService(f.em);
+      const result = await service.dashboard({
+        id: 1,
+        displayName: 'Adult',
+        roles: [],
+      });
+      expect(
+        result.members.find((m) => m.id === childId)?.feeSummary,
+      ).toMatchObject({
+        period: '2026–2027',
+        paidBani: local + national,
+        remainingBani: remaining,
+        collectible: true,
+      });
+      expect(result.members.find((m) => m.id === otherId)).not.toHaveProperty(
+        'feeSummary',
+      );
+      const member = f.list('member').find((m) => m.id === childId)!;
+      member.status = 'withdrawn';
+      const withdrawn = await service.dashboard({
+        id: 2,
+        displayName: 'Admin',
+        roles: [],
+      });
+      expect(
+        withdrawn.members.find((m) => m.id === childId)?.feeSummary,
+      ).toMatchObject({
+        collectible: false,
+        remainingBani: 0,
+        paidBani: local + national,
+      });
+    },
+  );
   it('keeps fees private from readers without an explicit financial grant', async () => {
     f.tables.assignment = [
       {
@@ -402,6 +471,14 @@ describe('member HTTP scope and lifecycle', () => {
         }
       ).access,
     ).toMatchObject({ fees: false, edit: false });
+    const roster = await new MembersService(f.em).dashboard({
+      id: 1,
+      displayName: 'Adult',
+      roles: [],
+    });
+    expect(roster.members.find((m) => m.id === childId)).not.toHaveProperty(
+      'feeSummary',
+    );
     await http()
       .get('/members/' + otherId)
       .expect(403);

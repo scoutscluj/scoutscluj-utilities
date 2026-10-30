@@ -63,6 +63,7 @@
 	let showUnit = $state(true),
 		showGrade = $state(true),
 		showStatus = $state(true);
+	const canSeeFees = $derived(members.some((m) => m.access?.fees));
 	let activePreview = $state<Preview>();
 	let feesOpen = $state(false);
 	let rowAction = $state(false);
@@ -457,7 +458,9 @@
 								>Status ↕</button
 							></th
 						>{/if}
-				{/if}<th><span class="sr-only">Acțiuni</span></th>
+				{/if}{#if canSeeFees}<th>Cotizație curentă</th>{/if}<th
+					><span class="sr-only">Acțiuni</span></th
+				>
 			</tr></thead
 		><tbody>
 			{#each pageRows as m (m.id)}<tr class:selected={selected.includes(m.id)}>
@@ -502,6 +505,31 @@
 												: 'De verificat'}
 								{#if m.syncMessage}<small title={m.syncMessage}>{m.syncMessage}</small>{/if}</td
 							>{/if}{/if}
+					{#if canSeeFees}<td>
+							{#if m.access?.fees}
+								<button
+									type="button"
+									class="fee-status"
+									onclick={() => loadFees(m)}
+									aria-label={`Cotizații pentru ${m.name}`}
+								>
+									{#if m.feeSummary}
+										{!m.feeSummary.collectible
+											? 'În afara urmăririi la plată'
+											: m.feeSummary.remainingBani === 0
+												? 'Achitată'
+												: m.feeSummary.paidBani > 0
+													? 'Parțial achitată'
+													: 'Neachitată'}
+										<small
+											>{m.feeSummary
+												.period}{#if m.feeSummary.collectible && m.feeSummary.remainingBani > 0}
+												· Rămas {money(m.feeSummary.remainingBani)}{/if}</small
+										>
+									{:else}Fără cotizație curentă{/if}
+								</button>
+							{:else}<span aria-label="Fără acces la cotizație">—</span>{/if}
+						</td>{/if}
 					<td
 						>{#if rowActions(m).length}<ActionMenu
 								label={`Acțiuni pentru ${m.name}`}
@@ -511,6 +539,7 @@
 				</tr>{:else}<tr
 					><td
 						colspan={2 +
+							Number(canSeeFees) +
 							Number(management && registry.canManage) +
 							(inactive ? 0 : Number(showUnit) + Number(showGrade) + Number(showStatus))}
 						>Nu există membri pentru filtrele alese.</td
@@ -621,6 +650,16 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
+	}
+	.fee-status {
+		border: 0;
+		background: transparent;
+		padding: 0;
+		text-align: left;
+		font-variant-numeric: tabular-nums;
+	}
+	.fee-status:hover {
+		text-decoration: underline;
 	}
 	.sort-button {
 		border: 0;

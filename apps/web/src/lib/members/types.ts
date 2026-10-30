@@ -33,6 +33,10 @@ export type Unit = {
 	archived: boolean;
 };
 export type Member = {
+	feeSummary?: Pick<
+		Detail['fees'][number],
+		'period' | 'totalBani' | 'paidBani' | 'remainingBani' | 'collectible'
+	> | null;
 	syncState?: string;
 	syncMessage?: string;
 	responsibilities?: { id: string; role: string; unitId: string | null; groupId: string | null }[];

@@ -1,3 +1,4 @@
+import { setMultiSelect } from './multi-select';
 import { expect, test } from '@playwright/test';
 test.beforeEach(async ({ page, request }) => {
 	await request.post('http://127.0.0.1:3020/test/reset');
@@ -139,7 +140,7 @@ test('limits selection actions by school category, structure and administration 
 		0
 	);
 	await page.getByRole('checkbox', { name: 'Selectează Lider adult test', exact: true }).uncheck();
-	await page.getByRole('combobox', { name: 'Structură', exact: true }).selectOption('');
+	await setMultiSelect(page, 'Structură', []);
 	await page.getByRole('checkbox', { name: 'Selectează Beneficiar test', exact: true }).check();
 	await page
 		.getByRole('checkbox', { name: 'Selectează Beneficiar secundar test', exact: true })

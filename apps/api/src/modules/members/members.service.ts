@@ -40,6 +40,7 @@ import {
 import {
   adultRoles,
   hasSchoolGrade,
+  memberAge,
   emptyProfile,
   permissions,
   targetYear,
@@ -879,6 +880,7 @@ export class MembersService {
         structureId: structureOf(m),
         orgoId: grants.get(m.id)?.detail ? m.orgoId : null,
         grade: grants.get(m.id)?.detail && hasSchoolGrade(m) ? m.grade : null,
+        age: grants.get(m.id)?.detail ? memberAge(m.birthDate) : null,
         unitId: m.unitId,
         groupId: m.groupId,
         syncState: pendingSync.find((s) => s.memberId === m.id)?.state,

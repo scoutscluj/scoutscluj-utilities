@@ -5,7 +5,7 @@
 	import FormFeedback from '$lib/components/ui/FormFeedback.svelte';
 	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import DateInput from '$lib/components/ui/DateInput.svelte';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	type Refresh = { state: string; message: string | null; lastSucceededAt: string | null };
 	let refresh = $state<Refresh>({ state: 'idle', message: null, lastSucceededAt: null });
@@ -81,6 +81,8 @@
 	import TableToolbar from '$lib/components/ui/TableToolbar.svelte';
 	import TablePagination from '$lib/components/ui/TablePagination.svelte';
 	import MemberTable from '$lib/members/MemberTable.svelte';
+	import MultiSelectFilter from '$lib/components/ui/MultiSelectFilter.svelte';
+	import { filterMembers } from './registry-table';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import ActionMenu from '$lib/components/ui/ActionMenu.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -152,12 +154,14 @@
 		if (activeSection === 'progression') progressionOpen = true;
 		if (['retry', 'import'].includes(activeSection)) orgoOpen = true;
 	});
-	let structureFilter = $state('');
-	let categoryFilter = $state('');
-	$effect(() => {
-		if (!data.registry.admin && data.registry.homeStructureId)
-			structureFilter = data.registry.homeStructureId;
-	});
+	let structureFilter = $state<string[]>(
+		untrack(() =>
+			!data.registry.admin && data.registry.homeStructureId ? [data.registry.homeStructureId] : []
+		)
+	);
+	let categoryFilter = $state<string[]>([]);
+	let feeFilter = $state<string[]>([]);
+	let votingFilter = $state<string[]>([]);
 	let newStructure = $state('');
 	$effect(() => {
 		if (!newStructure)
@@ -166,8 +170,8 @@
 	});
 	const structures = $derived(data.registry.structures ?? []);
 	let search = $state(''),
-		unitFilter = $state(''),
-		status = $state('active');
+		unitFilter = $state<string[]>([]),
+		status = $state<string[]>(['active']);
 	let newMemberUnit = $state(''),
 		newMemberKind = $state('beneficiary');
 	const units = $derived(data.registry.units.filter((u) => !u.parentId && !u.archived));
@@ -179,21 +183,29 @@
 		)
 	);
 	const visible = $derived(
-		data.registry.members.filter(
-			(m) =>
-				(!structureFilter || (m.structureId ?? 'cluj') === structureFilter) &&
-				(!search || matchesSearch(m.name, search)) &&
-				(!categoryFilter ||
-					(categoryFilter === 'review' ? m.categoryReview : m.category === categoryFilter)) &&
-				(!unitFilter ||
-					(unitFilter === 'unassigned'
-						? !m.groupId
-						: m.unitId === unitFilter ||
-							m.groupId === unitFilter ||
-							m.responsibilityUnitIds?.includes(unitFilter) ||
-							m.responsibilityGroupIds?.includes(unitFilter))) &&
-				(!status || m.status === status)
-		)
+		filterMembers(data.registry.members, {
+			search,
+			structures: structureFilter,
+			categories: categoryFilter,
+			units: unitFilter,
+			statuses: status,
+			fees: feeFilter,
+			voting: votingFilter
+		})
+	);
+	const subunitOptions = $derived(
+		data.registry.units
+			.filter(
+				(unit) =>
+					unit.parentId &&
+					!unit.archived &&
+					(!categoryFilter.length || categoryFilter.includes(unit.branch)) &&
+					(!structureFilter.length || structureFilter.includes(unit.structureId ?? 'cluj'))
+			)
+			.map((unit) => ({
+				value: unit.id,
+				label: `${structures.find((structure) => structure.id === (unit.structureId ?? 'cluj'))?.name ?? ''} · ${unit.name}`
+			}))
 	);
 	const feeMenu = $derived(form && 'feeMenu' in form ? form.feeMenu : undefined);
 	const name = (id: string | null) => unitName(data.registry.units, id);
@@ -204,7 +216,7 @@
 		data.registry.units.filter(
 			(u) =>
 				!u.archived &&
-				(!structureFilter || (u.structureId ?? 'cluj') === structureFilter) &&
+				(!structureFilter.length || structureFilter.includes(u.structureId ?? 'cluj')) &&
 				matchesSearch(`${u.name} ${name(u.parentId)}`, unitSearch)
 		)
 	);
@@ -225,6 +237,12 @@
 				aria-haspopup="dialog"
 				onclick={() => (structureOpen = true)}>Unități și subunități</button
 			>
+			{#if management && data.registry.canManage}<button
+					type="button"
+					aria-haspopup="dialog"
+					onclick={() => (createOpen = true)}
+					><Plus size={18} aria-hidden="true" />Adaugă membru</button
+				>{/if}
 			{#if data.registry.admin}<ActionMenu
 					label="Mai multe acțiuni pentru registru"
 					items={[
@@ -291,47 +309,59 @@
 	<section class="registry-panel" aria-label="Registrul membrilor">
 		{#snippet registryFilters()}
 			<label>Caută membru<input type="search" bind:value={search} placeholder="Nume" /></label>
-			<label
-				>Structură<select bind:value={structureFilter} onchange={() => (unitFilter = '')}
-					><option value="">Toate structurile</option>{#each structures as st (st.id)}<option
-							value={st.id}>{st.name}</option
-						>{/each}</select
-				></label
-			>
-
-			<label
-				>Categorie<select bind:value={categoryFilter}
-					><option value="">Toate categoriile</option>
-					{#each Object.entries(branchLabels) as [key, label] (key)}<option value={key}
-							>{label}</option
-						>{/each}
-					<option value="review">De verificat</option></select
-				></label
-			><label
-				>Subunitate<select bind:value={unitFilter}
-					><option value="">Toate</option><option value="unassigned">Nerepartizat</option
-					>{#each data.registry.units.filter((u) => u.parentId && !u.archived && (!categoryFilter || u.branch === categoryFilter) && (!structureFilter || (u.structureId ?? 'cluj') === structureFilter)) as u (u.id)}<option
-							value={u.id}>{u.parentId ? '↳ ' : ''}{u.name}</option
-						>{/each}</select
-				></label
-			><label
-				>Status<select bind:value={status}
-					><option value="active">Activ</option><option value="withdrawn"
-						>Retras din activitate</option
-					><option value="suspended">Suspendat</option><option value="inactive">Inactiv</option
-					><option value="review">Status de verificat</option><option value="">Toate</option
-					></select
-				></label
-			>
-		{/snippet}
-		{#snippet registryControls()}
-			{#if management && data.registry.canManage}<button
-					type="button"
-					class="sc-icon-button"
-					aria-label="Adaugă membru"
-					title="Adaugă membru"
-					onclick={() => (createOpen = true)}><Plus size={18} /></button
-				>{/if}
+			<MultiSelectFilter
+				label="Structură"
+				placeholder="Toate structurile"
+				options={structures.map((structure) => ({ value: structure.id, label: structure.name }))}
+				bind:values={structureFilter}
+				onchange={() => (unitFilter = [])}
+			/>
+			<MultiSelectFilter
+				label="Categorie"
+				placeholder="Toate categoriile"
+				options={[
+					...Object.entries(branchLabels).map(([value, label]) => ({ value, label })),
+					{ value: 'review', label: 'De verificat' }
+				]}
+				bind:values={categoryFilter}
+				onchange={() => (unitFilter = [])}
+			/>
+			<MultiSelectFilter
+				label="Subunitate"
+				options={[{ value: 'unassigned', label: 'Nerepartizat' }, ...subunitOptions]}
+				bind:values={unitFilter}
+			/>
+			<MultiSelectFilter
+				label="Status"
+				options={[
+					{ value: 'active', label: 'Activ' },
+					{ value: 'withdrawn', label: 'Retras din activitate' },
+					{ value: 'suspended', label: 'Suspendat' },
+					{ value: 'inactive', label: 'Inactiv' },
+					{ value: 'review', label: 'Status de verificat' }
+				]}
+				bind:values={status}
+			/>
+			{#if data.registry.members.some((member) => member.access?.fees)}
+				<MultiSelectFilter
+					label="Cotizație"
+					options={[
+						{ value: 'active', label: 'Activă (achitată integral)' },
+						{ value: 'inactive', label: 'Inactivă (neachitată integral)' },
+						{ value: 'unknown', label: 'Fără acces la cotizație' }
+					]}
+					bind:values={feeFilter}
+				/>
+			{/if}
+			<MultiSelectFilter
+				label="Drept de vot"
+				options={[
+					{ value: 'eligible', label: 'Da (16 ani și peste)' },
+					{ value: 'ineligible', label: 'Nu (sub 16 ani)' },
+					{ value: 'unknown', label: 'Vârstă necunoscută / indisponibilă' }
+				]}
+				bind:values={votingFilter}
+			/>
 		{/snippet}
 		<MemberTable
 			members={visible}
@@ -339,7 +369,6 @@
 			loadedTotal={data.registry.members.length}
 			filterContent={registryFilters}
 			searchQuery={search}
-			controls={registryControls}
 			onResponsibilities={(member) => {
 				responsibilityMember = member;
 				responsibilityRole = data.registry.delegableRoles?.[0] ?? 'helper';
@@ -749,6 +778,7 @@
 	}
 	header {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
 		gap: 16px;
@@ -759,8 +789,17 @@
 	}
 	.workspace-actions {
 		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
 		align-items: center;
 		gap: 8px;
+	}
+	.workspace-actions > button {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 14px;
+		white-space: nowrap;
 	}
 	.registry-summary {
 		display: flex;
@@ -866,9 +905,6 @@
 		gap: 8px;
 	}
 	@media (max-width: 640px) {
-		header {
-			flex-wrap: wrap;
-		}
 		h1 {
 			font-size: 24px;
 		}

@@ -516,60 +516,78 @@ createServer(async (req, res) => {
 					grades: [3]
 				}
 			],
-			members: [
-				...Array.from({ length: 52 }, (_, i) => ({
-					id: `inactive-${i + 1}`,
-					name: `Istoric ${String(i + 1).padStart(2, '0')}`,
-					orgoId: 900 + i,
-					revision: 1,
-					access: { detail: true, edit: true, identity: true, transfer: true, fees: true },
-					status: 'inactive',
-					grade: null,
-					unitId: null,
-					groupId: null,
-					adultKind: null
-				})),
+			members: req.headers.cookie?.includes('empty-registry')
+				? []
+				: [
+						...Array.from({ length: 52 }, (_, i) => ({
+							id: `inactive-${i + 1}`,
+							name: `Istoric ${String(i + 1).padStart(2, '0')}`,
+							orgoId: 900 + i,
+							revision: 1,
+							access: { detail: true, edit: true, identity: true, transfer: true, fees: true },
+							status: 'inactive',
+							grade: null,
+							unitId: null,
+							groupId: null,
+							adultKind: null
+						})),
 
-				{
-					id: 'm2',
-					revision: 1,
-					name: 'Copil Florești',
-					structureId: 'floresti',
-					orgoId: 36802,
-					unitId: 'u3',
-					groupId: null,
-					grade: 5,
-					category: 'temerari',
-					access: {
-						detail: true,
-						edit: !req.headers.cookie?.includes('read-only'),
-						identity: true,
-						transfer: true,
-						fees: true
-					},
-					status: 'active'
-				},
-				{
-					id: 'm1',
-					revision: 1,
-					name: 'Ana Popescu',
-					orgoId: 36801,
-					unitId: 'u1',
-					groupId: 'g1',
-					grade: 5,
-					category: 'temerari',
-					access: {
-						delegate: !req.headers.cookie?.includes('read-only'),
-						detail: true,
-						edit: !req.headers.cookie?.includes('read-only'),
-						identity: true,
-						transfer: true,
-						fees: true
-					},
-					status: 'active',
-					adultKind: null
-				}
-			]
+						{
+							id: 'm2',
+							revision: 1,
+							name: 'Copil Florești',
+							age: 15,
+							feeSummary: {
+								period: '2026–2027',
+								totalBani: 30500,
+								paidBani: 10000,
+								remainingBani: 20500,
+								collectible: true
+							},
+							structureId: 'floresti',
+							orgoId: 36802,
+							unitId: 'u3',
+							groupId: null,
+							grade: 5,
+							category: 'temerari',
+							access: {
+								detail: true,
+								edit: !req.headers.cookie?.includes('read-only'),
+								identity: true,
+								transfer: true,
+								fees: true
+							},
+							status: 'active'
+						},
+						{
+							id: 'm1',
+							revision: 1,
+							name: 'Ana Popescu',
+							age: 16,
+							feeSummary: {
+								period: '2026–2027',
+								totalBani: 30500,
+								paidBani: 30500,
+								remainingBani: 0,
+								collectible: true
+							},
+							orgoId: 36801,
+							unitId: 'u1',
+							groupId: 'g1',
+							grade: 5,
+							category: 'temerari',
+							access: {
+								delegate: !req.headers.cookie?.includes('read-only'),
+								detail: true,
+								edit: !req.headers.cookie?.includes('read-only'),
+								identity: true,
+								transfer: true,
+								fees: true
+							},
+							status: 'active',
+							adultKind: null
+						}
+					]
 		});
 
 	if (req.url === '/api/members/m1/assignments' && req.method === 'POST') {

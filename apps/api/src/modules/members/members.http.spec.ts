@@ -483,6 +483,22 @@ describe('member HTTP scope and lifecycle', () => {
       .get('/members/' + otherId)
       .expect(403);
   });
+  it('projects age only for permitted member details without exposing birth dates', async () => {
+    f.list('member').find((m) => m.id === childId)!.birthDate = '2010-10-30';
+    f.list('member').find((m) => m.id === otherId)!.birthDate = '2011-10-30';
+    const roster = await new MembersService(f.em).dashboard({
+      id: 1,
+      displayName: 'Adult',
+      roles: [],
+    });
+    expect(roster.members.find((m) => m.id === childId)?.age).toEqual(
+      expect.any(Number),
+    );
+    expect(roster.members.find((m) => m.id === otherId)?.age).toBeNull();
+    expect(roster.members.find((m) => m.id === childId)).not.toHaveProperty(
+      'birthDate',
+    );
+  });
   it('ends authority for incoming suspension and does not restore it on remote reactivation', async () => {
     const member = f.list('member').find((m) => m.id === adultId)!;
     member.status = 'suspended'; // Existing imported state must still revoke stale authority.

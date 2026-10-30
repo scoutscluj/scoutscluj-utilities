@@ -5,3 +5,4 @@
 - [x] Add current-fee and inclusive 16+ voting eligibility filters.
 - [x] Export every filtered row in table sort order to CSV, respecting column visibility.
 - [x] Verify filter combinations, birthday boundaries, authorization and CSV escaping/pagination.
+- [x] Redesign filters as a responsive grid with a separate search/action row, result count, removable selections and reset; verify keyboard use and phone/tablet/desktop layouts.

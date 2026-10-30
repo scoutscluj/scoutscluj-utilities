@@ -28,6 +28,8 @@
 		inactive = false,
 		message = '',
 		filterContent,
+		searchContent,
+		filterSummary,
 		controls,
 		onResponsibilities,
 		management = true,
@@ -40,6 +42,8 @@
 		inactive?: boolean;
 		message?: string;
 		filterContent?: Snippet;
+		searchContent?: Snippet;
+		filterSummary?: Snippet;
 		controls?: Snippet;
 		onResponsibilities?: (member: Member) => void;
 		management?: boolean;
@@ -408,7 +412,10 @@
 		</form>
 	{/if}
 </Modal>
-<TableToolbar>
+<TableToolbar
+	primary={!inactive ? searchContent : undefined}
+	footer={!inactive ? filterSummary : undefined}
+>
 	{#snippet filters()}
 		{#if inactive}<label
 				>Caută în istoricul Orgo (membri.scout.ro)<input
@@ -660,12 +667,23 @@
 		align-items: center;
 		gap: 6px;
 		min-height: 40px;
-		padding: 9px 12px;
+		height: 40px;
+		box-sizing: border-box;
+		padding: 8px 12px;
 		border: 1px solid var(--sc-border-strong);
 		border-radius: 7px;
 		background: var(--sc-surface);
 		color: var(--sc-ink);
 		white-space: nowrap;
+		font-size: 13px;
+		cursor: pointer;
+	}
+	.export-button:hover:not(:disabled) {
+		background: var(--sc-canvas);
+	}
+	.export-button:focus-visible {
+		outline: 2px solid var(--sc-accent);
+		outline-offset: 2px;
 	}
 
 	.column-picker {

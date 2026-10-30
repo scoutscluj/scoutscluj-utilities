@@ -86,6 +86,9 @@
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import ActionMenu from '$lib/components/ui/ActionMenu.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
+	import Search from '@lucide/svelte/icons/search';
+	import X from '@lucide/svelte/icons/x';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
 	import type { Unit, Member } from '$lib/members/types';
 	let pendingAction = $state('');
 	let submissionError = $state('');
@@ -207,6 +210,122 @@
 				label: `${structures.find((structure) => structure.id === (unit.structureId ?? 'cluj'))?.name ?? ''} · ${unit.name}`
 			}))
 	);
+	type FilterKey = 'structure' | 'category' | 'unit' | 'status' | 'fee' | 'voting';
+	const filterGroups = $derived([
+		{
+			key: 'structure' as FilterKey,
+			label: 'Structură',
+			placeholder: 'Toate',
+			values: structureFilter,
+			options: structures.map((structure) => ({ value: structure.id, label: structure.name }))
+		},
+		{
+			key: 'category' as FilterKey,
+			label: 'Categorie',
+			placeholder: 'Toate',
+			values: categoryFilter,
+			options: [
+				...Object.entries(branchLabels).map(([value, label]) => ({ value, label })),
+				{ value: 'review', label: 'De verificat' }
+			]
+		},
+		{
+			key: 'unit' as FilterKey,
+			label: 'Subunitate',
+			placeholder: 'Toate',
+			values: unitFilter,
+			options: [{ value: 'unassigned', label: 'Nerepartizat' }, ...subunitOptions]
+		},
+		{
+			key: 'status' as FilterKey,
+			label: 'Status',
+			placeholder: 'Toate',
+			values: status,
+			options: [
+				{ value: 'active', label: 'Activ' },
+				{ value: 'withdrawn', label: 'Retras din activitate' },
+				{ value: 'suspended', label: 'Suspendat' },
+				{ value: 'inactive', label: 'Inactiv' },
+				{ value: 'review', label: 'Status de verificat' }
+			]
+		},
+		...(data.registry.members.some((member) => member.access?.fees)
+			? [
+					{
+						key: 'fee' as FilterKey,
+						label: 'Cotizație',
+						placeholder: 'Toate',
+						values: feeFilter,
+						options: [
+							{ value: 'active', label: 'Activă', description: 'Achitată integral' },
+							{
+								value: 'inactive',
+								label: 'Inactivă',
+								description: 'Neachitată sau parțial achitată'
+							},
+							{ value: 'unknown', label: 'Fără acces', description: 'Cotizație indisponibilă' }
+						]
+					}
+				]
+			: []),
+		{
+			key: 'voting' as FilterKey,
+			label: 'Drept de vot',
+			placeholder: 'Toți',
+			values: votingFilter,
+			options: [
+				{ value: 'eligible', label: 'Cu drept de vot', description: '16 ani și peste' },
+				{ value: 'ineligible', label: 'Fără drept de vot', description: 'Sub 16 ani' },
+				{
+					value: 'unknown',
+					label: 'Vârstă indisponibilă',
+					description: 'Necunoscută sau fără acces'
+				}
+			]
+		}
+	]);
+	const activeFilters = $derived(
+		filterGroups.flatMap((group) =>
+			group.values.map((value) => ({
+				key: group.key,
+				value,
+				label: `${group.label}: ${group.options.find((option) => option.value === value)?.label ?? value}`
+			}))
+		)
+	);
+	function setFilter(key: FilterKey, values: string[]) {
+		switch (key) {
+			case 'structure':
+				structureFilter = values;
+				unitFilter = [];
+				break;
+			case 'category':
+				categoryFilter = values;
+				unitFilter = [];
+				break;
+			case 'unit':
+				unitFilter = values;
+				break;
+			case 'status':
+				status = values;
+				break;
+			case 'fee':
+				feeFilter = values;
+				break;
+			case 'voting':
+				votingFilter = values;
+				break;
+		}
+	}
+	function clearFilters() {
+		search = '';
+		structureFilter = [];
+		categoryFilter = [];
+		unitFilter = [];
+		status = [];
+		feeFilter = [];
+		votingFilter = [];
+	}
 	const feeMenu = $derived(form && 'feeMenu' in form ? form.feeMenu : undefined);
 	const name = (id: string | null) => unitName(data.registry.units, id);
 	let unitSearch = $state(''),
@@ -307,67 +426,78 @@
 			>{/if}
 	</div>
 	<section class="registry-panel" aria-label="Registrul membrilor">
+		{#snippet registrySearch()}
+			<label class="registry-search">
+				<span>Caută membru</span>
+				<span class="search-field"
+					><Search size={18} aria-hidden="true" /><input
+						type="search"
+						bind:value={search}
+						placeholder="Caută după nume…"
+					/></span
+				>
+			</label>
+		{/snippet}
 		{#snippet registryFilters()}
-			<label>Caută membru<input type="search" bind:value={search} placeholder="Nume" /></label>
-			<MultiSelectFilter
-				label="Structură"
-				placeholder="Toate structurile"
-				options={structures.map((structure) => ({ value: structure.id, label: structure.name }))}
-				bind:values={structureFilter}
-				onchange={() => (unitFilter = [])}
-			/>
-			<MultiSelectFilter
-				label="Categorie"
-				placeholder="Toate categoriile"
-				options={[
-					...Object.entries(branchLabels).map(([value, label]) => ({ value, label })),
-					{ value: 'review', label: 'De verificat' }
-				]}
-				bind:values={categoryFilter}
-				onchange={() => (unitFilter = [])}
-			/>
-			<MultiSelectFilter
-				label="Subunitate"
-				options={[{ value: 'unassigned', label: 'Nerepartizat' }, ...subunitOptions]}
-				bind:values={unitFilter}
-			/>
-			<MultiSelectFilter
-				label="Status"
-				options={[
-					{ value: 'active', label: 'Activ' },
-					{ value: 'withdrawn', label: 'Retras din activitate' },
-					{ value: 'suspended', label: 'Suspendat' },
-					{ value: 'inactive', label: 'Inactiv' },
-					{ value: 'review', label: 'Status de verificat' }
-				]}
-				bind:values={status}
-			/>
-			{#if data.registry.members.some((member) => member.access?.fees)}
-				<MultiSelectFilter
-					label="Cotizație"
-					options={[
-						{ value: 'active', label: 'Activă (achitată integral)' },
-						{ value: 'inactive', label: 'Inactivă (neachitată integral)' },
-						{ value: 'unknown', label: 'Fără acces la cotizație' }
-					]}
-					bind:values={feeFilter}
-				/>
-			{/if}
-			<MultiSelectFilter
-				label="Drept de vot"
-				options={[
-					{ value: 'eligible', label: 'Da (16 ani și peste)' },
-					{ value: 'ineligible', label: 'Nu (sub 16 ani)' },
-					{ value: 'unknown', label: 'Vârstă necunoscută / indisponibilă' }
-				]}
-				bind:values={votingFilter}
-			/>
+			<div class="registry-filter-grid" style:--filter-columns={filterGroups.length}>
+				{#each filterGroups as group (group.key)}
+					<MultiSelectFilter
+						label={group.label}
+						placeholder={group.placeholder}
+						options={group.options}
+						values={group.values}
+						onchange={(values) => setFilter(group.key, values)}
+					/>
+				{/each}
+			</div>
+		{/snippet}
+		{#snippet registryFilterSummary()}
+			<div class="filter-summary">
+				<span class="result-count" role="status"
+					><strong>{visible.length}</strong>&nbsp;{visible.length === 1
+						? 'membru'
+						: 'membri'}{#if visible.length !== data.registry.members.length}<span
+							>&nbsp;din {data.registry.members.length}</span
+						>{/if}</span
+				>
+				<div class="active-filters" role="group" aria-label="Filtre aplicate">
+					{#if search}<button
+							type="button"
+							class="filter-chip"
+							aria-label="Elimină căutarea"
+							onclick={() => (search = '')}
+							><span>Căutare: {search}</span><X size={13} aria-hidden="true" /></button
+						>{/if}
+					{#each activeFilters as filter (`${filter.key}-${filter.value}`)}
+						<button
+							type="button"
+							class="filter-chip"
+							aria-label={`Elimină filtrul ${filter.label}`}
+							onclick={() =>
+								setFilter(
+									filter.key,
+									filterGroups
+										.find((group) => group.key === filter.key)!
+										.values.filter((value) => value !== filter.value)
+								)}><span>{filter.label}</span><X size={13} aria-hidden="true" /></button
+						>
+					{/each}
+				</div>
+				{#if activeFilters.length || search}<button
+						type="button"
+						class="reset-filters"
+						onclick={clearFilters}
+						><RotateCcw size={14} aria-hidden="true" />Resetează filtrele</button
+					>{/if}
+			</div>
 		{/snippet}
 		<MemberTable
 			members={visible}
 			{management}
 			loadedTotal={data.registry.members.length}
 			filterContent={registryFilters}
+			searchContent={registrySearch}
+			filterSummary={registryFilterSummary}
 			searchQuery={search}
 			onResponsibilities={(member) => {
 				responsibilityMember = member;
@@ -693,6 +823,161 @@
 </Modal>
 
 <style>
+	.registry-panel {
+		container-type: inline-size;
+	}
+	.registry-search {
+		display: grid;
+		gap: 6px;
+		max-width: 440px;
+		font-size: 12px;
+		color: var(--sc-muted);
+	}
+	.search-field {
+		position: relative;
+		display: flex;
+		align-items: center;
+	}
+	.search-field :global(svg) {
+		position: absolute;
+		left: 12px;
+		pointer-events: none;
+		color: var(--sc-muted);
+	}
+	:global(.sc-table-toolbar) .registry-search input {
+		padding-left: 38px;
+		border-radius: 8px;
+		background: var(--sc-canvas);
+		transition:
+			border-color 150ms,
+			background-color 150ms;
+	}
+	:global(.sc-table-toolbar) .registry-search input:focus-visible {
+		outline: 2px solid var(--sc-accent);
+		outline-offset: 2px;
+		background: var(--sc-surface);
+	}
+	.registry-filter-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 12px;
+	}
+	.filter-summary {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto;
+		align-items: center;
+		gap: 8px 16px;
+		padding-top: 12px;
+		border-top: 1px solid var(--sc-border);
+	}
+	.result-count {
+		flex-shrink: 0;
+		font-size: 13px;
+		color: var(--sc-ink);
+		font-variant-numeric: tabular-nums;
+	}
+	.result-count > span {
+		color: var(--sc-muted);
+	}
+	.active-filters {
+		display: flex;
+		min-width: 0;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+	.active-filters:empty {
+		display: none;
+	}
+	button.filter-chip {
+		display: inline-flex;
+		flex-shrink: 0;
+		align-items: center;
+		gap: 6px;
+		max-width: 100%;
+		padding: 4px 8px;
+		border: 1px solid var(--sc-border);
+		border-radius: 6px;
+		background: var(--sc-canvas);
+		color: var(--sc-ink);
+		font-size: 12px;
+		line-height: 18px;
+		font-weight: 400;
+		transition:
+			background-color 150ms,
+			border-color 150ms;
+	}
+	.filter-chip > span {
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+	.filter-chip :global(svg) {
+		flex-shrink: 0;
+		color: var(--sc-muted);
+	}
+	button.filter-chip:hover {
+		background: var(--sc-accent-soft);
+		border-color: var(--sc-accent);
+	}
+	button.reset-filters {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 4px 0;
+		border: 0;
+		border-radius: 4px;
+		background: transparent;
+		color: var(--sc-muted);
+		font-size: 12px;
+		white-space: nowrap;
+	}
+	button.reset-filters:hover {
+		color: var(--sc-accent);
+	}
+	button.filter-chip:focus-visible,
+	button.reset-filters:focus-visible {
+		outline: 2px solid var(--sc-accent);
+		outline-offset: 2px;
+	}
+	@container (max-width: 560px) {
+		.filter-summary {
+			grid-template-columns: 1fr auto;
+			gap: 10px;
+		}
+		.active-filters {
+			grid-column: 1 / -1;
+			grid-row: 2;
+		}
+		button.reset-filters {
+			grid-column: 2;
+			grid-row: 1;
+		}
+		button.filter-chip {
+			min-height: 32px;
+		}
+	}
+	@container (min-width: 680px) {
+		.registry-filter-grid {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+	}
+	@container (min-width: 1080px) {
+		.registry-filter-grid {
+			grid-template-columns: repeat(var(--filter-columns, 6), minmax(0, 1fr));
+		}
+	}
+	@container (max-width: 300px) {
+		.registry-filter-grid {
+			grid-template-columns: minmax(0, 1fr);
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		button.filter-chip,
+		:global(.sc-table-toolbar) .registry-search input {
+			transition: none;
+		}
+	}
+
 	.current-heading {
 		font-size: 14px;
 		font-weight: 600;

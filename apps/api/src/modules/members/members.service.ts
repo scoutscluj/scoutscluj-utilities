@@ -656,6 +656,24 @@ export class MembersService {
       grants.set(m.id, grant);
       if (grant.read) visible.push(m);
     }
+    const feeMembers = visible.filter(
+      (m) => grants.get(m.id)?.fees && m.orgoId,
+    );
+    const periods = feeMembers.length
+      ? await this.em.find(MembershipPeriod, { active: true })
+      : [];
+    const obligations = periods.length
+      ? await this.em.find(MembershipObligation, {
+          orgoUserId: { $in: feeMembers.map((m) => m.orgoId!) },
+          periodId: { $in: periods.map((p) => p.id) },
+        })
+      : [];
+    const allocations = obligations.length
+      ? await this.em.find(MembershipAllocation, {
+          obligationId: { $in: obligations.map((o) => o.id) },
+          reversed: false,
+        })
+      : [];
     const unitIds = new Set(ctx.assignments.map((a) => a.unitId));
     if (ctx.member?.unitId) unitIds.add(ctx.member.unitId);
     const units = allUnits
@@ -882,6 +900,17 @@ export class MembersService {
           : null,
         revision: m.revision,
         access: grants.get(m.id),
+        ...(grants.get(m.id)?.fees
+          ? {
+              feeSummary:
+                this.feeRows(
+                  m,
+                  obligations.filter((o) => o.orgoUserId === m.orgoId),
+                  periods,
+                  allocations,
+                )[0] ?? null,
+            }
+          : {}),
         branch: m.branch,
         category: m.category,
         categoryReview: m.categoryReview,
@@ -1032,6 +1061,14 @@ export class MembersService {
           reversed: false,
         })
       : [];
+    return this.feeRows(member, obligations, periods, allocations);
+  }
+  private feeRows(
+    member: ScoutMember,
+    obligations: MembershipObligation[],
+    periods: MembershipPeriod[],
+    allocations: MembershipAllocation[],
+  ) {
     return obligations.map((o) => {
       const centerPaid = allocations
         .filter((a) => a.obligationId === o.id)

@@ -6,3 +6,4 @@
 - [x] Export every filtered row in table sort order to CSV, respecting column visibility.
 - [x] Verify filter combinations, birthday boundaries, authorization and CSV escaping/pagination.
 - [x] Redesign filters as a responsive grid with a separate search/action row, result count, removable selections and reset; verify keyboard use and phone/tablet/desktop layouts.
+- [x] Distinguish paid, partially paid, unpaid, missing current fees and unavailable fee information; verify combined selections and exports.

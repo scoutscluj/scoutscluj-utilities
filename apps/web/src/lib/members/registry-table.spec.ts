@@ -80,27 +80,35 @@ describe('member registry filters', () => {
 	it('includes age 16 and separates unknown ages from underage members', () => {
 		expect(members.map(votingState)).toEqual(['eligible', 'ineligible', 'eligible', 'unknown']);
 		expect(
-			filterMembers(members, { ...filters, voting: ['eligible'], fees: ['active'] }).map(
-				(m) => m.id
-			)
+			filterMembers(members, { ...filters, voting: ['eligible'], fees: ['paid'] }).map((m) => m.id)
 		).toEqual(['a']);
 		expect(filterMembers(members, { ...filters, voting: ['eligible', 'unknown'] })).toHaveLength(3);
 	});
 	it('keeps financial permissions distinct from payment status', () => {
-		expect(members.map(feeState)).toEqual(['active', 'inactive', 'inactive', 'unknown']);
+		expect(members.map(feeState)).toEqual(['paid', 'partial', 'missing', 'unknown']);
 		expect(
 			feeState({
 				...base,
 				feeSummary: { ...base.feeSummary!, collectible: false, paidBani: 10000, remainingBani: 0 }
 			})
-		).toBe('inactive');
+		).toBe('partial');
 		expect(feeState({ ...base, feeSummary: { ...base.feeSummary!, collectible: false } })).toBe(
-			'active'
+			'paid'
 		);
-		expect(filterMembers(members, { ...filters, fees: ['inactive'] }).map((m) => m.id)).toEqual([
-			'b',
-			'c'
+		const unpaid = {
+			...base,
+			id: 'unpaid',
+			feeSummary: { ...base.feeSummary!, paidBani: 0, remainingBani: 30000 }
+		};
+		const rows = [...members, unpaid];
+		expect(filterMembers(rows, { ...filters, fees: ['unpaid'] }).map((m) => m.id)).toEqual([
+			'unpaid'
 		]);
+		expect(filterMembers(rows, { ...filters, fees: ['partial'] }).map((m) => m.id)).toEqual(['b']);
+		expect(
+			filterMembers(rows, { ...filters, fees: ['partial', 'unpaid'] }).map((m) => m.id)
+		).toEqual(['b', 'unpaid']);
+		expect(filterMembers(rows, { ...filters, fees: ['missing'] }).map((m) => m.id)).toEqual(['c']);
 	});
 	it('matches category review and adult responsibilities', () => {
 		const adult = {

@@ -35,16 +35,22 @@ as unknown.
 
 ### Requirement: Current-fee filtering
 
-The roster SHALL offer multi-select active/inactive cotizație filters. Active
-SHALL mean a current fee whose credited payments cover its total, independently
-of member status or collection tracking; other known fee states SHALL be inactive.
-Rows without fee permission SHALL be classified
-as unavailable rather than implying payment status.
+The roster SHALL offer separate multi-select paid, partially paid and unpaid
+cotizație filters. Paid SHALL mean credited payments cover the current fee total;
+partially paid SHALL mean positive payments below that total; unpaid SHALL mean
+no payments toward an existing current fee. These states SHALL be independent of
+member status and collection tracking. Missing current fees and rows without fee
+permission SHALL have separate options rather than implying an unpaid balance.
 
 #### Scenario: Partial payment
 
-- **WHEN** a member has an outstanding balance on the current fee
-- **THEN** the member matches inactive cotizație and does not match active.
+- **WHEN** a member has credited payments and an outstanding balance on the current fee
+- **THEN** the member matches partially paid and does not match unpaid or paid.
+
+#### Scenario: Combined unpaid and partial selections
+
+- **WHEN** the user selects both unpaid and partially paid
+- **THEN** results and exports include both groups while excluding fully paid members.
 
 ### Requirement: Filtered roster CSV export
 

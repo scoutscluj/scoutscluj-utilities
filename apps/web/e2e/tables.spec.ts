@@ -160,11 +160,11 @@ test('member multi-select filters combine with fee and inclusive voting-age filt
 	await setMultiSelect(page, 'Categorie', ['Temerari', 'Lupișori']);
 	await expect(registry.locator('tbody tr')).toHaveCount(2);
 	await setMultiSelect(page, 'Drept de vot', ['Cu drept de vot']);
-	await setMultiSelect(page, 'Cotizație', ['Activă']);
+	await setMultiSelect(page, 'Cotizație', ['Achitată']);
 	await expect(registry.locator('tbody tr')).toHaveCount(1);
 	await expect(registry.getByRole('link', { name: 'Ana Popescu', exact: true })).toBeVisible();
 	await setMultiSelect(page, 'Drept de vot', ['Cu drept de vot', 'Fără drept de vot']);
-	await setMultiSelect(page, 'Cotizație', ['Activă', 'Inactivă']);
+	await setMultiSelect(page, 'Cotizație', ['Achitată', 'Parțial achitată', 'Neachitată']);
 	await expect(registry.locator('tbody tr')).toHaveCount(2);
 	await page.screenshot({ path: info.outputPath('unit-filters-desktop.png'), fullPage: true });
 	await page.setViewportSize({ width: 390, height: 844 });
@@ -210,6 +210,37 @@ test('member CSV includes all filtered pages and respects hidden columns', async
 	// Narrowing from a later page returns to the beginning of the results.
 	await registry.getByLabel('Caută membru').fill('Istoric 01');
 	await expect(registry.getByRole('link', { name: 'Istoric 01', exact: true })).toBeVisible();
+});
+
+test('cotizatie distinguishes unpaid and partially paid members and exports both selected groups', async ({
+	page
+}) => {
+	await page
+		.context()
+		.addCookies([
+			{
+				name: 'scoutscluj_session',
+				value: 'synthetic-fee-filter-cases',
+				url: 'http://127.0.0.1:5182'
+			}
+		]);
+	await page.goto('/units');
+	const registry = page.getByRole('region', { name: 'Registrul membrilor', exact: true });
+	await setMultiSelect(page, 'Cotizație', ['Neachitată']);
+	await expect(registry.locator('tbody tr')).toHaveCount(1);
+	await expect(registry.getByRole('link', { name: 'Membru neachitat', exact: true })).toBeVisible();
+	await setMultiSelect(page, 'Cotizație', ['Parțial achitată']);
+	await expect(registry.locator('tbody tr')).toHaveCount(1);
+	await expect(registry.getByRole('link', { name: 'Copil Florești', exact: true })).toBeVisible();
+	await setMultiSelect(page, 'Cotizație', ['Neachitată', 'Parțial achitată']);
+	await expect(registry.locator('tbody tr')).toHaveCount(2);
+	await expect(registry.getByRole('link', { name: 'Ana Popescu', exact: true })).toHaveCount(0);
+	const downloadEvent = page.waitForEvent('download');
+	await registry.getByRole('button', { name: 'Exportă CSV', exact: true }).click();
+	const csv = await readFile((await (await downloadEvent).path())!, 'utf8');
+	expect(csv).toContain('Membru neachitat');
+	expect(csv).toContain('Copil Florești');
+	expect(csv).not.toContain('Ana Popescu');
 });
 
 test('member filters keep an even responsive grid and support keyboard selection, chips and reset', async ({
@@ -268,15 +299,15 @@ test('member filters keep an even responsive grid and support keyboard selection
 	await feeTrigger.focus();
 	await page.keyboard.press('Enter');
 	const feeDialog = page.getByRole('dialog', { name: 'Cotizație', exact: true });
-	await feeDialog.getByRole('checkbox', { name: 'Activă', exact: true }).focus();
+	await feeDialog.getByRole('checkbox', { name: 'Achitată', exact: true }).focus();
 	await page.keyboard.press('Space');
-	await expect(feeDialog.getByRole('checkbox', { name: 'Activă', exact: true })).toBeChecked();
+	await expect(feeDialog.getByRole('checkbox', { name: 'Achitată', exact: true })).toBeChecked();
 	await page.screenshot({ path: info.outputPath('member-filter-dropdown.png'), fullPage: true });
 	await page.keyboard.press('Escape');
 	await expect(feeTrigger).toBeFocused();
 	await expect(registry.locator('tbody tr')).toHaveCount(1);
 	await registry
-		.getByRole('button', { name: 'Elimină filtrul Cotizație: Activă', exact: true })
+		.getByRole('button', { name: 'Elimină filtrul Cotizație: Achitată', exact: true })
 		.click();
 	await expect(registry.locator('tbody tr')).toHaveCount(2);
 	await setMultiSelect(page, 'Structură', ['Florești']);

@@ -519,6 +519,37 @@ createServer(async (req, res) => {
 			members: req.headers.cookie?.includes('empty-registry')
 				? []
 				: [
+						...(req.headers.cookie?.includes('fee-filter-cases')
+							? [
+									{
+										id: 'unpaid-member',
+										name: 'Membru neachitat',
+										orgoId: 36804,
+										revision: 1,
+										age: 17,
+										status: 'active',
+										category: 'temerari',
+										grade: 5,
+										unitId: 'u1',
+										groupId: 'g1',
+										adultKind: null,
+										access: {
+											detail: true,
+											edit: true,
+											identity: true,
+											transfer: true,
+											fees: true
+										},
+										feeSummary: {
+											period: '2026–2027',
+											totalBani: 30500,
+											paidBani: 0,
+											remainingBani: 30500,
+											collectible: true
+										}
+									}
+								]
+							: []),
 						...Array.from({ length: 52 }, (_, i) => ({
 							id: `inactive-${i + 1}`,
 							name: `Istoric ${String(i + 1).padStart(2, '0')}`,

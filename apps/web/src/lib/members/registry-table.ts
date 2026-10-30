@@ -26,9 +26,10 @@ export type MemberFilters = {
 };
 export function feeState(member: Member) {
 	if (!member.access?.fees) return 'unknown';
-	return member.feeSummary && member.feeSummary.paidBani >= member.feeSummary.totalBani
-		? 'active'
-		: 'inactive';
+	const fee = member.feeSummary;
+	if (!fee) return 'missing';
+	if (fee.paidBani >= fee.totalBani) return 'paid';
+	return fee.paidBani > 0 ? 'partial' : 'unpaid';
 }
 export function votingState(member: Member) {
 	return member.age == null ? 'unknown' : member.age >= 16 ? 'eligible' : 'ineligible';

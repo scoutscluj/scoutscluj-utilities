@@ -257,11 +257,17 @@
 						placeholder: 'Toate',
 						values: feeFilter,
 						options: [
-							{ value: 'active', label: 'Activă', description: 'Achitată integral' },
+							{ value: 'paid', label: 'Achitată', description: 'Achitată integral' },
 							{
-								value: 'inactive',
-								label: 'Inactivă',
-								description: 'Neachitată sau parțial achitată'
+								value: 'partial',
+								label: 'Parțial achitată',
+								description: 'Plată înregistrată, cu sumă rămasă'
+							},
+							{ value: 'unpaid', label: 'Neachitată', description: 'Nicio plată înregistrată' },
+							{
+								value: 'missing',
+								label: 'Fără cotizație',
+								description: 'Fără cotizație pentru perioada curentă'
 							},
 							{ value: 'unknown', label: 'Fără acces', description: 'Cotizație indisponibilă' }
 						]

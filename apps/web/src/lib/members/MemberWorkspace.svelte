@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { toast } from 'svelte-sonner';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import FormFeedback from '$lib/components/ui/FormFeedback.svelte';
 	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
@@ -107,6 +108,7 @@
 				actionFailed = result.type === 'failure';
 				await update({ reset: false });
 				if (result.type === 'success') {
+					if (typeof result.data?.message === 'string') toast.success(result.data.message);
 					if (operation === 'assignment') responsibilityOpen = false;
 					if (operation === 'end' && responsibilityMember)
 						responsibilityMember = data.registry.members.find(
@@ -193,7 +195,6 @@
 				(!status || m.status === status)
 		)
 	);
-	const bulkPreview = $derived(form && 'bulkPreview' in form ? form.bulkPreview : undefined);
 	const feeMenu = $derived(form && 'feeMenu' in form ? form.feeMenu : undefined);
 	const name = (id: string | null) => unitName(data.registry.units, id);
 	let unitSearch = $state(''),
@@ -244,7 +245,7 @@
 				/>{/if}
 		</div>
 	</header>
-	{#if form?.message}<FormFeedback
+	{#if form?.message && !(activeSection === 'bulk' && 'success' in form && form.success)}<FormFeedback
 			message={form.message}
 			kind={actionFailed ? 'error' : 'success'}
 		/>{/if}
@@ -349,7 +350,6 @@
 			}}
 			registry={data.registry}
 			message={form?.message}
-			preview={bulkPreview}
 			{feeMenu}
 		/>
 	</section>

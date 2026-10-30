@@ -9,6 +9,7 @@
 	import { highlightSearch, matchesSearch } from '$lib/components/ui/table-search';
 	import { resolve } from '$app/paths';
 	import { enhance } from '$app/forms';
+	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import { tick, type Snippet } from 'svelte';
 	import TableToolbar from '$lib/components/ui/TableToolbar.svelte';
@@ -17,16 +18,10 @@
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import ActionMenu from '$lib/components/ui/ActionMenu.svelte';
 	import type { Member, Registry, Detail } from './types';
-	import { hasSchoolGrade, memberPlacement, branchLabels, roleLabels } from './types';
-	type Preview = {
-		version: string;
-		members: { id: string; name: string; revision: number; from: string; unitId: string | null }[];
-		changes: Record<string, unknown>;
-	};
+	import { hasSchoolGrade, memberPlacement, unitName, branchLabels, roleLabels } from './types';
 	let {
 		members,
 		registry,
-		preview,
 		feeMenu,
 		inactive = false,
 		message = '',
@@ -39,7 +34,6 @@
 	}: {
 		members: Member[];
 		registry: Registry;
-		preview?: Preview;
 		feeMenu?: { id: string; name: string; fees: Detail['fees'] };
 		inactive?: boolean;
 		message?: string;
@@ -64,9 +58,8 @@
 		showGrade = $state(true),
 		showStatus = $state(true);
 	const canSeeFees = $derived(members.some((m) => m.access?.fees));
-	let activePreview = $state<Preview>();
+	let editError = $state('');
 	let feesOpen = $state(false);
-	let rowAction = $state(false);
 	let pending = $state(false);
 	let displayedFees = $state<typeof feeMenu>();
 	let feeTarget = $state('');
@@ -112,14 +105,12 @@
 		sort = column;
 		page = 0;
 	}
-	const relevantPreview = $derived(
-		preview && preview.members.every((m) => members.some((row) => row.id === m.id))
-			? preview
-			: undefined
-	);
 	const chosen = $derived(filtered.filter((m) => selected.includes(m.id)));
 	const chosenStructure = $derived(new Set(chosen.map((m) => m.structureId ?? 'cluj')));
-	const canChangeGrade = $derived(chosen.every(hasSchoolGrade));
+	const canChangeGrade = $derived(chosen.every((m) => m.access?.edit && hasSchoolGrade(m)));
+	const canTransfer = $derived(
+		chosenStructure.size === 1 && chosen.every((m) => m.access?.transfer)
+	);
 	const transferUnits = $derived(
 		registry.units.filter(
 			(u) =>
@@ -134,26 +125,51 @@
 		if (valid.length !== selected.length) selected = valid;
 	});
 	$effect(() => {
-		if (relevantPreview) {
-			activePreview = relevantPreview;
-			editing = true;
-		}
-	});
-	$effect(() => {
 		if (feeMenu && members.some((m) => m.id === feeMenu.id)) {
 			displayedFees = feeMenu;
 			feesOpen = true;
 		}
 	});
-	const submitEdit: SubmitFunction = () => {
+	const submitEdit: SubmitFunction = ({ cancel }) => {
+		if (pending) {
+			cancel();
+			return;
+		}
 		pending = true;
+		editError = '';
+		const target = chosen.length === 1 ? chosen[0].name : `${chosen.length} membri`;
+		const destination = [
+			unitName(registry.units, unitId),
+			groupId ? unitName(registry.units, groupId) : ''
+		]
+			.filter(Boolean)
+			.join(' / ');
+		const descriptions: Record<string, string> = {
+			grade: `clasa a fost schimbată în ${grade}`,
+			transfer: `repartizarea a fost schimbată în ${destination}`,
+			structure: `structura a fost schimbată în ${registry.structures?.find((s) => s.id === destinationStructure)?.name ?? destinationStructure}`,
+			withdraw: 'retragerea din activitate a fost salvată',
+			reactivate: `reactivarea în ${destination} a fost salvată`
+		};
+		const successMessage = `${target}: ${descriptions[kind] ?? 'modificarea a fost salvată'}.`;
 		return async ({ result, update }) => {
-			pending = false;
-			await update({ reset: false });
-			if (result.type === 'success' && !result.data?.bulkPreview) {
-				editing = false;
-				selected = [];
-				activePreview = undefined;
+			try {
+				if (result.type === 'failure' || result.type === 'error') {
+					editError =
+						result.type === 'failure' && typeof result.data?.message === 'string'
+							? result.data.message
+							: 'Salvarea nu a putut fi confirmată. Verifică conexiunea și reîncearcă.';
+					toast.error(editError);
+					return;
+				}
+				await update({ reset: false });
+				if (result.type === 'success') {
+					editing = false;
+					selected = [];
+					toast.success(successMessage, { duration: 6000 });
+				}
+			} finally {
+				pending = false;
 			}
 		};
 	};
@@ -242,8 +258,7 @@
 		reactivate: 'Reactivează'
 	};
 	function rowEdit(m: Member, action: string) {
-		rowAction = true;
-		activePreview = undefined;
+		editError = '';
 		selected = [m.id];
 		kind = action;
 		grade = String(m.grade ?? '');
@@ -251,33 +266,60 @@
 		groupId = m.groupId ?? '';
 		editing = true;
 	}
+	function editSelection(action: string) {
+		editError = '';
+		kind = action;
+		grade = '';
+		unitId = '';
+		groupId = '';
+		editing = true;
+	}
 </script>
 
 {#if management && registry.canManage && chosen.length}
-	<div class="toolbar">
-		{#if selected.length}<span>{chosen.length} selectați</span><button
+	<div
+		class="toolbar"
+		role="group"
+		aria-label={`Acțiuni pentru ${chosen.length} ${chosen.length === 1 ? 'membru selectat' : 'membri selectați'}`}
+	>
+		<span>{chosen.length} {chosen.length === 1 ? 'selectat' : 'selectați'}</span>
+		{#if !inactive}
+			<button
 				type="button"
-				onclick={() => {
-					activePreview = undefined;
-					rowAction = false;
-					editing = true;
-					kind = inactive
-						? 'withdraw'
-						: canChangeGrade
-							? 'grade'
-							: chosenStructure.size === 1
-								? 'transfer'
-								: '';
-					unitId = '';
-					groupId = '';
-				}}>Modifică selecția</button
-			><button
+				disabled={!canChangeGrade}
+				title={!canChangeGrade
+					? 'Selectează doar membri cu clasă școlară și drept de editare.'
+					: undefined}
+				onclick={() => editSelection('grade')}>Schimbă clasa</button
+			>
+			<button
 				type="button"
-				onclick={() => {
-					selected = [];
-					editing = false;
-				}}>Renunță la selecție</button
+				disabled={!canTransfer}
+				title={!canTransfer
+					? 'Selectează membri din aceeași structură, cu drept de mutare.'
+					: undefined}
+				onclick={() => editSelection('transfer')}>Mută în unitate / grupă</button
+			>
+		{/if}
+		{#if registry.admin}<button type="button" onclick={() => editSelection('structure')}
+				>Schimbă structura</button
 			>{/if}
+		<ActionMenu
+			label="Alte acțiuni pentru selecție"
+			items={[
+				{ label: labels.withdraw, action: () => editSelection('withdraw'), destructive: true },
+				...(!inactive && chosenStructure.size === 1 && chosen.some((m) => m.status !== 'active')
+					? [{ label: labels.reactivate, action: () => editSelection('reactivate') }]
+					: [])
+			]}
+		/>
+		<button
+			type="button"
+			onclick={() => {
+				selected = [];
+				editing = false;
+			}}>Renunță la selecție</button
+		>
 	</div>
 {/if}
 <form method="POST" use:enhance bind:this={feeForm} hidden>
@@ -289,40 +331,25 @@
 </form>
 <Modal
 	bind:open={editing}
-	title={activePreview
-		? `Confirmă: ${labels[String(activePreview.changes.kind)] ?? 'Modificare'}`
-		: chosen.length === 1
-			? `${labels[kind]} · ${chosen[0].name}`
-			: `Modifică ${chosen.length} membri`}
-	description="Verifică modificarea înainte de a o aplica. Istoricul membrilor se păstrează."
+	title={chosen.length === 1
+		? `${labels[kind]} · ${chosen[0].name}`
+		: `${labels[kind]} · ${chosen.length} membri`}
+	description="Salvează modificarea pentru membrii selectați. Istoricul membrilor se păstrează."
 >
-	{#if message}<p role="status">{message}</p>{/if}
-	{#if !activePreview && chosen.length}
+	{#if editError}<p role="alert">{editError}</p>{/if}
+	{#if chosen.length}
 		<form method="POST" use:enhance={submitEdit} class="editor">
 			<input type="hidden" name="action" value="bulk" /><input
 				type="hidden"
 				name="members"
 				value={json(chosen.map((m) => ({ id: m.id, revision: m.revision })))}
 			/><input type="hidden" name="changes" value={json(changes)} />
-			{#if !rowAction}<label
-					>Modificare<select bind:value={kind}>
-						<option value="" disabled>Alege modificarea</option>
-						{#if !inactive}{#if canChangeGrade}<option value="grade">Schimbă clasa</option
-								>{/if}<option value="transfer" disabled={chosenStructure.size !== 1}
-								>Mută în unitate / grupă</option
-							>{/if}
-						{#if registry.admin}<option value="structure">Schimbă structura</option>{/if}
-						<option value="withdraw">Confirmă retragerea din activitate</option>
-						{#if !inactive}<option value="reactivate">Reactivează</option>{/if}
-					</select></label
-				>
-			{/if}
 			{#if kind === 'grade'}<label
-					>Clasa<input type="number" min="1" max="12" bind:value={grade} /></label
+					>Clasa<input type="number" min="1" max="12" required bind:value={grade} /></label
 				>{/if}
 			{#if kind === 'transfer' || kind === 'reactivate'}
 				<label
-					>Unitate<select bind:value={unitId} onchange={() => (groupId = '')}
+					>Unitate<select required bind:value={unitId} onchange={() => (groupId = '')}
 						><option value="">Alege unitatea</option>{#each transferUnits as u (u.id)}<option
 								value={u.id}>{u.name}</option
 							>{/each}</select
@@ -351,39 +378,9 @@
 			{#if kind === 'withdraw'}<p>
 					Retragerea încheie toate responsabilitățile persoanei. Istoricul și plățile se păstrează.
 				</p>{/if}
-			<button type="submit" disabled={pending || !kind}>Previzualizează modificarea</button><button
-				type="button"
-				onclick={() => (editing = false)}>Închide</button
-			>
-		</form>
-	{/if}
-	{#if activePreview}
-		<form method="POST" use:enhance={submitEdit} class="editor">
-			<p>{activePreview.members.length} persoane vor fi actualizate.</p>
-			<details>
-				<summary>Vezi toate persoanele</summary>
-				<ul>
-					{#each activePreview.members as m (m.id)}<li>
-							{m.name} · {m.from === 'floresti' ? 'Florești' : 'Cluj'}
-						</li>{/each}
-				</ul>
-			</details>
-			<input type="hidden" name="action" value="bulk" /><input
-				type="hidden"
-				name="version"
-				value={activePreview.version}
-			/><input
-				type="hidden"
-				name="members"
-				value={json(activePreview.members.map((m) => ({ id: m.id, revision: m.revision })))}
-			/><input type="hidden" name="changes" value={json(activePreview.changes)} />
-			<label class="check"
-				><input type="checkbox" name="confirm" required />Am verificat selecția și modificarea.</label
-			><button type="submit" disabled={pending}
-				>Aplică pentru {activePreview.members.length} persoane</button
-			>
-			<button type="button" onclick={() => (activePreview = undefined)}>Înapoi la modificare</button
-			>
+			<button type="submit" disabled={pending || !kind}
+				>{pending ? 'Se salvează…' : 'Salvează modificarea'}</button
+			><button type="button" onclick={() => (editing = false)}>Închide</button>
 		</form>
 	{/if}
 </Modal>
@@ -716,10 +713,6 @@
 		display: grid;
 		gap: 12px;
 	}
-	.editor ul {
-		max-height: 240px;
-		overflow: auto;
-	}
 	.table {
 		overflow: auto;
 	}
@@ -762,13 +755,13 @@
 		background: white;
 		color: var(--sc-accent);
 	}
+	button:disabled {
+		cursor: not-allowed;
+		opacity: 0.5;
+	}
 	form {
 		display: grid;
 		gap: 12px;
-	}
-	.check {
-		display: flex;
-		align-items: center;
 	}
 	summary {
 		cursor: pointer;

@@ -3,8 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { json, raw, urlencoded } from 'express';
 import { AppModule } from './app.module';
+import { createApplicationLogger } from './config/logging.config';
 
 const DOCUMENT_UPLOAD_BODY_LIMIT = '25mb';
+const applicationLogger = createApplicationLogger();
 
 const getAllowedOrigins = (config: ConfigService) => {
   const configuredOrigins =
@@ -38,7 +40,10 @@ const getPort = (config: ConfigService) => {
 };
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  const app = await NestFactory.create(AppModule, {
+    bodyParser: false,
+    logger: applicationLogger,
+  });
   const config = app.get(ConfigService);
   const port = getPort(config);
 
@@ -71,4 +76,12 @@ async function bootstrap() {
 
   await app.listen(port, '0.0.0.0');
 }
-void bootstrap();
+void bootstrap().catch((error: unknown) => {
+  const stack = error instanceof Error ? error.stack : undefined;
+  applicationLogger.error(
+    'Failed to start the application',
+    stack,
+    'Bootstrap',
+  );
+  process.exit(1);
+});

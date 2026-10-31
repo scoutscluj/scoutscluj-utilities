@@ -215,6 +215,39 @@ deployment. The deploy script also rewrites the Caddyfile and recreates the
 Caddy container so existing EC2 hosts receive the CloudWatch log driver without
 waiting for EC2 user data to rerun.
 
+The API follows the logging configuration in `contingent-management-app`:
+NestJS emits single-line JSON in production (`NODE_ENV=production`, already set
+by the API image and deploy script). Objects stay structured, ANSI colors are
+disabled, and multiline messages and stack traces are escaped within the JSON
+event instead of becoming separate CloudWatch rows. Local NestJS logs retain
+the readable text format.
+
+The global exception filter writes HTTP 5xx failures once to stderr as
+`event_type="application_error"`, including the error name, message, stack,
+optional error code, HTTP method, status, and matched route template. Request
+URLs, query strings, headers, bodies, and resolved path parameters are not
+attached. Expected HTTP 4xx responses retain their existing bodies and are not
+logged as application errors. This repo does not have the reference app's
+request correlation or performance middleware, so those features are not
+required for exception logging.
+
+After deploying the API, select `/scoutscluj/production/api` in CloudWatch Logs
+Insights and use:
+
+```sql
+fields @timestamp, level, context, message, error_name, error_code,
+  method, route, status_code, stack
+| filter event_type = "application_error"
+| sort @timestamp desc
+| limit 200
+```
+
+For ordinary NestJS service logs, filter by `context` (for example,
+`context = "NetopiaService"`); structured message properties are nested under
+`message` (for example, `message.event`). Startup failures use
+`context = "Bootstrap"`. The format change takes effect for new API events
+after deployment; existing CloudWatch events retain their original format.
+
 Tail logs with:
 
 ```bash

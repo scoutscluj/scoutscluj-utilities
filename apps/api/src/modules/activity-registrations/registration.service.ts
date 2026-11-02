@@ -6,6 +6,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
@@ -32,6 +33,7 @@ import {
   LocalStructure,
 } from '../members/entities/member.entity';
 import { MembersService } from '../members/members.service';
+import { MemberOrgoService } from '../members/orgo.service';
 import { localDate } from '../members/member.types';
 import {
   MembershipObligation,
@@ -95,6 +97,7 @@ export class RegistrationService {
     private readonly members: MembersService,
     private readonly consent: ParentalConsentService,
     private readonly config: ConfigService,
+    @Optional() private readonly orgo?: MemberOrgoService,
   ) {}
 
   async mutate<T>(activityId: number, work: (tx: EntityManager) => Promise<T>) {
@@ -611,7 +614,17 @@ export class RegistrationService {
       const ids = [...new Set(obligations.map((o) => o.orgoUserId))];
       if (ids.length === 1) orgoId = ids[0];
     }
-    const member = orgoId ? await tx.findOne(ScoutMember, { orgoId }) : null;
+    let member = orgoId ? await tx.findOne(ScoutMember, { orgoId }) : null;
+    if (
+      (!member ||
+        member.status !== 'active' ||
+        !member.structureConfirmed ||
+        Number(member.remote?.localCenterId) !==
+          Number(this.config.get<string>('ORGO_LOCAL_CENTER_ID'))) &&
+      this.orgo
+    ) {
+      member = await this.orgo.verifyIdentity(key.value);
+    }
     if (!member || member.status !== 'active' || !member.orgoId)
       throw new BadRequestException(
         'ID-ul nu identifică un membru activ disponibil pentru înscriere.',

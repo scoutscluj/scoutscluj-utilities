@@ -74,12 +74,29 @@
 			/>
 			<div class="grid">
 				<label
-					>Nume<input
-						name={a.identity ? 'name' : undefined}
-						value={m.name}
+					>Prenume<input
+						name={a.identity ? 'firstName' : undefined}
+						value={String(m.orgoProfile?.firstName ?? '')}
+						readonly={!a.identity}
+						required={a.identity}
+					/></label
+				>
+				<label
+					>Nume de familie<input
+						name={a.identity ? 'lastName' : undefined}
+						value={String(m.orgoProfile?.lastName ?? '')}
+						readonly={!a.identity}
+						required={a.identity}
+					/></label
+				>
+				<label
+					>Alte prenume<input
+						name={a.identity ? 'middleName' : undefined}
+						value={String(m.orgoProfile?.middleName ?? '')}
 						readonly={!a.identity}
 					/></label
-				><label
+				>
+				<label
 					>Data nașterii<DateInput
 						type="date"
 						name={a.identity ? 'birthDate' : undefined}
@@ -90,7 +107,7 @@
 				{#if hasSchoolGrade(m)}<label
 						>Clasa<input
 							type="number"
-							min="1"
+							min="0"
 							max="12"
 							name={a.edit ? 'grade' : undefined}
 							value={m.grade ?? ''}

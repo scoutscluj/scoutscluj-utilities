@@ -173,7 +173,7 @@ export function progression(
       ? { branch: null, grade: null }
       : { branch, grade: null };
   }
-  if (!grade || grade < 1 || grade > 12)
+  if (grade == null || grade < 0 || grade > 12)
     return { review: 'Clasa școlară lipsește sau este invalidă.' };
   const expected =
     grade <= 4 ? 'lupisori' : grade <= 8 ? 'temerari' : 'exploratori';

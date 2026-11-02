@@ -71,6 +71,7 @@ import { PaymentConfigurationService } from './payment-configuration.service';
 import { PaymentNotSubmittedException } from './payment-provider';
 import {
   OrgoRosterService,
+  parseOrgoRoster,
   type OrgoRosterMember,
 } from './orgo-roster.service';
 
@@ -1254,11 +1255,27 @@ export class MembershipService {
     const purpose = this.paymentPurpose(body.purpose);
     const entered = identifier(body.identifier);
     const period = await this.ensureCurrentPeriod();
-    const obligation = await this.findObligationByIdentifier(
+    let obligation = await this.findObligationByIdentifier(
       this.em,
       period.id,
       entered,
     );
+    if (
+      (!obligation ||
+        !(await collectionAllowed(
+          this.em,
+          obligation.orgoUserId,
+          period.startsOn,
+        ))) &&
+      this.memberOrgo
+    ) {
+      await this.refreshPaymentIdentity(entered, period.id);
+      obligation = await this.findObligationByIdentifier(
+        this.em,
+        period.id,
+        entered,
+      );
+    }
     if (!obligation)
       throw new NotFoundException(
         'ID-ul nu corespunde unui membru eligibil din Centrul Local Cluj.',
@@ -1307,6 +1324,58 @@ export class MembershipService {
     };
   }
 
+  private async refreshPaymentIdentity(
+    entered: ReturnType<typeof identifier>,
+    periodId: string,
+  ) {
+    if (!this.memberOrgo) return;
+    // All network requests finish before taking any financial/member advisory lock.
+    const member = await this.memberOrgo.verifyIdentity(entered.value);
+    if (!member?.orgoId) return;
+    const raw = await this.memberOrgo.serverRequest(
+      '/api/v1/users/' + member.orgoId,
+    );
+    const source = parseOrgoRoster(
+      { 'hydra:member': [raw] },
+      '',
+      Number((raw.localCenter as { id?: number })?.id),
+    )[0];
+    if (!source?.eligible || !source.plan) return;
+    await this.mutate(async (em) => {
+      const period = await em.findOneOrFail(Period, { id: periodId });
+      const initialized = await em.findOne(RosterSync, {
+        periodId,
+        mode: 'initialization',
+        status: 'succeeded',
+      });
+      if (
+        !initialized ||
+        !(await collectionAllowed(em, source.orgoUserId, period.startsOn))
+      )
+        return;
+      const row = await em.findOne(Obligation, {
+        periodId,
+        orgoUserId: source.orgoUserId,
+      });
+      const price = period.prices[source.plan!];
+      if (!price) return;
+      if (!row)
+        em.create(Obligation, {
+          periodId,
+          orgoUserId: source.orgoUserId,
+          memberName: source.memberName,
+          cardId: source.cardId,
+          orgoCreatedAt: source.orgoCreatedAt,
+          plan: source.plan!,
+          totalBani: price.totalBani,
+          nationalBani: price.nationalBani,
+          orgoLastSyncedAt: new Date(),
+          verificationNote: 'Identitate și tarif verificate punctual în Orgo.',
+        });
+      // Existing prices, receipts, allocations and review flags require the existing finance workflow.
+    });
+  }
+
   async mine(user: CurrentUser): Promise<
     Array<{
       id: string;
@@ -1326,7 +1395,25 @@ export class MembershipService {
   > {
     const orgoUserId = user.orgoConnection?.orgoUserId;
     if (!orgoUserId) return [];
-    await this.ensureCurrentPeriod();
+    const currentPeriod = await this.ensureCurrentPeriod();
+    const lookupKey = String(orgoUserId);
+    if (lookupKey && this.memberOrgo) {
+      const key = identifier(lookupKey);
+      const current = await this.findObligationByIdentifier(
+        this.em,
+        currentPeriod.id,
+        key,
+      );
+      if (
+        !current ||
+        !(await collectionAllowed(
+          this.em,
+          current.orgoUserId,
+          currentPeriod.startsOn,
+        ))
+      )
+        await this.refreshPaymentIdentity(key, currentPeriod.id);
+    }
     const obligations = await this.em.find(Obligation, { orgoUserId });
     const eligible: Obligation[] = [];
     for (const obligation of obligations) {
@@ -2348,7 +2435,27 @@ export class MembershipService {
     const token = text(body.attemptToken, 100);
     if (!/^[A-Za-z0-9_-]{43}$/.test(token))
       throw new BadRequestException('Referință de plată invalidă.');
-    await this.ensureCurrentPeriod();
+    const currentPeriod = await this.ensureCurrentPeriod();
+    const lookupKey = user?.orgoConnection?.orgoUserId
+      ? String(user.orgoConnection.orgoUserId)
+      : body.identifier;
+    if (lookupKey && this.memberOrgo) {
+      const key = identifier(lookupKey);
+      const current = await this.findObligationByIdentifier(
+        this.em,
+        currentPeriod.id,
+        key,
+      );
+      if (
+        !current ||
+        !(await collectionAllowed(
+          this.em,
+          current.orgoUserId,
+          currentPeriod.startsOn,
+        ))
+      )
+        await this.refreshPaymentIdentity(key, currentPeriod.id);
+    }
     const tokenHash = hash(token);
     const selected = await this.paymentSettings();
     const providerName = selected.activeProvider as PaymentProviderName;

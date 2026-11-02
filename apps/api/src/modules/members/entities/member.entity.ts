@@ -149,6 +149,7 @@ export const MemberSync = defineEntity({
     createdAt: created(),
     completedAt: p.datetime().nullable(),
     claimedAt: p.datetime().nullable(),
+    claimToken: p.uuid().nullable(),
     attempts: p.integer().default(0),
     nextAttemptAt: p.datetime().nullable(),
   },
@@ -179,6 +180,7 @@ export const MemberSettings = defineEntity({
     refreshClaimedAt: p.datetime().nullable(),
     refreshState: p.string().default('idle'),
     refreshMessage: p.text().nullable(),
+    refreshRetryAt: p.datetime().nullable(),
   },
 });
 export const MemberNotice = defineEntity({

@@ -14,6 +14,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { CurrentUser as Actor } from '../users/users.types';
 import { MembersService } from './members.service';
 import { MemberOrgoService } from './orgo.service';
+import { AdmissionsService } from './admissions.service';
 
 @Controller('members')
 @UseGuards(AuthGuard)
@@ -21,6 +22,7 @@ export class MembersController {
   constructor(
     private readonly members: MembersService,
     private readonly orgo: MemberOrgoService,
+    private readonly admissions: AdmissionsService,
   ) {}
   @Get() @Header('Cache-Control', 'private, no-store') list(
     @CurrentUser() u: Actor,
@@ -34,6 +36,32 @@ export class MembersController {
   }
   @Post('bulk') bulk(@CurrentUser() u: Actor, @Body() b: unknown) {
     return this.members.bulk(u, b);
+  }
+  @Post('orgo/bootstrap') bootstrap(@CurrentUser() u: Actor) {
+    return this.orgo.bootstrap(u);
+  }
+  @Get('orgo/outbox') @Header('Cache-Control', 'private, no-store') outbox(
+    @CurrentUser() u: Actor,
+  ) {
+    return this.orgo.outbox(u);
+  }
+  @Post('orgo/retry/:id/preview') retryPreview(
+    @CurrentUser() u: Actor,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.orgo.previewRetry(u, id);
+  }
+  @Post('orgo/objects/:id/retry') retryObject(
+    @CurrentUser() u: Actor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() b: unknown,
+  ) {
+    return this.orgo.retryObject(u, id, b);
+  }
+  @Get('orgo/bootstrap')
+  @Header('Cache-Control', 'private, no-store')
+  bootstrapStatus() {
+    return this.orgo.bootstrapStatus();
   }
   @Get('orgo/refresh-status')
   @Header('Cache-Control', 'private, no-store')
@@ -105,7 +133,7 @@ export class MembersController {
     return this.members.archiveUnit(u, id);
   }
   @Post() create(@CurrentUser() u: Actor, @Body() b: unknown) {
-    return this.members.createMember(u, b);
+    return this.admissions.submit(b, u);
   }
   @Get(':id') @Header('Cache-Control', 'private, no-store') detail(
     @CurrentUser() u: Actor,

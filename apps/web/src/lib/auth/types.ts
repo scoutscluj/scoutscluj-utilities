@@ -1,5 +1,7 @@
 export type UserRole = 'moderator' | 'admin' | 'finance_manager' | 'super_admin';
 export type AppHref =
+	| '/applications'
+	| '/admin/orgo-sync'
 	| '/units'
 	| '/cotizatie'
 	| '/activitati'

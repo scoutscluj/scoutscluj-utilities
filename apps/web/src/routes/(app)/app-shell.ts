@@ -83,6 +83,10 @@ export const menuHref = (href: AppHref) => {
 			return resolve('/admin/parental-consent');
 		case '/audit':
 			return resolve('/audit');
+		case '/applications':
+			return resolve('/applications');
+		case '/admin/orgo-sync':
+			return resolve('/admin/orgo-sync');
 		case '/activities':
 			return resolve('/activities');
 		case '/finance':

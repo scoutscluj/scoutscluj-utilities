@@ -6,7 +6,7 @@
 	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import { onMount, untrack } from 'svelte';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateAll, goto } from '$app/navigation';
 	type Refresh = { state: string; message: string | null; lastSucceededAt: string | null };
 	let refresh = $state<Refresh>({ state: 'idle', message: null, lastSucceededAt: null });
 	let controller: AbortController | undefined;
@@ -145,12 +145,10 @@
 	const activeSection = $derived(
 		form && 'section' in form && typeof form.section === 'string' ? form.section : ''
 	);
-	let createOpen = $state(false),
-		structureOpen = $state(false),
+	let structureOpen = $state(false),
 		progressionOpen = $state(false),
 		orgoOpen = $state(false);
 	$effect(() => {
-		if (activeSection === 'create') createOpen = true;
 		if (['unit', 'archive'].includes(activeSection)) structureOpen = true;
 		if (activeSection === 'unit' && form?.message && !form.message.includes('adăugată'))
 			subunitOpen = true;
@@ -165,26 +163,11 @@
 	let categoryFilter = $state<string[]>([]);
 	let feeFilter = $state<string[]>([]);
 	let votingFilter = $state<string[]>([]);
-	let newStructure = $state('');
-	$effect(() => {
-		if (!newStructure)
-			newStructure =
-				data.registry.manageableStructureIds?.[0] ?? data.registry.structures?.[0]?.id ?? 'cluj';
-	});
 	const structures = $derived(data.registry.structures ?? []);
 	let search = $state(''),
 		unitFilter = $state<string[]>([]),
 		status = $state<string[]>(['active']);
-	let newMemberUnit = $state(''),
-		newMemberKind = $state('beneficiary');
 	const units = $derived(data.registry.units.filter((u) => !u.parentId && !u.archived));
-	const createUnits = $derived(
-		units.filter(
-			(u) =>
-				u.canCreateMember ||
-				data.registry.units.some((g) => g.parentId === u.id && g.canCreateMember)
-		)
-	);
 	const visible = $derived(
 		filterMembers(data.registry.members, {
 			search,
@@ -364,8 +347,7 @@
 			>
 			{#if management && data.registry.canManage}<button
 					type="button"
-					aria-haspopup="dialog"
-					onclick={() => (createOpen = true)}
+					onclick={() => goto(resolve('/applications'))}
 					><Plus size={18} aria-hidden="true" />Adaugă membru</button
 				>{/if}
 			{#if data.registry.admin}<ActionMenu
@@ -518,54 +500,6 @@
 			{feeMenu}
 		/>
 	</section>
-	{#if management && data.registry.canManage}<Modal
-			bind:open={createOpen}
-			title="Adaugă membru"
-			description="Înscrie un beneficiar sau un voluntar adult în structura potrivită."
-		>
-			<form method="POST" use:enhance={submitWorkspace} class="grid">
-				<input type="hidden" name="action" value="create" /><label
-					>Structură<select
-						name="structureId"
-						bind:value={newStructure}
-						onchange={() => (newMemberUnit = '')}
-						>{#each structures as st (st.id)}<option value={st.id}>{st.name}</option>{/each}</select
-					></label
-				><label
-					>Tip membru<select
-						name="kind"
-						bind:value={newMemberKind}
-						onchange={() => (newMemberUnit = '')}
-						><option value="beneficiary">Beneficiar</option><option value="adult"
-							>Voluntar adult</option
-						></select
-					></label
-				><label>Nume complet<input name="name" required maxlength="255" /></label><label
-					>Data nașterii<DateInput type="date" name="birthDate" /></label
-				>{#if newMemberKind === 'beneficiary'}<label
-						>Clasa<input type="number" name="grade" min="1" max="12" /></label
-					>{/if}<label
-					>Unitate<select name="unitId" bind:value={newMemberUnit} required
-						><option value="">Alege categoria principală</option
-						>{#each createUnits.filter((u) => (u.structureId ?? 'cluj') === newStructure && (newMemberKind === 'adult' ? ['lideri', 'voluntari', 'scouteri'].includes(u.branch) : !['lideri', 'voluntari', 'scouteri'].includes(u.branch))) as u (u.id)}<option
-								value={u.id}>{u.name}</option
-							>{/each}</select
-					></label
-				><label
-					>Grupă<select
-						name="groupId"
-						disabled={!newMemberUnit}
-						required={!!newMemberUnit &&
-							!units.find((u) => u.id === newMemberUnit)?.canCreateMember}
-						><option value="">Colectiv comun / nerepartizat</option
-						>{#each data.registry.units.filter((u) => u.parentId === newMemberUnit && !u.archived && u.canCreateMember) as u (u.id)}<option
-								value={u.id}>{name(u.parentId)} / {u.name}</option
-							>{/each}</select
-					></label
-				><button type="submit">Adaugă membru</button>
-			</form>
-			<p class="hint">Alege unitatea și, dacă este cazul, grupa în care va fi înscris membrul.</p>
-		</Modal>{/if}
 	{#snippet unitFilters()}<label
 			>Caută unitate sau subunitate<input
 				type="search"
@@ -702,13 +636,7 @@
 						<a href={resolve(`/units/${s.memberId}`)}>Fișa membrului</a> · {syncLabels[s.state] ??
 							s.state}<small>{s.message}</small>
 					</p>
-					<form method="POST" use:enhance={submitWorkspace}>
-						<input type="hidden" name="action" value="retry" /><input
-							type="hidden"
-							name="id"
-							value={s.id}
-						/><button class="secondary">Reverifică</button>
-					</form>
+					<a class="secondary" href={resolve('/admin/orgo-sync')}>Verifică și reia sincronizarea</a>
 				</div>{:else}<p>Nicio operațiune în așteptare.</p>{/each}
 		</Modal>{/if}
 </div>

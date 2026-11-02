@@ -163,12 +163,6 @@
 	let categoryFilter = $state<string[]>([]);
 	let feeFilter = $state<string[]>([]);
 	let votingFilter = $state<string[]>([]);
-	let newStructure = $state('');
-	$effect(() => {
-		if (!newStructure)
-			newStructure =
-				data.registry.manageableStructureIds?.[0] ?? data.registry.structures?.[0]?.id ?? 'cluj';
-	});
 	const structures = $derived(data.registry.structures ?? []);
 	let search = $state(''),
 		unitFilter = $state<string[]>([]),
@@ -353,8 +347,7 @@
 			>
 			{#if management && data.registry.canManage}<button
 					type="button"
-					aria-haspopup="dialog"
-					onclick={() => (createOpen = true)}
+					onclick={() => goto(resolve('/applications'))}
 					><Plus size={18} aria-hidden="true" />Adaugă membru</button
 				>{/if}
 			{#if data.registry.admin}<ActionMenu

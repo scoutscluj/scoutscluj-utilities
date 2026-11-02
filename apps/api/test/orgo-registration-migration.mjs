@@ -39,7 +39,8 @@ const db = new PGlite();
 try {
   await db.exec(`
     create table users(id integer primary key);
-    create table member_sync_operations(id uuid primary key);
+    create table member_sync_operations(id uuid primary key,state text,message text,next_attempt_at timestamptz);
+    insert into member_sync_operations values('33333333-3333-4333-8333-333333333333','permission-required','Old command',null);
     create table member_settings(id varchar primary key);
     create table scout_units(id uuid primary key,name text,branch text,parent_id uuid,orgo_id integer,archived boolean default false);
     create table scout_subunits(id uuid primary key,name text,parent_id uuid,orgo_id integer,archived boolean default false);
@@ -50,6 +51,10 @@ try {
     insert into scout_members values('11111111-1111-4111-8111-111111111111','{"parentName":"Părinte de test","parentEmail":"parent@example.test"}',1);
   `);
   for (const sql of statements) await db.exec(sql);
+  assert.equal(
+    (await db.query('select state from member_sync_operations')).rows[0].state,
+    'review-required',
+  );
   const migrated = (await db.query('select * from member_guardians')).rows;
   assert.equal(migrated.length, 1);
   assert.equal(migrated[0].verified_account_id, null);
@@ -121,10 +126,14 @@ try {
     2,
   );
   await db.exec('delete from activity_registrations;');
-  const deletion = (await db.query("select payload from orgo_object_jobs where payload->>'deleted'='true'")).rows;
-  assert.equal(deletion.length,1);
-  assert.equal(deletion[0].payload.deleted,true);
-  assert.equal('answers' in deletion[0].payload,false);
+  const deletion = (
+    await db.query(
+      "select payload from orgo_object_jobs where payload->>'deleted'='true'",
+    )
+  ).rows;
+  assert.equal(deletion.length, 1);
+  assert.equal(deletion[0].payload.deleted, true);
+  assert.equal('answers' in deletion[0].payload, false);
   console.log(
     'PASS PostgreSQL migration, grade 0, unverified guardian migration, atomic outbox, field intent and readback loop prevention',
   );

@@ -2,6 +2,10 @@ import { Migration } from '@mikro-orm/migrations';
 
 export class Migration20261102000100 extends Migration {
   override up(): void {
+    // Do not activate historical commands merely by enabling server write access at rollout.
+    this.addSql(`update member_sync_operations set state='review-required',
+      message='Operație istorică: verifică datele Orgo înainte de reluare.', next_attempt_at=null
+      where state in ('pending','running','permission-required','uncertain');`);
     this.addSql(
       'alter table member_sync_operations add column if not exists claim_token uuid null;',
     );

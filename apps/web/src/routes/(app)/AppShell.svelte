@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import AppSidebar from './AppSidebar.svelte';
 	import AppTopbar from './AppTopbar.svelte';
+	import OrgoBackgroundSync from '$lib/members/OrgoBackgroundSync.svelte';
 	import type { CurrentUser } from '$lib/auth/types';
 	import type { SidebarActivity } from '$lib/activities/sidebar-activity';
 
@@ -94,6 +95,7 @@
 		/>
 
 		<main class="content">
+			<OrgoBackgroundSync />
 			{@render children()}
 		</main>
 	</div>

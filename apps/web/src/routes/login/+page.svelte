@@ -40,6 +40,7 @@
 			{isStarting ? 'Se deschide Orgo...' : 'Connect with Orgo'}
 		</button>
 		<p>
+			<a href={resolve('/register')}>Înscrie-te în centrul local</a> ·
 			<a href={resolve('/activitati')}>Activități și înscrieri</a> ·
 			<a href={resolve('/cotizatie')}>Plata cotizației</a>
 		</p>

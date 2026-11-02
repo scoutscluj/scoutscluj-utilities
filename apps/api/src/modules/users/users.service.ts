@@ -160,6 +160,14 @@ export class UsersService {
 
     const matchedUser = matches.values().next().value as User | undefined;
     if (matchedUser) {
+      if (
+        orgoUserId &&
+        matchedUser.orgoConnection?.orgoUserId &&
+        matchedUser.orgoConnection.orgoUserId !== orgoUserId
+      )
+        throw new UnauthorizedException(
+          'Adresa comună nu permite asocierea a două identități Orgo diferite.',
+        );
       this.updateUserFromLogin(matchedUser, profile);
       await this.upsertOrgoConnection(matchedUser, profile);
       await this.em.flush();

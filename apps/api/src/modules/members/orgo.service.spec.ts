@@ -1,4 +1,8 @@
 jest.mock('@mikro-orm/postgresql', () => ({ EntityManager: class {} }));
+jest.mock('./entities/orgo-object-sync.entity', () => ({
+  OrgoObjectJob: 'object-job',
+  OrgoObjectLink: 'object-link',
+}));
 jest.mock('./entities/member.entity', () => ({
   ScoutAssignment: 'assignment',
   MemberSettings: 'settings',
@@ -805,6 +809,242 @@ describe('automatic member roster refresh', () => {
         expect.objectContaining({ action: 'members.orgo-identity-review' }),
       ]),
     );
+  });
+  it('allows an ordinary authenticated account to request a refresh and preserves durable backoff', async () => {
+    const f = rosterFixture();
+    f.list('user').push({ id: 1, memberAccessDisabled: false });
+    const settings = f.list('settings')[0];
+    Object.assign(settings, {
+      refreshState: 'failed',
+      refreshRetryAt: new Date(Date.now() + 60000),
+    });
+    global.fetch = jest.fn();
+    const result = await f.service.bootstrap({
+      id: 1,
+      displayName: 'Ordinary member',
+      roles: [],
+    });
+    expect(result.state).toBe('failed');
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(result).not.toHaveProperty('members');
+    Object.assign(settings, {
+      refreshRetryAt: null,
+      refreshState: 'running',
+      refreshClaimedAt: new Date(),
+    });
+    expect(
+      (
+        await f.service.bootstrap({
+          id: 1,
+          displayName: 'Ordinary member',
+          roles: [],
+        })
+      ).state,
+    ).toBe('running');
+    expect(global.fetch).not.toHaveBeenCalled();
+    settings.refreshClaimedAt = new Date(Date.now() - 130000);
+    expect((await f.service.bootstrapStatus()).state).toBe('failed');
+  });
+  it('coalesces simultaneous exact ID checks and upserts one canonical identity', async () => {
+    const f = rosterFixture();
+    global.fetch = jest.fn(() =>
+      Promise.resolve(new Response(JSON.stringify(raw(42)))),
+    );
+    const [a, b] = await Promise.all([
+      f.service.verifyIdentity('42'),
+      f.service.verifyIdentity('42'),
+    ]);
+    expect(a?.id).toBe(b?.id);
+    expect(f.list('member')).toHaveLength(1);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+  it('does not import a foreign-center identity or treat a transport error as absence', async () => {
+    const f = rosterFixture();
+    global.fetch = jest.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ ...raw(42), localCenter: { id: 999 } })),
+      ),
+    );
+    expect(await f.service.verifyIdentity('42')).toBeNull();
+    expect(f.list('member')).toHaveLength(0);
+    global.fetch = jest.fn(() =>
+      Promise.resolve(new Response('{}', { status: 403 })),
+    );
+    await expect(f.service.verifyIdentity('42')).rejects.toThrow(
+      'nu este disponibilă',
+    );
+    expect(f.list('member')).toHaveLength(0);
+    global.fetch = jest.fn(() =>
+      Promise.resolve(new Response('{}', { status: 404 })),
+    );
+    expect(await f.service.verifyIdentity('42')).toBeNull();
+  });
+});
+
+describe('exact Orgo lookup and independent role delivery', () => {
+  const original = global.fetch;
+  afterEach(() => {
+    global.fetch = original;
+  });
+  function roleFixture() {
+    const assignment = {
+      id: 'a',
+      memberId: 'm',
+      role: 'leader',
+      unitId: 'u',
+      groupId: null,
+      endedAt: null as Date | null,
+      expiresAt: null,
+    };
+    const member = { id: 'm', orgoId: 42, revision: 1 };
+    const job = {
+      id: 'j',
+      memberId: 'm',
+      revision: 1,
+      actorId: 1,
+      kind: 'roles',
+      payload: { assignmentId: 'a' } as Record<string, unknown>,
+      baseline: {},
+      state: 'pending',
+      attempts: 0,
+      claimedAt: null as Date | null,
+      nextAttemptAt: null as Date | null,
+    };
+    const roles: Record<string, unknown>[] = [
+      { id: 99, role: { id: 42 }, unit: null, dateEnded: null },
+    ];
+    const em = {
+      fork: () => em,
+      execute: () => Promise.resolve([]),
+      find: () => Promise.resolve([job]),
+      findOneOrFail: (entity: string) =>
+        Promise.resolve(
+          entity === 'member'
+            ? member
+            : entity === 'assignment'
+              ? assignment
+              : entity === 'unit'
+                ? { id: 'u', orgoId: 137 }
+                : job,
+        ),
+      nativeUpdate: (
+        _entity: unknown,
+        _query: unknown,
+        update: Record<string, unknown>,
+      ) => Promise.resolve(Object.assign(job, update)),
+      transactional: async <T>(work: (tx: unknown) => Promise<T>) => work(em),
+      create: jest.fn(),
+    };
+    const authorize = jest.fn(() => Promise.resolve());
+    const service = new MemberOrgoService(
+      em as unknown as EntityManager,
+      new ConfigService({
+        ORGO_API_TOKEN: 'server',
+        ORGO_LOCAL_CENTER_ID: '7',
+        ORGO_OAUTH_BASE_URL: 'https://orgo.example.test',
+        ORGO_MEMBER_WRITES_ENABLED: 'true',
+      }),
+      { authorizeOrganizationSync: authorize } as unknown as MembersService,
+    );
+    let timeout = false;
+    const fetcher = jest.fn((input: URL, init?: RequestInit) =>
+      Promise.resolve().then(() => {
+        const path = input.pathname;
+        if (path === '/api/v1/roles/1')
+          return new Response(JSON.stringify({ id: 1, unitType: { id: 3 } }));
+        if (path === '/api/v1/units/137')
+          return new Response(
+            JSON.stringify({
+              id: 137,
+              localCenter: { id: 7 },
+              unitType: { id: 3 },
+            }),
+          );
+        if (path === '/api/v1/user_roles' && init?.method === 'POST') {
+          roles.push({
+            id: 100,
+            role: { id: 1 },
+            unit: { id: 137 },
+            dateEnded: null,
+          });
+          if (timeout) throw new Error('timeout after remote commit');
+          return new Response(JSON.stringify({ id: 100 }));
+        }
+        if (path === '/api/v1/user_roles/100' && init?.method === 'PATCH') {
+          roles.find((r) => r.id === 100)!.dateEnded = '2026-11-02';
+          return new Response('{}');
+        }
+        if (path === '/api/v1/users/42')
+          return new Response(
+            JSON.stringify({
+              id: 42,
+              localCenter: { id: 7 },
+              type: { id: 42 },
+              userRoles: roles,
+            }),
+          );
+        throw new Error('Unexpected request: ' + path);
+      }),
+    );
+    global.fetch = fetcher;
+    return {
+      service,
+      job,
+      roles,
+      assignment,
+      authorize,
+      fetcher,
+      timeoutAfterWrite: () => {
+        timeout = true;
+      },
+    };
+  }
+  it('adds one position without replacing unrelated roles', async () => {
+    const f = roleFixture();
+    await f.service.run();
+    expect(f.job.state).toBe('synced');
+    expect(f.roles.map((r) => r.id)).toEqual([99, 100]);
+    expect(
+      f.fetcher.mock.calls.filter(([, init]) => init?.method === 'POST'),
+    ).toHaveLength(1);
+    expect(
+      f.fetcher.mock.calls.some(([url]) =>
+        url.pathname.endsWith('update-roles'),
+      ),
+    ).toBe(false);
+  });
+  it('recovers a timeout by readback without another role creation', async () => {
+    const f = roleFixture();
+    f.timeoutAfterWrite();
+    await f.service.run();
+    expect(f.job.state).toBe('uncertain');
+    f.job.nextAttemptAt = null;
+    await f.service.run();
+    expect(f.job.state).toBe('synced');
+    expect(
+      f.fetcher.mock.calls.filter(([, init]) => init?.method === 'POST'),
+    ).toHaveLength(1);
+  });
+  it('rechecks local authority even with a powerful server token', async () => {
+    const f = roleFixture();
+    f.authorize.mockRejectedValue(new ForbiddenException());
+    await f.service.run();
+    expect(f.job.state).toBe('permission-required');
+    expect(f.fetcher).not.toHaveBeenCalled();
+  });
+  it('end-dates the target position while retaining unrelated history', async () => {
+    const f = roleFixture();
+    f.assignment.endedAt = new Date();
+    f.roles.push({
+      id: 100,
+      role: { id: 1 },
+      unit: { id: 137 },
+      dateEnded: null,
+    });
+    await f.service.run();
+    expect(f.job.state).toBe('synced');
+    expect(f.roles[0].dateEnded).toBeNull();
+    expect(f.roles[1].dateEnded).toBeTruthy();
   });
 });
 

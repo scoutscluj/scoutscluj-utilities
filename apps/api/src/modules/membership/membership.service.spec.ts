@@ -491,7 +491,11 @@ function fixture() {
     configurations as never,
     { members: rosterMembers, nationalReady: () => false } as never,
     { synchronize: nationalCheck } as never,
-    { feePlanContext: feeContext, queueFeePlan } as never,
+    {
+      feePlanContext: feeContext,
+      queueFeePlan,
+      verifyIdentity: jest.fn(() => Promise.resolve(null)),
+    } as never,
   );
   const staff: CurrentUser = {
     id: 1,

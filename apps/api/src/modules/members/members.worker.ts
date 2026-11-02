@@ -20,7 +20,8 @@ export class MembersWorker implements OnModuleInit, OnModuleDestroy {
   onModuleInit() {
     this.timer = setInterval(() => void this.run(), 5000);
     this.timer.unref();
-    void this.run();
+    // Delivery handlers register during module initialization before the first tick.
+    setImmediate(() => void this.run());
   }
   onModuleDestroy() {
     if (this.timer) clearInterval(this.timer);
@@ -32,6 +33,7 @@ export class MembersWorker implements OnModuleInit, OnModuleDestroy {
       await this.orgo.run();
       if (Date.now() - this.lastMaintenance > 60000) {
         this.lastMaintenance = Date.now();
+        await this.members.expireResponsibilities();
         await this.members.annual();
         void this.orgo
           .daily()

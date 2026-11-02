@@ -5,6 +5,7 @@ import {
   customProfilePatch,
 } from './orgo-profile';
 import { createHash } from 'node:crypto';
+import { flattenFields } from './orgo-sync';
 import { EntityManager } from '@mikro-orm/postgresql';
 import {
   BadRequestException,
@@ -58,26 +59,8 @@ import {
   type Category,
 } from './organization';
 
-export function bodyObject(input: unknown): Record<string, unknown> {
-  if (!input || typeof input !== 'object' || Array.isArray(input))
-    throw new BadRequestException('Date invalide.');
-  return input as Record<string, unknown>;
-}
-export function stringValue(value: unknown, max = 255) {
-  if (typeof value !== 'string' || value.length > max)
-    throw new BadRequestException('Text invalid sau prea lung.');
-  return value.trim();
-}
-export function dateValue(value: unknown) {
-  const date = stringValue(value);
-  if (
-    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-    !Number.isFinite(Date.parse(date)) ||
-    new Date(date).toISOString().slice(0, 10) !== date
-  )
-    throw new BadRequestException('Dată invalidă.');
-  return date;
-}
+import { bodyObject, stringValue, dateValue } from './member-input';
+export { bodyObject, stringValue, dateValue } from './member-input';
 const denied = () => {
   throw new ForbiddenException('Nu ai dreptul să modifici acești membri.');
 };
@@ -85,6 +68,82 @@ const denied = () => {
 @Injectable()
 export class MembersService {
   constructor(private readonly em: EntityManager) {}
+
+  async admissionScope(user: CurrentUser, tx = this.em.fork()) {
+    const ctx = await this.context(tx, user);
+    const account = await tx.findOneOrFail(User, { id: user.id });
+    const global =
+      !account.memberAccessDisabled &&
+      account.roles.some((r) =>
+        [UserRole.Admin, UserRole.SuperAdmin].includes(r),
+      );
+    return {
+      admin: global || ctx.admin,
+      unitIds: [
+        ...new Set(
+          ctx.assignments
+            .filter(
+              (a) =>
+                ['leader', 'chief'].includes(a.role) && a.unitId && !a.groupId,
+            )
+            .map((a) => a.unitId!),
+        ),
+      ],
+    };
+  }
+
+  async authorizeOrganizationSync(job: MemberSync) {
+    const tx = this.em.fork();
+    if (!job.actorId) {
+      if (job.kind === 'progression') return;
+      const ended =
+        typeof job.payload.endedAssignmentId === 'string'
+          ? await tx.findOne(ScoutAssignment, {
+              id: job.payload.endedAssignmentId,
+              memberId: job.memberId,
+            })
+          : null;
+      if (ended && ended.endedAt) return;
+      denied();
+    }
+    const account = await tx.findOneOrFail(User, { id: job.actorId! });
+    if (account.memberAccessDisabled) denied();
+    const user: CurrentUser = {
+      id: account.id,
+      displayName: account.displayName,
+      roles: account.roles,
+    };
+    const ctx = await this.context(tx, user);
+    if (ctx.admin) return;
+    const member = await this.get(tx, job.memberId);
+    if (job.payload.admission === true) {
+      const scope = await this.admissionScope(user, tx);
+      if (
+        scope.admin ||
+        (member.unitId && scope.unitIds.includes(member.unitId))
+      )
+        return;
+    }
+    if (job.kind === 'roles') {
+      const assignment = await tx.findOneOrFail(ScoutAssignment, {
+        id: String(job.payload.assignmentId ?? job.payload.endedAssignmentId),
+        memberId: member.id,
+      });
+      if (
+        job.payload.lifecycle === true &&
+        assignment.endedAt &&
+        (await this.access(tx, user, member)).withdraw
+      )
+        return;
+      if (
+        ['council', 'scouter', 'structure_admin'].includes(assignment.role) ||
+        !ctx.assignments.some(
+          (a) => a.role === 'chief' && a.unitId === assignment.unitId,
+        )
+      )
+        denied();
+    } else if (!(await this.access(tx, user, member)).transfer) denied();
+  }
 
   async authorizeSyncActor(
     actorId: number,
@@ -124,6 +183,10 @@ export class MembersService {
     }
     const member = await this.get(tx, memberId),
       grant = await this.access(tx, user, member);
+    if (kind === 'grade') {
+      if (!grant.edit) denied();
+      return;
+    }
     if (kind === 'status' ? !grant.withdraw : !grant.edit && !grant.own)
       denied();
     if (
@@ -473,21 +536,17 @@ export class MembersService {
       kind,
       payload,
       baseline:
-        kind === 'orgo-profile'
-          ? {
-              email: member.remote?.email,
-              phoneNumber: member.remote?.phone,
-              ...member.orgoBase,
-            }
-          : member.remote,
-      state: ['local-profile', 'assignment', 'roles', 'progression'].includes(
-        kind,
-      )
-        ? 'local-only'
-        : 'pending',
-      message: ['local-profile', 'assignment', 'roles', 'progression'].includes(
-        kind,
-      )
+        kind === 'grade'
+          ? flattenFields(member.orgoBase ?? {})
+          : kind === 'orgo-profile'
+            ? {
+                email: member.remote?.email,
+                phoneNumber: member.remote?.phone,
+                ...member.orgoBase,
+              }
+            : member.remote,
+      state: ['local-profile'].includes(kind) ? 'local-only' : 'pending',
+      message: ['local-profile'].includes(kind)
         ? 'Date păstrate în fișa locală; nu sunt trimise în Orgo.'
         : 'În așteptarea sincronizării.',
     });
@@ -1264,10 +1323,33 @@ export class MembersService {
       'revision',
       'profile',
       ...(access.edit ? ['grade', 'skipProgressionYear'] : []),
-      ...(access.identity ? ['name', 'birthDate'] : []),
+      ...(access.identity
+        ? ['name', 'firstName', 'lastName', 'middleName', 'birthDate']
+        : []),
     ];
     if (Object.keys(b).some((k) => !allowed.includes(k))) denied();
     const payload: Record<string, unknown> = {};
+    const identity: Record<string, unknown> = {};
+    for (const key of ['firstName', 'lastName', 'middleName'])
+      if (key in b) {
+        const value = stringValue(b[key], 120);
+        if (key !== 'middleName' && !value)
+          throw new BadRequestException(
+            'Completează prenumele și numele de familie.',
+          );
+        if (m.orgoProfile?.[key] !== value) identity[key] = value;
+        m.orgoProfile = { ...m.orgoProfile, [key]: value };
+      }
+    if (Object.keys(identity).length) {
+      m.name = [
+        m.orgoProfile.firstName,
+        m.orgoProfile.middleName,
+        m.orgoProfile.lastName,
+      ]
+        .filter(Boolean)
+        .join(' ');
+      m.orgoProfile = { ...m.orgoProfile, fullName: m.name };
+    }
     if ('name' in b) {
       const name = stringValue(b.name);
       if (!name) throw new BadRequestException('Numele este obligatoriu.');
@@ -1289,7 +1371,7 @@ export class MembersService {
         );
       if (
         grade !== null &&
-        (!Number.isInteger(grade) || grade < 1 || grade > 12)
+        (!Number.isInteger(grade) || grade < 0 || grade > 12)
       )
         throw new BadRequestException('Clasă invalidă.');
       if (m.grade !== grade) payload.grade = grade;
@@ -1337,7 +1419,7 @@ export class MembersService {
         };
       }
     }
-    const shared: Record<string, unknown> = {};
+    const shared: Record<string, unknown> = { ...identity };
     if (payload.contact) {
       const contact = payload.contact as { email: string; phone: string };
       if (m.orgoBase?.email !== contact.email) shared.email = contact.email;
@@ -1354,6 +1436,8 @@ export class MembersService {
       Object.keys(shared).length ? 'orgo-profile' : 'local-profile',
       shared,
     );
+    if ('grade' in payload)
+      this.queue(tx, m, user.id, 'grade', { grade: m.grade });
     if ('name' in payload)
       tx.create(MemberSync, {
         memberId: m.id,
@@ -1538,8 +1622,13 @@ export class MembersService {
       for (const a of await tx.find(ScoutAssignment, {
         memberId: id,
         endedAt: null,
-      }))
+      })) {
         a.endedAt = new Date();
+        this.queue(tx, m, user.id, 'roles', {
+          endedAssignmentId: a.id,
+          lifecycle: true,
+        });
+      }
       m.status = 'withdrawn';
       if (m.orgoId) {
         const obligations = await tx.find(MembershipObligation, {
@@ -1640,6 +1729,11 @@ export class MembersService {
       }
     } else throw new BadRequestException('Acțiune necunoscută.');
     this.queue(tx, m, user.id, 'status', { status: m.status });
+    if (action === 'reactivate')
+      this.queue(tx, m, user.id, 'assignment', {
+        unitId: m.unitId,
+        groupId: m.groupId,
+      });
     return { id, result: { ok: true } };
   }
   async assignment(user: CurrentUser, id: string, input: unknown) {
@@ -1738,8 +1832,13 @@ export class MembersService {
           unitId,
           role,
           endedAt: null,
-        }))
+        })) {
           old.endedAt = new Date();
+          const previous = await this.get(tx, old.memberId);
+          this.queue(tx, previous, user.id, 'roles', {
+            endedAssignmentId: old.id,
+          });
+        }
         await tx.flush();
       }
       const existing = await tx.findOne(ScoutAssignment, {
@@ -2118,6 +2217,7 @@ export class MembersService {
           groupId: m.groupId,
           adultKind: m.adultKind,
         });
+        this.queue(tx, m, null, 'grade', { grade: m.grade });
         tx.create(AuditEntry, {
           action: 'members.annual',
           entityType: 'Member',
@@ -2153,6 +2253,19 @@ export class MembersService {
           const adult = await this.get(tx, a.memberId);
           this.queue(tx, adult, null, 'roles', { endedAssignmentId: a.id });
         }
+      }
+    });
+  }
+  async expireResponsibilities(now = new Date()) {
+    await this.em.fork().transactional(async (tx) => {
+      await tx.execute('select pg_advisory_xact_lock(19102026)');
+      const assignments = await tx.find(ScoutAssignment, {});
+      const active = new Set(activeMandates(assignments, now).map((a) => a.id));
+      for (const row of assignments) {
+        if (row.endedAt || active.has(row.id)) continue;
+        row.endedAt = now;
+        const member = await this.get(tx, row.memberId);
+        this.queue(tx, member, null, 'roles', { endedAssignmentId: row.id });
       }
     });
   }

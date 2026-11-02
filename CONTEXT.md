@@ -273,3 +273,9 @@ Manual admission allocations are a distinct ledger linked to actual bank/cash re
 
 **Înscriere în curs**:
 An incomplete participant registration saved privately in an authenticated account. It can be resumed or explicitly discarded. It does not reserve capacity, create a fee, issue a parental agreement or appear in organizer enrollment tables. Full submission applies the regular checks and removes its saved draft only after successful registration.
+
+## Member admissions and synchronization
+
+Public applications live locally until an admin/super_admin or an active whole-unit leader/chief approves. Approval queues Orgo provisioning and never grants technical application privileges. Date of birth and an explicit schooling choice are mandatory; preparatory grade is 0. Guardian contacts stay local and can prefill operational forms; contact matching alone grants no child access.
+
+Authenticated app bootstrap requests shared durable inbound refresh without blocking the UI or reloading unsaved forms. Exact member lookup rechecks Orgo before denying an absent or apparently foreign identity. Member and object outboxes use server credentials, explicit capability mappings, leases, readback, and persistent creation correlation. Unknown mappings remain visibly blocked. Runtime activation and recovery are documented in [Orgo synchronization and admissions](docs/orgo-sync-and-registration.md).

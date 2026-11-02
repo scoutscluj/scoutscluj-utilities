@@ -32,6 +32,7 @@ export const menuItems: MenuItem[] = [
 	},
 	{ label: 'Activități', href: '/activities' },
 	{ label: 'Membri și unități', href: '/units' },
+	{ label: 'Cereri de înscriere', href: '/applications' },
 	{ label: 'Micro-stagii', disabled: true },
 	{ label: 'Parteneri', disabled: true },
 	{ label: 'Profil', href: '/profile' },
@@ -40,6 +41,7 @@ export const menuItems: MenuItem[] = [
 		anyRole: ['moderator', 'admin', 'finance_manager', 'super_admin'],
 		children: [
 			{ label: 'Administrare', href: '/admin', minRole: 'moderator' },
+			{ label: 'Sincronizare Orgo', href: '/admin/orgo-sync', minRole: 'admin' },
 			{
 				label: 'Financiar',
 				href: '/admin/finance',

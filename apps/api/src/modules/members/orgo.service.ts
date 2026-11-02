@@ -56,6 +56,10 @@ import {
 } from './member.types';
 
 import { importedCategory, categoryLabels, categories } from './organization';
+import {
+  OrgoObjectJob,
+  OrgoObjectLink,
+} from './entities/orgo-object-sync.entity';
 
 const obj = (v: unknown): Record<string, unknown> =>
   v && typeof v === 'object' && !Array.isArray(v)
@@ -99,10 +103,244 @@ const remoteFields = (
   status: raw.status,
   email: raw.email ?? '',
   phone: raw.phoneNumber ?? '',
+  localCenterId: object(raw.localCenter).id ?? null,
+  type: { id: object(raw.type).id, name: object(raw.type).name },
+  userRoles: (Array.isArray(raw.userRoles) ? raw.userRoles : [])
+    .map(object)
+    .map((r) => ({
+      id: r.id,
+      roleId: object(r.role).id,
+      unitId: object(r.unit).id ?? null,
+      dateEnded: r.dateEnded ?? null,
+    })),
 });
 
 @Injectable()
 export class MemberOrgoService {
+  private readonly deliveries = new Map<
+    string,
+    (id: string) => Promise<void>
+  >();
+  private readonly pumps = new Map<string, () => Promise<void>>();
+  registerPump(name: string, pump: () => Promise<void>) {
+    this.pumps.set(name, pump);
+  }
+  registerDelivery(kind: string, handler: (id: string) => Promise<void>) {
+    this.deliveries.set(kind, handler);
+  }
+
+  async outbox(user: CurrentUser) {
+    if (!(await this.members!.admissionScope(user)).admin)
+      throw new ForbiddenException();
+    const em = this.em.fork();
+    const jobs = await em.find(
+      MemberSync,
+      { state: { $nin: ['synced', 'superseded'] } },
+      { orderBy: { createdAt: 'desc' }, limit: 200 },
+    );
+    const objects = await em.find(
+      OrgoObjectJob,
+      {},
+      { orderBy: { createdAt: 'desc' }, limit: 200 },
+    );
+    const members = await em.find(ScoutMember, {
+      id: { $in: jobs.map((j) => j.memberId) },
+    });
+    return {
+      members: jobs.map((j) => ({
+        id: j.id,
+        kind: j.kind,
+        state: j.state,
+        message: j.message,
+        name: members.find((m) => m.id === j.memberId)?.name ?? '',
+        createdAt: j.createdAt,
+      })),
+      objects: objects.map((j) => ({
+        id: j.id,
+        kind: j.subject,
+        subjectId: j.subjectId,
+        state: j.state,
+        message: j.message,
+        createdAt: j.createdAt,
+      })),
+    };
+  }
+
+  async previewRetry(user: CurrentUser, id: string) {
+    if (!(await this.members!.admissionScope(user)).admin)
+      throw new ForbiddenException();
+    const em = this.em.fork(),
+      job = await em.findOneOrFail(MemberSync, { id }),
+      m = await em.findOneOrFail(ScoutMember, { id: job.memberId });
+    if (
+      !m.orgoId ||
+      ![
+        'roles',
+        'assignment',
+        'progression',
+        'orgo-profile',
+        'profile',
+        'grade',
+        'status',
+        'fee-plan',
+        'photo',
+      ].includes(job.kind)
+    )
+      throw new BadRequestException(
+        'Operațiunea necesită rezolvare în fișa membrului.',
+      );
+    const raw = await this.request('/api/v1/users/' + m.orgoId);
+    if (Number(object(raw.localCenter).id) !== this.settings().center)
+      throw new ForbiddenException();
+    const intent = this.intentions(job, m);
+    const observed = {
+      ...flattenFields(cleanProfile(raw)),
+      status: raw.status,
+    } as Record<string, unknown>;
+    const labels: Record<string, string> = {
+      firstName: 'Prenume',
+      lastName: 'Nume',
+      middleName: 'Al doilea prenume',
+      dateBirth: 'Data nașterii',
+      email: 'Email',
+      phoneNumber: 'Telefon',
+      status: 'Status',
+      feeTenantProductPrice: 'Plan cotizație',
+      logo: 'Fotografie',
+    };
+    const display = (value: unknown): string => {
+      if (value == null || value === '') return 'Necompletat';
+      if (
+        typeof value === 'string' ||
+        typeof value === 'number' ||
+        typeof value === 'boolean'
+      )
+        return String(value);
+      const row = object(value);
+      return typeof row.name === 'string'
+        ? row.name
+        : typeof row['@id'] === 'string'
+          ? row['@id']
+          : 'Valoare structurată';
+    };
+    const changes = Object.entries(intent.expected).map(([key, value]) => ({
+      label:
+        labels[key] ??
+        (key.startsWith('custom:') ? 'Câmp personalizat ' + key.slice(7) : key),
+      local: display(value),
+      remote: display(observed[key]),
+    }));
+    if (['roles', 'assignment', 'progression'].includes(job.kind)) {
+      const assignments = await em.find(ScoutAssignment, {
+        memberId: m.id,
+        endedAt: null,
+      });
+      const units = await em.find(ScoutUnit, {});
+      const roleNames: Record<string, string> = {
+        leader: 'Lider',
+        chief: 'Șef unitate',
+        helper: 'Ajutor',
+        beneficiary: 'Beneficiar',
+        council: 'Consiliu',
+        scouter: 'Scouter',
+      };
+      changes.push({
+        label: 'Responsabilități locale active',
+        local:
+          assignments
+            .map(
+              (a) =>
+                (roleNames[a.role] ?? a.role) +
+                (a.unitId
+                  ? ' · ' +
+                    (units.find((u) => u.id === a.unitId)?.name ?? 'Unitate')
+                  : ''),
+            )
+            .join('; ') || 'Fără responsabilități',
+        remote:
+          this.rolePreview(raw)
+            .map(
+              (r) =>
+                String(r.name) +
+                (typeof r.unitName === 'string' ? ' · ' + r.unitName : ''),
+            )
+            .join('; ') || 'Fără roluri active',
+      });
+    }
+    const snapshot = {
+      id,
+      revision: m.revision,
+      payload: job.payload,
+      baseline: job.baseline,
+      remote: cleanProfile(raw),
+      roles: this.rolePreview(raw),
+      status: raw.status,
+    };
+    return {
+      id,
+      name: m.name,
+      kind: job.kind,
+      version: createHash('sha256')
+        .update(JSON.stringify(snapshot))
+        .digest('hex'),
+      remoteRoles: this.rolePreview(raw),
+      remoteStatus: raw.status,
+      changes,
+      intended: job.payload,
+      roleCreateStarted: job.payload.roleCreateStarted === true,
+      message:
+        'Se va reevalua intenția față de datele curente. Schimbările concurente Orgo se păstrează.',
+    };
+  }
+
+  async retryObject(user: CurrentUser, id: string, input: unknown) {
+    if (!(await this.members!.admissionScope(user)).admin)
+      throw new ForbiddenException();
+    const b = bodyObject(input);
+    return this.em.fork().transactional(async (tx) => {
+      await tx.execute('select pg_advisory_xact_lock(2112026)');
+      const job = await tx.findOneOrFail(
+        OrgoObjectJob,
+        { id },
+        { refresh: true },
+      );
+      if (job.state === 'running' || job.state === 'synced')
+        throw new ConflictException('Operațiunea este în curs sau confirmată.');
+      const link = await tx.findOne(OrgoObjectLink, {
+        id: job.subject + ':' + job.subjectId,
+      });
+      if (b.remoteId) {
+        const remoteId = stringValue(b.remoteId, 100);
+        if (!/^[a-z0-9-]+$/i.test(remoteId) || !link)
+          throw new BadRequestException('Asociere invalidă.');
+        link.remoteId = remoteId;
+      } else if (b.absenceVerified === true && link && !link.remoteId) {
+        const evidence = stringValue(b.evidence, 2000);
+        if (evidence.length < 20)
+          throw new BadRequestException(
+            'Descrie verificarea absenței obiectului din Orgo.',
+          );
+        link.creationStarted = false;
+      } else if (job.state === 'uncertain')
+        throw new BadRequestException(
+          'Asociază ID-ul existent sau confirmă verificarea absenței.',
+        );
+      job.state = 'pending';
+      job.nextAttemptAt = null;
+      tx.create(AuditEntry, {
+        actorId: user.id,
+        action: 'orgo.object-retry',
+        entityType: job.subject,
+        entityId: job.subjectId,
+        metadata: {
+          remoteId: b.remoteId ?? null,
+          absenceVerified: b.absenceVerified === true,
+          evidence: b.evidence ?? null,
+        },
+      });
+      return { ok: true };
+    });
+  }
   constructor(
     private readonly em: EntityManager,
     private readonly config: ConfigService,
@@ -113,6 +351,171 @@ export class MemberOrgoService {
   ) {}
   private definitions: Record<string, unknown>[] = [];
   private cached?: { at: number; rows: Record<string, unknown>[] };
+  private readonly lookups = new Map<string, Promise<ScoutMember | null>>();
+
+  /** Resolve only exact identifiers. Errors are deliberately distinct from absence. */
+  async verifyIdentity(identifier: string): Promise<ScoutMember | null> {
+    const key = identifier.trim();
+    if (!/^(?:[1-9]\d{0,9}|[a-zA-Z0-9-]{3,40})$/.test(key))
+      throw new BadRequestException('Identificator Orgo invalid.');
+    const existing = this.lookups.get(key);
+    if (existing) return existing;
+    if (this.lookups.size >= 8)
+      throw new ServiceUnavailableException(
+        'Verificările Orgo sunt ocupate. Reîncearcă.',
+      );
+    const pending = this.lookupIdentity(key).finally(() =>
+      this.lookups.delete(key),
+    );
+    this.lookups.set(key, pending);
+    return pending;
+  }
+
+  private async lookupIdentity(key: string): Promise<ScoutMember | null> {
+    let raw: Record<string, unknown>;
+    try {
+      if (/^[1-9]\d*$/.test(key))
+        raw = await this.request('/api/v1/users/' + key);
+      else {
+        const rows = await this.collection(
+          '/api/v1/users?cardId=' + encodeURIComponent(key),
+        );
+        const matches = rows.filter(
+          (r) => String(r.cardId).toUpperCase() === key.toUpperCase(),
+        );
+        if (!matches.length) return null;
+        if (matches.length !== 1)
+          throw new ConflictException('Identificator Orgo ambiguu.');
+        raw = await this.request('/api/v1/users/' + Number(matches[0].id));
+      }
+    } catch (error) {
+      if (error instanceof OrgoRequestError && error.status === 404)
+        return null;
+      if (error instanceof ConflictException) throw error;
+      throw new ServiceUnavailableException(
+        'Verificarea în Orgo nu este disponibilă. Reîncearcă.',
+      );
+    }
+    const orgoId = Number(raw.id);
+    if (
+      !Number.isSafeInteger(orgoId) ||
+      orgoId <= 0 ||
+      (/^[1-9]\d*$/.test(key) && orgoId !== Number(key))
+    )
+      throw new BadGatewayException('Identitate Orgo invalidă.');
+    if (Number(object(raw.localCenter).id) !== this.settings().center) {
+      await this.em.fork().transactional(async (tx) => {
+        await tx.execute('select pg_advisory_xact_lock(9212026)');
+        await tx.execute('select pg_advisory_xact_lock(19102026)');
+        const local = await tx.findOne(ScoutMember, { orgoId });
+        if (local) {
+          local.remote = {
+            ...local.remote,
+            localCenterId: object(raw.localCenter).id,
+          };
+          await this.members!.applyOrgoStatus(tx, local, 'review');
+          tx.create(AuditEntry, {
+            actorId: null,
+            action: 'members.orgo-affiliation-changed',
+            entityType: 'Member',
+            entityId: local.id,
+            metadata: { orgoId },
+          });
+        }
+      });
+      return null;
+    }
+    return this.em.fork().transactional(async (tx) => {
+      await tx.execute('select pg_advisory_xact_lock(9212026)');
+      await tx.execute('select pg_advisory_xact_lock(19102026)');
+      let member = await tx.findOne(ScoutMember, { orgoId });
+      if (!member) {
+        const rawName = remoteFields(raw).name;
+        const name = typeof rawName === 'string' ? rawName.trim() : '';
+        if (!name) throw new BadGatewayException('Membru Orgo fără nume.');
+        const connection = await tx.findOne(
+          OrgoConnection,
+          { orgoUserId: orgoId },
+          { populate: ['user'] },
+        );
+        member = tx.create(ScoutMember, {
+          orgoId,
+          name,
+          accountId: connection?.user.id ?? null,
+          structureId: proposedStructure(name),
+          structureConfirmed: false,
+          category: importedCategory(raw),
+          categoryReview: !importedCategory(raw),
+          profile: emptyProfile(),
+          remote: {},
+          status: 'review',
+          lastProgressionYear: targetYear(new Date()),
+        });
+        if (member.category) {
+          const unit = await tx.findOne(ScoutUnit, {
+            fixed: true,
+            archived: false,
+            structureId: member.structureId,
+            branch: member.category,
+          });
+          if (unit) {
+            member.unitId = unit.id;
+            member.branch = branches.includes(
+              member.category as (typeof branches)[number],
+            )
+              ? member.category
+              : null;
+          }
+        }
+        await tx.flush();
+      }
+      await this.reconcileMember(tx, member, raw);
+      return member;
+    });
+  }
+
+  async bootstrap(user: CurrentUser) {
+    const account = await this.em.fork().findOne(User, { id: user.id });
+    if (!account) throw new ForbiddenException();
+    if (user.orgoConnection?.orgoUserId) {
+      const member = await this.em
+        .fork()
+        .findOne(ScoutMember, { orgoId: user.orgoConnection.orgoUserId });
+      if (
+        !member ||
+        account.memberAccessDisabled ||
+        Number(member.remote?.localCenterId) !== this.settings().center
+      )
+        await this.verifyIdentity(String(user.orgoConnection.orgoUserId));
+      else if (!member.accountId)
+        await this.em
+          .fork()
+          .nativeUpdate(
+            ScoutMember,
+            { id: member.id, accountId: null },
+            { accountId: user.id },
+          );
+    }
+    const token = await this.claimRefresh();
+    if (token) void this.performRefresh(token).catch(() => undefined);
+    return this.bootstrapStatus();
+  }
+
+  async bootstrapStatus() {
+    const row = await this.em.fork().findOne(MemberSettings, { id: 'default' });
+    const expired =
+      row?.refreshState === 'running' &&
+      (!row.refreshClaimedAt ||
+        Date.now() - row.refreshClaimedAt.getTime() > 120000);
+    return {
+      state: expired ? 'failed' : (row?.refreshState ?? 'idle'),
+      message: expired
+        ? 'Actualizarea a fost întreruptă. Reîncearcă.'
+        : (row?.refreshMessage ?? null),
+      lastSucceededAt: row?.lastOrgoRefresh ?? null,
+      retryAt: row?.refreshRetryAt ?? null,
+    };
+  }
   private async detailedRoster(fresh = false) {
     if (!fresh && this.cached && Date.now() - this.cached.at < 120000)
       return this.cached.rows;
@@ -431,9 +834,10 @@ export class MemberOrgoService {
         (await tx.findOne(MemberSettings, { id: 'default' })) ??
         tx.create(MemberSettings, { id: 'default' });
       if (
-        settings.refreshState === 'running' &&
-        settings.refreshClaimedAt &&
-        Date.now() - settings.refreshClaimedAt.getTime() < 120000
+        (settings.refreshRetryAt && settings.refreshRetryAt > new Date()) ||
+        (settings.refreshState === 'running' &&
+          settings.refreshClaimedAt &&
+          Date.now() - settings.refreshClaimedAt.getTime() < 120000)
       )
         return null;
       settings.refreshToken = randomUUID();
@@ -532,6 +936,7 @@ export class MemberOrgoService {
         }
         settings.lastOrgoRefresh = new Date();
         settings.refreshState = 'succeeded';
+        settings.refreshRetryAt = null;
         settings.refreshMessage = null;
         return { updated };
       });
@@ -541,6 +946,13 @@ export class MemberOrgoService {
         { id: 'default', refreshToken: token },
         {
           refreshState: 'failed',
+          refreshRetryAt: new Date(
+            Date.now() +
+              Math.max(
+                60000,
+                error instanceof OrgoRequestError ? error.retryAfterMs : 0,
+              ),
+          ),
           refreshMessage:
             error instanceof OrgoRequestError &&
             [401, 403].includes(error.status)
@@ -575,6 +987,14 @@ export class MemberOrgoService {
     m: ScoutMember,
     raw: Record<string, unknown>,
   ) {
+    if (!m.accountId) {
+      const connection = await tx.findOne(
+        OrgoConnection,
+        { orgoUserId: m.orgoId },
+        { populate: ['user'] },
+      );
+      if (connection) m.accountId = connection.user.id;
+    }
     const before = JSON.stringify({
       profile: m.orgoProfile,
       base: m.orgoBase,
@@ -983,6 +1403,13 @@ export class MemberOrgoService {
     return { token, center, base };
   }
   private async request(path: string, patch?: Record<string, unknown>) {
+    return this.serverRequest(path, patch ? 'PATCH' : 'GET', patch);
+  }
+  async serverRequest(
+    path: string,
+    method: 'GET' | 'PATCH' | 'POST' = 'GET',
+    patch?: Record<string, unknown>,
+  ) {
     const s = this.settings(),
       url = new URL(path, s.base);
     if (
@@ -991,11 +1418,18 @@ export class MemberOrgoService {
     )
       throw new BadGatewayException('Adresă Orgo invalidă.');
     const response = await fetch(url, {
-      method: patch ? 'PATCH' : 'GET',
+      method,
       headers: {
         'Api-Token': s.token,
         Accept: 'application/ld+json, application/json',
-        ...(patch ? { 'Content-Type': 'application/merge-patch+json' } : {}),
+        ...(patch
+          ? {
+              'Content-Type':
+                method === 'PATCH'
+                  ? 'application/merge-patch+json'
+                  : 'application/json',
+            }
+          : {}),
       },
       ...(patch ? { body: JSON.stringify(patch) } : {}),
       redirect: 'error',
@@ -1281,6 +1715,11 @@ export class MemberOrgoService {
   async retry(user: CurrentUser, id: string, input: unknown = {}) {
     await this.admin(user);
     const b = bodyObject(input);
+    const preview = await this.previewRetry(user, id);
+    if (b.version !== preview.version)
+      throw new ConflictException(
+        'Verifică mai întâi datele curente și confirmă previzualizarea.',
+      );
     if (b.keepLocal === true)
       throw new BadRequestException(
         'La diferențe concurente se păstrează valoarea Orgo.',
@@ -1289,14 +1728,20 @@ export class MemberOrgoService {
       await tx.execute('select pg_advisory_xact_lock(19102026)');
       await this.admin(user, tx);
       const operation = await tx.findOneOrFail(MemberSync, { id });
-      if (
-        ['synced', 'running', 'superseded', 'local-only'].includes(
-          operation.state,
-        )
-      )
+      if (['synced', 'running', 'superseded'].includes(operation.state))
         throw new BadRequestException(
           'Operațiunea este finalizată sau în curs.',
         );
+      if (
+        b.absenceVerified === true &&
+        operation.payload.roleCreateStarted === true
+      ) {
+        if (stringValue(b.evidence, 2000).length < 20)
+          throw new BadRequestException(
+            'Descrie verificarea absenței rolului din Orgo.',
+          );
+        operation.payload = { ...operation.payload, roleCreateStarted: false };
+      }
       const previousActorId = operation.actorId;
       operation.actorId = user.id;
       operation.nextAttemptAt = null;
@@ -1339,7 +1784,12 @@ export class MemberOrgoService {
         action: 'members.sync-retry',
         entityType: 'MemberSync',
         entityId: id,
-        metadata: { previousActorId, actorId: user.id },
+        metadata: {
+          previousActorId,
+          actorId: user.id,
+          absenceVerified: b.absenceVerified === true,
+          evidence: stringValue(b.evidence, 2000),
+        },
       });
       return { ok: true };
     });
@@ -1506,6 +1956,12 @@ export class MemberOrgoService {
               ? this.config.get<string>('ORGO_WITHDRAWN_STATUS')
               : m.remote?.status;
       }
+    } else if (job.kind === 'grade') {
+      const field = Number(this.config.get<string>('ORGO_GRADE_FIELD_ID'));
+      if (Number.isInteger(field) && field > 0) {
+        expected['custom:' + field] = job.payload.grade;
+        local['custom:' + field] = m.grade;
+      }
     } else if (job.kind === 'fee-plan') {
       expected.feeTenantProductPrice = job.payload.feeTenantProductPrice;
     } else if (job.kind === 'photo') expected.logo = job.payload.logo;
@@ -1543,7 +1999,7 @@ export class MemberOrgoService {
       local,
       baseline: {
         ...flattenFields(baseline),
-        ...flattenFields(m.orgoBase ?? {}),
+        ...(job.kind === 'grade' ? {} : flattenFields(m.orgoBase ?? {})),
         ...(job.kind === 'status'
           ? { status: m.remote?.status ?? baseline.status }
           : {}),
@@ -1567,7 +2023,12 @@ export class MemberOrgoService {
         },
         { orderBy: { createdAt: 'asc' }, limit: 30 },
       );
-      for (const job of jobs) await this.deliver(job.id);
+      for (const job of jobs) {
+        const handler = this.deliveries.get(job.kind);
+        if (handler) await handler(job.id);
+        else await this.deliver(job.id);
+      }
+      for (const pump of this.pumps.values()) await pump();
     } finally {
       this.processing = false;
     }
@@ -1634,6 +2095,20 @@ export class MemberOrgoService {
       response = await delegate();
     else {
       const settings = this.settings();
+      if (init.method !== 'GET' && this.members && claim.actorId)
+        await this.members.authorizeSyncActor(
+          claim.actorId,
+          claim.memberId,
+          claim.kind,
+          Object.keys(
+            this.intentions(
+              claim,
+              await this.em
+                .fork()
+                .findOneOrFail(ScoutMember, { id: claim.memberId }),
+            ).expected,
+          ),
+        );
       const url = new URL(path, settings.base);
       if (
         url.origin !== new URL(settings.base).origin ||
@@ -1684,6 +2159,12 @@ export class MemberOrgoService {
           Date.now() - operation.claimedAt.getTime() < 120000)
       )
         return null;
+      const concurrent = await tx.execute<{ id: string }[]>(
+        "select id from member_sync_operations where member_id = ? and id <> ? and state = 'running' and claimed_at > ? limit 1",
+        [operation.memberId, id, new Date(Date.now() - 120000)],
+      );
+      if (concurrent?.length) return null;
+      operation.claimToken = randomUUID();
       operation.state = 'running';
       operation.claimedAt = new Date();
       operation.attempts = (operation.attempts ?? 0) + 1;
@@ -1691,6 +2172,28 @@ export class MemberOrgoService {
       return { ...operation };
     });
     if (!claim) return;
+    const heartbeat = setInterval(() => {
+      void this.em
+        .fork()
+        .nativeUpdate(
+          MemberSync,
+          { id: claim.id, claimToken: claim.claimToken, state: 'running' },
+          { claimedAt: new Date() },
+        )
+        .catch(() => undefined);
+    }, 30000);
+    heartbeat.unref();
+    try {
+      await this.deliverClaim(claim);
+    } finally {
+      clearInterval(heartbeat);
+    }
+  }
+  private async deliverClaim(claim: MemberSync) {
+    if (['roles', 'assignment', 'progression'].includes(claim.kind)) {
+      await this.deliverOrganization(claim);
+      return;
+    }
     const em = this.em.fork();
     const member = await em.findOneOrFail(
       ScoutMember,
@@ -1887,7 +2390,7 @@ export class MemberOrgoService {
         { id: claim.memberId },
         { refresh: true },
       );
-      if (operation.claimedAt?.getTime() !== claim.claimedAt?.getTime()) return;
+      if (operation.claimToken !== claim.claimToken) return;
       if (m.revision !== revision) {
         // A successful write by this worker is a new common baseline, not an
         // independent Orgo edit that should defeat a newer local intention.
@@ -1970,6 +2473,282 @@ export class MemberOrgoService {
           entityId: m.id,
           metadata: { fields: superseded },
         });
+    });
+  }
+
+  private async deliverOrganization(claim: MemberSync) {
+    let state = 'unsupported',
+      message = 'Maparea Orgo necesită verificare.';
+    let attempted = false,
+      nextAttemptAt: Date | null = null;
+    try {
+      if (this.config.get<string>('ORGO_MEMBER_WRITES_ENABLED') !== 'true')
+        throw new ServiceUnavailableException(
+          'Scrierea organizației Orgo nu este activată.',
+        );
+      await this.members!.authorizeOrganizationSync(claim);
+      const em = this.em.fork(),
+        m = await em.findOneOrFail(ScoutMember, { id: claim.memberId });
+      if (!m.orgoId)
+        throw new BadRequestException('Asociază întâi identitatea Orgo.');
+      const raw = await this.request('/api/v1/users/' + m.orgoId);
+      if (
+        Number(raw.id) !== m.orgoId ||
+        Number(object(raw.localCenter).id) !== this.settings().center
+      )
+        throw new BadGatewayException('Identitate Orgo din alt centru.');
+      const active = activeRoles(raw),
+        ending = new Set<number>(),
+        desired: { role: number; unit: number | null }[] = [];
+      let desiredType: number | null = null;
+      let targetAssignment: ScoutAssignment | null = null;
+      if (claim.kind === 'roles') {
+        targetAssignment = await em.findOneOrFail(ScoutAssignment, {
+          id: String(
+            claim.payload.assignmentId ?? claim.payload.endedAssignmentId,
+          ),
+          memberId: m.id,
+        });
+        const roles: Record<string, number> = {
+          leader: 1,
+          chief: 7,
+          helper: 6,
+          council: 8,
+          scouter: 44,
+        };
+        const role = roles[targetAssignment.role];
+        if (!role)
+          throw new BadRequestException(
+            'Responsabilitatea este exclusiv locală; nu are rol Orgo echivalent.',
+          );
+        let unit: number | null = null;
+        if (targetAssignment.unitId) {
+          const local = targetAssignment.groupId
+            ? await em.findOneOrFail(ScoutSubunit, {
+                id: targetAssignment.groupId,
+              })
+            : await em.findOneOrFail(ScoutUnit, {
+                id: targetAssignment.unitId,
+              });
+          unit = local.orgoId ?? null;
+          if (!unit && !targetAssignment.groupId) {
+            const sources = await em.find(ScoutUnitSource, {
+              unitId: targetAssignment.unitId,
+              groupId: null,
+            });
+            if (sources.length === 1) unit = sources[0].id;
+          }
+          if (!unit)
+            throw new BadRequestException(
+              'Unitatea/subunitatea nu are o asociere Orgo verificată.',
+            );
+        } else if (targetAssignment.role === 'council')
+          unit = this.settings().center;
+        const expired =
+          targetAssignment.endedAt ||
+          (targetAssignment.expiresAt &&
+            targetAssignment.expiresAt <= new Date());
+        const matching = active.filter(
+          (r) =>
+            Number(object(r.role).id) === role &&
+            (Number(object(r.unit).id) || null) === unit,
+        );
+        if (expired) for (const r of matching) ending.add(Number(r.id));
+        else {
+          // A replaced chief's old queued addition must never reinstate them.
+          desired.push({ role, unit });
+        }
+      } else {
+        if (m.category) desiredType = 38 + categories.indexOf(m.category);
+        if (
+          m.category &&
+          ['lideri', 'voluntari', 'scouteri'].includes(m.category)
+        ) {
+          // Adult categories are user types, not beneficiary positions in a fictional unit.
+        } else {
+          if (!m.unitId)
+            throw new BadRequestException(
+              'Alege o categorie/unitate înainte de sincronizare.',
+            );
+          const local = m.groupId
+            ? await em.findOneOrFail(ScoutSubunit, { id: m.groupId })
+            : await em.findOneOrFail(ScoutUnit, { id: m.unitId });
+          let unit = local.orgoId;
+          if (!unit && !m.groupId) {
+            const sources = await em.find(ScoutUnitSource, {
+              unitId: m.unitId,
+              groupId: null,
+            });
+            if (sources.length === 1) unit = sources[0].id;
+          }
+          if (!unit)
+            throw new BadRequestException(
+              'Destinația locală nu are o asociere Orgo verificată.',
+            );
+          if (m.status === 'active') desired.push({ role: 4, unit });
+          // Only replace the beneficiary assignments observed at the original edit.
+          for (const r of (Array.isArray(claim.baseline.userRoles)
+            ? claim.baseline.userRoles
+            : []
+          ).map(object))
+            if (
+              Number(r.roleId) === 4 &&
+              Number(r.unitId) !== unit &&
+              !r.dateEnded
+            )
+              ending.add(Number(r.id));
+        }
+      }
+      for (const item of desired) {
+        const role = await this.request('/api/v1/roles/' + item.role);
+        if (role.isUserType === true)
+          throw new BadRequestException(
+            'Tipul principal de membru se modifică prin repartizare, nu prin atribuirea unei responsabilități.',
+          );
+        if (item.unit && item.unit !== this.settings().center) {
+          const unit = await this.request('/api/v1/units/' + item.unit);
+          if (
+            Number(object(unit.localCenter).id) !== this.settings().center ||
+            Number(object(unit.unitType).id) !==
+              Number(object(role.unitType).id)
+          )
+            throw new BadRequestException(
+              'Rolul nu corespunde tipului de unitate Orgo.',
+            );
+        }
+      }
+      if (desiredType && Number(object(raw.type).id) !== desiredType) {
+        const type = await this.request('/api/v1/roles/' + desiredType);
+        if (importedCategory({ type }) !== m.category)
+          throw new BadRequestException(
+            'Categoria Orgo nu corespunde mapării locale.',
+          );
+        const baseline = object(claim.baseline.type).id;
+        if (
+          baseline != null &&
+          Number(object(raw.type).id) !== Number(baseline)
+        )
+          throw new BadRequestException(
+            'Tipul de membru a fost schimbat în Orgo; verifică repartizarea locală.',
+          );
+        attempted = true;
+        await this.request('/api/v1/users/' + m.orgoId, {
+          type: '/api/v1/roles/' + desiredType,
+        });
+      }
+      // End-date individual roles to preserve their history. Never delete them.
+      for (const role of active.filter((r) => ending.has(Number(r.id)))) {
+        attempted = true;
+        await this.request('/api/v1/user_roles/' + Number(role.id), {
+          dateEnded: (
+            targetAssignment?.endedAt ?? new Date()
+          ).toLocaleDateString('en-CA', {
+            timeZone: 'Europe/Bucharest',
+          }),
+        });
+      }
+      const remaining = active.filter((r) => !ending.has(Number(r.id)));
+      const additions = desired.filter(
+        (d) =>
+          !remaining.some(
+            (r) =>
+              Number(object(r.role).id) === d.role &&
+              (Number(object(r.unit).id) || null) === d.unit,
+          ),
+      );
+      if (additions.length) {
+        if (claim.payload.roleCreateStarted === true) {
+          state = 'uncertain';
+          nextAttemptAt = new Date(Date.now() + 900000);
+          throw new BadRequestException(
+            'O atribuire anterioară poate fi reușită. Verifică rolul în Orgo înainte de o nouă creare.',
+          );
+        }
+        await em.nativeUpdate(
+          MemberSync,
+          { id: claim.id },
+          { payload: { ...claim.payload, roleCreateStarted: true } },
+        );
+        for (const d of additions) {
+          attempted = true;
+          await this.serverRequest('/api/v1/user_roles', 'POST', {
+            user: '/api/v1/users/' + m.orgoId,
+            role: '/api/v1/roles/' + d.role,
+            unit: d.unit
+              ? (d.unit === this.settings().center && d.role === 8
+                  ? '/api/v1/local_centers/'
+                  : '/api/v1/units/') + d.unit
+              : null,
+          });
+        }
+      }
+      const verified = await this.request('/api/v1/users/' + m.orgoId),
+        roles = activeRoles(verified);
+      if (
+        (desiredType && Number(object(verified.type).id) !== desiredType) ||
+        desired.some(
+          (d) =>
+            !roles.some(
+              (r) =>
+                Number(object(r.role).id) === d.role &&
+                (Number(object(r.unit).id) || null) === d.unit,
+            ),
+        ) ||
+        roles.some((r) => ending.has(Number(r.id)))
+      ) {
+        state = 'uncertain';
+        message = 'Rolurile Orgo nu sunt încă confirmate.';
+        nextAttemptAt = new Date(Date.now() + retryDelay(claim.attempts));
+      } else {
+        state = 'synced';
+        message = 'Organizarea a fost confirmată în Orgo.';
+      }
+    } catch (error) {
+      if (
+        error instanceof OrgoRequestError &&
+        [400, 401, 403, 422].includes(error.status)
+      )
+        await this.em
+          .fork()
+          .nativeUpdate(
+            MemberSync,
+            { id: claim.id },
+            { payload: { ...claim.payload, roleCreateStarted: false } },
+          );
+      if (
+        error instanceof ForbiddenException ||
+        error instanceof ServiceUnavailableException ||
+        (error instanceof OrgoRequestError && [401, 403].includes(error.status))
+      ) {
+        state = 'permission-required';
+        message = 'Verifică autorizarea actuală și drepturile de scriere Orgo.';
+        nextAttemptAt = new Date(Date.now() + 900000);
+      } else if (error instanceof BadRequestException) message = error.message;
+      else {
+        state = attempted ? 'uncertain' : 'pending';
+        message = 'Verificarea Orgo se va relua.';
+        nextAttemptAt = new Date(Date.now() + retryDelay(claim.attempts));
+      }
+    }
+    await this.em.fork().transactional(async (tx) => {
+      await tx.execute('select pg_advisory_xact_lock(19102026)');
+      const job = await tx.findOneOrFail(
+        MemberSync,
+        { id: claim.id },
+        { refresh: true },
+      );
+      if (job.claimToken !== claim.claimToken) return;
+      job.state = state;
+      job.message = message;
+      job.nextAttemptAt = nextAttemptAt;
+      job.completedAt = state === 'synced' ? new Date() : null;
+      tx.create(AuditEntry, {
+        actorId: claim.actorId,
+        action: 'members.sync-attempt',
+        entityType: 'MemberSync',
+        entityId: claim.id,
+        metadata: { state, credentialMode: 'server', kind: claim.kind },
+      });
     });
   }
 }

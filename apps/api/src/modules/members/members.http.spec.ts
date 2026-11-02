@@ -37,6 +37,7 @@ jest.mock('../auth/guards/auth.guard', () => ({
   },
 }));
 jest.mock('./orgo.service', () => ({ MemberOrgoService: class {} }));
+jest.mock('./admissions.service', () => ({ AdmissionsService: class {} }));
 import { Test } from '@nestjs/testing';
 import type { INestApplication, ExecutionContext } from '@nestjs/common';
 import type { EntityManager } from '@mikro-orm/postgresql';
@@ -46,6 +47,7 @@ import request from 'supertest';
 import { MembersController } from './members.controller';
 import { MembersService } from './members.service';
 import { MemberOrgoService } from './orgo.service';
+import { AdmissionsService } from './admissions.service';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { emptyProfile, targetYear } from './member.types';
 
@@ -266,6 +268,7 @@ describe('member HTTP scope and lifecycle', () => {
       providers: [
         { provide: MembersService, useValue: new MembersService(f.em) },
         { provide: MemberOrgoService, useValue: {} },
+        { provide: AdmissionsService, useValue: { submit: jest.fn() } },
       ],
     })
       .overrideGuard(AuthGuard)
@@ -286,6 +289,43 @@ describe('member HTTP scope and lifecycle', () => {
     await app.close();
   });
   const http = () => request(app.getHttpServer() as Server);
+  it('limits admission approval to active whole-unit leaders and chiefs', async () => {
+    const service = new MembersService(f.em);
+    const assignment = f.list('assignment')[0];
+    Object.assign(assignment, {
+      groupId: null,
+      orgoRoleId: 1001,
+      endedAt: null,
+    });
+    const actor = { id: 1, displayName: 'Leader', roles: [] };
+    expect((await service.admissionScope(actor)).unitIds).toEqual([unitId]);
+    assignment.groupId = groupA;
+    expect((await service.admissionScope(actor)).unitIds).toEqual([]);
+    assignment.groupId = null;
+    assignment.role = 'helper';
+    expect((await service.admissionScope(actor)).unitIds).toEqual([]);
+    assignment.role = 'chief';
+    assignment.expiresAt = new Date('2020-01-01');
+    expect((await service.admissionScope(actor)).unitIds).toEqual([]);
+    assignment.expiresAt = null;
+    assignment.endedAt = new Date();
+    expect((await service.admissionScope(actor)).unitIds).toEqual([]);
+    assignment.endedAt = null;
+    f.list('member').find((m) => m.id === adultId)!.status = 'withdrawn';
+    expect((await service.admissionScope(actor)).unitIds).toEqual([]);
+  });
+  it('allows technical admins to validate applications without granting national member roles', async () => {
+    const service = new MembersService(f.em);
+    expect(
+      (await service.admissionScope({ id: 2, displayName: 'Admin', roles: [] }))
+        .admin,
+    ).toBe(true);
+    f.list('user').find((u) => u.id === 2)!.memberAccessDisabled = true;
+    expect(
+      (await service.admissionScope({ id: 2, displayName: 'Admin', roles: [] }))
+        .admin,
+    ).toBe(false);
+  });
   const localAdmin = () => {
     const actor = f.list('member').find((m) => m.id === adultId)!;
     actor.structureId = 'floresti';

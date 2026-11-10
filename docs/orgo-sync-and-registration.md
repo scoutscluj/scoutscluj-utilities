@@ -18,6 +18,16 @@ Emailul propriu al membrului este normalizat și verificat înainte de acceptare
 
 ## Activare
 
+### Profil complet și primul acces — verificare din 10 noiembrie 2026
+
+Documentația oficială pentru [crearea administrativă](https://orgo.space/docs/api-reference/user/register-a-member-as-admin) precizează că endpointul setează `forcePasswordReset` și trimite emailul de configurare. Completarea profilului prin API nu elimină acel pas. Nu trebuie marcată o parolă sau un acord ca fiind ales de utilizator dacă acesta nu l-a ales.
+
+Schema oficială `User-user_write_register_by_admin` din [OpenAPI](https://orgo.space/docs/api-reference/openapi.json) include `gender`, `address`, `postalCode`, `townCurrent`, `townFrom`, `timezone` și `bio`. Localitățile sunt referințe IRI, de exemplu `/api/v1/towns/{id}`; catalogul `GET /api/v1/towns` permite filtrare după `name` și `country`. Fotografia nu apare în schema de creare; integrarea existentă folosește separat uploadul media asociat membrului. Nu presupunem că toate proprietățile unui profil citit sunt acceptate de endpointul de creare.
+
+Citirea configurației reale a tenantului a confirmat că `profileFieldsMandatory` conține numai `first_name`, `last_name`, `birthday`, `gender`, fără câmpuri personalizate obligatorii. Primele trei sunt deja trimise; genul lipsește din formularul nostru actual. Fotografia și localitățile sunt afișate pe profil, însă nu sunt obligatorii în această configurație. `defaultStatusForAdminRegistration` este `ACTIVE`. Acestea sunt observații de configurare, nu o modificare a setărilor.
+
+Conform [Profile Fields](https://orgo.space/docs/platform/users/profile-fields), pagina `/hello-member` poate include și preferințe de confidențialitate, notificări, fus orar, grupuri sau documente nesemnate. Un profil complet nu garantează absența tuturor acestor pași. Această verificare nu adaugă încă noile câmpuri formularului și nu creează conturi de test în producție.
+
 Aplică migrarea `Migration20261102000100` înaintea noii versiuni API. Ea adaugă cereri, contacte, outbox pentru obiecte și tokenuri de lease; păstrează contactele vechi ca neverificate și permite clasa 0. Nu trimite date în Orgo și nu reia istoricul automat.
 
 Secretul de deployment acceptă următoarele chei, exemplificate în `.env.example`:

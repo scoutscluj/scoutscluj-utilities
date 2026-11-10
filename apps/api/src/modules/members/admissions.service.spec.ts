@@ -187,6 +187,37 @@ describe('admission review authorization and provisioning', () => {
     ).rejects.toThrow('aprobată');
     expect(f.created.filter((r) => r.entity === 'member')).toHaveLength(1);
   });
+  it('does not move a reserved family price to a different canonical account after an uncertain creation', async () => {
+    const f = fixture(true);
+    Object.assign(f.application, {
+      state: 'approved',
+      memberId: 'provisional',
+      attemptedAt: new Date(),
+    });
+    const job = { state: 'permission-required', memberId: 'provisional' };
+    f.tx.findOneOrFail.mockImplementation((entity) =>
+      Promise.resolve(entity === 'application' ? f.application : job),
+    );
+    f.tx.findOne.mockImplementation((entity) =>
+      Promise.resolve(
+        entity === 'member'
+          ? { id: 'canonical' }
+          : entity === 'family-link'
+            ? { memberId: 'provisional', plan: 'fam2' }
+            : null,
+      ),
+    );
+    await expect(
+      f.service.review(f.user, 'request', {
+        action: 'retry',
+        revision: 1,
+        existingOrgoId: 42,
+      }),
+    ).rejects.toThrow('verificarea manuală');
+    expect(job.memberId).toBe('provisional');
+    expect(f.tx.nativeDelete).not.toHaveBeenCalled();
+    expect(f.created).toHaveLength(0);
+  });
   it('does not let a leader bind a guessed existing Orgo ID', async () => {
     const f = fixture();
     await expect(

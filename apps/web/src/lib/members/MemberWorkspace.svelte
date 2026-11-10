@@ -348,6 +348,10 @@
 			</div>
 		</div>
 		<div class="workspace-actions">
+			{#if management && data.pendingApplications > 0}<a
+					class="new-applications"
+					href={resolve('/applications')}>Cereri noi ({data.pendingApplications})</a
+				>{/if}
 			<button
 				type="button"
 				class="secondary"
@@ -770,6 +774,27 @@
 </Modal>
 
 <style>
+	.new-applications {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 40px;
+		padding: 8px 14px;
+		border-radius: 7px;
+		background: var(--sc-accent);
+		color: var(--sc-surface);
+		font-size: 14px;
+		font-weight: 600;
+		text-decoration: none;
+	}
+	.new-applications:hover {
+		background: var(--sc-accent-hover);
+	}
+	.new-applications:focus-visible {
+		outline: 2px solid var(--sc-accent);
+		outline-offset: 3px;
+	}
+
 	.registry-panel {
 		container-type: inline-size;
 	}

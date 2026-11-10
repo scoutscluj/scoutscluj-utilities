@@ -7,7 +7,13 @@ export type Application = {
 	reason: string;
 	createdAt: string;
 	memberId: string | null;
+	hasPhoto?: boolean;
+	photoSync?: { id: string; state: string; message: string } | null;
 	data: {
+		registrationFor?: 'self' | 'other';
+		gender?: 'M' | 'F';
+		submitterName?: string;
+		submitterEmail?: string;
 		structureId?: string;
 		firstName: string;
 		lastName: string;

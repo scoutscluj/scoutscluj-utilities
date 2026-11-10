@@ -54,6 +54,8 @@ function fixture(admin = false, config: Record<string, string> = {}) {
     Promise.resolve({ admin, unitIds: ['own-unit'] }),
   );
   const tx = {
+    find: jest.fn(() => Promise.resolve([])),
+    count: jest.fn(() => Promise.resolve(2)),
     execute: jest.fn(
       (
         _sql?: string,
@@ -194,6 +196,8 @@ describe('admission review authorization and provisioning', () => {
 
 describe('registration structure and account email validation', () => {
   const input = {
+    registrationFor: 'other',
+    gender: 'F',
     requestKey: '22222222-2222-4222-8222-222222222222',
     firstName: 'Ana',
     lastName: 'Test',
@@ -272,13 +276,15 @@ describe('registration structure and account email validation', () => {
     );
     expect(f.created).toHaveLength(0);
   });
-  it('allows siblings to share guardian contact without using it as the member email', async () => {
+  it('checks the account email even when it is also the guardian contact', async () => {
     const f = fixture();
-    await f.service.submit({ ...input, email: '' });
-    expect(f.orgo.registrationEmailExists).not.toHaveBeenCalled();
+    await f.service.submit({ ...input, email: input.guardianEmail });
+    expect(f.orgo.registrationEmailExists).toHaveBeenCalledWith(
+      input.guardianEmail,
+    );
     expect(f.created[0].value.data).toMatchObject({
-      email: '',
-      guardianEmail: 'parent@example.test',
+      email: input.guardianEmail,
+      guardianEmail: input.guardianEmail,
     });
   });
   it('does not disclose or revalidate the data of a replayed request key', async () => {
@@ -396,5 +402,93 @@ describe('admission provisioning result correlation', () => {
     expect(body.email).toBeUndefined();
     expect(JSON.stringify(body)).not.toContain('parent@example.test');
     expect(f.member.orgoId).toBe(42);
+  });
+});
+
+describe('application photo privacy and pending indicator', () => {
+  it('counts pending applications only within review scope', async () => {
+    const f = fixture();
+    await expect(f.service.pendingCount(f.user)).resolves.toEqual({ count: 2 });
+    expect(f.tx.count).toHaveBeenCalledWith('application', {
+      state: 'pending',
+      unitId: { $in: ['own-unit'] },
+    });
+    f.scope.mockResolvedValue({ admin: false, unitIds: [] });
+    f.tx.count.mockClear();
+    await expect(f.service.pendingCount(f.user)).resolves.toEqual({ count: 0 });
+    expect(f.tx.count).not.toHaveBeenCalled();
+  });
+  it('never returns a photo to a reviewer outside the destination unit', async () => {
+    const f = fixture();
+    Object.assign(f.application.data, { photo: 'data:image/jpeg;base64,/9j/' });
+    expect((await f.service.photo(f.user, 'request')).type).toBe('image/jpeg');
+    f.application.unitId = 'other-unit';
+    await expect(f.service.photo(f.user, 'request')).rejects.toThrow();
+  });
+  it('uses SQL projection to keep image bytes out of the list', async () => {
+    const f = fixture();
+    await f.service.list(f.user);
+    expect(f.tx.execute).toHaveBeenCalledWith(
+      expect.stringContaining("data - 'photo' as data"),
+      ['own-unit'],
+    );
+  });
+  it('sends gender at creation and queues photo once after the account is confirmed', async () => {
+    const f = deliveryFixture();
+    Object.assign(f.application.data, {
+      gender: 'F',
+      photo: 'data:image/jpeg;base64,/9j/',
+    });
+    f.orgo.serverRequest.mockImplementation((path) =>
+      Promise.resolve(
+        path === '/api/v1/member-register-by-admin'
+          ? { id: 42 }
+          : {
+              id: 42,
+              localCenter: { id: 7 },
+              firstName: 'Ana',
+              lastName: 'Test',
+              dateBirth: '2014-01-01',
+              gender: 'F',
+              status: 'ACTIVE',
+              logo: null,
+            },
+      ),
+    );
+    await f.service.deliver('job');
+    expect(f.job.state).toBe('synced');
+    expect(f.orgo.serverRequest).toHaveBeenCalledWith(
+      '/api/v1/member-register-by-admin',
+      'POST',
+      expect.objectContaining({ gender: 'F' }),
+    );
+    const photo = f.created.find((r) => r.value.kind === 'photo');
+    expect(photo?.value).toMatchObject({
+      memberId: 'member',
+      payload: {
+        applicationId: 'request',
+        logo: 'data:image/jpeg;base64,/9j/',
+      },
+      baseline: { logo: null },
+    });
+    expect(
+      f.created.some(
+        (r) =>
+          r.entity === 'audit' && JSON.stringify(r.value).includes('base64'),
+      ),
+    ).toBe(false);
+    f.tx.findOne.mockImplementation((entity) =>
+      Promise.resolve(
+        entity === 'sync' ? { ...photo!.value, state: 'pending' } : null,
+      ),
+    );
+    f.job.state = 'pending';
+    await f.service.deliver('job');
+    expect(f.created.filter((r) => r.value.kind === 'photo')).toHaveLength(1);
+    expect(
+      f.orgo.serverRequest.mock.calls.filter(
+        ([path]) => path === '/api/v1/member-register-by-admin',
+      ),
+    ).toHaveLength(1);
   });
 });

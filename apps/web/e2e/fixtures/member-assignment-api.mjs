@@ -106,6 +106,7 @@ const registry = {
 	transitions: [],
 	ownMemberId: null
 };
+let pendingApplications = 0;
 let assignment = null;
 let assignmentError = false;
 let bulkError = false;
@@ -123,6 +124,7 @@ createServer(async (req, res) => {
 		if (data) input = JSON.parse(data);
 	}
 	if (path === '/test/reset') {
+		pendingApplications = 0;
 		assignment = null;
 		assignmentError = false;
 		bulkError = false;
@@ -134,6 +136,8 @@ createServer(async (req, res) => {
 		return send(res, {});
 	}
 	if (path === '/test/configure') {
+		if (typeof input.pendingApplications === 'number')
+			pendingApplications = input.pendingApplications;
 		assignmentError = !!input.assignmentError;
 		bulkError = !!input.bulkError;
 		if (input.mixedStructures) secondChild.structureId = 'floresti';
@@ -155,6 +159,8 @@ createServer(async (req, res) => {
 		return send(res, []);
 	if (path === '/api/members/orgo/refresh' || path === '/api/members/orgo/refresh-status')
 		return send(res, { state: 'idle', message: null, lastSucceededAt: new Date().toISOString() });
+	if (path === '/api/member-applications/pending-count')
+		return send(res, { count: pendingApplications });
 	if (path === '/api/members') return send(res, registry);
 	if (path === '/api/members/bulk') {
 		bulkRequests.push(input);

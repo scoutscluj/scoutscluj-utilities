@@ -1,8 +1,14 @@
+import { decodeMemberPhoto } from './member-photo';
 import { BadRequestException } from '@nestjs/common';
 import { bodyObject, dateValue, stringValue } from './member-input';
 import { localDate } from './member.types';
 
 export type AdmissionData = {
+  registrationFor?: 'self' | 'other';
+  gender?: 'M' | 'F';
+  photo?: string;
+  submitterName?: string;
+  submitterEmail?: string;
   structureId?: 'cluj' | 'floresti';
   firstName: string;
   lastName: string;
@@ -34,6 +40,12 @@ export function admissionData(
       !['cluj', 'floresti'].includes(b.structureId))
   )
     throw new BadRequestException('Alege structura Cluj sau Florești.');
+  if (!['self', 'other'].includes(String(b.registrationFor)))
+    throw new BadRequestException('Alege pentru cine completezi înscrierea.');
+  if (!['M', 'F'].includes(String(b.gender)))
+    throw new BadRequestException('Alege genul persoanei înscrise.');
+  const photo = typeof b.photo === 'string' ? b.photo : '';
+  if (photo) decodeMemberPhoto(photo);
   const firstName = stringValue(b.firstName, 120),
     lastName = stringValue(b.lastName, 120);
   if (!firstName || !lastName)
@@ -55,7 +67,7 @@ export function admissionData(
     (grade === null || !Number.isInteger(grade) || grade < 0 || grade > 12)
   )
     throw new BadRequestException('Alege clasa: pregătitoare sau I–XII.');
-  const forChild = b.forChild === true;
+  const forChild = b.registrationFor === 'other';
   const minor =
     birthDate > `${Number(today.slice(0, 4)) - 18}${today.slice(4)}`;
   const guardianName =
@@ -66,10 +78,7 @@ export function admissionData(
     typeof b.guardianRelation === 'string'
       ? stringValue(b.guardianRelation, 80)
       : '';
-  if (
-    (minor || forChild) &&
-    (!guardianName || !guardianPhone || !guardianRelation)
-  )
+  if (minor && (!guardianName || !guardianPhone || !guardianRelation))
     throw new BadRequestException(
       'Completează numele, relația și telefonul părintelui/tutorelui.',
     );
@@ -77,13 +86,25 @@ export function admissionData(
     throw new BadRequestException(
       'Confirmă acordul pentru prelucrarea cererii.',
     );
-  const memberEmail = email(b.email, !minor && !forChild);
-  const guardianEmail = email(b.guardianEmail, minor || forChild);
-  if ((minor || forChild) && memberEmail && memberEmail === guardianEmail)
+  const memberEmail = email(b.email, true);
+  const guardianEmail = minor ? email(b.guardianEmail, true) : '';
+  const submitterName =
+    !minor && forChild && typeof b.submitterName === 'string'
+      ? stringValue(b.submitterName, 120)
+      : '';
+  const submitterEmail =
+    !minor && forChild ? email(b.submitterEmail, true) : '';
+  if (!minor && forChild && !submitterName)
     throw new BadRequestException(
-      'Emailul copilului trebuie să fie distinct de emailul părintelui; îl poți lăsa necompletat.',
+      'Completează numele persoanei care trimite cererea.',
     );
+
   return {
+    registrationFor: b.registrationFor as 'self' | 'other',
+    gender: b.gender as 'M' | 'F',
+    ...(photo ? { photo } : {}),
+    submitterName,
+    submitterEmail,
     ...(b.structureId
       ? { structureId: b.structureId as 'cluj' | 'floresti' }
       : {}),
@@ -95,9 +116,9 @@ export function admissionData(
     email: memberEmail,
     phone: typeof b.phone === 'string' ? stringValue(b.phone, 40) : '',
     forChild,
-    guardianName,
-    guardianPhone,
-    guardianRelation,
+    guardianName: minor ? guardianName : '',
+    guardianPhone: minor ? guardianPhone : '',
+    guardianRelation: minor ? guardianRelation : '',
     guardianEmail,
   };
 }

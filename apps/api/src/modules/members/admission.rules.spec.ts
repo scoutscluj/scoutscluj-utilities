@@ -20,6 +20,14 @@ const child = {
   guardianRelation: 'Părinte',
 };
 describe('local center registration validation', () => {
+  it('accepts only the two supported structures', () => {
+    expect(
+      admissionData({ ...child, structureId: 'floresti' }).structureId,
+    ).toBe('floresti');
+    expect(() => admissionData({ ...child, structureId: 'other' })).toThrow(
+      'structura',
+    );
+  });
   it('requires birth date, explicit schooling and consent on the server', () => {
     for (const field of ['birthDate', 'schooling', 'consent'])
       expect(() =>

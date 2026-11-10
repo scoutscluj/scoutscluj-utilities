@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { CalendarDays, UserPlus, Wallet } from '@lucide/svelte';
 	let isStarting = $state(false);
 	let error = $state<string | null>(null);
 
@@ -39,11 +40,20 @@
 			<img class="button-mark" src="/branding/orgo-symbol.png" alt="ORGO" width="34" height="34" />
 			{isStarting ? 'Se deschide Orgo...' : 'Connect with Orgo'}
 		</button>
-		<p>
-			<a href={resolve('/register')}>Înscrie-te în centrul local</a> ·
-			<a href={resolve('/activitati')}>Activități și înscrieri</a> ·
-			<a href={resolve('/cotizatie')}>Plata cotizației</a>
-		</p>
+		<nav class="public-actions" aria-label="Înscriere și servicii pentru membri">
+			<a class="public-action register-action" href={resolve('/register')}>
+				<UserPlus size={22} aria-hidden="true" />
+				Înscrie-te în centrul local
+			</a>
+			<a class="public-action" href={resolve('/activitati')}>
+				<CalendarDays size={22} aria-hidden="true" />
+				Activități și înscrieri
+			</a>
+			<a class="public-action" href={resolve('/cotizatie')}>
+				<Wallet size={22} aria-hidden="true" />
+				Plata cotizației
+			</a>
+		</nav>
 
 		{#if error}
 			<p class="error" role="alert">{error}</p>
@@ -97,12 +107,13 @@
 
 	.orgo-button {
 		width: 100%;
-		min-height: 48px;
+		min-height: 56px;
+		padding: 10px 16px;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		gap: 10px;
-		border: 1px solid #b91c1c;
+		border: 1px solid var(--sc-accent);
 		border-radius: 8px;
 		background: var(--sc-accent);
 		color: var(--sc-surface);
@@ -111,7 +122,72 @@
 	}
 
 	.orgo-button:hover:not(:disabled) {
-		background: #a91b1b;
+		background: var(--sc-accent-hover);
+	}
+
+	.public-actions {
+		display: grid;
+		gap: 12px;
+		margin-top: 16px;
+	}
+
+	.public-action {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+		min-height: 56px;
+		padding: 12px 16px;
+		border: 1px solid var(--sc-border-strong);
+		border-radius: 8px;
+		background: var(--sc-surface);
+		color: var(--sc-ink);
+		font-size: 1rem;
+		font-weight: 600;
+		line-height: 1.4;
+		text-align: center;
+		text-decoration: none;
+	}
+
+	.public-action :global(svg) {
+		flex-shrink: 0;
+	}
+
+	.public-action:hover {
+		background: var(--sc-inset);
+		border-color: var(--sc-muted);
+	}
+
+	.register-action {
+		border-color: var(--sc-accent);
+		color: var(--sc-accent);
+		background: var(--sc-accent-soft);
+	}
+
+	.register-action:hover {
+		border-color: var(--sc-accent-hover);
+		color: var(--sc-accent-hover);
+		background: var(--sc-accent-soft);
+	}
+
+	.orgo-button:focus-visible,
+	.public-action:focus-visible {
+		outline: 3px solid var(--sc-accent);
+		outline-offset: 3px;
+	}
+
+	.orgo-button:active:not(:disabled),
+	.public-action:active {
+		filter: brightness(0.95);
+	}
+
+	@media (max-width: 480px) {
+		.login-page {
+			padding: 16px;
+		}
+		.login-panel {
+			padding: 24px;
+		}
 	}
 
 	.orgo-button:disabled {

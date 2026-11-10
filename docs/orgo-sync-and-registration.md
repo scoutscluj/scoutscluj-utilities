@@ -12,6 +12,10 @@ Identitatea se asociază numai prin ID Orgo confirmat și verificare nume/data n
 
 Orgo gestionează accesul inițial și notificările potrivit contractului său de înregistrare administrativă. Crearea unui copil fără email propriu și notificarea de bun venit trebuie confirmate cu tenantul înainte de activare; nu substituim emailul părintelui.
 
+Formularul separă structura (Cluj / Florești) de ramura de vârstă. Ramurile sunt filtrate după structură, iar afilierea se păstrează și dacă solicitantul cere îndrumare. Confirmarea afișează pașii de verificare, aprobare, pregătire Orgo și autentificare, cu mesaje distincte pentru părinte și membru și pentru copilul fără email.
+
+Emailul propriu al membrului este normalizat și verificat înainte de acceptarea cererii în conturile locale, profilurile membrilor, cererile active și Orgo. Emailul tutorelui rămâne reutilizabil pentru frați. Verificarea Orgo folosește `/api/v1/check-email-exists` cu tenantul identificat prin host; dacă nu se obține un răspuns boolean valid, cererea nu este acceptată. Workerul repetă verificarea înaintea primei tentative de creare, fără a substitui emailul părintelui și fără a asocia conturi după email. Cererile vechi păstrează compatibilitatea dacă nu conțin explicit structura în JSON.
+
 ## Activare
 
 Aplică migrarea `Migration20261102000100` înaintea noii versiuni API. Ea adaugă cereri, contacte, outbox pentru obiecte și tokenuri de lease; păstrează contactele vechi ca neverificate și permite clasa 0. Nu trimite date în Orgo și nu reia istoricul automat.

@@ -39,6 +39,7 @@ jobs:
       - run: pnpm --filter api typecheck
       - run: pnpm --filter api test --runInBand
       - run: pnpm --filter api build
+      - run: pnpm --filter api test:activity-registration:deletion
       - name: Render and inspect the supplied fixed agreement
         run: |
           sudo apt-get update -qq

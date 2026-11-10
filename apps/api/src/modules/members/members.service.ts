@@ -182,7 +182,7 @@ export class MembersService {
     }
     const member = await this.get(tx, memberId),
       grant = await this.access(tx, user, member);
-    if (kind === 'grade') {
+    if (kind === 'grade' || kind === 'bio') {
       if (!grant.edit) denied();
       return;
     }
@@ -549,6 +549,11 @@ export class MembersService {
         ? 'Date păstrate în fișa locală; nu sunt trimise în Orgo.'
         : 'În așteptarea sincronizării.',
     });
+    if (
+      ['assignment', 'local-profile'].includes(kind) &&
+      'structureId' in payload
+    )
+      this.queue(tx, member, actorId, 'bio', {});
   }
   async bulk(user: CurrentUser, input: unknown) {
     const b = bodyObject(input);

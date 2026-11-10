@@ -1,6 +1,7 @@
 import type { OrgoTokenService } from '../auth/orgo-token.service';
 import { orgoPlan } from '../membership/orgo-fee-plan';
 import { feePriceReference } from './orgo-sync';
+import { memberBio } from './orgo-bio';
 import {
   equalValue,
   flattenFields,
@@ -181,6 +182,7 @@ export class MemberOrgoService {
         'orgo-profile',
         'profile',
         'grade',
+        'bio',
         'status',
         'fee-plan',
         'photo',
@@ -192,7 +194,7 @@ export class MemberOrgoService {
     const raw = await this.request('/api/v1/users/' + m.orgoId);
     if (Number(object(raw.localCenter).id) !== this.settings().center)
       throw new ForbiddenException();
-    const intent = this.intentions(job, m);
+    const intent = this.intentions(job, m, raw.bio ?? null);
     const observed = {
       ...flattenFields(cleanProfile(raw)),
       status: raw.status,
@@ -207,6 +209,7 @@ export class MemberOrgoService {
       status: 'Status',
       feeTenantProductPrice: 'Plan cotizație',
       logo: 'Fotografie',
+      bio: 'Despre membru',
     };
     const display = (value: unknown): string => {
       if (value == null || value === '') return 'Necompletat';
@@ -1405,6 +1408,29 @@ export class MemberOrgoService {
   private async request(path: string, patch?: Record<string, unknown>) {
     return this.serverRequest(path, patch ? 'PATCH' : 'GET', patch);
   }
+  async registrationEmailExists(email: string): Promise<boolean> {
+    const { base } = this.settings();
+    const tenants = await this.request(
+      '/api/v1/tenants?appHost=' + encodeURIComponent(new URL(base).hostname),
+    );
+    const rows = tenants['hydra:member'];
+    const slug =
+      Array.isArray(rows) && rows.length === 1 ? object(rows[0]).slug : null;
+    if (typeof slug !== 'string' || !slug)
+      throw new BadGatewayException(
+        'Configurația Orgo pentru verificarea emailului nu este disponibilă.',
+      );
+    const result = await this.serverRequest(
+      '/api/v1/check-email-exists',
+      'POST',
+      { email, tenantSlug: slug },
+    );
+    if (typeof result.exists !== 'boolean')
+      throw new BadGatewayException(
+        'Orgo nu a confirmat verificarea emailului.',
+      );
+    return result.exists;
+  }
   async serverRequest(
     path: string,
     method: 'GET' | 'PATCH' | 'POST' = 'GET',
@@ -1930,6 +1956,7 @@ export class MemberOrgoService {
   private intentions(
     job: MemberSync,
     m: ScoutMember,
+    sourceBio: unknown = m.orgoProfile?.bio,
   ): {
     expected: Record<string, unknown>;
     local: Record<string, unknown>;
@@ -1961,7 +1988,25 @@ export class MemberOrgoService {
       if (Number.isInteger(field) && field > 0) {
         expected['custom:' + field] = job.payload.grade;
         local['custom:' + field] = m.grade;
+      } else {
+        expected.bio = memberBio(
+          sourceBio,
+          Number.isInteger(job.payload.grade)
+            ? Number(job.payload.grade)
+            : null,
+          m.structureId,
+          true,
+        );
+        local.bio = memberBio(sourceBio, m.grade, m.structureId, true);
       }
+    } else if (job.kind === 'bio') {
+      const field = Number(this.config.get<string>('ORGO_GRADE_FIELD_ID'));
+      expected.bio = local.bio = memberBio(
+        sourceBio,
+        m.grade,
+        m.structureId,
+        !(Number.isInteger(field) && field > 0),
+      );
     } else if (job.kind === 'fee-plan') {
       expected.feeTenantProductPrice = job.payload.feeTenantProductPrice;
     } else if (job.kind === 'photo') expected.logo = job.payload.logo;
@@ -2002,6 +2047,9 @@ export class MemberOrgoService {
         ...(job.kind === 'grade' ? {} : flattenFields(m.orgoBase ?? {})),
         ...(job.kind === 'status'
           ? { status: m.remote?.status ?? baseline.status }
+          : {}),
+        ...(['grade', 'bio'].includes(job.kind) && 'bio' in expected
+          ? { bio: sourceBio }
           : {}),
       },
     };
@@ -2241,7 +2289,9 @@ export class MemberOrgoService {
           status: raw.status,
         };
         credentialMode.observed = remote;
-        const intent = this.intentions(claim, member);
+        const intent = this.intentions(claim, member, remote.bio ?? null);
+        // Merge generated details into the latest remote prose, including edits
+        // made directly in Orgo since the last import. Never replay an old bio.
         const patch: Record<string, unknown> = {};
         for (const [key, expected] of Object.entries(intent.expected)) {
           const current = intent.local[key];

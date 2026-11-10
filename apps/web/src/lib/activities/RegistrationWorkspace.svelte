@@ -72,6 +72,8 @@
 		)
 	);
 	function open(row: Registration, operation: string) {
+		message = '';
+		failed = false;
 		active = row;
 		action = operation;
 		amountLei =
@@ -98,7 +100,9 @@
 			message =
 				path === 'renew-consent'
 					? `Actualizarea acordului a fost solicitată pentru ${result.updated ?? 0} participanți.${result.skipped ? ` Pentru ${result.skipped} participanți din afara grupurilor curente, acordul anterior a fost păstrat.` : ''}`
-					: 'Modificările au fost salvate.';
+					: method === 'PATCH' && (body as { action?: string }).action === 'delete'
+						? 'Înscrierea a fost ștearsă complet.'
+						: 'Modificările au fost salvate.';
 			return true;
 		} catch (e) {
 			failed = true;
@@ -110,6 +114,16 @@
 	}
 	async function update() {
 		if (!active) return;
+		if (busy) return;
+		if (action === 'delete') {
+			const id = active.id;
+			if (await run(`registrations/${id}`, { action, revision: active.revision }, 'PATCH')) {
+				selected = selected.filter((selectedId) => selectedId !== id);
+				dialogOpen = false;
+				active = null;
+			}
+			return;
+		}
 		if (action === 'close_checkout') {
 			if (await run(`checkouts/${closeId}/close`, { note, confirmProviderUnpaid: confirmUnpaid }))
 				dialogOpen = false;
@@ -162,6 +176,7 @@
 			add('Retragere', 'withdraw', true);
 			if (row.state === 'pending') add('Respinge', 'reject', true);
 			add('Prelungește termenul', 'extend_deadline');
+			add('Șterge complet înscrierea', 'delete', true);
 		}
 
 		return items;
@@ -467,6 +482,15 @@
 		{:else if action === 'extend_deadline'}<label
 				>Noul termen<DateInput type="date" bind:value={receivedOn} required /></label
 			>
+		{:else if action === 'delete'}<p>
+				Ștergi definitiv înscrierea pentru <strong>{active?.memberName}</strong> la această activitate,
+				împreună cu răspunsurile, acordurile și e-mailurile asociate. Profilul membrului rămâne în evidență.
+				Acțiunea nu poate fi anulată.
+			</p>
+			<p>
+				Înscrierile cu înregistrări financiare sau încercări de plată nu pot fi șterse. Tarifele
+				celorlalți membri ai familiei rămân neschimbate.
+			</p>
 		{:else if action === 'withdraw'}<p>
 				Participantul va fi retras și locul va fi eliberat. Încasările rămân în evidență. Verifică
 				separat restituirea și, dacă este cazul, recalculează explicit familia.
@@ -476,7 +500,12 @@
 			</p>
 		{:else}<p>Confirmă respingerea înscrierii.</p>{/if}
 		{#if message}<FormFeedback {message} kind={failed ? 'error' : 'success'} />{/if}<button
-			disabled={busy}>{busy ? 'Se salvează…' : 'Confirmă modificarea'}</button
+			disabled={busy}
+			>{busy
+				? 'Se salvează…'
+				: action === 'delete'
+					? 'Șterge definitiv înscrierea'
+					: 'Confirmă modificarea'}</button
 		>
 	</form>
 </Modal>

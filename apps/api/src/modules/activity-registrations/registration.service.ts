@@ -1273,6 +1273,21 @@ export class RegistrationService {
       if (b.revision !== row.revision)
         throw new ConflictException('Înscriere modificată. Reîncarcă.');
       const action = text(b.action, 80);
+      if (action === 'delete') {
+        if (!this.manager(user, activity)) throw new ForbiddenException();
+        if (
+          (await tx.count(Entry, { registrationId: id })) ||
+          (await tx.count(Checkout, { registrationId: id }))
+        )
+          throw new ConflictException(
+            'Înscrierea are înregistrări financiare sau încercări de plată și nu poate fi ștearsă. Folosește retragerea pentru a păstra evidența.',
+          );
+        await tx.nativeDelete(Mail, { registrationId: id });
+        await tx.nativeDelete(Document, { registrationId: id });
+        await tx.nativeDelete(Registration, { id, activityId });
+        this.audit(tx, activityId, user.id, 'deleted', id);
+        return { success: true };
+      }
       if (['receipt', 'reversal', 'price', 'plan_refund'].includes(action)) {
         if (!this.financial(user, activity)) throw new ForbiddenException();
         const note = text(b.note, 2000);

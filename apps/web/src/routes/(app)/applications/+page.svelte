@@ -43,6 +43,13 @@
 			>
 			<div class="body">
 				<dl>
+					<dt>Structură</dt>
+					<dd>
+						{(row.data.structureId ??
+							data.applications.units.find((u) => u.id === row.unitId)?.structureId) === 'floresti'
+							? 'Florești'
+							: 'Cluj'}
+					</dd>
 					<dt>Data nașterii</dt>
 					<dd>{row.data.birthDate}</dd>
 					<dt>Clasă</dt>

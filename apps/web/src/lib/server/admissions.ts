@@ -24,5 +24,12 @@ export async function submitApplication(event: RequestEvent, admin = false) {
 			values: Object.fromEntries(values)
 		});
 	}
-	return { received: true, message: 'Cererea a fost înregistrată și așteaptă validarea.' };
+	return {
+		received: true,
+		message: 'Cererea a fost înregistrată și așteaptă validarea.',
+		nextSteps: {
+			forChild: values.get('forChild') === 'on',
+			hasMemberEmail: !!String(values.get('email') ?? '').trim()
+		}
+	};
 }

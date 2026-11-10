@@ -1,3 +1,4 @@
+import { AdmissionsService } from '../src/modules/members/admissions.service';
 import { OrgoTokenService } from '../src/modules/auth/orgo-token.service';
 import { OrgoConnection } from '../src/modules/users/entities/orgo-connection.entity';
 import { emptyProfile } from '../src/modules/members/member.types';
@@ -695,6 +696,30 @@ async function main() {
     assert(adultRow.responsibilityUnitIds.includes(commonUnit.id));
     console.log(
       'PASS optional leader promise, common-collective responsibilities, same-structure movement and adult grade exclusion',
+    );
+    await orm.em.fork().execute(
+      `insert into member_applications (id, request_key, unit_id, data, created_at)
+       select md5('photo-privacy-' || n)::uuid, md5('photo-request-' || n)::uuid, ?,
+         '{"firstName":"Privacy fixture","lastName":"Test","photo":"data:image/png;base64,iVBORw0KGgo="}'::jsonb, now()
+       from generate_series(1, 501) as n`,
+      [assignedUnit.id],
+    );
+    const admissionService = new AdmissionsService(
+      orm.em.fork(),
+      service(),
+      new MemberOrgoService(orm.em.fork(), new ConfigService({}), service()),
+      new ConfigService({}),
+    );
+    assert.equal((await admissionService.pendingCount(actor)).count, 501);
+    const applications = (await admissionService.list(actor))
+      .applications as Array<{
+      hasPhoto: boolean;
+      data: Record<string, unknown>;
+    }>;
+    assert.equal(applications.length, 500);
+    assert(applications.every((row) => row.hasPhoto && !('photo' in row.data)));
+    console.log(
+      'PASS application SQL photo projection and pending count beyond list limit',
     );
     console.log(
       'PostgreSQL migrations, scoped structures, admission allocation concurrency and transaction rollback checks passed.',

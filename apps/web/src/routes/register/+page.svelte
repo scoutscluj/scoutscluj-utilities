@@ -1,12 +1,15 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import CopyRegistrationGuide from '$lib/members/CopyRegistrationGuide.svelte';
 	import AdmissionForm from '$lib/members/AdmissionForm.svelte';
 	let { data, form } = $props();
 </script>
 
 <svelte:head><title>Înscriere în centrul local | Scouts Cluj</title></svelte:head>
 <main>
-	<a class="back" href={resolve('/login')}>← Înapoi la autentificare</a>
+	<div class="page-tools">
+		<a class="back" href={resolve('/login')}>← Înapoi la autentificare</a><CopyRegistrationGuide />
+	</div>
 	<section>
 		<img
 			src="/branding/scouts-cluj-wide.png"
@@ -16,87 +19,72 @@
 		/>
 		<p class="eyebrow">Primul pas în cercetășie</p>
 		<h1>{form?.received ? 'Cererea a fost înregistrată' : 'Înscriere în centrul local'}</h1>
-		{#if form?.received}<div class="success" role="status">
+		{#if form?.received}
+			<div class="success" role="status">
 				<p>
-					{form.nextSteps?.forChild
+					{form.nextSteps?.subject === 'child'
 						? 'Ai trimis cererea de înscriere pentru copil. Iată ce urmează.'
-						: 'Ai făcut primul pas spre cercetășie. Iată ce urmează.'}
+						: form.nextSteps?.subject === 'other'
+							? 'Ai trimis cererea pentru persoana înscrisă. Iată ce urmează.'
+							: 'Ai făcut primul pas spre cercetășie. Iată ce urmează.'}
 				</p>
 				<h2>Pașii următori</h2>
 				<ol class="next-steps">
 					<li>
 						<strong>Verificăm cererea.</strong>
 						<p>
-							Un administrator sau un lider va verifica datele și ramura aleasă. Dacă ai ales „Am
-							nevoie de îndrumare”, te vom ajuta cu repartizarea. Nu trebuie să trimiți din nou
-							formularul.
+							Un administrator sau un lider autorizat va verifica datele și ramura aleasă. Dacă ai
+							ales „Am nevoie de îndrumare”, te vom ajuta cu repartizarea. Nu trebuie să trimiți din
+							nou formularul.
 						</p>
 					</li>
 					<li>
-						<strong>Pregătim profilul Orgo după aprobare.</strong>
+						<strong>Pregătim contul național după aprobare.</strong>
 						<p>
-							{form.nextSteps?.forChild
-								? 'După confirmarea înscrierii, vom crea sau asocia profilul copilului în Orgo (membri.scout.ro).'
-								: 'După confirmarea înscrierii, vom crea sau asocia profilul tău în Orgo (membri.scout.ro).'}
-							Trimiterea formularului nu oferă acces imediat la cont.
+							{form.nextSteps?.subject === 'self'
+								? 'Vom pregăti contul tău'
+								: form.nextSteps?.subject === 'child'
+									? 'Vom pregăti contul copilului'
+									: 'Vom pregăti contul persoanei înscrise'} în
+							<strong>Orgo (membri.scout.ro)</strong>, platforma națională care centralizează
+							cercetașii din România. Același cont este folosit pentru autentificarea în Resurse
+							Scouts Cluj. Trimiterea cererii nu oferă acces imediat.
 						</p>
 					</li>
-					{#if form.nextSteps?.hasMemberEmail}
-						<li>
-							<strong>Urmărește emailul pentru acces.</strong>
-							<p>
-								{form.nextSteps?.forChild
-									? 'Pentru un cont nou, instrucțiunile Orgo de acces se trimit la emailul copilului completat în formular, dacă notificările sunt activate.'
-									: 'Pentru un cont nou, instrucțiunile Orgo de acces se trimit la emailul tău, dacă notificările sunt activate.'}
-								Verifică și Spam. Dacă nu primești instrucțiuni după confirmarea înscrierii, contactează
-								centrul local. Dacă profilul era deja asociat unui cont, se folosește accesul existent.
-							</p>
-						</li>
-						<li>
-							<strong>Revino și autentifică-te cu Orgo.</strong>
-							<p>
-								După ce contul este activ și accesul este pregătit, apasă „Connect with Orgo” pe
-								pagina de autentificare. Vei intra prin Orgo și vei reveni în aplicație.
-							</p>
-						</li>
-					{:else}
-						<li>
+					<li>
+						<strong>Urmărește emailul despre crearea contului.</strong>
+						<p>
+							Emailul va ajunge la adresa aleasă în formular pentru contul membrului, inclusiv dacă
+							ai folosit o adresă a părintelui. Verifică și Spam. Dacă nu îl primești după
+							confirmarea înscrierii, contactează liderul sau centrul local.
+						</p>
+					</li>
+					<li>
+						<strong>Intră direct în Resurse.</strong>
+						<p>
+							Deschide <a href={resolve('/login')}>pagina de autentificare</a>, apasă „Connect with
+							Orgo” și folosește codul primit pe email. Poți alege și Google dacă folosești aceeași
+							adresă.
 							<strong
-								>{form.nextSteps?.forChild
-									? 'Stabilim împreună accesul copilului.'
-									: 'Stabilim împreună accesul tău.'}</strong
+								>Nu este nevoie să configurezi profilul în membri.scout.ro sau să setezi o parolă
+								înainte.</strong
 							>
-							<p>
-								{form.nextSteps?.forChild
-									? 'Nu ai completat un email propriu al copilului.'
-									: 'Nu ai completat un email propriu.'} Nu se trimit instrucțiuni de acces la emailul
-								părintelui în locul celui al copilului și nu se creează automat un cont pentru părinte.
-								După aprobarea înscrierii, contactează centrul local pentru a stabili accesul.
-							</p>
-						</li>
-						<li>
-							<strong>Autentificarea va fi prin Orgo.</strong>
-							<p>
-								După stabilirea accesului și activarea contului, se folosește „Connect with Orgo” pe
-								pagina de autentificare.
-							</p>
-						</li>
-					{/if}
+						</p>
+					</li>
 				</ol>
-				{#if form.nextSteps?.forChild}<p class="parent-note">
-						Datele tale de părinte / tutore sunt păstrate separat de contul copilului. Completarea
-						lor nu îți acordă automat acces la profilul copilului.
+				{#if form.nextSteps?.subject !== 'self'}<p class="parent-note">
+						Contul aparține persoanei înscrise. Contactele părintelui sau ale celui care a completat
+						formularul sunt păstrate separat și nu creează automat un al doilea cont.
 					</p>{/if}
 				<div class="next-actions">
-					<a href={resolve('/login')}>Înapoi la autentificare</a><a
+					<a href={resolve('/login')}>Mergi la autentificare</a><a
 						href="mailto:cluj.napoca@scout.ro">Contactează centrul local</a
 					>
 				</div>
 			</div>
 		{:else}<p class="intro">
-				Completează datele tale sau ale copilului. Dacă ai deja un cont Orgo, <a
-					href={resolve('/login')}>autentifică-te</a
-				>.
+				Alege mai întâi pentru cine faci înscrierea, apoi completează datele persoanei înscrise.
+				Dacă ai deja un cont Orgo, <a href={resolve('/login')}>autentifică-te</a>.
 			</p>
 			{#if form?.message}<p class="error" role="alert">{form.message}</p>{/if}
 			<AdmissionForm units={data.units} requestKey={data.requestKey} values={form?.values ?? {}} />
@@ -105,6 +93,12 @@
 </main>
 
 <style>
+	.page-tools {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 16px;
+	}
 	main {
 		max-width: 760px;
 		margin: 0 auto;
@@ -209,6 +203,9 @@
 		color: var(--sc-accent);
 	}
 	@media (max-width: 600px) {
+		.page-tools {
+			flex-wrap: wrap;
+		}
 		main {
 			padding: 16px 12px 40px;
 		}

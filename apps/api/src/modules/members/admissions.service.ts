@@ -1,3 +1,4 @@
+import { decodeMemberPhoto } from './member-photo';
 import {
   Injectable,
   BadRequestException,
@@ -84,7 +85,7 @@ export class AdmissionsService implements OnModuleInit {
     }
     if (exists)
       throw new BadRequestException(
-        'Acest email este deja folosit pentru un cont sau o cerere de înscriere. Nu îl refolosi pentru alt membru. Dacă ai deja cont Orgo, autentifică-te; pentru un copil fără email propriu, lasă acest câmp necompletat.',
+        'Acest email este deja folosit pentru un cont sau o cerere de înscriere. Nu îl refolosi pentru alt membru. Dacă ai deja cont Orgo, autentifică-te; pentru un copil fără email propriu, folosește o adresă a părintelui care nu este folosită pentru alt cont.',
       );
   }
   async submit(input: unknown, actor?: CurrentUser) {
@@ -131,15 +132,30 @@ export class AdmissionsService implements OnModuleInit {
   }
   async list(user: CurrentUser): Promise<Record<string, unknown>> {
     const scope = await this.members.admissionScope(user);
+    // Exclude image bytes in SQL, before fetching the list into memory.
     const rows =
       scope.admin || scope.unitIds.length
-        ? await this.em
-            .fork()
-            .find(
-              MemberApplication,
-              scope.admin ? {} : { unitId: { $in: scope.unitIds } },
-              { orderBy: { createdAt: 'desc' }, limit: 500 },
-            )
+        ? await this.em.fork().execute<
+            Array<{
+              id: string;
+              memberId: string | null;
+              unitId: string | null;
+              data: Record<string, unknown>;
+              state: string;
+              revision: number;
+              reason: string;
+              createdAt: Date;
+              hasPhoto: boolean;
+            }>
+          >(
+            `select id, member_id as "memberId", unit_id as "unitId",
+            data - 'photo' as data, state, revision, reason,
+            created_at as "createdAt", coalesce(length(data->>'photo'), 0) > 0 as "hasPhoto"
+           from member_applications
+           ${scope.admin ? '' : `where unit_id in (${scope.unitIds.map(() => '?').join(', ')})`}
+           order by (state = 'pending') desc, created_at desc limit 500`,
+            scope.admin ? [] : scope.unitIds,
+          )
         : [];
     const units = (await this.options()).units;
     return {
@@ -148,6 +164,18 @@ export class AdmissionsService implements OnModuleInit {
       applications: await Promise.all(
         rows.map(async (r) => ({
           ...r,
+          photoSync:
+            r.memberId && r.hasPhoto
+              ? await this.em.fork().findOne(
+                  MemberSync,
+                  {
+                    memberId: r.memberId,
+                    kind: 'photo',
+                    payload: { applicationId: r.id },
+                  },
+                  { fields: ['id', 'state', 'message'] },
+                )
+              : null,
           sync: r.memberId
             ? await this.em
                 .fork()
@@ -160,6 +188,25 @@ export class AdmissionsService implements OnModuleInit {
         })),
       ),
     };
+  }
+  async pendingCount(user: CurrentUser) {
+    const scope = await this.members.admissionScope(user);
+    const count =
+      scope.admin || scope.unitIds.length
+        ? await this.em.fork().count(MemberApplication, {
+            state: 'pending',
+            ...(scope.admin ? {} : { unitId: { $in: scope.unitIds } }),
+          })
+        : 0;
+    return { count };
+  }
+  async photo(user: CurrentUser, id: string) {
+    const tx = this.em.fork();
+    const row = await tx.findOneOrFail(MemberApplication, { id });
+    await this.canReview(tx, user, row);
+    if (!row.data.photo)
+      throw new BadRequestException('Fotografie indisponibilă.');
+    return decodeMemberPhoto(row.data.photo);
   }
   private async canReview(
     tx: EntityManager,
@@ -208,7 +255,14 @@ export class AdmissionsService implements OnModuleInit {
           }))
         )
           throw new BadRequestException('Unitate invalidă.');
-        row.data = admissionData(b.data);
+        const edited = bodyObject(b.data);
+        row.data = admissionData({
+          ...edited,
+          ...(edited.keepPhoto === true && !edited.photo
+            ? { photo: row.data.photo }
+            : {}),
+        });
+        await this.checkMemberEmail(tx, row.data.email, row.id, row.memberId);
         row.unitId = unitId;
         row.state = 'pending';
         row.approvedBy = null;
@@ -341,6 +395,7 @@ export class AdmissionsService implements OnModuleInit {
             firstName: data.firstName,
             lastName: data.lastName,
             dateBirth: data.birthDate,
+            ...(data.gender ? { gender: data.gender } : {}),
           },
           lastProgressionYear: targetYear(new Date()),
         };
@@ -489,6 +544,7 @@ export class AdmissionsService implements OnModuleInit {
               firstName: data.firstName,
               lastName: data.lastName,
               dateBirth: data.birthDate,
+              ...(data.gender ? { gender: data.gender } : {}),
               ...(data.email ? { email: data.email } : {}),
               ...(data.phone ? { phoneNumber: data.phone } : {}),
               localCenter:
@@ -496,6 +552,7 @@ export class AdmissionsService implements OnModuleInit {
                 this.config.get<string>('ORGO_LOCAL_CENTER_ID'),
               roles: ['ROLE_USER'],
               language: 'ro',
+              timezone: 'Europe/Bucharest',
               ...(userType
                 ? { userType, type: '/api/v1/roles/' + userType }
                 : {}),
@@ -533,6 +590,10 @@ export class AdmissionsService implements OnModuleInit {
         )
           throw new BadRequestException(
             'Datele identității Orgo diferă. Verifică asocierea.',
+          );
+        if (row.data.gender && raw.gender !== row.data.gender)
+          throw new BadRequestException(
+            'Genul nu a fost confirmat în Orgo. Verifică profilul.',
           );
         if (raw.status !== 'ACTIVE') {
           if (this.config.get<string>('ORGO_MEMBER_WRITES_ENABLED') !== 'true')
@@ -587,6 +648,35 @@ export class AdmissionsService implements OnModuleInit {
             };
           m.orgoProfile = cleanProfile(raw);
           m.orgoBase = cleanProfile(raw);
+          if (current.data.photo) {
+            const photoJob = await em.findOne(MemberSync, {
+              memberId: m.id,
+              kind: 'photo',
+              payload: { applicationId: row.id },
+            });
+            if (!photoJob) {
+              m.orgoProfile = { ...m.orgoProfile, logo: current.data.photo };
+              em.create(MemberSync, {
+                memberId: m.id,
+                revision: m.revision,
+                actorId: account.id,
+                kind: 'photo',
+                payload: { logo: current.data.photo, applicationId: row.id },
+                baseline: { logo: raw.logo ?? null },
+                message:
+                  'Cont creat; fotografia așteaptă sincronizarea în Orgo.',
+              });
+            } else if (
+              [
+                'pending',
+                'running',
+                'permission-required',
+                'uncertain',
+              ].includes(photoJob.state)
+            ) {
+              m.orgoProfile = { ...m.orgoProfile, logo: current.data.photo };
+            }
+          }
           m.remote = {
             ...m.remote,
             status: raw.status,

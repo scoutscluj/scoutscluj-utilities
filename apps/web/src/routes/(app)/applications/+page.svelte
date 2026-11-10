@@ -64,7 +64,23 @@
 					<div class="applicant-details">
 						<section class="info-section" aria-label="Date membru">
 							<h2>Date membru</h2>
+							{#if row.hasPhoto}<img
+									class="applicant-photo"
+									src={`${resolve('/applications')}/${encodeURIComponent(row.id)}/photo`}
+									alt={`Fotografia lui ${row.data.firstName} ${row.data.lastName}`}
+									loading="lazy"
+								/>{/if}
 							<dl class="facts">
+								<div>
+									<dt>Gen</dt>
+									<dd>
+										{row.data.gender === 'F'
+											? 'Feminin'
+											: row.data.gender === 'M'
+												? 'Masculin'
+												: 'Nespecificat'}
+									</dd>
+								</div>
 								<div>
 									<dt>Structură</dt>
 									<dd>{structure}</dd>
@@ -111,6 +127,14 @@
 											>{row.data.guardianPhone}</a
 										>{/if}
 								</div>
+							</section>{/if}
+						{#if row.data.submitterName}<section
+								class="info-section"
+								aria-label="Persoana care a trimis cererea"
+							>
+								<h2>Persoana care a trimis cererea</h2>
+								<p>{row.data.submitterName}</p>
+								<a href={`mailto:${row.data.submitterEmail}`}>{row.data.submitterEmail}</a>
 							</section>{/if}
 						{#if row.reason}<div class="reason-note">
 								<h2>Motivul deciziei</h2>
@@ -170,6 +194,17 @@
 									</details>{/if}
 							</form>
 						{/if}
+						{#if row.photoSync}<div
+								class="sync-notice"
+								data-confirmed={row.photoSync.state === 'synced'}
+							>
+								<strong
+									>Fotografie: {row.photoSync.state === 'synced'
+										? 'Confirmată în Orgo'
+										: 'În curs / necesită verificare'}</strong
+								>
+								<p>{row.photoSync.message}</p>
+							</div>{/if}
 						{#if row.sync}<div class="sync-notice" data-confirmed={row.sync.state === 'synced'}>
 								<strong
 									>Orgo: {row.sync.state === 'synced'
@@ -205,6 +240,9 @@
 								units={data.applications.units}
 								requestKey={data.requestKey}
 								action="?/edit"
+								existingPhotoUrl={row.hasPhoto
+									? `${resolve('/applications')}/${encodeURIComponent(row.id)}/photo`
+									: ''}
 								values={{ ...row.data, id: row.id, revision: row.revision, unitId: row.unitId }}
 								submitLabel="Salvează corecturile"
 							/>
@@ -226,6 +264,13 @@
 </main>
 
 <style>
+	.applicant-photo {
+		width: 96px;
+		height: 112px;
+		object-fit: cover;
+		border-radius: 8px;
+		margin-bottom: 16px;
+	}
 	main {
 		max-width: 1240px;
 		padding: 24px;

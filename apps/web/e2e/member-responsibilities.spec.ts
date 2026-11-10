@@ -355,3 +355,21 @@ test('keeps the member header compact and shows Orgo updates in the context menu
 		page.getByRole('dialog', { name: 'Actualizarea anuală a membrilor', exact: true })
 	).toBeVisible();
 });
+
+test('shows the red new-applications shortcut only while pending requests exist', async ({
+	page,
+	request
+}) => {
+	await page.goto('/units');
+	await expect(page.getByRole('link', { name: /Cereri noi/ })).toHaveCount(0);
+	await request.post('http://127.0.0.1:3020/test/configure', { data: { pendingApplications: 3 } });
+	await page.reload();
+	const shortcut = page.getByRole('link', { name: 'Cereri noi (3)', exact: true });
+	await expect(shortcut).toHaveAttribute('href', '/applications');
+	await expect(shortcut).toBeVisible();
+	await page.screenshot({ path: 'test-results/new-applications-desktop.png', fullPage: true });
+	await page.setViewportSize({ width: 390, height: 844 });
+	await expect(shortcut).toBeVisible();
+	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+	await page.screenshot({ path: 'test-results/new-applications-mobile.png', fullPage: true });
+});

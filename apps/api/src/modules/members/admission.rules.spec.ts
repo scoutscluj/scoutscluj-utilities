@@ -1,5 +1,7 @@
 import { admissionData } from './admission.rules';
 const adult = {
+  registrationFor: 'self',
+  gender: 'F',
   firstName: 'Ana',
   lastName: 'Test',
   birthDate: '1990-01-01',
@@ -12,7 +14,8 @@ const child = {
   birthDate: '2016-06-15',
   schooling: 'grade',
   grade: 0,
-  email: '',
+  email: 'child@example.test',
+  registrationFor: 'other',
   forChild: true,
   guardianName: 'Părinte Test',
   guardianEmail: 'parent@example.test',
@@ -34,16 +37,59 @@ describe('local center registration validation', () => {
         admissionData({ ...adult, [field]: undefined }, '2026-11-02'),
       ).toThrow();
   });
-  it('keeps sibling guardian contacts reusable without making the parent the child identity', () => {
-    expect(() =>
-      admissionData({ ...child, email: child.guardianEmail }, '2026-11-02'),
-    ).toThrow('distinct');
-    const sibling = admissionData(
-      { ...child, firstName: 'Sibling' },
+  it('accepts an unused parent email as account email and keeps guardian contact separate', () => {
+    const data = admissionData(
+      { ...child, email: child.guardianEmail },
       '2026-11-02',
     );
-    expect(sibling.guardianEmail).toBe(child.guardianEmail);
-    expect(sibling.email).toBe('');
+    expect(data.email).toBe(child.guardianEmail);
+    expect(data.guardianEmail).toBe(child.guardianEmail);
+    expect(
+      admissionData({ ...child, firstName: 'Sibling' }, '2026-11-02')
+        .guardianEmail,
+    ).toBe(child.guardianEmail);
+  });
+  it('requires the selected mode, gender and account email for all new requests', () => {
+    for (const field of ['registrationFor', 'gender', 'email']) {
+      for (const input of [adult, child])
+        expect(() =>
+          admissionData({ ...input, [field]: '' }, '2026-11-02'),
+        ).toThrow();
+    }
+  });
+  it('collects the adult submitter without granting guardian status', () => {
+    expect(() =>
+      admissionData({ ...adult, registrationFor: 'other' }, '2026-11-02'),
+    ).toThrow();
+    expect(
+      admissionData(
+        {
+          ...adult,
+          registrationFor: 'other',
+          submitterName: 'Friend',
+          submitterEmail: 'friend@example.test',
+          guardianName: 'ignored',
+        },
+        '2026-11-02',
+      ),
+    ).toMatchObject({
+      submitterName: 'Friend',
+      submitterEmail: 'friend@example.test',
+      guardianName: '',
+      guardianEmail: '',
+    });
+  });
+  it('validates photograph type, bytes and size independently of the client', () => {
+    expect(admissionData(adult, '2026-11-02')).not.toHaveProperty('photo');
+    for (const photo of [
+      'data:image/svg+xml;base64,PHN2Zz4=',
+      'data:image/png;base64,ZmFrZQ==',
+      'data:image/jpeg;base64,' + Buffer.alloc(2097153, 255).toString('base64'),
+    ])
+      expect(() => admissionData({ ...adult, photo }, '2026-11-02')).toThrow();
+    const photo =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a8V8AAAAASUVORK5CYII=';
+    expect(admissionData({ ...adult, photo }, '2026-11-02').photo).toBe(photo);
   });
   it('accepts preparatory grade without treating zero as missing', () => {
     expect(admissionData(child, '2026-11-02').grade).toBe(0);
@@ -72,14 +118,14 @@ describe('local center registration validation', () => {
     const data = admissionData(
       {
         ...child,
-        email: undefined,
+        email: 'child@example.test',
         roles: ['super_admin'],
         status: 'ACTIVE',
         localCenter: 999,
       },
       '2026-11-02',
     );
-    expect(data.email).toBe('');
+    expect(data.email).toBe('child@example.test');
     expect(data.guardianEmail).toBe('parent@example.test');
     expect(data).not.toHaveProperty('roles');
     expect(data).not.toHaveProperty('status');
@@ -88,7 +134,12 @@ describe('local center registration validation', () => {
   it('requires guardian contacts for self-submitted minors too', () => {
     expect(() =>
       admissionData(
-        { ...child, forChild: false, guardianEmail: '' },
+        {
+          ...child,
+          registrationFor: 'self',
+          forChild: false,
+          guardianEmail: '',
+        },
         '2026-11-02',
       ),
     ).toThrow('email');

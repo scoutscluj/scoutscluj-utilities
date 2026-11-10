@@ -9,6 +9,7 @@ import {
   Post,
   Req,
   UseGuards,
+  StreamableFile,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { createHash } from 'node:crypto';
@@ -62,6 +63,23 @@ export class AdmissionsController {
   @Header('Cache-Control', 'private, no-store')
   list(@CurrentUser() user: Actor) {
     return this.admissions.list(user);
+  }
+  @Get('pending-count')
+  @UseGuards(AuthGuard)
+  @Header('Cache-Control', 'private, no-store')
+  pendingCount(@CurrentUser() user: Actor) {
+    return this.admissions.pendingCount(user);
+  }
+  @Get(':id/photo')
+  @UseGuards(AuthGuard)
+  @Header('Cache-Control', 'private, no-store')
+  @Header('X-Content-Type-Options', 'nosniff')
+  async photo(
+    @CurrentUser() user: Actor,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const image = await this.admissions.photo(user, id);
+    return new StreamableFile(image.bytes, { type: image.type });
   }
   @Post('create')
   @UseGuards(AuthGuard)

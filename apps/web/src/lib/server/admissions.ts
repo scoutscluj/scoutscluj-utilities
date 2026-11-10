@@ -6,7 +6,8 @@ import { memberHeaders } from './members';
 export function applicationBody(form: FormData) {
 	return {
 		...Object.fromEntries(form),
-		forChild: form.get('forChild') === 'on',
+		forChild: form.get('registrationFor') === 'other',
+		keepPhoto: form.get('keepPhoto') === 'true',
 		consent: form.get('consent') === 'on'
 	};
 }
@@ -24,11 +25,23 @@ export async function submitApplication(event: RequestEvent, admin = false) {
 			values: Object.fromEntries(values)
 		});
 	}
+	const today = new Intl.DateTimeFormat('en-CA', {
+		timeZone: 'Europe/Bucharest',
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit'
+	}).format(new Date());
 	return {
 		received: true,
 		message: 'Cererea a fost înregistrată și așteaptă validarea.',
 		nextSteps: {
-			forChild: values.get('forChild') === 'on',
+			subject:
+				values.get('registrationFor') === 'self'
+					? 'self'
+					: String(values.get('birthDate') ?? '') >
+						  `${Number(today.slice(0, 4)) - 18}${today.slice(4)}`
+						? 'child'
+						: 'other',
 			hasMemberEmail: !!String(values.get('email') ?? '').trim()
 		}
 	};

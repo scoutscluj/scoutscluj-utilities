@@ -1,9 +1,29 @@
-jest.mock('./entities/member.entity', () => ({ ScoutMember: 'member' }));
+jest.mock('./entities/member.entity', () => ({
+  ScoutMember: 'member',
+  MemberFamilyLink: 'family-link',
+}));
 import type { EntityManager } from '@mikro-orm/postgresql';
 import { collectionAllowed } from './member-collection';
 describe('withdrawal-aware fee collection', () => {
   const em = (member: unknown) =>
     ({ findOne: () => Promise.resolve(member) }) as unknown as EntityManager;
+  it('blocks collection until the new family price has been read back from Orgo', async () => {
+    const link = {
+      sourceApplicationId: 'request',
+      plan: 'fam2',
+      priceConfirmedAt: null as Date | null,
+    };
+    const db = {
+      findOne: jest.fn((entity) =>
+        Promise.resolve(
+          entity === 'member' ? { id: 'child', status: 'active' } : link,
+        ),
+      ),
+    } as unknown as EntityManager;
+    expect(await collectionAllowed(db, 42, '2026-09-01')).toBe(false);
+    link.priceConfirmedAt = new Date();
+    expect(await collectionAllowed(db, 42, '2026-09-01')).toBe(true);
+  });
   it('does not alter legacy members outside the operational register', async () => {
     expect(await collectionAllowed(em(null), 42, '2026-09-01')).toBe(true);
   });

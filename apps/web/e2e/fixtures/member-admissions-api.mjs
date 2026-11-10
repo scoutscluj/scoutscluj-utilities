@@ -62,6 +62,14 @@ createServer(async (req, res) => {
 				createdAt: new Date().toISOString(),
 				memberId: null,
 				data: body,
+				family: {
+					version: 'fixture-family-version',
+					plan: 'fam2',
+					position: 2,
+					count: 1,
+					members: [{ name: 'Frate de test', active: true, reserved: false }],
+					choices: []
+				},
 				sync: null
 			});
 		return send({ received: true });

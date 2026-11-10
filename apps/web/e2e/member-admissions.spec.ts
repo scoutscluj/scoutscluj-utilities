@@ -17,6 +17,15 @@ test('public registration retains guardian contacts and an explicit preparatory 
 		.check();
 	await page.getByLabel('Prenumele copilului / persoanei', { exact: true }).fill('Ana');
 	await page.getByLabel('Numele de familie al copilului / persoanei', { exact: true }).fill('Test');
+	const avatar = page.getByRole('button', { name: 'Adaugă o fotografie de profil' });
+	await expect(avatar).toContainText('AT');
+	await expect(avatar).toHaveCSS('border-radius', '50%');
+	await page.getByRole('button', { name: 'Informații despre fotografia de profil' }).focus();
+	await page.keyboard.press('Enter');
+	await expect(
+		page.getByRole('dialog', { name: 'Informații despre fotografia de profil' })
+	).toContainText('maximum 2 MB');
+	await page.keyboard.press('Escape');
 	await page.getByPlaceholder('zz.ll.aaaa').fill('15.06.2020');
 	await page
 		.getByRole('combobox', { name: 'Genul copilului / persoanei', exact: true })
@@ -28,10 +37,10 @@ test('public registration retains guardian contacts and an explicit preparatory 
 	await page.getByRole('combobox', { name: 'Clasă', exact: true }).selectOption('0');
 	await page.getByRole('combobox', { name: 'Structură', exact: true }).selectOption('cluj');
 	await page.getByLabel('Ramura de vârstă').selectOption('11111111-1111-4111-8111-111111111111');
-	await page.getByLabel('Nume complet părinte / tutore', { exact: true }).fill('Părinte de test');
+	await page.getByLabel('Nume părinte', { exact: true }).fill('Părinte de test');
 	await page.getByLabel('Relația cu copilul').selectOption('Părinte');
-	await page.getByLabel('Email părinte / tutore').fill('parent@example.test');
-	await page.getByLabel('Telefon părinte / tutore').fill('0700000000');
+	await page.getByLabel('Email părinte').fill('parent@example.test');
+	await page.getByLabel('Telefon părinte').fill('0700000000');
 	await page.getByLabel('Sunt de acord ca datele').check();
 	await page.getByRole('button', { name: 'Trimite cererea de înscriere' }).click();
 	await expect(page.getByRole('heading', { name: 'Cererea a fost înregistrată' })).toBeVisible();
@@ -134,6 +143,10 @@ test('admin approval and app bootstrap remain distinct from remote completion', 
 	]);
 	await page.goto('/applications');
 	await page.getByText('Ana Test', { exact: true }).click();
+	await expect(page.getByRole('region', { name: 'Familie și cotizație' })).toContainText('Fam 2');
+	await expect(page.getByRole('region', { name: 'Familie și cotizație' })).toContainText(
+		'Frate de test'
+	);
 	await expect(page.getByRole('region', { name: 'Date membru', exact: true })).toContainText(
 		'01.01.2014'
 	);
@@ -186,6 +199,15 @@ test('other adult retains submitter contact and photograph through a duplicate-e
 		.check();
 	await page.getByLabel('Prenumele copilului / persoanei', { exact: true }).fill('Adult');
 	await page.getByLabel('Numele de familie al copilului / persoanei', { exact: true }).fill('Test');
+	const avatar = page.getByRole('button', { name: 'Adaugă o fotografie de profil' });
+	await expect(avatar).toContainText('AT');
+	await expect(avatar).toHaveCSS('border-radius', '50%');
+	await page.getByRole('button', { name: 'Informații despre fotografia de profil' }).focus();
+	await page.keyboard.press('Enter');
+	await expect(
+		page.getByRole('dialog', { name: 'Informații despre fotografia de profil' })
+	).toContainText('maximum 2 MB');
+	await page.keyboard.press('Escape');
 	await page.getByPlaceholder('zz.ll.aaaa').fill('15.06.1990');
 	await page
 		.getByRole('combobox', { name: 'Genul copilului / persoanei', exact: true })
@@ -193,7 +215,7 @@ test('other adult retains submitter contact and photograph through a duplicate-e
 	await page.getByLabel('Situație școlară').selectOption('not-in-school');
 	await page.getByRole('combobox', { name: 'Structură', exact: true }).selectOption('cluj');
 	await page.getByLabel('Emailul copilului / persoanei', { exact: true }).fill('used@example.test');
-	await expect(page.getByLabel('Email părinte / tutore')).not.toBeVisible();
+	await expect(page.getByLabel('Email părinte')).not.toBeVisible();
 	await page.getByLabel('Numele tău complet').fill('Prieten Test');
 	await page.getByLabel('Emailul tău de contact').fill('friend@example.test');
 	const photo = Buffer.from(

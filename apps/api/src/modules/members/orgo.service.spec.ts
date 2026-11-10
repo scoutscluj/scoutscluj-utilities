@@ -283,10 +283,12 @@ describe('Orgo import preview', () => {
   });
 });
 
-function fixture(writes = true, delegated = false) {
+function fixture(writes = true, delegated = false, gradeField?: string) {
   const member = {
     id: 'local',
     orgoId: 42,
+    grade: 8 as number | null,
+    structureId: 'floresti',
     orgoProfile: {} as Record<string, unknown>,
     orgoBase: {} as Record<string, unknown>,
     revision: 2,
@@ -339,6 +341,7 @@ function fixture(writes = true, delegated = false) {
       ORGO_LOCAL_CENTER_ID: '7',
       ORGO_OAUTH_BASE_URL: 'https://orgo.example.test',
       ORGO_MEMBER_WRITES_ENABLED: writes ? 'true' : 'false',
+      ORGO_GRADE_FIELD_ID: gradeField,
     }),
     delegated
       ? ({ authorizeSyncActor: authorize } as unknown as MembersService)
@@ -363,6 +366,145 @@ describe('server-token member synchronization', () => {
   const originalFetch = global.fetch;
   afterEach(() => {
     global.fetch = originalFetch;
+  });
+  it('checks exact registration emails with the live-verified read-only user filter', async () => {
+    const f = fixture();
+    const fetch = jest
+      .fn<ReturnType<typeof global.fetch>, Parameters<typeof global.fetch>>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            'hydra:member': [{ id: 42, email: 'child@example.test' }],
+            'hydra:totalItems': 1,
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ 'hydra:member': [], 'hydra:totalItems': 0 }),
+        ),
+      );
+    global.fetch = fetch;
+    await expect(
+      f.service.registrationEmailExists(' CHILD@EXAMPLE.TEST '),
+    ).resolves.toBe(true);
+    expect(fetch.mock.calls[0][0]).toEqual(
+      new URL(
+        'https://orgo.example.test/api/v1/users?email=child%40example.test',
+      ),
+    );
+    expect(fetch.mock.calls[0][1]?.method).toBe('GET');
+    await expect(
+      f.service.registrationEmailExists('new@example.test'),
+    ).resolves.toBe(false);
+  });
+  it.each([
+    {},
+    { 'hydra:member': [] },
+    { 'hydra:member': [], 'hydra:totalItems': 1 },
+    { 'hydra:member': [], 'hydra:totalItems': -1 },
+    {
+      'hydra:member': [{ id: 42, email: 'other@example.test' }],
+      'hydra:totalItems': 1,
+    },
+  ])(
+    'rejects incomplete results and ignored exact filters: %j',
+    async (payload) => {
+      const f = fixture();
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify(payload)));
+      await expect(
+        f.service.registrationEmailExists('child@example.test'),
+      ).rejects.toThrow('confirmat');
+    },
+  );
+  it('merges the latest remote biography with readable grade and structure, verifies it and avoids duplicates', async () => {
+    const f = fixture();
+    f.operation.kind = 'grade';
+    Object.assign(f.operation, { payload: { grade: 8 }, baseline: {} });
+    f.member.orgoProfile.bio = 'Descriere veche.';
+    let bio =
+      'Îmi place natura.\n\nDate de membru Scouts Cluj\nClasa: a VII-a\nStructura: Cluj\n\nText adăugat în Orgo.';
+    const fetch = jest
+      .fn<ReturnType<typeof global.fetch>, Parameters<typeof global.fetch>>()
+      .mockImplementation((_url, init) => {
+        if (init?.method === 'PATCH') {
+          if (typeof init.body !== 'string')
+            throw new Error('Expected JSON body');
+          const patch = JSON.parse(init.body) as { bio: string };
+          bio = patch.bio;
+        }
+        return Promise.resolve(
+          new Response(JSON.stringify({ id: 42, localCenter: { id: 7 }, bio })),
+        );
+      });
+    global.fetch = fetch;
+    await f.service.run();
+    expect(f.operation.state).toBe('synced');
+    expect(bio).toBe(
+      'Îmi place natura.\n\nDate de membru Scouts Cluj\nClasa: a VIII-a\nStructura: Florești\n\nText adăugat în Orgo.',
+    );
+    expect(f.member.orgoBase.bio).toBe(bio);
+    f.operation.state = 'pending';
+    fetch.mockClear();
+    await f.service.run();
+    expect(f.operation.state).toBe('synced');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it('does not replay an obsolete grade into the biography', async () => {
+    const f = fixture();
+    f.operation.kind = 'grade';
+    Object.assign(f.operation, { payload: { grade: 7 }, baseline: {} });
+    const fetch = jest.fn().mockResolvedValue(response());
+    global.fetch = fetch;
+    await f.service.run();
+    expect(f.operation.state).toBe('superseded');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it('keeps a configured native grade field instead of writing the grade to bio', async () => {
+    const f = fixture(true, false, '123');
+    f.operation.kind = 'grade';
+    Object.assign(f.operation, { payload: { grade: 8 }, baseline: {} });
+    const fetch = jest
+      .fn<ReturnType<typeof global.fetch>, Parameters<typeof global.fetch>>()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ id: 42, localCenter: { id: 7 } })),
+      );
+    // Use fresh responses because each read consumes the body.
+    fetch.mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ id: 42, localCenter: { id: 7 } })),
+      ),
+    );
+    global.fetch = fetch;
+    await f.service.run();
+    const patch = fetch.mock.calls.find(
+      ([, init]) => init?.method === 'PATCH',
+    )?.[1];
+    if (typeof patch?.body !== 'string') throw new Error('Expected JSON body');
+    expect(JSON.parse(patch.body)).toEqual({
+      rawUserCustomFieldsValues: { '123': 8 },
+    });
+    expect(f.operation.state).toBe('uncertain');
+  });
+  it('sends structure-only updates to bio and requires a successful readback', async () => {
+    const f = fixture(true, false, '123');
+    f.operation.kind = 'bio';
+    Object.assign(f.operation, { payload: {}, baseline: {} });
+    const fetch = jest
+      .fn<ReturnType<typeof global.fetch>, Parameters<typeof global.fetch>>()
+      .mockImplementation(() => Promise.resolve(response()));
+    global.fetch = fetch;
+    await f.service.run();
+    const patch = fetch.mock.calls.find(
+      ([, init]) => init?.method === 'PATCH',
+    )?.[1];
+    if (typeof patch?.body !== 'string') throw new Error('Expected JSON body');
+    expect(JSON.parse(patch.body)).toEqual({
+      bio: 'Date de membru Scouts Cluj\nStructura: Florești',
+    });
+    expect(f.operation.state).toBe('uncertain');
   });
   it('uses only Api-Token, verifies the local center and confirms writes by readback', async () => {
     const f = fixture();

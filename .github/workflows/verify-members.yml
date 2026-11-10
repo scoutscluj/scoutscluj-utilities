@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
@@ -39,10 +39,14 @@ jobs:
       - run: pnpm --filter api typecheck
       - run: pnpm --filter api test --runInBand
       - run: pnpm --filter api build
+      - run: pnpm --filter api test:activity-registration:deletion
       - name: Render and inspect the supplied fixed agreement
+        timeout-minutes: 10
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends libreoffice-writer fonts-crosextra-carlito fonts-liberation python3-lxml python3-pypdf python3-reportlab poppler-utils
+          printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          printf '%s\n' 'https://security.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors-security.txt >/dev/null
+          sudo apt-get -o Acquire::ForceIPv4=true -o Acquire::Retries=2 update -qq
+          sudo apt-get -o Acquire::ForceIPv4=true -o Acquire::Retries=2 install -y --no-install-recommends libreoffice-writer fonts-crosextra-carlito fonts-liberation python3-lxml python3-pypdf python3-reportlab poppler-utils
           pnpm --filter api exec tsx test/fixed-consent.smoke.ts
           pdftoppm -scale-to 1100 -png tmp/fixed-consent/acord.pdf tmp/fixed-consent/page
       - uses: actions/upload-artifact@v4
@@ -76,6 +80,7 @@ jobs:
         run: |
           pnpm --filter web exec playwright install --with-deps --no-shell chromium
           pnpm --filter web exec playwright test --config playwright.registration.config.ts
+          pnpm --filter web exec playwright test --config playwright.admissions.config.ts
           pnpm --filter web exec playwright test --config playwright.members.config.ts
           pnpm --filter web exec playwright test --config playwright.profile.config.ts --grep "creates through|validates required"
           pnpm --filter web exec playwright test --config playwright.membership.config.ts e2e/membership-finance.spec.ts --grep "member modal saves cash|receipts modal accepts cash|bank admission can share"

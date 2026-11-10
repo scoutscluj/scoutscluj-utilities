@@ -1,4 +1,4 @@
-export type AdmissionUnit = { id: string; name: string; structureId: string };
+export type AdmissionUnit = { id: string; name: string; structureId: string; branch?: string };
 export type Application = {
 	id: string;
 	unitId: string | null;
@@ -8,6 +8,7 @@ export type Application = {
 	createdAt: string;
 	memberId: string | null;
 	data: {
+		structureId?: string;
 		firstName: string;
 		lastName: string;
 		birthDate: string;

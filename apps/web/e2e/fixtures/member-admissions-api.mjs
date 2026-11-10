@@ -1,6 +1,12 @@
 // Synthetic UI fixture. No production credentials, emails or Orgo calls.
 import { createServer } from 'node:http';
 const unit = { id: '11111111-1111-4111-8111-111111111111', name: 'Temerari', structureId: 'cluj' };
+const florestiUnit = {
+	id: '33333333-3333-4333-8333-333333333333',
+	name: 'Temerari',
+	structureId: 'floresti',
+	branch: 'temerari'
+};
 let rows = [],
 	starts = 0;
 createServer(async (req, res) => {
@@ -25,18 +31,26 @@ createServer(async (req, res) => {
 		return send({ id: 1, displayName: 'Admin de test', roles: ['super_admin'] });
 	if (['/api/activities', '/api/activity-registrations/eligible'].includes(path)) return send([]);
 	if (path === '/api/adult-documents/access') return send({ admin: true });
-	if (path === '/api/member-applications/options') return send({ units: [unit] });
+	if (path === '/api/member-applications/options') return send({ units: [unit, florestiUnit] });
 	if (path === '/api/members/orgo/bootstrap') {
 		if (req.method === 'POST') starts++;
 		return send({ state: 'succeeded', lastSucceededAt: new Date().toISOString() });
 	}
 	if (path === '/api/members/orgo/outbox') return send({ members: [], objects: [] });
 	if (path === '/api/member-applications' && req.method === 'GET')
-		return send({ admin: true, units: [unit], applications: rows });
+		return send({ admin: true, units: [unit, florestiUnit], applications: rows });
 	if (
 		['/api/member-applications', '/api/member-applications/create'].includes(path) &&
 		req.method === 'POST'
 	) {
+		if (body.email?.trim().toLowerCase() === 'used@example.test')
+			return send(
+				{
+					message:
+						'Acest email este deja folosit pentru un cont sau o cerere de înscriere. Nu îl refolosi pentru alt membru.'
+				},
+				400
+			);
 		if (!rows.some((r) => r.requestKey === body.requestKey))
 			rows.push({
 				id: '22222222-2222-4222-8222-222222222222',

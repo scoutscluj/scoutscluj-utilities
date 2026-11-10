@@ -3,6 +3,7 @@ import { bodyObject, dateValue, stringValue } from './member-input';
 import { localDate } from './member.types';
 
 export type AdmissionData = {
+  structureId?: 'cluj' | 'floresti';
   firstName: string;
   lastName: string;
   birthDate: string;
@@ -27,6 +28,12 @@ export function admissionData(
   today = localDate(new Date()),
 ): AdmissionData {
   const b = bodyObject(input);
+  if (
+    b.structureId != null &&
+    (typeof b.structureId !== 'string' ||
+      !['cluj', 'floresti'].includes(b.structureId))
+  )
+    throw new BadRequestException('Alege structura Cluj sau Florești.');
   const firstName = stringValue(b.firstName, 120),
     lastName = stringValue(b.lastName, 120);
   if (!firstName || !lastName)
@@ -77,6 +84,9 @@ export function admissionData(
       'Emailul copilului trebuie să fie distinct de emailul părintelui; îl poți lăsa necompletat.',
     );
   return {
+    ...(b.structureId
+      ? { structureId: b.structureId as 'cluj' | 'floresti' }
+      : {}),
     firstName,
     lastName,
     birthDate,

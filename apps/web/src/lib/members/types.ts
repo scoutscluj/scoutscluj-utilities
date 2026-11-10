@@ -232,5 +232,12 @@ export function memberPlacement(units: Unit[], member: Member) {
 				.join(', ') || '—'
 		);
 	}
-	return `${unitName(units, member.unitId)} / ${member.groupId ? unitName(units, member.groupId) : 'Nerepartizat'}`;
+	return (
+		[
+			member.unitId ? unitName(units, member.unitId) : '',
+			member.groupId ? unitName(units, member.groupId) : ''
+		]
+			.filter(Boolean)
+			.join(' / ') || '—'
+	);
 }

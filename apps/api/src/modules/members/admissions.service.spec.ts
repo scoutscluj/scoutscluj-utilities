@@ -54,7 +54,16 @@ function fixture(admin = false, config: Record<string, string> = {}) {
     Promise.resolve({ admin, unitIds: ['own-unit'] }),
   );
   const tx = {
-    execute: jest.fn(() => Promise.resolve([])),
+    execute: jest.fn(
+      (
+        _sql?: string,
+        _params?: unknown[],
+      ): Promise<Record<string, unknown>[]> => {
+        void _sql;
+        void _params;
+        return Promise.resolve([]);
+      },
+    ),
     findOneOrFail: jest.fn(
       (entity: unknown): Promise<Record<string, unknown>> =>
         Promise.resolve(
@@ -65,7 +74,16 @@ function fixture(admin = false, config: Record<string, string> = {}) {
               : {},
         ),
     ),
-    findOne: jest.fn(() => Promise.resolve(null)),
+    findOne: jest.fn(
+      (
+        _entity: unknown,
+        _where: unknown,
+      ): Promise<Record<string, unknown> | null> => {
+        void _entity;
+        void _where;
+        return Promise.resolve(null);
+      },
+    ),
     nativeUpdate: jest.fn(
       (_entity: unknown, _where: unknown, update: Record<string, unknown>) => {
         Object.assign(application, update);
@@ -104,6 +122,7 @@ function fixture(admin = false, config: Record<string, string> = {}) {
       },
     ),
     registerDelivery: jest.fn(),
+    registrationEmailExists: jest.fn(() => Promise.resolve(false)),
   };
   const service = new AdmissionsService(
     em as unknown as EntityManager,
@@ -173,6 +192,107 @@ describe('admission review authorization and provisioning', () => {
   });
 });
 
+describe('registration structure and account email validation', () => {
+  const input = {
+    requestKey: '22222222-2222-4222-8222-222222222222',
+    firstName: 'Ana',
+    lastName: 'Test',
+    birthDate: '2014-01-01',
+    schooling: 'grade',
+    grade: 6,
+    structureId: 'floresti',
+    email: 'child@example.test',
+    forChild: true,
+    consent: true,
+    guardianName: 'Parent',
+    guardianEmail: 'parent@example.test',
+    guardianPhone: '0700',
+    guardianRelation: 'Părinte',
+  };
+  it('persists the selected structure even when requesting branch guidance', async () => {
+    const f = fixture();
+    await f.service.submit(input);
+    expect(
+      f.created.find((r) => r.entity === 'application')?.value.data,
+    ).toMatchObject({ structureId: 'floresti' });
+    expect(f.orgo.registrationEmailExists).toHaveBeenCalledWith(
+      'child@example.test',
+    );
+  });
+  it('retains Florești on approval when no branch has been selected', async () => {
+    const f = fixture(true);
+    Object.assign(f.application, { unitId: null });
+    Object.assign(f.application.data, { structureId: 'floresti' });
+    await f.service.review(f.user, 'request', {
+      revision: 1,
+      action: 'approve',
+    });
+    expect(f.created.find((r) => r.entity === 'member')?.value).toMatchObject({
+      structureId: 'floresti',
+      unitId: null,
+    });
+  });
+  it('rejects a unit from a different structure on the server', async () => {
+    const f = fixture();
+    f.tx.findOne.mockImplementation((entity) =>
+      Promise.resolve(
+        entity === 'unit' ? { id: 'unit', structureId: 'cluj' } : null,
+      ),
+    );
+    await expect(
+      f.service.submit({ ...input, unitId: 'unit' }),
+    ).rejects.toThrow('structurii');
+    expect(f.created).toHaveLength(0);
+  });
+  it('rejects a normalized email already used by a local account, member or active application', async () => {
+    const f = fixture();
+    f.tx.execute.mockImplementation((sql) =>
+      Promise.resolve(
+        sql?.includes('select true as used') ? [{ used: true }] : [],
+      ),
+    );
+    await expect(
+      f.service.submit({ ...input, email: ' CHILD@EXAMPLE.TEST ' }),
+    ).rejects.toThrow('deja folosit');
+    expect(f.orgo.registrationEmailExists).not.toHaveBeenCalled();
+    expect(f.created).toHaveLength(0);
+    expect(
+      f.tx.execute.mock.calls.find(([sql]) =>
+        sql?.includes('select true as used'),
+      )?.[1]?.[0],
+    ).toBe('child@example.test');
+  });
+  it('rejects an email already used in Orgo and does not accept an unverified result', async () => {
+    const f = fixture();
+    f.orgo.registrationEmailExists.mockResolvedValue(true);
+    await expect(f.service.submit(input)).rejects.toThrow('deja folosit');
+    f.orgo.registrationEmailExists.mockRejectedValue(new Error('Unavailable'));
+    await expect(f.service.submit(input)).rejects.toThrow(
+      'Nu am putut verifica',
+    );
+    expect(f.created).toHaveLength(0);
+  });
+  it('allows siblings to share guardian contact without using it as the member email', async () => {
+    const f = fixture();
+    await f.service.submit({ ...input, email: '' });
+    expect(f.orgo.registrationEmailExists).not.toHaveBeenCalled();
+    expect(f.created[0].value.data).toMatchObject({
+      email: '',
+      guardianEmail: 'parent@example.test',
+    });
+  });
+  it('does not disclose or revalidate the data of a replayed request key', async () => {
+    const f = fixture();
+    f.tx.findOne.mockResolvedValue({
+      id: 'prior',
+      data: { email: 'private@example.test' },
+    });
+    await expect(f.service.submit(input)).resolves.toEqual({ received: true });
+    expect(f.created).toHaveLength(0);
+    expect(f.orgo.registrationEmailExists).not.toHaveBeenCalled();
+  });
+});
+
 function deliveryFixture() {
   const f = fixture(false, {
     ORGO_MEMBER_CREATION_ENABLED: 'true',
@@ -217,6 +337,19 @@ function deliveryFixture() {
   return { ...f, job, member };
 }
 describe('admission provisioning result correlation', () => {
+  it('checks email again before recording a creation attempt and never sends a duplicate create', async () => {
+    const f = deliveryFixture();
+    f.application.data.email = 'child@example.test';
+    f.orgo.registrationEmailExists.mockResolvedValue(true);
+    await f.service.deliver('job');
+    expect(f.orgo.registrationEmailExists).toHaveBeenCalledWith(
+      'child@example.test',
+    );
+    expect(f.orgo.serverRequest).not.toHaveBeenCalled();
+    expect(f.application).toMatchObject({ attemptedAt: null });
+    expect(f.job.state).toBe('permission-required');
+    expect(f.job.message).toContain('deja folosit');
+  });
   it('does not repeat a POST after a remote timeout that may have created the account', async () => {
     const f = deliveryFixture();
     f.orgo.serverRequest.mockRejectedValue(new OrgoRequestError(504));

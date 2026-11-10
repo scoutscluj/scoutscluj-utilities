@@ -2,6 +2,59 @@ import { expect, test } from '@playwright/test';
 test.beforeEach(async ({ request }) => {
 	await request.post('http://127.0.0.1:3019/test/reset');
 });
+for (const width of [1280, 390]) {
+	test(`organizer confirms or cancels permanent registration deletion at ${width}px`, async ({
+		page,
+		request
+	}) => {
+		await request.post('http://127.0.0.1:3019/test/configure', {
+			data: { row: { state: 'withdrawn', cashBani: 0, supportBani: 0 } }
+		});
+		await page.setViewportSize({ width, height: 844 });
+		await page
+			.context()
+			.addCookies([
+				{ name: 'scoutscluj_session', value: 'synthetic-admin', url: 'http://127.0.0.1:5186' }
+			]);
+		await page.goto('/activities/1/registrations');
+		await page.getByRole('button', { name: 'Acțiuni pentru Participant de test' }).click();
+		await page.getByRole('menuitem', { name: 'Șterge complet înscrierea' }).click();
+		const dialog = page.getByRole('dialog');
+		await expect(dialog).toContainText('Participant de test');
+		await expect(dialog).toContainText('Acțiunea nu poate fi anulată.');
+		await page.screenshot({ path: `../../tmp/registration-delete-${width}.png`, fullPage: true });
+		await dialog.getByRole('button', { name: 'Închide dialogul' }).click();
+		expect((await (await request.get('http://127.0.0.1:3019/test/row')).json()).id).toBeTruthy();
+		await page.getByRole('button', { name: 'Acțiuni pentru Participant de test' }).click();
+		await page.getByRole('menuitem', { name: 'Șterge complet înscrierea' }).click();
+		await dialog.getByRole('button', { name: 'Șterge definitiv înscrierea' }).click();
+		await expect(dialog).not.toBeVisible();
+		await expect(page.getByRole('main')).toContainText('Înscrierea a fost ștearsă complet.');
+		await expect(
+			page.getByRole('heading', { name: 'Nicio înscriere în această selecție' })
+		).toBeVisible();
+		expect(await (await request.get('http://127.0.0.1:3019/test/row')).json()).toBeNull();
+		await page.reload();
+		await expect(
+			page.getByRole('heading', { name: 'Nicio înscriere în această selecție' })
+		).toBeVisible();
+	});
+}
+
+test('financial history blocks deletion and keeps the confirmation open', async ({ page }) => {
+	await page
+		.context()
+		.addCookies([
+			{ name: 'scoutscluj_session', value: 'synthetic-admin', url: 'http://127.0.0.1:5186' }
+		]);
+	await page.goto('/activities/1/registrations');
+	await page.getByRole('button', { name: 'Acțiuni pentru Participant de test' }).click();
+	await page.getByRole('menuitem', { name: 'Șterge complet înscrierea' }).click();
+	const dialog = page.getByRole('dialog');
+	await dialog.getByRole('button', { name: 'Șterge definitiv înscrierea' }).click();
+	await expect(dialog.getByRole('alert')).toContainText('Folosește retragerea');
+	await expect(dialog.getByRole('button', { name: 'Șterge definitiv înscrierea' })).toBeEnabled();
+});
 test('guest starts with empty answers and can only pay after registration', async ({ page }) => {
 	await page.goto('/activitati/1');
 	await expect(page.getByRole('heading', { name: 'Camp de test — Cântul Vâlvelor' })).toBeVisible();

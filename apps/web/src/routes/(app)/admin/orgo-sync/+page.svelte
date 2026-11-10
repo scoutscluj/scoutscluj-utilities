@@ -5,6 +5,7 @@
 		assignment: 'Repartizare',
 		progression: 'Progresie',
 		grade: 'Clasă',
+		bio: 'Descriere membru',
 		status: 'Status membru',
 		'orgo-profile': 'Fișă Orgo',
 		profile: 'Identitate',

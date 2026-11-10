@@ -63,6 +63,11 @@ describe('member placement and school grades', () => {
 	it('keeps school grade and primary placement for beneficiaries', () => {
 		const child = { ...adult, category: 'temerari', adultKind: null, unitId: 'temerari' };
 		expect(hasSchoolGrade(child)).toBe(true);
-		expect(memberPlacement(units, child)).toBe('Temerari / Nerepartizat');
+		expect(memberPlacement(units, child)).toBe('Temerari');
+		expect(memberPlacement(units, { ...child, unitId: null })).toBe('—');
+		const group = { ...units[1], id: 'group', name: 'Patrula de test', parentId: 'temerari' };
+		expect(memberPlacement([...units, group], { ...child, groupId: 'group' })).toBe(
+			'Temerari / Patrula de test'
+		);
 	});
 });

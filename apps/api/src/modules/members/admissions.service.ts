@@ -3,6 +3,7 @@ import {
   BadRequestException,
   ForbiddenException,
   ConflictException,
+  ServiceUnavailableException,
   type OnModuleInit,
 } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/postgresql';
@@ -46,9 +47,45 @@ export class AdmissionsService implements OnModuleInit {
     return {
       units: rows
         .filter((u) => !['lideri', 'scouteri'].includes(u.branch))
-        .map((u) => ({ id: u.id, name: u.name, structureId: u.structureId })),
+        .map((u) => ({
+          id: u.id,
+          name: u.name,
+          branch: u.branch,
+          structureId: u.structureId,
+        })),
       consentVersion: '2026-11-02',
     };
+  }
+  private async checkMemberEmail(
+    tx: EntityManager,
+    email: string,
+    applicationId: string | null = null,
+    memberId: string | null = null,
+  ) {
+    if (!email) return;
+    const matches = await tx.execute<{ used: boolean }[]>(
+      `
+      select true as used where
+        exists (select 1 from users where lower(trim(email)) = ?)
+        or exists (select 1 from scout_members where lower(trim(profile->>'email')) = ? and (?::uuid is null or id <> ?::uuid))
+        or exists (select 1 from member_applications where lower(trim(data->>'email')) = ? and state in ('pending', 'needs-information', 'approved') and (?::uuid is null or id <> ?::uuid))
+      limit 1`,
+      [email, email, memberId, memberId, email, applicationId, applicationId],
+    );
+    let exists = matches.length > 0;
+    if (!exists) {
+      try {
+        exists = await this.orgo.registrationEmailExists(email);
+      } catch {
+        throw new ServiceUnavailableException(
+          'Nu am putut verifica emailul în Orgo. Reîncearcă mai târziu.',
+        );
+      }
+    }
+    if (exists)
+      throw new BadRequestException(
+        'Acest email este deja folosit pentru un cont sau o cerere de înscriere. Nu îl refolosi pentru alt membru. Dacă ai deja cont Orgo, autentifică-te; pentru un copil fără email propriu, lasă acest câmp necompletat.',
+      );
   }
   async submit(input: unknown, actor?: CurrentUser) {
     const b = bodyObject(input),
@@ -64,18 +101,25 @@ export class AdmissionsService implements OnModuleInit {
       const previous = await tx.findOne(MemberApplication, { requestKey: key });
       // Public responses deliberately never reveal an existing record's personal data.
       if (previous) return { received: true };
-      if (
-        unitId &&
-        !(await tx.findOne(ScoutUnit, {
-          id: unitId,
-          archived: false,
-          fixed: true,
-          parentId: null,
-        }))
-      )
+      const unit = unitId
+        ? await tx.findOne(ScoutUnit, {
+            id: unitId,
+            archived: false,
+            fixed: true,
+            parentId: null,
+          })
+        : null;
+      if (unitId && !unit)
         throw new BadRequestException(
           'Unitatea solicitată nu este disponibilă.',
         );
+      if (unit && data.structureId && unit.structureId !== data.structureId)
+        throw new BadRequestException(
+          'Ramura aleasă nu aparține structurii selectate.',
+        );
+      data.structureId ??=
+        unit?.structureId === 'floresti' ? 'floresti' : 'cluj';
+      await this.checkMemberEmail(tx, data.email);
       tx.create(MemberApplication, {
         requestKey: key,
         data,
@@ -271,6 +315,10 @@ export class AdmissionsService implements OnModuleInit {
               archived: false,
             })
           : null;
+        if (unit && data.structureId && unit.structureId !== data.structureId)
+          throw new BadRequestException(
+            'Ramura aleasă nu aparține structurii selectate.',
+          );
         const memberData = {
           name: `${data.firstName} ${data.lastName}`,
           birthDate: data.birthDate,
@@ -283,7 +331,7 @@ export class AdmissionsService implements OnModuleInit {
             parentEmail: data.guardianEmail,
           },
           grade: data.grade,
-          structureId: unit?.structureId ?? 'cluj',
+          structureId: unit?.structureId ?? data.structureId ?? 'cluj',
           structureConfirmed: true,
           unitId: unit?.id ?? null,
           category: unit?.branch ?? null,
@@ -415,6 +463,8 @@ export class AdmissionsService implements OnModuleInit {
           message =
             'O creare anterioară poate fi reușită. Verifică Orgo și asociază ID-ul; nu se retrimite automat.';
         } else {
+          // Recheck after approval, before marking any remote creation attempt.
+          await this.checkMemberEmail(tx, row.data.email, row.id, member.id);
           await tx.nativeUpdate(
             MemberApplication,
             { id: row.id },
@@ -564,6 +614,7 @@ export class AdmissionsService implements OnModuleInit {
           this.members.queue(em, m, account.id, 'grade', { grade: m.grade });
           this.members.queue(em, m, account.id, 'assignment', {
             unitId: m.unitId,
+            structureId: m.structureId,
             admission: true,
           });
           em.create(AuditEntry, {
@@ -589,7 +640,8 @@ export class AdmissionsService implements OnModuleInit {
         message = 'Orgo este temporar indisponibil. Se va verifica din nou.';
       } else if (
         error instanceof BadRequestException ||
-        error instanceof ConflictException
+        error instanceof ConflictException ||
+        error instanceof ServiceUnavailableException
       )
         message = error.message;
       else if (error instanceof ForbiddenException)

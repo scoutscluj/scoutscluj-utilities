@@ -18,6 +18,19 @@
 	let birthDate = $state(untrack(() => String(values.birthDate ?? '')));
 	let forChild = $state(untrack(() => values.forChild === 'on' || values.forChild === true));
 	let schooling = $state(untrack(() => String(values.schooling ?? '')));
+	let structureId = $state(
+		untrack(() =>
+			String(values.structureId ?? units.find((u) => u.id === values.unitId)?.structureId ?? '')
+		)
+	);
+	let unitId = $state(untrack(() => String(values.unitId ?? '')));
+	const branchLabels: Record<string, string> = {
+		lupisori: 'Lupișori',
+		temerari: 'Temerari',
+		exploratori: 'Exploratori',
+		seniori: 'Seniori',
+		voluntari: 'Voluntari adulți'
+	};
 	const today = new Intl.DateTimeFormat('en-CA', {
 		timeZone: 'Europe/Bucharest',
 		year: 'numeric',
@@ -87,31 +100,52 @@
 			{#if schooling === 'grade'}<label
 					>Clasă <select name="grade" required value={String(values.grade ?? '')}
 						><option value="" disabled>Alege clasa</option
-						>{#each Array.from({ length: 13 }, (_, n) => n) as grade}<option value={grade}
+						>{#each Array.from({ length: 13 }, (_, n) => n) as grade (grade)}<option value={grade}
 								>{grade === 0 ? 'Pregătitoare' : `Clasa ${grade}`}</option
 							>{/each}</select
 					></label
 				>{/if}
 			<label
-				>Unitatea în care dorești înscrierea <select
-					name="unitId"
-					value={String(values.unitId ?? '')}
-					><option value="">Am nevoie de îndrumare</option>{#each units as unit}<option
-							value={unit.id}
-							>{unit.name} · {unit.structureId === 'floresti' ? 'Florești' : 'Cluj'}</option
+				>Structură <select
+					name="structureId"
+					required
+					bind:value={structureId}
+					onchange={() => {
+						unitId = '';
+					}}
+				>
+					<option value="" disabled>Alege structura</option>
+					<option value="cluj">Cluj</option><option value="floresti">Florești</option>
+				</select></label
+			>
+			<label
+				>Ramura de vârstă <select name="unitId" bind:value={unitId} disabled={!structureId}
+					><option value="">Am nevoie de îndrumare</option
+					>{#each units.filter((u) => u.structureId === structureId) as unit (unit.id)}<option
+							value={unit.id}>{branchLabels[unit.branch ?? ''] ?? unit.name}</option
 						>{/each}</select
 				></label
 			>
-			<label
-				>Email{minor || forChild ? ' propriu, dacă există' : ''}
-				<input
-					type="email"
-					name="email"
-					autocomplete="email"
-					required={!minor && !forChild}
-					value={String(values.email ?? '')}
-				/></label
-			>
+			<div class="email-field">
+				<label
+					>Email{minor || forChild ? ' propriu, dacă există' : ''}
+					<input
+						type="email"
+						name="email"
+						aria-describedby="member-email-hint"
+						autocomplete="email"
+						required={!minor && !forChild}
+						value={String(values.email ?? '')}
+					/></label
+				>
+				<small id="member-email-hint" class="hint"
+					>{#if minor || forChild}De preferat emailul propriu al copilului, dacă are. Dacă nu are,
+						lasă câmpul gol. Nu folosi emailul părintelui sau o adresă folosită deja pentru alt cont
+						Orgo ori alt membru.{:else}Folosește emailul tău propriu. Dacă ai deja un cont Orgo cu
+						această adresă, autentifică-te în loc să trimiți o cerere nouă.{/if} Verificăm adresa înainte
+					de trimiterea cererii.</small
+				>
+			</div>
 			<label
 				>Telefon{minor || forChild ? ' propriu, dacă există' : ''}
 				<input
@@ -170,8 +204,13 @@
 		</fieldset>
 	{/if}
 	<label class="check"
-		><input type="checkbox" name="consent" required /> Sunt de acord ca datele să fie folosite pentru
-		procesarea înscrierii în centrul local și administrarea participării la cercetășie.</label
+		><input
+			type="checkbox"
+			name="consent"
+			required
+			checked={values.consent === 'on' || values.consent === true}
+		/> Sunt de acord ca datele să fie folosite pentru procesarea înscrierii în centrul local și administrarea
+		participării la cercetășie.</label
 	>
 	<p class="hint">
 		Cererea va fi verificată de un admin sau de un lider al unității alese. Contul Orgo este creat
@@ -200,6 +239,11 @@
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 16px;
+	}
+	.email-field {
+		display: grid;
+		gap: 8px;
+		align-content: start;
 	}
 	label {
 		display: grid;

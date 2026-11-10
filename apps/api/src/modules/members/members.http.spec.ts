@@ -405,6 +405,15 @@ describe('member HTTP scope and lifecycle', () => {
         structureId: 'floresti',
         unitId: null,
       });
+    for (const memberId of [childId, otherId])
+      expect(f.list('sync')).toContainEqual(
+        expect.objectContaining({
+          memberId,
+          kind: 'bio',
+          state: 'pending',
+          actorId: 2,
+        }),
+      );
     await http()
       .post('/members/bulk')
       .set('x-actor', '2')

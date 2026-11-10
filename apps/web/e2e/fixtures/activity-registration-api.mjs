@@ -344,7 +344,7 @@ createServer(async (req, res) => {
 				sensitive: true,
 				consent: true
 			},
-			rows: [row],
+			rows: row ? [row] : [],
 			lists,
 			priceAdvice: {
 				recommendedBani: 51000,
@@ -454,6 +454,21 @@ createServer(async (req, res) => {
 			503
 		);
 	if (req.method === 'PATCH' && path.endsWith(`/registrations/${id}`)) {
+		if (input.action === 'delete') {
+			if (input.revision !== row.revision)
+				return send(res, { message: 'Înscriere modificată. Reîncarcă.' }, 409);
+			if (row.cashBani || row.supportBani || row.entries.length || row.payments.length)
+				return send(
+					res,
+					{
+						message:
+							'Înscrierea are înregistrări financiare sau încercări de plată și nu poate fi ștearsă. Folosește retragerea pentru a păstra evidența.'
+					},
+					409
+				);
+			row = null;
+			return send(res, { success: true });
+		}
 		if (input.action === 'signed_accepted') row.consentState = 'signed_accepted';
 		if (input.action === 'receipt') {
 			row.cashBani += input.amountBani;

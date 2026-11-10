@@ -315,6 +315,7 @@ test('keeps the member header compact and shows Orgo updates in the context menu
 	});
 	await page.goto('/units');
 	await expect(page.getByRole('heading', { name: 'Membri și unități', exact: true })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Cereri de înscriere', exact: true })).toHaveCount(0);
 	await expect(page.getByRole('heading', { name: 'Membri primiți în unitate' })).toHaveCount(0);
 	await expect(page.getByRole('button', { name: /Istoric transferuri/ })).toHaveCount(0);
 	await expect(page.locator('tbody')).not.toContainText('Nerepartizat');
@@ -328,6 +329,9 @@ test('keeps the member header compact and shows Orgo updates in the context menu
 	expect(Math.abs(heading!.y - summary!.y)).toBeLessThan(24);
 	await page.screenshot({ path: '../../tmp/member-header-desktop.png', fullPage: true });
 	await page.getByRole('button', { name: 'Mai multe acțiuni pentru registru' }).click();
+	await expect(
+		page.getByRole('menuitem', { name: 'Cereri de înscriere', exact: true })
+	).toBeVisible();
 	await page.getByRole('menuitem', { name: 'Actualizări Orgo', exact: true }).click();
 	const refresh = page.getByRole('dialog', { name: 'Actualizări Orgo', exact: true });
 	await expect(refresh).toBeVisible();

@@ -165,6 +165,7 @@ test('admin approval and app bootstrap remain distinct from remote completion', 
 	await page.getByText('Solicită completări sau respinge', { exact: true }).click();
 	await page.setViewportSize({ width: 1280, height: 900 });
 	await page.getByRole('button', { name: 'Confirmă înscrierea', exact: true }).click();
+	await expect(page.getByText('Decizia a fost salvată.', { exact: false })).toBeVisible();
 	await page.getByRole('combobox', { name: 'Stare', exact: true }).selectOption('approved');
 	await expect(page.getByText('Aprobată', { exact: true })).toBeVisible();
 	await page.getByText('Ana Test', { exact: true }).click();
@@ -193,6 +194,7 @@ test('other adult retains submitter contact and photograph through a duplicate-e
 	await expect(page.getByRole('status')).toContainText('Instrucțiuni copiate.');
 	const guide = await page.evaluate(() => navigator.clipboard.readText());
 	expect(guide).toContain('http://127.0.0.1:5197/register');
+	expect(guide).toContain('http://127.0.0.1:5197/tutorial-inscriere');
 	expect(guide).toContain('Nu este nevoie să configurezi profilul');
 	await page
 		.getByRole('radio', { name: 'Pentru copilul meu / altă persoană', exact: false })
@@ -251,4 +253,85 @@ test('other adult retains submitter contact and photograph through a duplicate-e
 		gender: 'M'
 	});
 	expect(state.rows[0].data.photo).toContain('data:image/png;base64,');
+});
+
+test('parent tutorial plays the published media and chapters without horizontal overflow', async ({
+	page
+}) => {
+	await page.goto('/register');
+	await page
+		.getByRole('link', { name: 'Vezi tutorialul video pentru părinți', exact: false })
+		.click();
+	await expect(
+		page.getByRole('heading', { name: 'Înscrierea copilului și accesul în Resurse', exact: true })
+	).toBeVisible();
+	const video = page.locator('video');
+	await expect.poll(() => video.evaluate((el) => el.readyState)).toBeGreaterThanOrEqual(1);
+	const metadata = await video.evaluate((el) => ({
+		duration: el.duration,
+		width: el.videoWidth,
+		height: el.videoHeight
+	}));
+	expect(metadata.duration).toBeCloseTo(162, 0);
+	expect(metadata.width).toBe(1600);
+	expect(metadata.height).toBe(900);
+	await video.evaluate((el) => {
+		el.muted = true;
+	});
+	await page.getByRole('button', { name: /Emailul pentru cont/ }).click();
+	await expect.poll(() => video.evaluate((el) => el.currentTime)).toBeGreaterThanOrEqual(52.35);
+	await expect(page.getByRole('button', { name: /Emailul pentru cont/ })).toHaveAttribute(
+		'aria-current',
+		'step'
+	);
+	await video.evaluate((el) => el.pause());
+	const changedPixels = await video.evaluate(async (el) => {
+		const canvas = document.createElement('canvas');
+		canvas.width = 160;
+		canvas.height = 180;
+		const context = canvas.getContext('2d')!;
+		const sample = async (time: number) => {
+			const seeked = new Promise<void>((resolve) =>
+				el.addEventListener('seeked', () => resolve(), { once: true })
+			);
+			el.currentTime = time;
+			await seeked;
+			await new Promise(requestAnimationFrame);
+			context.drawImage(el, 1130, 250, 425, 450, 0, 0, 160, 180);
+			return context.getImageData(0, 0, 160, 180).data;
+		};
+		const before = await sample(26.5),
+			after = await sample(28.5);
+		let changed = 0;
+		for (let i = 0; i < before.length; i += 4)
+			if (
+				Math.abs(before[i] - after[i]) +
+					Math.abs(before[i + 1] - after[i + 1]) +
+					Math.abs(before[i + 2] - after[i + 2]) >
+				60
+			)
+				changed++;
+		return changed;
+	});
+	expect(changedPixels).toBeGreaterThan(100);
+	await page.getByRole('button', { name: /Emailul pentru cont/ }).click();
+	await expect.poll(() => video.evaluate((el) => el.currentTime)).toBeGreaterThan(54.1);
+	await video.evaluate((el) => el.pause());
+	await page.screenshot({ path: 'test-results/parent-tutorial-desktop.png', fullPage: true });
+	await page.setViewportSize({ width: 390, height: 844 });
+	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+	await page.getByText('Citește pașii în format text', { exact: true }).click();
+	await expect(page.locator('details')).toContainText(
+		'Fiecare copil are nevoie de o adresă de cont unică'
+	);
+	await page.screenshot({ path: 'test-results/parent-tutorial-mobile.png', fullPage: true });
+	await video.evaluate((el) => {
+		el.src = '/tutoriale/inscriere-parinti.webm';
+		el.load();
+	});
+	await expect.poll(() => video.evaluate((el) => el.readyState)).toBeGreaterThanOrEqual(1);
+	expect(await video.evaluate((el) => el.duration)).toBeCloseTo(162, 0);
+	await video.evaluate((el) => el.play());
+	await expect.poll(() => video.evaluate((el) => el.currentTime)).toBeGreaterThan(0.3);
+	await video.evaluate((el) => el.pause());
 });

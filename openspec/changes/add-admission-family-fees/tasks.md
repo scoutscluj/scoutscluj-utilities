@@ -10,4 +10,4 @@
 - [x] Sincronizați tipul cotizației prin contractul Orgo dedicat, fără export în Bio sau acordarea accesului.
 - [x] Verificați confidențialitatea, potrivirile ambigue, tarifele existente și plățile deja făcute.
 - [ ] Refaceți tutorialul animat după publicare, într-o schimbare separată (solicitat ulterior).
-- [ ] Treceți verificările, publicați prin PR și verificați producția.
+- [x] Treceți verificările, publicați prin PR și verificați producția (PR #101, versiunea 34ed57f).

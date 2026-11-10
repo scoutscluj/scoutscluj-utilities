@@ -11,5 +11,5 @@
 - [x] Adăugați butonul roșu cu numărul cererilor vizibile și în așteptare.
 - [x] Verificați validarea server, outboxul, permisiunile și scenariile de browser.
 - [x] Verificați vizual desktop/mobil, typecheck, lint și build.
-- [ ] Publicați prin PR după CI și verificați producția.
+- [x] Publicați prin PR după CI și verificați producția (PR #99 și #101).
 - [ ] Creați tutorialul pe fluxul publicat și adăugați URL-ul real în instrucțiuni.

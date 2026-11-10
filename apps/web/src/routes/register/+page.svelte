@@ -19,6 +19,9 @@
 		/>
 		<p class="eyebrow">Primul pas în cercetășie</p>
 		<h1>{form?.received ? 'Cererea a fost înregistrată' : 'Înscriere în centrul local'}</h1>
+		<a class="tutorial-link" href={resolve('/tutorial-inscriere')}
+			>Vezi tutorialul video pentru părinți →</a
+		>
 		{#if form?.received}
 			<div class="success" role="status">
 				<p>
@@ -93,6 +96,13 @@
 </main>
 
 <style>
+	.tutorial-link {
+		display: inline-block;
+		margin: 0 0 24px;
+		font-size: 14px;
+		font-weight: 600;
+		line-height: 1.5;
+	}
 	.page-tools {
 		display: flex;
 		align-items: flex-start;

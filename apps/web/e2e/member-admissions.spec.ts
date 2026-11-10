@@ -180,6 +180,7 @@ test('other adult retains submitter contact and photograph through a duplicate-e
 	await expect(page.getByRole('status')).toContainText('Instrucțiuni copiate.');
 	const guide = await page.evaluate(() => navigator.clipboard.readText());
 	expect(guide).toContain('http://127.0.0.1:5197/register');
+	expect(guide).toContain('http://127.0.0.1:5197/tutorial-inscriere');
 	expect(guide).toContain('Nu este nevoie să configurezi profilul');
 	await page
 		.getByRole('radio', { name: 'Pentru copilul meu / altă persoană', exact: false })
@@ -229,4 +230,44 @@ test('other adult retains submitter contact and photograph through a duplicate-e
 		gender: 'M'
 	});
 	expect(state.rows[0].data.photo).toContain('data:image/png;base64,');
+});
+
+test('parent tutorial plays the published media and chapters without horizontal overflow', async ({
+	page
+}) => {
+	await page.goto('/register');
+	await page
+		.getByRole('link', { name: 'Vezi tutorialul video pentru părinți', exact: false })
+		.click();
+	await expect(
+		page.getByRole('heading', { name: 'Înscrierea copilului și accesul în Resurse', exact: true })
+	).toBeVisible();
+	const video = page.locator('video');
+	await expect.poll(() => video.evaluate((el) => el.readyState)).toBeGreaterThanOrEqual(1);
+	const metadata = await video.evaluate((el) => ({
+		duration: el.duration,
+		width: el.videoWidth,
+		height: el.videoHeight
+	}));
+	expect(metadata.duration).toBeCloseTo(162, 0);
+	expect(metadata.width).toBe(1600);
+	expect(metadata.height).toBe(900);
+	await video.evaluate((el) => {
+		el.muted = true;
+	});
+	await page.getByRole('button', { name: /Emailul pentru cont/ }).click();
+	await expect.poll(() => video.evaluate((el) => el.currentTime)).toBeGreaterThanOrEqual(52.35);
+	await expect(page.getByRole('button', { name: /Emailul pentru cont/ })).toHaveAttribute(
+		'aria-current',
+		'step'
+	);
+	await video.evaluate((el) => el.pause());
+	await page.screenshot({ path: 'test-results/parent-tutorial-desktop.png', fullPage: true });
+	await page.setViewportSize({ width: 390, height: 844 });
+	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+	await page.getByText('Citește pașii în format text', { exact: true }).click();
+	await expect(page.locator('details')).toContainText(
+		'Fiecare copil are nevoie de o adresă de cont unică'
+	);
+	await page.screenshot({ path: 'test-results/parent-tutorial-mobile.png', fullPage: true });
 });

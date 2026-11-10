@@ -1,0 +1,130 @@
+[
+	{
+		"id": "cover",
+		"duration": 6,
+		"title": "Înscriere și autentificare",
+		"points": [
+			"Ghid pentru părinți",
+			"Pașii pentru contul copilului în Resurse",
+			"Demonstrație cu date fictive"
+		]
+	},
+	{
+		"id": "start",
+		"duration": 10,
+		"title": "Deschide Resurse",
+		"points": [
+			"Intră pe resurse.scoutscluj.ro.",
+			"Alege «Înscrie-te în centrul local».",
+			"Ai deja un cont? Mergi direct la autentificare."
+		]
+	},
+	{
+		"id": "mode",
+		"duration": 10,
+		"title": "Alege persoana înscrisă",
+		"points": [
+			"Selectează «Pentru copilul meu / altă persoană».",
+			"În continuare completezi datele copilului."
+		]
+	},
+	{
+		"id": "profile",
+		"duration": 13,
+		"title": "Datele copilului",
+		"points": [
+			"Completează prenumele, numele, data nașterii și genul.",
+			"Vârsta se calculează automat.",
+			"Fotografia este opțională: JPG, PNG sau WebP, maximum 2 MB."
+		]
+	},
+	{
+		"id": "structure",
+		"duration": 13,
+		"title": "Clasă, structură și ramură",
+		"points": [
+			"Alege clasa sau «Nu este elev».",
+			"Selectează structura: Cluj sau Florești.",
+			"Alege ramura. Dacă nu ești sigur, lasă «Am nevoie de îndrumare»."
+		]
+	},
+	{
+		"id": "email",
+		"duration": 18,
+		"title": "Emailul pentru cont",
+		"points": [
+			"Folosește de preferat adresa proprie a copilului.",
+			"Dacă nu are, poți folosi o adresă a părintelui neutilizată pentru alt cont.",
+			"Fiecare copil are nevoie de o adresă de cont unică. La ea vei primi codurile de autentificare."
+		]
+	},
+	{
+		"id": "guardian",
+		"duration": 12,
+		"title": "Contactele părintelui",
+		"points": [
+			"Completează numele, relația cu copilul, emailul și telefonul tău.",
+			"Aceste contacte sunt păstrate separat de contul copilului.",
+			"Același contact de părinte poate fi folosit pentru frați."
+		]
+	},
+	{
+		"id": "submit",
+		"duration": 10,
+		"title": "Verifică și trimite",
+		"points": [
+			"Recitește datele și confirmă acordul.",
+			"Apasă «Trimite cererea de înscriere».",
+			"Accesul nu este imediat: urmează verificarea de către centru."
+		]
+	},
+	{
+		"id": "approval",
+		"duration": 18,
+		"title": "Ce urmează după înscriere",
+		"points": [
+			"Un lider autorizat sau un administrator verifică cererea.",
+			"După aprobare pregătim contul copilului în Orgo / membri.scout.ro, platforma națională a cercetașilor.",
+			"Acest cont este folosit și pentru accesul în Resurse. Nu trebuie să completezi formularul din nou."
+		]
+	},
+	{
+		"id": "login",
+		"duration": 12,
+		"title": "Ai primit emailul despre cont?",
+		"points": [
+			"Revino la resurse.scoutscluj.ro/login.",
+			"Apasă «Connect with Orgo».",
+			"Poți intra direct în Resurse, fără configurarea profilului în Orgo sau setarea unei parole."
+		]
+	},
+	{
+		"id": "code",
+		"duration": 18,
+		"title": "Intră prin cod pe email",
+		"points": [
+			"Introdu aceeași adresă folosită la înscriere și apasă «Continuă».",
+			"Introdu codul primit pe email. Folosește cel mai recent cod.",
+			"După autentificare vei reveni automat în Resurse."
+		]
+	},
+	{
+		"id": "google",
+		"duration": 10,
+		"title": "Poți folosi și Google",
+		"points": [
+			"Alege «Continuă cu Google» dacă preferi această variantă.",
+			"Contul Google trebuie să aibă aceeași adresă de email ca la înscriere."
+		]
+	},
+	{
+		"id": "finish",
+		"duration": 12,
+		"title": "Ai nevoie de ajutor?",
+		"points": [
+			"Nu găsești emailul? Verifică și folderul Spam.",
+			"Dacă lipsește după aprobarea înscrierii sau emailul este deja folosit, contactează liderul.",
+			"Contact centru: cluj.napoca@scout.ro"
+		]
+	}
+]

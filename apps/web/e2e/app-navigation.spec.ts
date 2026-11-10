@@ -458,6 +458,8 @@ test('refreshes on opening, keeps cached rows visible, and permits retry after f
 	});
 	await page.goto('/units');
 	await expect(page.getByRole('link', { name: 'Ana Popescu', exact: true })).toBeVisible();
+	await page.getByRole('button', { name: 'Mai multe acțiuni pentru registru' }).click();
+	await page.getByRole('menuitem', { name: 'Actualizări Orgo', exact: true }).click();
 	await expect(
 		page.getByText('Se actualizează din Orgo (membri.scout.ro)…', { exact: false })
 	).toBeVisible();

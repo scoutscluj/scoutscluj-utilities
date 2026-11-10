@@ -93,7 +93,7 @@
 	let pendingAction = $state('');
 	let submissionError = $state('');
 	let actionFailed = $state(false);
-	let noticesOpen = $state(false);
+	let refreshOpen = $state(false);
 	const submitWorkspace: SubmitFunction = ({ formData, cancel }) => {
 		if (pendingAction) {
 			cancel();
@@ -337,7 +337,16 @@
 <svelte:head><title>Membri și unități · Scouts Cluj</title></svelte:head>
 <div class="workspace">
 	<header>
-		<h1>Membri și unități</h1>
+		<div class="heading-summary">
+			<h1>Membri și unități</h1>
+			<div class="registry-summary" aria-label="Rezumat membri">
+				<span
+					><strong>{data.registry.members.filter((m) => m.status === 'active').length}</strong> membri
+					activi</span
+				>
+				<span><strong>{units.length}</strong> unități</span>
+			</div>
+		</div>
 		<div class="workspace-actions">
 			<button
 				type="button"
@@ -350,69 +359,63 @@
 					onclick={() => goto(resolve('/applications'))}
 					><Plus size={18} aria-hidden="true" />Adaugă membru</button
 				>{/if}
-			{#if data.registry.admin}<ActionMenu
-					label="Mai multe acțiuni pentru registru"
-					items={[
-						{ label: 'Actualizarea anuală a membrilor', action: () => (progressionOpen = true) },
-						{
-							label: 'Verifică apartenențele',
-							action: () => {
-								window.location.href = resolve('/units/structures');
-							}
-						},
-						{
-							label: 'Legătura cu Orgo',
-							action: () => {
-								orgoOpen = true;
-							}
-						}
-					]}
-				/>{/if}
+			<ActionMenu
+				label="Mai multe acțiuni pentru registru"
+				items={[
+					{ label: 'Actualizări Orgo', action: () => (refreshOpen = true) },
+					...(data.registry.admin
+						? [
+								{
+									label: 'Actualizarea anuală a membrilor',
+									action: () => (progressionOpen = true)
+								},
+								{
+									label: 'Verifică apartenențele',
+									action: () => {
+										window.location.href = resolve('/units/structures');
+									}
+								},
+								{
+									label: 'Legătura cu Orgo',
+									action: () => {
+										orgoOpen = true;
+									}
+								}
+							]
+						: [])
+				]}
+			/>
 		</div>
 	</header>
 	{#if form?.message && !(activeSection === 'bulk' && 'success' in form && form.success)}<FormFeedback
 			message={form.message}
 			kind={actionFailed ? 'error' : 'success'}
 		/>{/if}
-	<div class="registry-summary" aria-label="Rezumat membri">
-		<span
-			><strong>{data.registry.members.filter((m) => m.status === 'active').length}</strong> membri activi</span
-		>
-		<span><strong>{units.length}</strong> unități</span>
-	</div>
-	{#if data.registry.notices.length}<button
-			class="secondary transfer-history"
-			onclick={() => (noticesOpen = true)}
-			>Istoric transferuri ({data.registry.notices.length})</button
-		>{/if}
 	<Modal
-		bind:open={noticesOpen}
-		title="Istoric transferuri"
-		description="Ultimele mutări ale membrilor către alte unități. Aceste informații nu necesită confirmare."
+		bind:open={refreshOpen}
+		title="Actualizări Orgo"
+		description="Starea actualizării registrului din Orgo (membri.scout.ro)."
 	>
-		{#each data.registry.notices as notice (notice.id)}<p>
-				<a href={resolve(`/units/${notice.memberId}`)}
-					>{data.registry.members.find((m) => m.id === notice.memberId)?.name ??
-						'Membru transferat'}</a
-				>
-				· {name(notice.unitId)} · {new Date(notice.createdAt).toLocaleDateString('ro-RO')}
-			</p>{/each}
+		<div class="notice refresh-info" role="status" aria-live="polite">
+			<span
+				>{#if refresh.state === 'running'}Se actualizează din Orgo (membri.scout.ro)…
+				{:else if refresh.state === 'failed'}{refresh.message ?? 'Actualizarea a eșuat.'}
+				{:else if refresh.state === 'succeeded'}Date actualizate din Orgo (membri.scout.ro).
+				{:else}Se pregătește actualizarea din Orgo (membri.scout.ro).{/if}</span
+			>
+			{#if refresh.lastSucceededAt}<small
+					>Ultima actualizare: {new Date(refresh.lastSucceededAt).toLocaleString('ro-RO')}</small
+				>{/if}
+			{#if refresh.state !== 'running'}<button
+					type="button"
+					class="secondary"
+					onclick={() => void refreshRoster()}
+					>{refresh.state === 'failed'
+						? 'Reîncearcă actualizarea'
+						: 'Actualizează din Orgo'}</button
+				>{/if}
+		</div>
 	</Modal>
-	<div class="notice" role="status" aria-live="polite">
-		{#if refresh.state === 'running'}Se actualizează din Orgo (membri.scout.ro)…
-		{:else if refresh.state === 'failed'}{refresh.message ?? 'Actualizarea a eșuat.'}
-		{:else if refresh.state === 'succeeded'}Date actualizate din Orgo (membri.scout.ro).
-		{:else}Se pregătește actualizarea din Orgo (membri.scout.ro).{/if}
-		{#if refresh.lastSucceededAt}<small
-				>Ultima actualizare: {new Date(refresh.lastSucceededAt).toLocaleString('ro-RO')}</small
-			>{/if}
-		{#if refresh.state !== 'running'}<button
-				type="button"
-				class="secondary"
-				onclick={() => void refreshRoster()}
-				>{refresh.state === 'failed' ? 'Reîncearcă actualizarea' : 'Actualizează din Orgo'}</button
-			>{/if}
-	</div>
 	<section class="registry-panel" aria-label="Registrul membrilor">
 		{#snippet registrySearch()}
 			<label class="registry-search">
@@ -917,9 +920,13 @@
 		font-weight: 600;
 		margin: 0 0 8px;
 	}
-	.transfer-history {
+	.refresh-info {
+		display: grid;
+		gap: 12px;
+		line-height: 1.5;
+	}
+	.refresh-info button {
 		justify-self: start;
-		font-size: 13px;
 	}
 	.responsibility-form {
 		gap: 20px;
@@ -1019,6 +1026,12 @@
 		gap: 6px;
 		font-size: 14px;
 		white-space: nowrap;
+	}
+	.heading-summary {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 8px 24px;
 	}
 	.registry-summary {
 		display: flex;

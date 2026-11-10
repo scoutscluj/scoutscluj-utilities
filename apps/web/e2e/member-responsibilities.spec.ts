@@ -297,7 +297,7 @@ test('responsibility failure keeps entered choices in the dialog', async ({ page
 	).toBeEnabled();
 });
 
-test('transfer history is optional information and Orgo tools open in a dialog', async ({
+test('keeps the member header compact and shows Orgo updates in the context menu', async ({
 	page,
 	request
 }) => {
@@ -316,11 +316,29 @@ test('transfer history is optional information and Orgo tools open in a dialog',
 	await page.goto('/units');
 	await expect(page.getByRole('heading', { name: 'Membri și unități', exact: true })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Membri primiți în unitate' })).toHaveCount(0);
-	await page.getByRole('button', { name: 'Istoric transferuri (1)', exact: true }).click();
-	await expect(page.getByRole('dialog', { name: 'Istoric transferuri' })).toContainText(
-		'nu necesită confirmare'
-	);
+	await expect(page.getByRole('button', { name: /Istoric transferuri/ })).toHaveCount(0);
+	await expect(page.locator('tbody')).not.toContainText('Nerepartizat');
+	await expect(
+		page.getByRole('button', { name: 'Actualizează din Orgo', exact: true })
+	).toHaveCount(0);
+	const heading = await page
+		.getByRole('heading', { name: 'Membri și unități', exact: true })
+		.boundingBox();
+	const summary = await page.getByLabel('Rezumat membri').boundingBox();
+	expect(Math.abs(heading!.y - summary!.y)).toBeLessThan(24);
+	await page.screenshot({ path: '../../tmp/member-header-desktop.png', fullPage: true });
+	await page.getByRole('button', { name: 'Mai multe acțiuni pentru registru' }).click();
+	await page.getByRole('menuitem', { name: 'Actualizări Orgo', exact: true }).click();
+	const refresh = page.getByRole('dialog', { name: 'Actualizări Orgo', exact: true });
+	await expect(refresh).toBeVisible();
+	await expect(
+		refresh.getByRole('button', { name: 'Actualizează din Orgo', exact: true })
+	).toBeVisible();
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.screenshot({ path: '../../tmp/member-refresh-mobile.png', fullPage: true });
 	await page.keyboard.press('Escape');
+	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+	await page.screenshot({ path: '../../tmp/member-header-mobile.png', fullPage: true });
 	await page.getByRole('button', { name: 'Mai multe acțiuni pentru registru' }).click();
 	await page.getByRole('menuitem', { name: 'Legătura cu Orgo', exact: true }).click();
 	await expect(page.getByRole('dialog', { name: 'Legătura cu Orgo', exact: true })).toBeVisible();

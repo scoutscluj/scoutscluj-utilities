@@ -330,6 +330,15 @@ export class AdmissionsService implements OnModuleInit {
             });
           const canonical = await tx.findOne(ScoutMember, { orgoId });
           if (canonical && canonical.id !== row.memberId) {
+            if (
+              row.attemptedAt &&
+              (await tx.findOne(MemberFamilyLink, {
+                sourceApplicationId: row.id,
+              }))
+            )
+              throw new ConflictException(
+                'Asocierea cu altă fișă după crearea contului necesită verificarea manuală a identității și cotizației. Încadrarea familială nu a fost mutată.',
+              );
             const previousMemberId = row.memberId;
             row.memberId = canonical.id;
             job.memberId = canonical.id;
@@ -477,7 +486,10 @@ export class AdmissionsService implements OnModuleInit {
           });
           if (previous) Object.assign(previous, contact);
           else tx.create(MemberGuardian, contact);
-        }
+        } else
+          await tx.nativeDelete(MemberGuardian, {
+            sourceApplicationId: row.id,
+          });
         tx.create(MemberSync, {
           memberId: member.id,
           revision: member.revision,

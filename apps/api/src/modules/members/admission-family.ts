@@ -129,9 +129,10 @@ export async function admissionFamily(
     with matched as (
       select m.id, l.family_id from scout_members m
       left join member_family_links l on l.member_id = m.id
-      where lower(trim(m.profile->>'email')) = ? or lower(trim(m.orgo_profile->>'email')) = ?
+      where (m.status <> 'review' or exists(select 1 from member_applications a where a.member_id=m.id and a.state='approved'))
+        and (lower(trim(m.profile->>'email')) = ? or lower(trim(m.orgo_profile->>'email')) = ?
         or lower(trim(m.profile->>'parentEmail')) = ?
-        or exists(select 1 from member_guardians g where g.member_id=m.id and g.ended_at is null and lower(trim(g.email)) = ?)
+        or exists(select 1 from member_guardians g where g.member_id=m.id and g.ended_at is null and lower(trim(g.email)) = ?))
     )
     select m.id, m.name, m.unit_id as "unitId", m.status, m.revision,
       m.created_at as "createdAt", m.fee_resume_period as "feeResumePeriod",

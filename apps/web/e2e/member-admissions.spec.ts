@@ -119,6 +119,23 @@ test('admin approval and app bootstrap remain distinct from remote completion', 
 	]);
 	await page.goto('/applications');
 	await page.getByText('Ana Test', { exact: true }).click();
+	await expect(page.getByRole('region', { name: 'Date membru', exact: true })).toContainText(
+		'01.01.2014'
+	);
+	await expect(page.getByRole('region', { name: 'Date membru', exact: true })).toContainText(
+		'Clasa a VI-a'
+	);
+	await expect(page.locator('input[name="existingOrgoId"]')).not.toBeVisible();
+	await page.screenshot({ path: 'test-results/application-review-desktop.png', fullPage: true });
+	await page.setViewportSize({ width: 390, height: 844 });
+	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+	await page.screenshot({ path: 'test-results/application-review-mobile.png', fullPage: true });
+	await page.getByText('Solicită completări sau respinge', { exact: true }).click();
+	await expect(
+		page.getByRole('textbox', { name: 'Motiv pentru respingere sau completări' })
+	).toBeVisible();
+	await page.getByText('Solicită completări sau respinge', { exact: true }).click();
+	await page.setViewportSize({ width: 1280, height: 900 });
 	await page.getByRole('button', { name: 'Confirmă înscrierea', exact: true }).click();
 	await page.getByRole('combobox', { name: 'Stare', exact: true }).selectOption('approved');
 	await expect(page.getByText('Aprobată', { exact: true })).toBeVisible();

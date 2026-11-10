@@ -362,6 +362,16 @@
 			<ActionMenu
 				label="Mai multe acțiuni pentru registru"
 				items={[
+					...(management && data.registry.canManage
+						? [
+								{
+									label: 'Cereri de înscriere',
+									action: () => {
+										void goto(resolve('/applications'));
+									}
+								}
+							]
+						: []),
 					{ label: 'Actualizări Orgo', action: () => (refreshOpen = true) },
 					...(data.registry.admin
 						? [

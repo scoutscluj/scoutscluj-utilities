@@ -139,6 +139,8 @@
 					/></label
 				>
 				<small id="member-email-hint" class="hint"
+					><span class="email-guidance"
+						>Emailul folosit e de preferat să fie al persoanei ce deține contul.</span
 					>{#if minor || forChild}De preferat emailul propriu al copilului, dacă are. Dacă nu are,
 						lasă câmpul gol. Nu folosi emailul părintelui sau o adresă folosită deja pentru alt cont
 						Orgo ori alt membru.{:else}Folosește emailul tău propriu. Dacă ai deja un cont Orgo cu
@@ -242,8 +244,15 @@
 	}
 	.email-field {
 		display: grid;
-		gap: 8px;
-		align-content: start;
+		grid-column: 1 / -1;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 16px;
+		align-items: center;
+	}
+	.email-guidance {
+		display: block;
+		color: var(--sc-ink);
+		margin-bottom: 8px;
 	}
 	label {
 		display: grid;
@@ -308,7 +317,8 @@
 		outline-offset: 2px;
 	}
 	@media (max-width: 600px) {
-		.fields {
+		.fields,
+		.email-field {
 			grid-template-columns: 1fr;
 		}
 	}

@@ -1409,27 +1409,33 @@ export class MemberOrgoService {
     return this.serverRequest(path, patch ? 'PATCH' : 'GET', patch);
   }
   async registrationEmailExists(email: string): Promise<boolean> {
-    const { base } = this.settings();
-    const tenants = await this.request(
-      '/api/v1/tenants?appHost=' + encodeURIComponent(new URL(base).hostname),
+    const normalized = email.trim().toLowerCase();
+    // The public check-email-exists route rejects new addresses in the live
+    // tenant. Use the exact user filter, verified with positive/negative controls.
+    const result = await this.request(
+      '/api/v1/users?email=' + encodeURIComponent(normalized),
     );
-    const rows = tenants['hydra:member'];
-    const slug =
-      Array.isArray(rows) && rows.length === 1 ? object(rows[0]).slug : null;
-    if (typeof slug !== 'string' || !slug)
-      throw new BadGatewayException(
-        'Configurația Orgo pentru verificarea emailului nu este disponibilă.',
-      );
-    const result = await this.serverRequest(
-      '/api/v1/check-email-exists',
-      'POST',
-      { email, tenantSlug: slug },
-    );
-    if (typeof result.exists !== 'boolean')
+    const rows = result['hydra:member'];
+    const total = result['hydra:totalItems'];
+    if (
+      !Array.isArray(rows) ||
+      !Number.isSafeInteger(total) ||
+      Number(total) < rows.length ||
+      rows.some((value) => {
+        const row = object(value);
+        return (
+          !Number.isSafeInteger(row.id) ||
+          Number(row.id) <= 0 ||
+          typeof row.email !== 'string' ||
+          row.email.trim().toLowerCase() !== normalized
+        );
+      }) ||
+      (rows.length === 0 && total !== 0)
+    )
       throw new BadGatewayException(
         'Orgo nu a confirmat verificarea emailului.',
       );
-    return result.exists;
+    return rows.length > 0;
   }
   async serverRequest(
     path: string,

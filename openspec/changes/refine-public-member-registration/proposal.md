@@ -12,4 +12,4 @@ Applicants need to choose Cluj or Florești independently of their branch and un
 
 ## Impact
 
-No schema migration. Optional structure in application JSON keeps existing applications compatible. Uses Orgo's `/check-email-exists` contract as present in the tenant frontend; production verification of that endpoint and tenant discovery remains necessary before rollout. No emails, credentials or production registrations are generated during validation.
+No schema migration. Optional structure in application JSON keeps existing applications compatible. Uses Orgo's exact `/api/v1/users?email=...` filter, verified read-only in production against an existing email and an unused synthetic email. The live public `check-email-exists` route rejects new addresses and is not used. No emails, credentials or production registrations are generated during validation.

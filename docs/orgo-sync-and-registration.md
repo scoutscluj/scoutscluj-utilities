@@ -14,7 +14,7 @@ Orgo gestionează accesul inițial și notificările potrivit contractului său 
 
 Formularul separă structura (Cluj / Florești) de ramura de vârstă. Ramurile sunt filtrate după structură, iar afilierea se păstrează și dacă solicitantul cere îndrumare. Confirmarea afișează pașii de verificare, aprobare, pregătire Orgo și autentificare, cu mesaje distincte pentru părinte și membru și pentru copilul fără email.
 
-Emailul propriu al membrului este normalizat și verificat înainte de acceptarea cererii în conturile locale, profilurile membrilor, cererile active și Orgo. Emailul tutorelui rămâne reutilizabil pentru frați. Verificarea Orgo folosește `/api/v1/check-email-exists` cu tenantul identificat prin host; dacă nu se obține un răspuns boolean valid, cererea nu este acceptată. Workerul repetă verificarea înaintea primei tentative de creare, fără a substitui emailul părintelui și fără a asocia conturi după email. Cererile vechi păstrează compatibilitatea dacă nu conțin explicit structura în JSON.
+Emailul propriu al membrului este normalizat și verificat înainte de acceptarea cererii în conturile locale, profilurile membrilor, cererile active și Orgo. Emailul tutorelui rămâne reutilizabil pentru frați. Verificarea Orgo folosește filtrul exact `/api/v1/users?email=...`, confirmat pe instanța reală cu adresă existentă și adresă sintetică absentă. Un rezultat incomplet sau un filtru ignorat oprește verificarea. Endpointul public `check-email-exists` a returnat HTTP 400 pentru adrese noi și nu este folosit. Workerul repetă verificarea înaintea primei tentative de creare, fără a substitui emailul părintelui și fără a asocia conturi după email. Cererile vechi păstrează compatibilitatea dacă nu conțin explicit structura în JSON.
 
 ## Activare
 

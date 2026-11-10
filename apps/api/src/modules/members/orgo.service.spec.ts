@@ -367,41 +367,58 @@ describe('server-token member synchronization', () => {
   afterEach(() => {
     global.fetch = originalFetch;
   });
-  it('checks registration emails in the configured Orgo tenant and validates the result', async () => {
+  it('checks exact registration emails with the live-verified read-only user filter', async () => {
     const f = fixture();
     const fetch = jest
       .fn<ReturnType<typeof global.fetch>, Parameters<typeof global.fetch>>()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ 'hydra:member': [{ slug: 'oncr' }] })),
+        new Response(
+          JSON.stringify({
+            'hydra:member': [{ id: 42, email: 'child@example.test' }],
+            'hydra:totalItems': 1,
+          }),
+        ),
       )
-      .mockResolvedValueOnce(new Response(JSON.stringify({ exists: true })));
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ 'hydra:member': [], 'hydra:totalItems': 0 }),
+        ),
+      );
     global.fetch = fetch;
     await expect(
-      f.service.registrationEmailExists('child@example.test'),
+      f.service.registrationEmailExists(' CHILD@EXAMPLE.TEST '),
     ).resolves.toBe(true);
     expect(fetch.mock.calls[0][0]).toEqual(
       new URL(
-        'https://orgo.example.test/api/v1/tenants?appHost=orgo.example.test',
+        'https://orgo.example.test/api/v1/users?email=child%40example.test',
       ),
     );
-    expect(fetch.mock.calls[1][0]).toEqual(
-      new URL('https://orgo.example.test/api/v1/check-email-exists'),
-    );
-    const body = fetch.mock.calls[1][1]?.body;
-    if (typeof body !== 'string') throw new Error('Expected JSON body');
-    expect(JSON.parse(body)).toEqual({
-      email: 'child@example.test',
-      tenantSlug: 'oncr',
-    });
-    fetch
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ 'hydra:member': [{ slug: 'oncr' }] })),
-      )
-      .mockResolvedValueOnce(new Response(JSON.stringify({})));
+    expect(fetch.mock.calls[0][1]?.method).toBe('GET');
     await expect(
-      f.service.registrationEmailExists('child@example.test'),
-    ).rejects.toThrow('confirmat');
+      f.service.registrationEmailExists('new@example.test'),
+    ).resolves.toBe(false);
   });
+  it.each([
+    {},
+    { 'hydra:member': [] },
+    { 'hydra:member': [], 'hydra:totalItems': 1 },
+    { 'hydra:member': [], 'hydra:totalItems': -1 },
+    {
+      'hydra:member': [{ id: 42, email: 'other@example.test' }],
+      'hydra:totalItems': 1,
+    },
+  ])(
+    'rejects incomplete results and ignored exact filters: %j',
+    async (payload) => {
+      const f = fixture();
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify(payload)));
+      await expect(
+        f.service.registrationEmailExists('child@example.test'),
+      ).rejects.toThrow('confirmat');
+    },
+  );
   it('merges the latest remote biography with readable grade and structure, verifies it and avoids duplicates', async () => {
     const f = fixture();
     f.operation.kind = 'grade';

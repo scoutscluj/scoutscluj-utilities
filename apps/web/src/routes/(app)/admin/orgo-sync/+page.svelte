@@ -20,6 +20,7 @@
 	};
 	const states: Record<string, string> = {
 		pending: 'În așteptare',
+		'review-required': 'Istoric de verificat',
 		running: 'În curs',
 		synced: 'Confirmat',
 		superseded: 'Înlocuit de datele Orgo',

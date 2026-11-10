@@ -141,6 +141,25 @@ export function targetYear(now: Date) {
   const date = localDate(now);
   return Number(date.slice(0, 4)) - (date.slice(5, 10) < '09-01' ? 1 : 0);
 }
+export function memberAge(
+  birthDate: string | null | undefined,
+  now = new Date(),
+) {
+  if (!birthDate || !/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return null;
+  const parsed = new Date(birthDate);
+  const today = localDate(now);
+  if (
+    !Number.isFinite(parsed.getTime()) ||
+    parsed.toISOString().slice(0, 10) !== birthDate ||
+    birthDate > today
+  )
+    return null;
+  return (
+    Number(today.slice(0, 4)) -
+    Number(birthDate.slice(0, 4)) -
+    Number(today.slice(5) < birthDate.slice(5))
+  );
+}
 export function progression(
   grade: number | null | undefined,
   branch: Branch,

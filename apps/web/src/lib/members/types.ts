@@ -33,6 +33,7 @@ export type Unit = {
 	archived: boolean;
 };
 export type Member = {
+	age?: number | null;
 	feeSummary?: Pick<
 		Detail['fees'][number],
 		'period' | 'totalBani' | 'paidBani' | 'remainingBani' | 'collectible'

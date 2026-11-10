@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_FILTER } from '@nestjs/core';
 import { CalendarsModule } from './modules/calendars/calendars.module';
 import { MembershipModule } from './modules/membership/membership.module';
 import { MembersModule } from './modules/members/members.module';
@@ -20,6 +21,8 @@ import { ParentalConsentModule } from './modules/parental-consent/parental-conse
 import { PersonalObjectivesModule } from './modules/personal-objectives/personal-objectives.module';
 import { AdultDocumentsModule } from './modules/adult-documents/adult-documents.module';
 import { RegistrationModule } from './modules/activity-registrations/registration.module';
+import { StructuredExceptionFilter } from './common/logging/structured-exception.filter';
+import { StructuredExceptionLogger } from './common/logging/structured-exception.logger';
 
 @Module({
   imports: [
@@ -46,6 +49,10 @@ import { RegistrationModule } from './modules/activity-registrations/registratio
     RegistrationModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    StructuredExceptionLogger,
+    { provide: APP_FILTER, useClass: StructuredExceptionFilter },
+  ],
 })
 export class AppModule {}

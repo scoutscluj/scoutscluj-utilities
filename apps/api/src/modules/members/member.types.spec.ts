@@ -2,8 +2,28 @@ import {
   permissions,
   progression,
   targetYear,
+  memberAge,
   type ScopeAssignment,
 } from './member.types';
+
+describe('roster age', () => {
+  it('includes the sixteenth birthday using the Bucharest calendar', () => {
+    expect(memberAge('2010-10-30', new Date('2026-10-29T22:30:00Z'))).toBe(16);
+    expect(memberAge('2010-10-30', new Date('2026-10-29T20:30:00Z'))).toBe(15);
+    expect(memberAge('2010-10-31', new Date('2026-10-30T12:00:00Z'))).toBe(15);
+  });
+  it('leaves missing, invalid and future birth dates unknown', () => {
+    for (const birthDate of [
+      null,
+      undefined,
+      '',
+      'not-a-date',
+      '2010-02-30',
+      '2030-01-01',
+    ])
+      expect(memberAge(birthDate, new Date('2026-10-30T12:00:00Z'))).toBeNull();
+  });
+});
 
 const assignment = (
   role: ScopeAssignment['role'],

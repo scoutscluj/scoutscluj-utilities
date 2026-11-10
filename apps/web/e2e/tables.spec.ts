@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+import { setMultiSelect } from './multi-select';
 
 test.beforeEach(async ({ page, request }) => {
 	await request.post('http://127.0.0.1:3015/test/reset');
@@ -9,6 +11,78 @@ test.beforeEach(async ({ page, request }) => {
 			url: 'http://127.0.0.1:5182'
 		}
 	]);
+});
+
+test('member creation is beside unit management and opens from the header on desktop and mobile', async ({
+	page
+}, info) => {
+	await page.goto('/units');
+	const header = page.locator('.workspace > header');
+	const units = header.getByRole('button', { name: 'Unități și subunități', exact: true });
+	const add = header.getByRole('button', { name: 'Adaugă membru', exact: true });
+	await expect(add).toBeVisible();
+	const unitBox = (await units.boundingBox())!;
+	const addBox = (await add.boundingBox())!;
+	expect(addBox.x).toBeGreaterThanOrEqual(unitBox.x + unitBox.width);
+	expect(addBox.y).toBe(unitBox.y);
+	await expect(
+		page
+			.getByRole('region', { name: 'Registrul membrilor', exact: true })
+			.getByRole('button', { name: 'Adaugă membru', exact: true })
+	).toHaveCount(0);
+	await page.screenshot({ path: info.outputPath('add-member-header-desktop.png'), fullPage: true });
+	await add.click();
+	await expect(page.getByRole('dialog', { name: 'Adaugă membru', exact: true })).toBeVisible();
+	await page.keyboard.press('Escape');
+	await page.setViewportSize({ width: 390, height: 844 });
+	await expect
+		.poll(() =>
+			page
+				.getByRole('complementary', { includeHidden: true })
+				.evaluate((element) => element.getBoundingClientRect().right)
+		)
+		.toBeLessThanOrEqual(0);
+	await expect(add).toBeVisible();
+	expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+	await page.screenshot({ path: info.outputPath('add-member-header-mobile.png'), fullPage: true });
+	await add.click();
+	await expect(page.getByRole('dialog', { name: 'Adaugă membru', exact: true })).toBeVisible();
+});
+
+test('an authorized manager can open member creation with an empty mocked roster', async ({
+	page
+}) => {
+	await page.context().addCookies([
+		{
+			name: 'scoutscluj_session',
+			value: 'synthetic-empty-registry',
+			url: 'http://127.0.0.1:5182'
+		}
+	]);
+	await page.goto('/units');
+	await expect(page.getByText('Nu există membri pentru filtrele alese.')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Exportă CSV', exact: true })).toBeDisabled();
+	await page
+		.locator('.workspace > header')
+		.getByRole('button', { name: 'Adaugă membru', exact: true })
+		.click();
+	const dialog = page.getByRole('dialog', { name: 'Adaugă membru', exact: true });
+	await expect(dialog).toBeVisible();
+	await expect(
+		dialog.getByRole('combobox', { name: 'Unitate', exact: true }).locator('option')
+	).toHaveText(['Alege categoria principală', 'Temerari', 'Lupișori']);
+});
+
+test('a mocked read-only account does not receive member creation controls', async ({ page }) => {
+	await page
+		.context()
+		.addCookies([{ name: 'scoutscluj_session', value: 'read-only', url: 'http://127.0.0.1:5182' }]);
+	await page.goto('/units');
+	await expect(page.getByRole('link', { name: 'Ana Popescu', exact: true })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Adaugă membru', exact: true })).toHaveCount(0);
+	await expect(
+		page.getByRole('checkbox', { name: 'Selectează pagina curentă', exact: true })
+	).toHaveCount(0);
 });
 
 test('membership search leads filters and highlights matching terms without clipping controls', async ({
@@ -54,7 +128,7 @@ test('member column picker is icon-only and navigation uses neutral icon buttons
 	await page.goto('/units');
 	const registry = page.getByRole('region', { name: 'Registrul membrilor', exact: true });
 	await expect(
-		registry.locator('.sc-table-filters input, .sc-table-filters select').first()
+		registry.locator('.sc-table-toolbar input, .sc-table-toolbar select').first()
 	).toHaveAttribute('type', 'search');
 	const columns = registry.getByLabel('Alege coloanele', { exact: true });
 	await expect(columns).toHaveText('');
@@ -69,4 +143,187 @@ test('member column picker is icon-only and navigation uses neutral icon buttons
 		'rgba(0, 0, 0, 0)'
 	);
 	await page.screenshot({ path: info.outputPath('member-table-desktop.png'), fullPage: true });
+});
+
+test('member multi-select filters combine with fee and inclusive voting-age filters', async ({
+	page
+}, info) => {
+	await page.goto('/units');
+	const registry = page.getByRole('region', { name: 'Registrul membrilor', exact: true });
+	await expect(
+		registry
+			.getByRole('row')
+			.filter({ hasText: 'Ana Popescu' })
+			.getByRole('cell', { name: '16', exact: true })
+	).toBeVisible();
+	await setMultiSelect(page, 'Structură', ['Cluj', 'Florești']);
+	await setMultiSelect(page, 'Categorie', ['Temerari', 'Lupișori']);
+	await expect(registry.locator('tbody tr')).toHaveCount(2);
+	await setMultiSelect(page, 'Drept de vot', ['Cu drept de vot']);
+	await setMultiSelect(page, 'Cotizație', ['Achitată']);
+	await expect(registry.locator('tbody tr')).toHaveCount(1);
+	await expect(registry.getByRole('link', { name: 'Ana Popescu', exact: true })).toBeVisible();
+	await setMultiSelect(page, 'Drept de vot', ['Cu drept de vot', 'Fără drept de vot']);
+	await setMultiSelect(page, 'Cotizație', ['Achitată', 'Parțial achitată', 'Neachitată']);
+	await expect(registry.locator('tbody tr')).toHaveCount(2);
+	await page.screenshot({ path: info.outputPath('unit-filters-desktop.png'), fullPage: true });
+	await page.setViewportSize({ width: 390, height: 844 });
+	await expect
+		.poll(() =>
+			page
+				.getByRole('complementary', { includeHidden: true })
+				.evaluate((element) => element.getBoundingClientRect().right)
+		)
+		.toBeLessThanOrEqual(0);
+	expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+	await page.getByRole('button', { name: /^Drept de vot:/ }).click();
+	await expect(page.getByRole('checkbox', { name: 'Cu drept de vot', exact: true })).toBeChecked();
+	await page.screenshot({ path: info.outputPath('unit-filters-mobile.png'), fullPage: true });
+	await page.keyboard.press('Escape');
+});
+
+test('member CSV includes all filtered pages and respects hidden columns', async ({ page }) => {
+	await page.goto('/units');
+	await setMultiSelect(page, 'Status', ['Activ', 'Inactiv']);
+	const registry = page.getByRole('region', { name: 'Registrul membrilor', exact: true });
+	await registry.getByLabel('Caută membru').fill('Istoric');
+	await registry.getByRole('combobox', { name: 'Rânduri pe pagină' }).selectOption('10');
+	await registry.getByRole('button', { name: 'Pagina următoare', exact: true }).click();
+	await expect(registry.getByRole('link', { name: 'Istoric 11', exact: true })).toBeVisible();
+	await registry.getByRole('button', { name: 'Membru ↑', exact: true }).click();
+	await expect(registry.getByRole('link', { name: 'Istoric 52', exact: true })).toBeVisible();
+	await registry.getByLabel('Alege coloanele', { exact: true }).click();
+	await registry.getByRole('checkbox', { name: 'Clasa', exact: true }).uncheck();
+	await registry.getByRole('checkbox', { name: 'Vârsta', exact: true }).uncheck();
+	await registry.getByLabel('Alege coloanele', { exact: true }).click();
+	const downloadEvent = page.waitForEvent('download');
+	await registry.getByRole('button', { name: 'Exportă CSV', exact: true }).click();
+	const download = await downloadEvent;
+	const csv = await readFile((await download.path())!, 'utf8');
+	expect(csv.split('\r\n')).toHaveLength(54);
+	expect(csv).toContain('Istoric 01');
+	expect(csv).toContain('Istoric 52');
+	expect(csv.indexOf('Istoric 52')).toBeLessThan(csv.indexOf('Istoric 01'));
+	expect(csv).not.toContain('Ana Popescu');
+	expect(csv.split('\r\n')[0]).not.toContain('Vârsta');
+	expect(csv.split('\r\n')[0]).not.toContain('Clasa');
+	// Narrowing from a later page returns to the beginning of the results.
+	await registry.getByLabel('Caută membru').fill('Istoric 01');
+	await expect(registry.getByRole('link', { name: 'Istoric 01', exact: true })).toBeVisible();
+});
+
+test('cotizatie distinguishes unpaid and partially paid members and exports both selected groups', async ({
+	page
+}) => {
+	await page
+		.context()
+		.addCookies([
+			{
+				name: 'scoutscluj_session',
+				value: 'synthetic-fee-filter-cases',
+				url: 'http://127.0.0.1:5182'
+			}
+		]);
+	await page.goto('/units');
+	const registry = page.getByRole('region', { name: 'Registrul membrilor', exact: true });
+	await setMultiSelect(page, 'Cotizație', ['Neachitată']);
+	await expect(registry.locator('tbody tr')).toHaveCount(1);
+	await expect(registry.getByRole('link', { name: 'Membru neachitat', exact: true })).toBeVisible();
+	await setMultiSelect(page, 'Cotizație', ['Parțial achitată']);
+	await expect(registry.locator('tbody tr')).toHaveCount(1);
+	await expect(registry.getByRole('link', { name: 'Copil Florești', exact: true })).toBeVisible();
+	await setMultiSelect(page, 'Cotizație', ['Neachitată', 'Parțial achitată']);
+	await expect(registry.locator('tbody tr')).toHaveCount(2);
+	await expect(registry.getByRole('link', { name: 'Ana Popescu', exact: true })).toHaveCount(0);
+	const downloadEvent = page.waitForEvent('download');
+	await registry.getByRole('button', { name: 'Exportă CSV', exact: true }).click();
+	const csv = await readFile((await (await downloadEvent).path())!, 'utf8');
+	expect(csv).toContain('Membru neachitat');
+	expect(csv).toContain('Copil Florești');
+	expect(csv).not.toContain('Ana Popescu');
+});
+
+test('member filters keep an even responsive grid and support keyboard selection, chips and reset', async ({
+	page
+}, info) => {
+	await page.goto('/units');
+	const registry = page.getByRole('region', { name: 'Registrul membrilor', exact: true });
+	for (const width of [1440, 1024, 768, 375]) {
+		await page.setViewportSize({ width, height: 960 });
+		if (width < 900) {
+			await expect
+				.poll(() =>
+					page
+						.getByRole('complementary', { includeHidden: true })
+						.evaluate((element) => element.getBoundingClientRect().right)
+				)
+				.toBeLessThanOrEqual(0);
+		} else {
+			await expect
+				.poll(() =>
+					page
+						.getByRole('complementary', { includeHidden: true })
+						.evaluate((element) => Math.round(element.getBoundingClientRect().left))
+				)
+				.toBe(0);
+		}
+		const widths = await registry
+			.locator('.registry-filter-grid .filter-trigger')
+			.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().width));
+		expect(widths).toHaveLength(6);
+		expect(Math.max(...widths) - Math.min(...widths)).toBeLessThan(2);
+		await expect(registry.locator('.result-count')).toHaveText(/2\s+membri\s+din\s+54/);
+		expect(
+			await registry
+				.locator('.filter-chip > span')
+				.evaluate((element) => element.scrollWidth <= element.clientWidth)
+		).toBe(true);
+		expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+			width
+		);
+		await page.screenshot({ path: info.outputPath(`member-filters-${width}.png`), fullPage: true });
+		if (width === 1440)
+			await registry
+				.locator('.sc-table-toolbar')
+				.screenshot({ path: info.outputPath('redesigned-member-filters.png') });
+	}
+	await page.setViewportSize({ width: 1440, height: 960 });
+	await expect
+		.poll(() =>
+			page
+				.getByRole('complementary', { includeHidden: true })
+				.evaluate((element) => Math.round(element.getBoundingClientRect().left))
+		)
+		.toBe(0);
+	const feeTrigger = registry.getByRole('button', { name: /^Cotizație:/ });
+	await feeTrigger.focus();
+	await page.keyboard.press('Enter');
+	const feeDialog = page.getByRole('dialog', { name: 'Cotizație', exact: true });
+	await feeDialog.getByRole('checkbox', { name: 'Achitată', exact: true }).focus();
+	await page.keyboard.press('Space');
+	await expect(feeDialog.getByRole('checkbox', { name: 'Achitată', exact: true })).toBeChecked();
+	await page.screenshot({ path: info.outputPath('member-filter-dropdown.png'), fullPage: true });
+	await page.keyboard.press('Escape');
+	await expect(feeTrigger).toBeFocused();
+	await expect(registry.locator('tbody tr')).toHaveCount(1);
+	await registry
+		.getByRole('button', { name: 'Elimină filtrul Cotizație: Achitată', exact: true })
+		.click();
+	await expect(registry.locator('tbody tr')).toHaveCount(2);
+	await setMultiSelect(page, 'Structură', ['Florești']);
+	await setMultiSelect(page, 'Drept de vot', ['Cu drept de vot']);
+	await expect(registry.getByText('Nu există membri pentru filtrele alese.')).toBeVisible();
+	await registry
+		.getByRole('button', { name: 'Elimină filtrul Drept de vot: Cu drept de vot', exact: true })
+		.click();
+	await expect(registry.getByRole('link', { name: 'Copil Florești', exact: true })).toBeVisible();
+	await registry.getByLabel('Caută membru', { exact: true }).fill('nobody-matches');
+	await registry.getByRole('button', { name: 'Resetează filtrele', exact: true }).click();
+	await expect(registry.getByLabel('Caută membru', { exact: true })).toHaveValue('');
+	await expect(
+		registry.getByRole('group', { name: 'Filtre aplicate', exact: true }).getByRole('button')
+	).toHaveCount(0);
+	await expect(registry.getByRole('navigation', { name: 'Paginile registrului' })).toContainText(
+		'din 54'
+	);
 });

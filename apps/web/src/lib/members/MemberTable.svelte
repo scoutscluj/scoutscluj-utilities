@@ -6,6 +6,8 @@
 		planName = $state(''),
 		planCurrent = $state('normal');
 	import Columns3 from '@lucide/svelte/icons/columns-3';
+	import Download from '@lucide/svelte/icons/download';
+	import { feeLabel, memberCsv, statusLabels } from './registry-table';
 	import { highlightSearch, matchesSearch } from '$lib/components/ui/table-search';
 	import { resolve } from '$app/paths';
 	import { enhance } from '$app/forms';
@@ -26,6 +28,8 @@
 		inactive = false,
 		message = '',
 		filterContent,
+		searchContent,
+		filterSummary,
 		controls,
 		onResponsibilities,
 		management = true,
@@ -38,6 +42,8 @@
 		inactive?: boolean;
 		message?: string;
 		filterContent?: Snippet;
+		searchContent?: Snippet;
+		filterSummary?: Snippet;
 		controls?: Snippet;
 		onResponsibilities?: (member: Member) => void;
 		management?: boolean;
@@ -56,6 +62,7 @@
 	let descending = $state(false);
 	let showUnit = $state(true),
 		showGrade = $state(true),
+		showAge = $state(true),
 		showStatus = $state(true);
 	const canSeeFees = $derived(members.some((m) => m.access?.fees));
 	let editError = $state('');
@@ -64,8 +71,12 @@
 	let displayedFees = $state<typeof feeMenu>();
 	let feeTarget = $state('');
 	let feeForm: HTMLFormElement;
-	let page = $state(0),
-		inactiveSearch = $state('');
+	let inactiveSearch = $state('');
+	let page = $derived.by(() => {
+		void members;
+		void inactiveSearch;
+		return 0;
+	});
 	const filtered = $derived(
 		members.filter((m) => !inactiveSearch || matchesSearch(m.name, inactiveSearch))
 	);
@@ -78,9 +89,11 @@
 						: -1
 					: sort === 'unit'
 						? memberPlacement(registry.units, m)
-						: sort === 'status'
-							? m.status
-							: m.name;
+						: sort === 'age'
+							? (m.age ?? -1)
+							: sort === 'status'
+								? m.status
+								: m.name;
 			const av = value(a),
 				bv = value(b);
 			const result =
@@ -96,6 +109,21 @@
 	const pageRows = $derived(
 		sorted.slice(currentPage * effectiveSize, (currentPage + 1) * effectiveSize)
 	);
+	function exportCsv() {
+		const csv = memberCsv(sorted, registry, {
+			unit: !inactive && showUnit,
+			grade: !inactive && showGrade,
+			age: !inactive && showAge,
+			status: !inactive && showStatus,
+			fees: canSeeFees
+		});
+		const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+		const link = document.createElement('a');
+		link.href = url;
+		link.download = 'membri-unitati.csv';
+		link.click();
+		setTimeout(() => URL.revokeObjectURL(url), 0);
+	}
 	const allPageSelected = $derived(
 		pageRows.length > 0 &&
 			pageRows.filter((m) => m.access?.edit).every((m) => selected.includes(m.id))
@@ -384,7 +412,10 @@
 		</form>
 	{/if}
 </Modal>
-<TableToolbar>
+<TableToolbar
+	primary={!inactive ? searchContent : undefined}
+	footer={!inactive ? filterSummary : undefined}
+>
 	{#snippet filters()}
 		{#if inactive}<label
 				>Caută în istoricul Orgo (membri.scout.ro)<input
@@ -403,9 +434,19 @@
 			<div>
 				<label><input type="checkbox" bind:checked={showUnit} />Unitate / grupă</label><label
 					><input type="checkbox" bind:checked={showGrade} />Clasa</label
-				><label><input type="checkbox" bind:checked={showStatus} />Status</label>
+				><label><input type="checkbox" bind:checked={showAge} />Vârsta</label>
+				<label><input type="checkbox" bind:checked={showStatus} />Status</label>
 			</div>
 		</details>{/if}
+
+	<button
+		type="button"
+		class="export-button"
+		onclick={exportCsv}
+		disabled={!sorted.length}
+		title={`Exportă toți cei ${sorted.length} membri din rezultatele filtrate`}
+		><Download size={16} aria-hidden="true" />Exportă CSV</button
+	>
 
 	{#if controls}{@render controls()}{/if}
 </TableToolbar>
@@ -449,6 +490,13 @@
 								>Clasa ↕</button
 							></th
 						>{/if}
+					{#if showAge}<th
+							aria-sort={sort === 'age' ? (descending ? 'descending' : 'ascending') : 'none'}
+							><button type="button" class="sort-button" onclick={() => sortBy('age')}
+								>Vârsta ↕</button
+							></th
+						>{/if}
+
 					{#if showStatus}<th
 							aria-sort={sort === 'status' ? (descending ? 'descending' : 'ascending') : 'none'}
 							><button type="button" class="sort-button" onclick={() => sortBy('status')}
@@ -490,16 +538,8 @@
 					>
 					{#if !inactive}{#if showUnit}<td>{memberPlacement(registry.units, m)}</td
 							>{/if}{#if showGrade}<td>{hasSchoolGrade(m) ? (m.grade ?? '—') : '—'}</td
-							>{/if}{#if showStatus}<td
-								>{m.status === 'active'
-									? 'Activ'
-									: m.status === 'withdrawn'
-										? 'Retras din activitate'
-										: m.status === 'suspended'
-											? 'Suspendat'
-											: m.status === 'inactive'
-												? 'Inactiv'
-												: 'De verificat'}
+							>{/if}{#if showAge}<td>{m.age ?? '—'}</td>{/if}{#if showStatus}<td
+								>{statusLabels[m.status] ?? 'De verificat'}
 								{#if m.syncMessage}<small title={m.syncMessage}>{m.syncMessage}</small>{/if}</td
 							>{/if}{/if}
 					{#if canSeeFees}<td>
@@ -511,13 +551,7 @@
 									aria-label={`Cotizații pentru ${m.name}`}
 								>
 									{#if m.feeSummary}
-										{!m.feeSummary.collectible
-											? 'În afara urmăririi la plată'
-											: m.feeSummary.remainingBani === 0
-												? 'Achitată'
-												: m.feeSummary.paidBani > 0
-													? 'Parțial achitată'
-													: 'Neachitată'}
+										{feeLabel(m)}
 										<small
 											>{m.feeSummary
 												.period}{#if m.feeSummary.collectible && m.feeSummary.remainingBani > 0}
@@ -538,7 +572,9 @@
 						colspan={2 +
 							Number(canSeeFees) +
 							Number(management && registry.canManage) +
-							(inactive ? 0 : Number(showUnit) + Number(showGrade) + Number(showStatus))}
+							(inactive
+								? 0
+								: Number(showUnit) + Number(showGrade) + Number(showAge) + Number(showStatus))}
 						>Nu există membri pentru filtrele alese.</td
 					></tr
 				>{/each}
@@ -626,6 +662,30 @@
 />
 
 <style>
+	.export-button {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		min-height: 40px;
+		height: 40px;
+		box-sizing: border-box;
+		padding: 8px 12px;
+		border: 1px solid var(--sc-border-strong);
+		border-radius: 7px;
+		background: var(--sc-surface);
+		color: var(--sc-ink);
+		white-space: nowrap;
+		font-size: 13px;
+		cursor: pointer;
+	}
+	.export-button:hover:not(:disabled) {
+		background: var(--sc-canvas);
+	}
+	.export-button:focus-visible {
+		outline: 2px solid var(--sc-accent);
+		outline-offset: 2px;
+	}
+
 	.column-picker {
 		position: relative;
 	}

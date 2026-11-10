@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { setMultiSelect } from './multi-select';
 
 test.beforeEach(async ({ page, request }) => {
 	await request.post('http://127.0.0.1:3015/test/reset');
@@ -96,7 +97,7 @@ test('inactive members use the main table search, status filter and pagination',
 }) => {
 	await page.goto('/units');
 	const registry = page.getByRole('region', { name: 'Registrul membrilor', exact: true });
-	await registry.getByRole('combobox', { name: 'Status', exact: true }).selectOption('inactive');
+	await setMultiSelect(page, 'Status', ['Inactiv']);
 	await expect(page.locator('summary').filter({ hasText: 'Istoric Orgo' })).toHaveCount(0);
 	await expect(registry.getByRole('link', { name: 'Istoric 01', exact: true })).toBeVisible();
 	await registry.getByRole('button', { name: 'Pagina următoare', exact: true }).click();
@@ -111,10 +112,7 @@ test('structure filtering and initial classification keep unit choices consisten
 	request
 }) => {
 	await page.goto('/admin/members');
-	await page
-		.getByRole('combobox', { name: 'Structură', exact: true })
-		.first()
-		.selectOption('floresti');
+	await setMultiSelect(page, 'Structură', ['Florești']);
 	await expect(page.getByRole('link', { name: 'Copil Florești', exact: true })).toBeVisible();
 	await expect(page.getByRole('link', { name: 'Ana Popescu', exact: true })).not.toBeVisible();
 	await page.getByRole('button', { name: 'Adaugă membru', exact: true }).click();
@@ -172,7 +170,7 @@ test('selects all inactive results across pages and opens the withdrawal preview
 }) => {
 	await page.goto('/admin/members');
 	const history = page.getByRole('region', { name: 'Registrul membrilor', exact: true });
-	await history.getByRole('combobox', { name: 'Status', exact: true }).selectOption('inactive');
+	await setMultiSelect(page, 'Status', ['Inactiv']);
 	await history.getByRole('combobox', { name: 'Rânduri pe pagină' }).selectOption('0');
 	await history.getByRole('checkbox', { name: 'Selectează pagina curentă' }).check();
 	await history.getByRole('button', { name: 'Modifică selecția', exact: true }).click();
@@ -252,13 +250,9 @@ test('registry supports sorting, column visibility, page sizes and scoped select
 	await registry.getByRole('checkbox', { name: 'Clasa', exact: true }).uncheck();
 	await expect(registry.getByRole('columnheader').filter({ hasText: 'Clasa' })).toHaveCount(0);
 	await registry.getByRole('checkbox', { name: 'Selectează pagina curentă' }).check();
-	await expect(
-		registry.getByRole('button', { name: 'Modifică selecția', exact: true })
-	).toBeVisible();
+	await expect(registry.getByRole('group', { name: /^Acțiuni pentru/ })).toBeVisible();
 	await page.getByLabel('Caută membru', { exact: true }).fill('Nobody-matches');
-	await expect(
-		registry.getByRole('button', { name: 'Modifică selecția', exact: true })
-	).toHaveCount(0);
+	await expect(registry.getByRole('group', { name: /^Acțiuni pentru/ })).toHaveCount(0);
 	await expect(registry.getByText('Nu există membri pentru filtrele alese.')).toBeVisible();
 	await page.getByLabel('Caută membru', { exact: true }).fill('');
 	await registry.getByLabel('Alege coloanele', { exact: true }).click();
@@ -384,11 +378,11 @@ test('read-only members share the workspace with management controls hidden', as
 
 test('category filters include members without a subunit', async ({ page }) => {
 	await page.goto('/units');
-	await page.getByRole('combobox', { name: 'Categorie', exact: true }).selectOption('temerari');
-	await page.getByRole('combobox', { name: 'Subunitate', exact: true }).selectOption('unassigned');
+	await setMultiSelect(page, 'Categorie', ['Temerari']);
+	await setMultiSelect(page, 'Subunitate', ['Nerepartizat']);
 	await expect(page.getByRole('link', { name: 'Copil Florești', exact: true })).toBeVisible();
 	await expect(page.getByRole('link', { name: 'Ana Popescu', exact: true })).toHaveCount(0);
-	await page.getByRole('combobox', { name: 'Categorie', exact: true }).selectOption('lideri');
+	await setMultiSelect(page, 'Categorie', ['Lideri']);
 	await expect(page.getByText('Nu există membri pentru filtrele alese.')).toBeVisible();
 });
 

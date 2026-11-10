@@ -7,6 +7,17 @@ export type Application = {
 	reason: string;
 	createdAt: string;
 	memberId: string | null;
+	family?: {
+		version?: string;
+		plan: string | null;
+		position?: number | null;
+		count?: number | null;
+		ambiguous?: boolean;
+		canSelect?: boolean;
+		members?: { name: string; active: boolean; reserved: boolean }[];
+		choices?: { id: string; names: string[]; position: number }[];
+		priceConfirmedAt?: string | null;
+	} | null;
 	hasPhoto?: boolean;
 	photoSync?: { id: string; state: string; message: string } | null;
 	data: {

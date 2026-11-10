@@ -15,6 +15,7 @@ import {
 } from './entities/member-application.entity';
 import {
   MemberSync,
+  MemberFamilyLink,
   ScoutMember,
   ScoutUnit,
   ScoutAssignment,
@@ -26,7 +27,8 @@ import { emptyProfile, targetYear } from './member.types';
 import { User } from '../users/entities/user.entity';
 import type { CurrentUser } from '../users/users.types';
 import { AuditEntry } from '../audit/entities/audit-entry.entity';
-import { OrgoRequestError, retryDelay } from './orgo-sync';
+import { OrgoRequestError, retryDelay, feePriceReference } from './orgo-sync';
+import { admissionFamily, allocateAdmissionFamily } from './admission-family';
 import { object, cleanProfile } from './orgo-profile';
 import { randomUUID } from 'node:crypto';
 
@@ -164,6 +166,16 @@ export class AdmissionsService implements OnModuleInit {
       applications: await Promise.all(
         rows.map(async (r) => ({
           ...r,
+          family:
+            r.state !== 'approved'
+              ? (await admissionFamily(this.em.fork(), r, scope)).preview
+              : await this.em
+                  .fork()
+                  .findOne(
+                    MemberFamilyLink,
+                    { sourceApplicationId: r.id },
+                    { fields: ['plan', 'priceConfirmedAt'] },
+                  ),
           photoSync:
             r.memberId && r.hasPhoto
               ? await this.em.fork().findOne(
@@ -199,6 +211,12 @@ export class AdmissionsService implements OnModuleInit {
           })
         : 0;
     return { count };
+  }
+  async previewFamily(user: CurrentUser, id: string) {
+    const tx = this.em.fork();
+    const row = await tx.findOneOrFail(MemberApplication, { id });
+    const scope = await this.canReview(tx, user, row);
+    return (await admissionFamily(tx, row, scope)).preview;
   }
   async photo(user: CurrentUser, id: string) {
     const tx = this.em.fork();
@@ -264,6 +282,9 @@ export class AdmissionsService implements OnModuleInit {
         });
         await this.checkMemberEmail(tx, row.data.email, row.id, row.memberId);
         row.unitId = unitId;
+        await tx.nativeDelete(MemberFamilyLink, {
+          sourceApplicationId: row.id,
+        });
         row.state = 'pending';
         row.approvedBy = null;
         row.revision++;
@@ -303,8 +324,21 @@ export class AdmissionsService implements OnModuleInit {
               'Numai adminul poate asocia un ID Orgo verificat.',
             );
           row.existingOrgoId = orgoId;
+          if (!row.attemptedAt)
+            await tx.nativeDelete(MemberFamilyLink, {
+              sourceApplicationId: row.id,
+            });
           const canonical = await tx.findOne(ScoutMember, { orgoId });
           if (canonical && canonical.id !== row.memberId) {
+            if (
+              row.attemptedAt &&
+              (await tx.findOne(MemberFamilyLink, {
+                sourceApplicationId: row.id,
+              }))
+            )
+              throw new ConflictException(
+                'Asocierea cu altă fișă după crearea contului necesită verificarea manuală a identității și cotizației. Încadrarea familială nu a fost mutată.',
+              );
             const previousMemberId = row.memberId;
             row.memberId = canonical.id;
             job.memberId = canonical.id;
@@ -360,6 +394,20 @@ export class AdmissionsService implements OnModuleInit {
         if (!row.reason) throw new BadRequestException('Completează motivul.');
         row.state = action === 'reject' ? 'rejected' : 'needs-information';
       } else {
+        const family = await admissionFamily(
+          tx,
+          row,
+          scope,
+          typeof b.familyId === 'string' ? b.familyId : undefined,
+        );
+        if (
+          !row.existingOrgoId &&
+          family.plan &&
+          b.familyVersion !== family.version
+        )
+          throw new ConflictException(
+            'Componența familiei s-a schimbat. Reîncarcă lista și verifică noua cotizație.',
+          );
         row.state = 'approved';
         row.approvedBy = user.id;
         const data = row.data;
@@ -410,16 +458,36 @@ export class AdmissionsService implements OnModuleInit {
         if (!canonical) Object.assign(member, memberData);
         await tx.flush();
         row.memberId = member.id;
-        if (
-          data.guardianName &&
-          !(await tx.findOne(MemberGuardian, { sourceApplicationId: row.id }))
-        )
-          tx.create(MemberGuardian, {
+        if (!canonical && !row.existingOrgoId) {
+          allocateAdmissionFamily(tx, family, member.id, row.id, user.id);
+          tx.create(AuditEntry, {
+            actorId: user.id,
+            action: 'members.application.family-confirmed',
+            entityType: 'MemberApplication',
+            entityId: row.id,
+            metadata: {
+              plan: family.plan,
+              matchedMembers: family.candidates.length,
+              preservesExistingFees: true,
+            },
+          });
+        }
+        if (data.guardianName) {
+          const contact = {
             memberId: member.id,
             name: data.guardianName,
             email: data.guardianEmail,
             phone: data.guardianPhone,
             relation: data.guardianRelation,
+            sourceApplicationId: row.id,
+          };
+          const previous = await tx.findOne(MemberGuardian, {
+            sourceApplicationId: row.id,
+          });
+          if (previous) Object.assign(previous, contact);
+          else tx.create(MemberGuardian, contact);
+        } else
+          await tx.nativeDelete(MemberGuardian, {
             sourceApplicationId: row.id,
           });
         tx.create(MemberSync, {
@@ -508,6 +576,10 @@ export class AdmissionsService implements OnModuleInit {
         id: claim.memberId,
       });
       let orgoId = member.orgoId ?? row.existingOrgoId;
+      const family = await tx.findOne(MemberFamilyLink, {
+        sourceApplicationId: row.id,
+        memberId: member.id,
+      });
       if (!orgoId) {
         if (this.config.get<string>('ORGO_MEMBER_CREATION_ENABLED') !== 'true')
           throw new BadRequestException(
@@ -520,6 +592,12 @@ export class AdmissionsService implements OnModuleInit {
         } else {
           // Recheck after approval, before marking any remote creation attempt.
           await this.checkMemberEmail(tx, row.data.email, row.id, member.id);
+          if (family?.plan) {
+            family.priceReference = await this.orgo.registrationFeePrice(
+              family.plan,
+            );
+            await tx.flush();
+          }
           await tx.nativeUpdate(
             MemberApplication,
             { id: row.id },
@@ -553,6 +631,9 @@ export class AdmissionsService implements OnModuleInit {
               roles: ['ROLE_USER'],
               language: 'ro',
               timezone: 'Europe/Bucharest',
+              ...(family?.priceReference
+                ? { feeTenantProductPrice: family.priceReference }
+                : {}),
               ...(userType
                 ? { userType, type: '/api/v1/roles/' + userType }
                 : {}),
@@ -567,6 +648,9 @@ export class AdmissionsService implements OnModuleInit {
             { id: row.id },
             { existingOrgoId: orgoId },
           );
+          // Publish only the correlation, while the local account remains in review.
+          // A first login/import must find this same record and its payment gate.
+          await tx.nativeUpdate(ScoutMember, { id: member.id }, { orgoId });
         }
       }
       if (orgoId) {
@@ -594,6 +678,15 @@ export class AdmissionsService implements OnModuleInit {
         if (row.data.gender && raw.gender !== row.data.gender)
           throw new BadRequestException(
             'Genul nu a fost confirmat în Orgo. Verifică profilul.',
+          );
+        if (
+          family?.plan &&
+          (!family.priceReference ||
+            feePriceReference(raw.feeTenantProductPrice) !==
+              family.priceReference)
+        )
+          throw new BadRequestException(
+            'Contul există, dar cotizația familială nu a fost confirmată în Orgo. Verifică încadrarea înainte de încasare.',
           );
         if (raw.status !== 'ACTIVE') {
           if (this.config.get<string>('ORGO_MEMBER_WRITES_ENABLED') !== 'true')
@@ -638,6 +731,17 @@ export class AdmissionsService implements OnModuleInit {
               'ID-ul Orgo are deja o fișă locală. Verifică asocierea.',
             );
           const m = await em.findOneOrFail(ScoutMember, { id: member.id });
+          if (family?.plan) {
+            const allocation = await em.findOneOrFail(MemberFamilyLink, {
+              sourceApplicationId: row.id,
+              memberId: member.id,
+            });
+            if (allocation.priceReference !== family.priceReference)
+              throw new ConflictException(
+                'Încadrarea familială s-a schimbat. Reia verificarea.',
+              );
+            allocation.priceConfirmedAt ??= new Date();
+          }
           m.orgoId = orgoId;
           if (row.data.guardianName)
             m.profile = {

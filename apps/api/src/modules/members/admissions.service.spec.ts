@@ -5,6 +5,7 @@ jest.mock('./entities/member-application.entity', () => ({
 }));
 jest.mock('./entities/member.entity', () => ({
   MemberSync: 'sync',
+  MemberFamilyLink: 'family-link',
   ScoutMember: 'member',
   ScoutUnit: 'unit',
   ScoutAssignment: 'assignment',
@@ -86,6 +87,7 @@ function fixture(admin = false, config: Record<string, string> = {}) {
         return Promise.resolve(null);
       },
     ),
+    nativeDelete: jest.fn(() => Promise.resolve(1)),
     nativeUpdate: jest.fn(
       (_entity: unknown, _where: unknown, update: Record<string, unknown>) => {
         Object.assign(application, update);
@@ -124,6 +126,9 @@ function fixture(admin = false, config: Record<string, string> = {}) {
       },
     ),
     registerDelivery: jest.fn(),
+    registrationFeePrice: jest.fn(() =>
+      Promise.resolve('/api/v1/product_prices/222'),
+    ),
     registrationEmailExists: jest.fn(() => Promise.resolve(false)),
   };
   const service = new AdmissionsService(
@@ -140,6 +145,7 @@ describe('admission review authorization and provisioning', () => {
     const f = fixture();
     await f.service.review(f.user, 'request', {
       revision: 1,
+      familyVersion: (await f.service.previewFamily(f.user, 'request')).version,
       action: 'approve',
     });
     expect(f.application.state).toBe('approved');
@@ -173,12 +179,44 @@ describe('admission review authorization and provisioning', () => {
     ).rejects.toThrow('schimbat');
     await f.service.review(f.user, 'request', {
       revision: 1,
+      familyVersion: (await f.service.previewFamily(f.user, 'request')).version,
       action: 'approve',
     });
     await expect(
       f.service.review(f.user, 'request', { revision: 2, action: 'approve' }),
     ).rejects.toThrow('aprobată');
     expect(f.created.filter((r) => r.entity === 'member')).toHaveLength(1);
+  });
+  it('does not move a reserved family price to a different canonical account after an uncertain creation', async () => {
+    const f = fixture(true);
+    Object.assign(f.application, {
+      state: 'approved',
+      memberId: 'provisional',
+      attemptedAt: new Date(),
+    });
+    const job = { state: 'permission-required', memberId: 'provisional' };
+    f.tx.findOneOrFail.mockImplementation((entity) =>
+      Promise.resolve(entity === 'application' ? f.application : job),
+    );
+    f.tx.findOne.mockImplementation((entity) =>
+      Promise.resolve(
+        entity === 'member'
+          ? { id: 'canonical' }
+          : entity === 'family-link'
+            ? { memberId: 'provisional', plan: 'fam2' }
+            : null,
+      ),
+    );
+    await expect(
+      f.service.review(f.user, 'request', {
+        action: 'retry',
+        revision: 1,
+        existingOrgoId: 42,
+      }),
+    ).rejects.toThrow('verificarea manuală');
+    expect(job.memberId).toBe('provisional');
+    expect(f.tx.nativeDelete).not.toHaveBeenCalled();
+    expect(f.created).toHaveLength(0);
   });
   it('does not let a leader bind a guessed existing Orgo ID', async () => {
     const f = fixture();
@@ -229,6 +267,7 @@ describe('registration structure and account email validation', () => {
     Object.assign(f.application.data, { structureId: 'floresti' });
     await f.service.review(f.user, 'request', {
       revision: 1,
+      familyVersion: (await f.service.previewFamily(f.user, 'request')).version,
       action: 'approve',
     });
     expect(f.created.find((r) => r.entity === 'member')?.value).toMatchObject({
@@ -402,6 +441,67 @@ describe('admission provisioning result correlation', () => {
     expect(body.email).toBeUndefined();
     expect(JSON.stringify(body)).not.toContain('parent@example.test');
     expect(f.member.orgoId).toBe(42);
+  });
+});
+
+describe('new account family price delivery', () => {
+  const setup = (confirmed: boolean) => {
+    const f = deliveryFixture();
+    const family = {
+      memberId: 'member',
+      sourceApplicationId: 'request',
+      plan: 'fam2',
+      priceReference: null as string | null,
+      priceConfirmedAt: null,
+    };
+    f.tx.findOne.mockImplementation((entity) =>
+      Promise.resolve(entity === 'family-link' ? family : null),
+    );
+    const find = f.tx.findOneOrFail.getMockImplementation()!;
+    f.tx.findOneOrFail.mockImplementation((entity) =>
+      entity === 'family-link' ? Promise.resolve(family) : find(entity),
+    );
+    f.orgo.serverRequest.mockImplementation((path) =>
+      Promise.resolve(
+        path === '/api/v1/member-register-by-admin'
+          ? { id: 42 }
+          : {
+              id: 42,
+              localCenter: { id: 7 },
+              firstName: 'Ana',
+              lastName: 'Test',
+              dateBirth: '2014-01-01',
+              status: 'ACTIVE',
+              feeTenantProductPrice: confirmed
+                ? '/api/v1/product_prices/222'
+                : '/api/v1/product_prices/111',
+            },
+      ),
+    );
+    return { ...f, family };
+  };
+  it('sends only the new member price in initial creation and verifies it before enabling collection', async () => {
+    const f = setup(true);
+    await f.service.deliver('job');
+    expect(f.orgo.registrationFeePrice).toHaveBeenCalledWith('fam2');
+    expect(f.orgo.serverRequest.mock.calls[0][2]).toMatchObject({
+      feeTenantProductPrice: '/api/v1/product_prices/222',
+    });
+    expect(JSON.stringify(f.orgo.serverRequest.mock.calls)).not.toContain(
+      'parent@example.test',
+    );
+    expect(f.family.priceConfirmedAt).toBeInstanceOf(Date);
+    expect(f.job.state).toBe('synced');
+  });
+  it('keeps a mismatched price visible and retries readback without another account creation', async () => {
+    const f = setup(false);
+    await f.service.deliver('job');
+    expect(f.job.state).toBe('permission-required');
+    expect(f.family.priceConfirmedAt).toBeNull();
+    await f.service.deliver('job');
+    expect(
+      f.orgo.serverRequest.mock.calls.filter(([, method]) => method === 'POST'),
+    ).toHaveLength(1);
   });
 });
 

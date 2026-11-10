@@ -1,4 +1,7 @@
 <script lang="ts">
+	import InfoHint from '$lib/components/ui/InfoHint.svelte';
+	import Camera from '@lucide/svelte/icons/camera';
+	import UserRound from '@lucide/svelte/icons/user-round';
 	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
@@ -22,6 +25,12 @@
 		untrack(() =>
 			String(values.registrationFor ?? (values.id ? (values.forChild ? 'other' : 'self') : ''))
 		)
+	);
+	let firstName = $state(untrack(() => String(values.firstName ?? '')));
+	let lastName = $state(untrack(() => String(values.lastName ?? '')));
+	let photoInput = $state<HTMLInputElement>();
+	const initials = $derived(
+		[firstName, lastName].map((name) => name.trim().charAt(0).toLocaleUpperCase('ro-RO')).join('')
 	);
 	let birthDate = $state(untrack(() => String(values.birthDate ?? '')));
 	let schooling = $state(untrack(() => String(values.schooling ?? '')));
@@ -153,7 +162,7 @@
 						autocomplete={other ? 'off' : 'given-name'}
 						required
 						maxlength="120"
-						value={String(values.firstName ?? '')}
+						bind:value={firstName}
 					/></label
 				>
 				<label
@@ -162,7 +171,7 @@
 						autocomplete={other ? 'off' : 'family-name'}
 						required
 						maxlength="120"
-						value={String(values.lastName ?? '')}
+						bind:value={lastName}
 					/></label
 				>
 				<label
@@ -184,24 +193,44 @@
 					{age === null ? 'Vârsta se calculează din data nașterii.' : `${age} ani`}
 				</p>
 				<div class="photo-field full">
-					{#if preview}<img
-							class="photo-preview"
-							src={preview}
-							alt="Previzualizare fotografie de profil"
-						/>{/if}
-					<div class="photo-controls">
-						<label
-							>{other ? 'Fotografia copilului / persoanei' : 'Fotografie'}
-							<span class="optional">(opțional)</span><input
-								type="file"
-								accept="image/jpeg,image/png,image/webp"
-								onchange={selectPhoto}
-								aria-describedby="photo-hint"
-							/></label
+					<div class="avatar-upload">
+						<button
+							class="photo-avatar"
+							type="button"
+							aria-label={preview
+								? 'Schimbă fotografia de profil'
+								: 'Adaugă o fotografie de profil'}
+							onclick={() => photoInput?.click()}
+							disabled={pending || readingPhoto}
 						>
-						<p class="hint" id="photo-hint">
-							O fotografie de profil clară, în format JPG, PNG sau WebP, de maximum 2 MB. Va fi
-							adăugată în profilul Orgo după aprobare.
+							{#if preview}<img
+									src={preview}
+									alt="Previzualizare fotografie de profil"
+								/>{:else if initials}<span class="initials" aria-hidden="true">{initials}</span
+								>{:else}<UserRound size={40} aria-hidden="true" />{/if}
+							<span class="camera-badge"><Camera size={17} aria-hidden="true" /></span>
+						</button>
+						<input
+							class="photo-input"
+							tabindex="-1"
+							bind:this={photoInput}
+							type="file"
+							accept="image/jpeg,image/png,image/webp"
+							onchange={selectPhoto}
+							aria-label={other ? 'Fotografia copilului / persoanei' : 'Fotografie'}
+						/>
+					</div>
+					<div class="photo-controls">
+						<div class="photo-heading">
+							<strong>Fotografie <span class="optional">(opțional)</span></strong><InfoHint
+								label="Informații despre fotografia de profil"
+								text="JPG, PNG sau WebP, maximum 2 MB. Fotografia va fi adăugată în profilul Orgo după aprobare. Apasă pe cerc pentru a o alege sau înlocui."
+							/>
+						</div>
+						<p class="hint">
+							{other
+								? 'O poză bună ne ajută să recunoaștem persoana la început.'
+								: 'O poză bună ne ajută să te recunoaștem la început.'}
 						</p>
 						{#if preview}<button
 								class="text-button"
@@ -271,11 +300,14 @@
 							value={String(values.email ?? '')}
 						/></label
 					>
-					{#if other}<small id="member-email-hint" class="hint"
-							>De preferat, folosește emailul propriu al copilului / persoanei înscrise. Dacă nu
-							are, poți folosi o adresă a părintelui care nu este utilizată pentru alt cont Orgo sau
-							alt membru. Aceasta va fi adresa de autentificare a persoanei înscrise.</small
-						>{/if}
+					{#if other}<div class="email-guidance">
+							<small id="member-email-hint" class="hint"
+								>De preferat, emailul copilului. Fiecare cont are nevoie de o adresă unică.</small
+							><InfoHint
+								label="Informații despre emailul contului"
+								text="Dacă persoana înscrisă nu are email propriu, poți folosi o adresă a părintelui neutilizată pentru alt cont Orgo sau alt membru. Aceasta devine adresa de autentificare. Contactul părintelui se completează separat."
+							/>
+						</div>{/if}
 				</div>
 				<label
 					>{other ? 'Telefonul copilului / persoanei' : 'Telefon'}
@@ -299,7 +331,7 @@
 				</p>
 				<div class="fields">
 					<label
-						>Nume complet părinte / tutore<input
+						>Nume părinte<input
 							name="guardianName"
 							required
 							maxlength="120"
@@ -317,7 +349,7 @@
 						></label
 					>
 					<label
-						>Email părinte / tutore<input
+						>Email părinte<input
 							type="email"
 							name="guardianEmail"
 							required
@@ -326,7 +358,7 @@
 						/></label
 					>
 					<label
-						>Telefon părinte / tutore<input
+						>Telefon părinte<input
 							type="tel"
 							name="guardianPhone"
 							required
@@ -510,13 +542,65 @@
 		min-width: 0;
 		flex: 1;
 	}
-	.photo-preview {
-		width: 96px;
-		height: 112px;
-		object-fit: cover;
-		border-radius: 8px;
+	.avatar-upload {
+		position: relative;
 		flex-shrink: 0;
 	}
+	.photo-avatar {
+		width: 112px;
+		height: 112px;
+		border-radius: 50%;
+		border: 0;
+		padding: 0;
+		background: var(--sc-accent);
+		color: var(--sc-surface);
+		position: relative;
+		display: grid;
+		place-items: center;
+	}
+	.photo-avatar img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		border-radius: 50%;
+	}
+	.initials {
+		font-size: 38px;
+		font-weight: 600;
+	}
+	.camera-badge {
+		position: absolute;
+		right: 0;
+		bottom: 0;
+		width: 32px;
+		height: 32px;
+		border-radius: 50%;
+		background: var(--sc-surface);
+		color: var(--sc-accent);
+		border: 1px solid var(--sc-border);
+		display: grid;
+		place-items: center;
+	}
+	.photo-input {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		min-height: 0;
+		padding: 0;
+		border: 0;
+		overflow: hidden;
+		clip-path: inset(50%);
+	}
+	.photo-heading,
+	.email-guidance {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.photo-heading strong {
+		font-size: 14px;
+	}
+
 	input[type='file'] {
 		background: var(--sc-surface);
 		font-size: 0.8rem;

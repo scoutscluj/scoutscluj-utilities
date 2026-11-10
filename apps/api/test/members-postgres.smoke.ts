@@ -1,3 +1,8 @@
+import {
+  MemberApplication,
+  MemberGuardian,
+} from '../src/modules/members/entities/member-application.entity';
+import { randomUUID } from 'node:crypto';
 import { AdmissionsService } from '../src/modules/members/admissions.service';
 import { OrgoTokenService } from '../src/modules/auth/orgo-token.service';
 import { OrgoConnection } from '../src/modules/users/entities/orgo-connection.entity';
@@ -29,6 +34,7 @@ import {
   ScoutUnit,
   ScoutAssignment,
   MemberSync,
+  MemberFamilyLink,
 } from '../src/modules/members/entities/member.entity';
 
 async function main() {
@@ -696,6 +702,149 @@ async function main() {
     assert(adultRow.responsibilityUnitIds.includes(commonUnit.id));
     console.log(
       'PASS optional leader promise, common-collective responsibilities, same-structure movement and adult grade exclusion',
+    );
+    // Approval must reserve each new family position under the same transaction lock.
+    const familyEm = orm.em.fork();
+    const parent = familyEm.create(ScoutMember, {
+      name: 'Părinte familie test',
+      structureId: assignedUnit.structureId,
+      category: assignedUnit.branch,
+      status: 'active',
+      unitId: assignedUnit.id,
+      profile: { ...emptyProfile(), email: ' FAMILY@example.test ' },
+      orgoProfile: { feeTenantProductPrice: { id: 123, name: 'Socială' } },
+    });
+    const sibling = familyEm.create(ScoutMember, {
+      name: 'Frate familie test',
+      structureId: assignedUnit.structureId,
+      category: assignedUnit.branch,
+      status: 'inactive',
+      unitId: assignedUnit.id,
+      profile: emptyProfile(),
+    });
+    await familyEm.flush();
+    familyEm.create(MemberGuardian, {
+      memberId: sibling.id,
+      name: 'Părinte',
+      email: 'family@example.test',
+      phone: '0700',
+      relation: 'Părinte',
+    });
+    const makeApplication = (firstName: string) =>
+      familyEm.create(MemberApplication, {
+        requestKey: randomUUID(),
+        unitId: assignedUnit.id,
+        data: {
+          registrationFor: 'other',
+          firstName,
+          lastName: 'Familie',
+          birthDate: '2014-01-01',
+          schooling: 'grade',
+          grade: 6,
+          gender: 'F',
+          email: firstName.toLowerCase() + '@example.test',
+          phone: '',
+          forChild: true,
+          guardianName: 'Părinte',
+          guardianEmail: 'family@example.test',
+          guardianPhone: '0700',
+          guardianRelation: 'Părinte',
+          structureId:
+            assignedUnit.structureId === 'floresti' ? 'floresti' : 'cluj',
+        },
+      });
+    const firstChild = makeApplication('Prima');
+    const secondChild = makeApplication('ADoua');
+    await familyEm.flush();
+    const admissions = () =>
+      new AdmissionsService(
+        orm.em.fork(),
+        service(),
+        new MemberOrgoService(orm.em.fork(), new ConfigService({}), service()),
+        new ConfigService({}),
+      );
+    const financialSnapshot = () =>
+      orm.em
+        .fork()
+        .execute(
+          "select (select coalesce(jsonb_agg(to_jsonb(o) order by o.id), '[]') from membership_obligations o) as obligations, (select coalesce(jsonb_agg(to_jsonb(r) order by r.id), '[]') from membership_receipts r) as receipts",
+        );
+    const beforeFinances = await financialSnapshot();
+    const beforeParent = JSON.stringify(
+      await orm.em.fork().findOneOrFail(ScoutMember, parent.id),
+    );
+    const versions = await Promise.all([
+      admissions().previewFamily(actor, firstChild.id),
+      admissions().previewFamily(actor, secondChild.id),
+    ]);
+    assert(versions.every((v) => v.plan === 'fam2' && v.count === 1));
+    const approvals = await Promise.allSettled(
+      [firstChild, secondChild].map((app, index) =>
+        admissions().review(actor, app.id, {
+          action: 'approve',
+          revision: 1,
+          familyVersion: versions[index].version,
+        }),
+      ),
+    );
+    assert.equal(approvals.filter((r) => r.status === 'fulfilled').length, 1);
+    assert.equal(approvals.filter((r) => r.status === 'rejected').length, 1);
+    const loser = approvals[0].status === 'rejected' ? firstChild : secondChild;
+    const nextPreview = await admissions().previewFamily(actor, loser.id);
+    assert.equal(nextPreview.plan, 'fam3');
+    await admissions().review(actor, loser.id, {
+      action: 'approve',
+      revision: 1,
+      familyVersion: nextPreview.version,
+    });
+    const familyLinks = await orm.em.fork().find(MemberFamilyLink, {
+      sourceApplicationId: { $in: [firstChild.id, secondChild.id] },
+    });
+    assert.deepEqual(familyLinks.map((l) => l.plan).sort(), ['fam2', 'fam3']);
+    assert.equal(new Set(familyLinks.map((l) => l.ordinal)).size, 2);
+    assert.equal(new Set(familyLinks.map((l) => l.familyId)).size, 1);
+    assert.equal(
+      JSON.stringify(await orm.em.fork().findOneOrFail(ScoutMember, parent.id)),
+      beforeParent,
+    );
+    assert.equal(
+      await orm.em.fork().count(MemberGuardian, {
+        verifiedAccountId: { $ne: null },
+        sourceApplicationId: { $in: [firstChild.id, secondChild.id] },
+      }),
+      0,
+    );
+    await assert.rejects(
+      admissions().review(actor, firstChild.id, {
+        action: 'approve',
+        revision: 2,
+        familyVersion: versions[0].version,
+      }),
+    );
+    const privateLeader = { ...actor, roles: [] };
+    const unauthorizedAdmissions = new AdmissionsService(
+      orm.em.fork(),
+      {
+        admissionScope: () => Promise.resolve({ admin: false, unitIds: [] }),
+      } as unknown as MembersService,
+      {} as MemberOrgoService,
+      new ConfigService({}),
+    );
+    await assert.rejects(
+      unauthorizedAdmissions.previewFamily(privateLeader, firstChild.id),
+    );
+    // Only approved new accounts have their own price allocation; existing social rate is untouched.
+    assert.equal(
+      (
+        await orm.em
+          .fork()
+          .findOneOrFail(MemberFamilyLink, { memberId: parent.id })
+      ).plan,
+      null,
+    );
+    assert.deepEqual(await financialSnapshot(), beforeFinances);
+    console.log(
+      'PASS guardian/member email matching, concurrent family allocations, private contacts and preserved existing rates',
     );
     await orm.em.fork().execute(
       `insert into member_applications (id, request_key, unit_id, data, created_at)

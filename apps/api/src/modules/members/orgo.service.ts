@@ -1861,6 +1861,16 @@ export class MemberOrgoService {
       Number(object(raw.localCenter).id) !== settings.center
     )
       throw new BadGatewayException('Identitate Orgo invalidă.');
+    const choices = await this.registrationFeeChoices();
+    const member = await this.em.fork().findOne(ScoutMember, { orgoId });
+    return {
+      baseline: feePriceReference(raw.feeTenantProductPrice),
+      choices,
+      memberRevision: member?.revision ?? null,
+    };
+  }
+  private async registrationFeeChoices() {
+    const settings = this.settings();
     const tenants = await this.request(
       '/api/v1/tenants?appHost=' +
         encodeURIComponent(new URL(settings.base).hostname),
@@ -1902,12 +1912,17 @@ export class MemberOrgoService {
         reference: feePriceReference(price),
       }))
       .filter((price) => price.plan && price.reference);
-    const member = await this.em.fork().findOne(ScoutMember, { orgoId });
-    return {
-      baseline: feePriceReference(raw.feeTenantProductPrice),
-      choices,
-      memberRevision: member?.revision ?? null,
-    };
+    return choices;
+  }
+  async registrationFeePrice(plan: string): Promise<string> {
+    const choices = (await this.registrationFeeChoices()).filter(
+      (price) => price.plan === plan,
+    );
+    if (choices.length !== 1 || !choices[0].reference)
+      throw new BadGatewayException(
+        'Catalogul Orgo nu oferă un preț unic pentru cotizația familială.',
+      );
+    return choices[0].reference;
   }
   async queueFeePlan(
     tx: EntityManager,

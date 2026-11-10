@@ -168,6 +168,51 @@
 											</p>
 										</div>
 									</details>{/if}
+								{#if row.family?.version}
+									<input type="hidden" name="familyVersion" value={row.family.version} />
+									<section class="family-review" aria-label="Familie și cotizație">
+										<h3>Familie și cotizație</h3>
+										{#if row.family.ambiguous}
+											<p>
+												Emailul părintelui indică mai multe familii. {row.family.canSelect
+													? 'Alege familia după verificare.'
+													: 'Este necesară verificarea unui administrator.'}
+											</p>
+											{#if row.family.canSelect}
+												<label
+													>Familia confirmată<select name="familyId">
+														<option value="">Alege familia</option>
+														{#each row.family.choices ?? [] as choice (choice.id)}<option
+																value={choice.id}
+																>{choice.names.join(', ')} · Fam {Math.min(
+																	choice.position,
+																	3
+																)}</option
+															>{/each}
+													</select></label
+												>
+											{/if}
+										{:else if row.family.plan}
+											<p>
+												<strong>{row.family.plan.toUpperCase().replace('FAM', 'Fam ')}</strong> · {row
+													.family.count ?? 0} membri activi sau înscrieri în curs în familie.
+											</p>
+											{#if row.family.members?.length}<ul>
+													{#each row.family.members as member, index (index)}<li>
+															{member.name}{member.reserved
+																? ' · înscriere în curs'
+																: !member.active
+																	? ' · inactiv'
+																	: ''}
+														</li>{/each}
+												</ul>{/if}
+										{:else}<p>Fără încadrare familială automată pentru această cerere.</p>{/if}
+										<p class="hint">
+											Contactele rămân private în Resurse. Asocierea nu acordă acces la contul
+											copilului. Conturile Orgo existente își păstrează cotizația.
+										</p>
+									</section>
+								{/if}
 								<button class="approve-button" name="action" value="approve"
 									>Confirmă înscrierea</button
 								>
@@ -194,6 +239,17 @@
 									</details>{/if}
 							</form>
 						{/if}
+						{#if row.state === 'approved' && row.family?.plan}<div
+								class="sync-notice"
+								data-confirmed={!!row.family.priceConfirmedAt}
+							>
+								<strong>Cotizație: {row.family.plan.toUpperCase().replace('FAM', 'Fam ')}</strong>
+								<p>
+									{row.family.priceConfirmedAt
+										? 'Confirmată în Orgo.'
+										: 'În curs de confirmare în Orgo.'}
+								</p>
+							</div>{/if}
 						{#if row.photoSync}<div
 								class="sync-notice"
 								data-confirmed={row.photoSync.state === 'synced'}
@@ -264,6 +320,22 @@
 </main>
 
 <style>
+	.family-review {
+		padding: 16px;
+		margin-bottom: 16px;
+		border: 1px solid var(--sc-border);
+		border-radius: 10px;
+		background: var(--sc-inset);
+	}
+	.family-review h3 {
+		margin: 0 0 8px;
+		font-size: 15px;
+	}
+	.family-review p,
+	.family-review ul {
+		margin: 8px 0;
+	}
+
 	.applicant-photo {
 		width: 96px;
 		height: 112px;

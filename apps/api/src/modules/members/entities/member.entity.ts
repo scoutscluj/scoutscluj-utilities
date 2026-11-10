@@ -193,7 +193,25 @@ export const MemberNotice = defineEntity({
     createdAt: created(),
   },
 });
+export const MemberFamilyLink = defineEntity({
+  name: 'MemberFamilyLink',
+  tableName: 'member_family_links',
+  uniques: [{ properties: ['familyId', 'ordinal'] }],
+  properties: {
+    memberId: p.uuid().primary(),
+    familyId: p.uuid(),
+    ordinal: p.integer(),
+    sourceApplicationId: p.uuid().nullable().unique(),
+    plan: p.string().nullable(),
+    priceReference: p.string().nullable(),
+    priceConfirmedAt: p.datetime().nullable(),
+    actorId: p.integer().nullable(),
+    createdAt: created(),
+  },
+});
+export type MemberFamilyLink = InferEntity<typeof MemberFamilyLink>;
 export const MEMBER_ENTITIES = [
+  MemberFamilyLink,
   LocalStructure,
   ScoutUnit,
   ScoutSubunit,

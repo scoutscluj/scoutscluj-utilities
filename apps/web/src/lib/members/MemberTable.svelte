@@ -1,5 +1,6 @@
 <script lang="ts">
 	import DateInput from '$lib/components/ui/DateInput.svelte';
+	import FeePaymentForm from './FeePaymentForm.svelte';
 	import FeePlanDialog from '$lib/membership/FeePlanDialog.svelte';
 	let planOpen = $state(false),
 		planId = $state<string>(),
@@ -67,6 +68,7 @@
 	const canSeeFees = $derived(members.some((m) => m.access?.fees));
 	let editError = $state('');
 	let feesOpen = $state(false);
+	let manualPayment = $state(false);
 	let pending = $state(false);
 	let displayedFees = $state<typeof feeMenu>();
 	let feeTarget = $state('');
@@ -210,13 +212,24 @@
 				displayedFees = undefined;
 			}
 		};
-	async function loadFees(m: Member) {
+	async function loadFees(m: Member, manual = false) {
+		manualPayment = manual;
 		feeTarget = m.id;
 		await tick();
 		feeForm.requestSubmit();
 	}
 	function rowActions(m: Member) {
 		return [
+			...(m.access?.fees && (m.access.recordFees || registry.canFinance) && m.status === 'active'
+				? [
+						{
+							label: 'Înregistrează plată manuală',
+							action: () => {
+								void loadFees(m, true);
+							}
+						}
+					]
+				: []),
 			...(m.access?.delegate && onResponsibilities
 				? [{ label: 'Responsabilități', action: () => onResponsibilities?.(m) }]
 				: []),
@@ -590,7 +603,7 @@
 />
 <Modal
 	bind:open={feesOpen}
-	title={`Cotizații · ${displayedFees?.name ?? 'Membru'}`}
+	title={`${manualPayment ? 'Înregistrează plată manuală' : 'Cotizații'} · ${displayedFees?.name ?? 'Membru'}`}
 	description="Situația plăților și contribuțiilor pentru fiecare perioadă."
 >
 	{#if message}<p role="status">{message}</p>{/if}
@@ -608,6 +621,13 @@
 							? ' · achitat direct în Orgo'
 							: ''}. Încasat de centru: {money(fee.localPaidBani ?? fee.paidBani)}.
 					</p>
+					<FeePaymentForm
+						{fee}
+						expanded={manualPayment && fee.current}
+						canRecord={registry.canFinance ||
+							members.find((m) => m.id === displayedFees?.id)?.access?.recordFees}
+						submit={submitFee}
+					/>
 					{#if management && registry.canFinance && fee.obligationId && fee.current}<button
 							type="button"
 							onclick={() => {

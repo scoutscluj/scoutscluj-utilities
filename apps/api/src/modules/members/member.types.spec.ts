@@ -38,6 +38,30 @@ const assignment = (
   canSeeSensitive: false,
 });
 describe('member scope policies', () => {
+  it('restricts manual fee recording to chiefs and leaders in their exact scope', () => {
+    const target = { id: 'child', unitId: 'temerari', groupId: 'group-a' };
+    expect(
+      permissions(false, false, [assignment('leader')], target).recordFees,
+    ).toBe(true);
+    expect(
+      permissions(false, false, [assignment('leader')], {
+        ...target,
+        groupId: 'group-b',
+      }).recordFees,
+    ).toBe(false);
+    expect(
+      permissions(false, false, [assignment('chief', null)], target).recordFees,
+    ).toBe(true);
+    expect(
+      permissions(
+        false,
+        false,
+        [{ ...assignment('helper'), canEdit: true, canSeeFees: true }],
+        target,
+      ).recordFees,
+    ).toBe(false);
+    expect(permissions(false, true, [], target).recordFees).toBe(false);
+  });
   const child = { id: 'child', unitId: 'temerari', groupId: 'group-b' };
   it('denies private details outside the designated leader subunit', () => {
     expect(

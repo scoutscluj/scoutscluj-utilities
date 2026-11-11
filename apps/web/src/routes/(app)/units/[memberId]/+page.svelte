@@ -1,5 +1,6 @@
 <script lang="ts">
 	import DateInput from '$lib/components/ui/DateInput.svelte';
+	import FeePaymentForm from '$lib/members/FeePaymentForm.svelte';
 	import TableView from '$lib/components/ui/TableView.svelte';
 	import { resolve } from '$app/paths';
 	import OrgoProfile from '$lib/members/OrgoProfile.svelte';
@@ -171,6 +172,15 @@
 		</section>{/if}
 	{#if a.fees}<section>
 			<h2>Cotizații și adeziune</h2>
+			{#if data.nationalMessage}<p role="status">{data.nationalMessage}</p>{/if}
+			{#each data.detail.fees as fee (fee.period)}
+				<p>
+					{fee.period} · Național: {money(fee.nationalBani ?? 0)}{fee.nationalDirectBani
+						? ' · achitat direct în Orgo'
+						: ''}. Încasat de centru: {money(fee.localPaidBani ?? 0)}.
+				</p>
+				<FeePaymentForm {fee} canRecord={a.recordFees || data.registry.canFinance} />
+			{/each}
 			{#if data.detail.admission}<p>
 					Adeziune: <strong
 						>{data.detail.admission.paid

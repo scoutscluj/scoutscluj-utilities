@@ -1,4 +1,5 @@
 jest.mock('./orgo-national.service', () => ({ OrgoNationalService: class {} }));
+jest.mock('../members/members.service', () => ({ MembersService: class {} }));
 jest.mock('./entities/admission-allocation.entity', () => ({
   AdmissionAllocation: 'admission-allocation',
 }));
@@ -484,18 +485,23 @@ function fixture() {
     }),
   );
   const queueFeePlan = jest.fn(() => Promise.resolve());
+  const nationalReady = jest.fn(() => Promise.resolve(false));
+  const memberAccess = jest.fn(() =>
+    Promise.resolve({ fees: false, recordFees: false }),
+  );
   const service = new MembershipService(
     em as unknown as EntityManager,
     netopia as unknown as NetopiaService,
     stripe as unknown as StripeService,
     configurations as never,
-    { members: rosterMembers, nationalReady: () => false } as never,
+    { members: rosterMembers, nationalReady } as never,
     { synchronize: nationalCheck } as never,
     {
       feePlanContext: feeContext,
       queueFeePlan,
       verifyIdentity: jest.fn(() => Promise.resolve(null)),
     } as never,
+    { access: memberAccess } as never,
   );
   const staff: CurrentUser = {
     id: 1,
@@ -512,6 +518,8 @@ function fixture() {
     nationalCheck,
     feeContext,
     queueFeePlan,
+    memberAccess,
+    nationalReady,
     service,
     staff,
   };
@@ -2624,6 +2632,128 @@ describe('bank admission evidence and shared receipt limits', () => {
     ).rejects.toThrow('verificare financiară');
     await expect(bank(f, [], 5500)).rejects.toThrow('deja înregistrată');
     expect(f.rows.filter((r) => r.table === 'receipt')).toHaveLength(1);
+  });
+});
+
+describe('independent national credit and scoped manual receipts', () => {
+  it('recognizes current national credit during roster initialization and preserves it on the next refresh', async () => {
+    const f = await setup();
+    f.nationalReady.mockResolvedValue(true);
+    await f.service.synchronizeRoster(f.staff, 'initialization');
+    expect(f.obligation.nationalDirectBani).toBe(15000);
+    await f.service.synchronizeRoster(f.staff, 'manual');
+    expect(f.obligation.nationalDirectBani).toBe(15000);
+    expect(f.rows.filter((r) => r.table === 'receipt')).toHaveLength(0);
+  });
+  const receipt = (
+    f: Awaited<ReturnType<typeof setup>>,
+    amountBani = 15000,
+  ) => ({
+    periodId: f.period.id,
+    obligationId: f.obligation.id,
+    amountBani,
+    method: 'bank',
+    reference: 'unit-transfer',
+    receivedOn: '2026-11-10',
+    note: 'Încasare locală',
+  });
+  const leader: CurrentUser = { id: 9, displayName: 'Lider', roles: [] };
+
+  it('imports only national credit without inventing a local receipt and is idempotent', async () => {
+    const f = await setup();
+    await f.service.refreshNational(f.staff, { obligationId: f.obligation.id });
+    await f.service.refreshNational(f.staff, { obligationId: f.obligation.id });
+    expect(f.obligation.nationalDirectBani).toBe(15000);
+    expect(
+      f.rows.filter((r) => ['receipt', 'allocation'].includes(r.table)),
+    ).toHaveLength(0);
+    expect(
+      f.rows.filter((r) => r.action === 'membership.national.imported'),
+    ).toHaveLength(1);
+    await expect(
+      f.service.guestLookup({ identifier: 'AT36805' }),
+    ).resolves.toMatchObject({ paid: false, amountBani: 15000 });
+    expect(f.nationalCheck).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ startsOn: '2026-09-01', endsOn: '2027-08-31' }),
+      false,
+    );
+  });
+
+  it.each(['unknown', 'failed', 'pending_approval'])(
+    'does not credit an Orgo result of %s',
+    async (state) => {
+      const f = await setup();
+      f.nationalCheck.mockResolvedValue({ state, message: 'Not confirmed' });
+      await f.service.refreshNational(f.staff, {
+        obligationId: f.obligation.id,
+      });
+      expect(f.obligation.nationalDirectBani ?? 0).toBe(0);
+    },
+  );
+
+  it('preserves a partial local payment when recognizing national credit', async () => {
+    const f = await setup();
+    await f.service.bankReceipt(f.staff, receipt(f, 5000));
+    await f.service.refreshNational(f.staff, { obligationId: f.obligation.id });
+    await expect(
+      f.service.guestLookup({ identifier: 'AT36805' }),
+    ).resolves.toMatchObject({ amountBani: 10000 });
+    expect(f.rows.filter((r) => r.table === 'allocation')).toHaveLength(1);
+  });
+
+  it('flags overlapping collections without changing receipts or granting duplicate credit', async () => {
+    const f = await setup();
+    await f.service.bankReceipt(f.staff, receipt(f, 30000));
+    await expect(
+      f.service.refreshNational(f.staff, { obligationId: f.obligation.id }),
+    ).resolves.toMatchObject({ state: 'review' });
+    expect(f.obligation.nationalDirectBani ?? 0).toBe(0);
+    expect(f.obligation.reviewState).toBe('national_overlap');
+    expect(f.rows.find((r) => r.table === 'allocation')?.amountBani).toBe(
+      30000,
+    );
+  });
+
+  it('allows a currently authorized leader to record a partial receipt with audit evidence', async () => {
+    const f = await setup();
+    f.rows.push({ table: 'member', id: randomUUID(), orgoId: 36805 });
+    f.memberAccess.mockResolvedValue({ fees: true, recordFees: true });
+    await f.service.refreshNational(leader, { obligationId: f.obligation.id });
+    await f.service.bankReceipt(leader, receipt(f, 5000));
+    expect(f.rows.find((r) => r.table === 'receipt')).toMatchObject({
+      actorId: 9,
+      amountBani: 5000,
+      reference: 'unit-transfer',
+      receivedOn: '2026-11-10',
+    });
+    expect(
+      f.rows.find((r) => r.action === 'membership.receipt.allocated'),
+    ).toMatchObject({ actorId: 9 });
+  });
+
+  it('denies helpers with read/edit grants and leaders whose mandate was revoked', async () => {
+    const f = await setup();
+    f.rows.push({ table: 'member', id: randomUUID(), orgoId: 36805 });
+    f.memberAccess.mockResolvedValue({ fees: true, recordFees: false });
+    await expect(f.service.bankReceipt(leader, receipt(f))).rejects.toThrow();
+    expect(f.rows.filter((r) => r.table === 'receipt')).toHaveLength(0);
+    f.memberAccess.mockResolvedValue({ fees: false, recordFees: false });
+    await expect(
+      f.service.refreshNational(leader, { obligationId: f.obligation.id }),
+    ).rejects.toThrow();
+    expect(f.nationalCheck).not.toHaveBeenCalled();
+  });
+
+  it('denies unscoped and bulk financial writes to unit leaders', async () => {
+    const f = await setup();
+    await expect(
+      f.service.bankReceipt(leader, { ...receipt(f), obligationId: undefined }),
+    ).rejects.toThrow();
+    await expect(
+      f.service.bankReceipt(leader, { ...receipt(f), allocations: [] }),
+    ).rejects.toThrow();
+    expect(f.rows.filter((r) => r.table === 'receipt')).toHaveLength(0);
   });
 });
 

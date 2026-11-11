@@ -51,6 +51,7 @@ export type Member = {
 		delegate?: boolean;
 		detail?: boolean;
 		fees?: boolean;
+		recordFees?: boolean;
 		edit: boolean;
 		transfer: boolean;
 		withdraw?: boolean;
@@ -124,6 +125,7 @@ export type Detail = {
 		transfer: boolean;
 		sensitive: boolean;
 		fees: boolean;
+		recordFees?: boolean;
 		notes: boolean;
 		own: boolean;
 	};
@@ -144,6 +146,8 @@ export type Detail = {
 		current?: boolean;
 		plan?: string;
 		obligationId?: string;
+		periodId?: string;
+		reviewReason?: string | null;
 		nationalBani?: number;
 		nationalDirectBani?: number;
 		localPaidBani?: number;

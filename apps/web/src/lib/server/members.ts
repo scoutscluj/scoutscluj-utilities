@@ -10,6 +10,23 @@ export async function memberRead<T>(event: RequestEvent, path: string): Promise<
 	if (!response.ok) error(response.status, 'Registrul de membri nu a putut fi încărcat.');
 	return (await response.json()) as T;
 }
+export async function refreshMemberNational(event: RequestEvent, id: string) {
+	try {
+		const response = await apiFetch(
+			`/api/membership/members/${encodeURIComponent(id)}/national-status`,
+			{
+				method: 'POST',
+				headers: memberHeaders(event)
+			}
+		);
+		const result = (await response.json()) as { state?: string; message?: string };
+		return response.ok
+			? (result.message ?? '')
+			: 'Verificarea naționalului în Orgo nu este disponibilă. Se afișează situația salvată.';
+	} catch {
+		return 'Verificarea naționalului în Orgo nu este disponibilă. Se afișează situația salvată.';
+	}
+}
 export async function memberAction(event: RequestEvent) {
 	const form = await event.request.formData();
 	const action = String(form.get('action'));
@@ -22,14 +39,50 @@ export async function memberAction(event: RequestEvent) {
 	let path: string;
 	if (action === 'fee-menu') {
 		const target = String(form.get('id'));
+		const nationalMessage = await refreshMemberNational(event, target);
 		const detail = await memberRead<import('$lib/members/types').Detail>(
 			event,
 			'/' + encodeURIComponent(target)
 		);
 		return {
 			section: action,
-			message: '',
+			message: nationalMessage,
 			feeMenu: { id: target, name: detail.member.name, fees: detail.fees }
+		};
+	}
+	if (action === 'manual-fee' || action === 'national-status') {
+		const response = await apiFetch(
+			`/api/membership/${action === 'manual-fee' ? 'bank-receipts' : 'national-status'}`,
+			{
+				method: 'POST',
+				headers: { ...memberHeaders(event), 'Content-Type': 'application/json' },
+				body: JSON.stringify(
+					action === 'manual-fee'
+						? {
+								obligationId: form.get('obligationId'),
+								periodId: form.get('periodId'),
+								amountBani: Math.round(Number(form.get('amount')) * 100),
+								method: form.get('method'),
+								reference: form.get('reference'),
+								receivedOn: form.get('receivedOn'),
+								note: form.get('note')
+							}
+						: { obligationId: form.get('obligationId') }
+				)
+			}
+		);
+		const result = (await response.json()) as { message?: string };
+		if (!response.ok)
+			return fail(response.status, {
+				section: action,
+				message: result.message ?? 'Plata nu a putut fi înregistrată.'
+			});
+		return {
+			section: action,
+			message:
+				action === 'manual-fee'
+					? 'Plata a fost înregistrată.'
+					: (result.message ?? 'Verificare finalizată.')
 		};
 	}
 	if (action === 'bulk') {

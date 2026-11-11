@@ -204,6 +204,24 @@ export class MembershipController {
   }
 
   @UseGuards(AuthGuard)
+  @Post('national-status')
+  nationalStatus(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: unknown,
+  ) {
+    return this.membership.refreshNational(user, body);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('members/:id/national-status')
+  memberNationalStatus(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.membership.refreshMemberNational(user, id);
+  }
+
+  @UseGuards(AuthGuard)
   @Post('bank-receipts')
   receipt(@CurrentUser() user: AuthenticatedUser, @Body() body: unknown) {
     return this.membership.bankReceipt(user, body);

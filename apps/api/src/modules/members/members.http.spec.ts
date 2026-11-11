@@ -289,6 +289,21 @@ describe('member HTTP scope and lifecycle', () => {
     await app.close();
   });
   const http = () => request(app.getHttpServer() as Server);
+  it('rechecks manual fee authority against subgroup, structure and mandate expiry', async () => {
+    const service = new MembersService(f.em);
+    const actor = { id: 1, displayName: 'Leader', roles: [] };
+    const target = f.list('member').find((m) => m.id === childId)!;
+    const grant = () => service.access(f.em, actor, target as never);
+    expect((await grant()).recordFees).toBe(true);
+    target.groupId = groupB;
+    expect((await grant()).recordFees).toBe(false);
+    target.groupId = groupA;
+    target.structureId = 'floresti';
+    expect((await grant()).recordFees).toBe(false);
+    target.structureId = 'cluj';
+    f.list('assignment')[0].expiresAt = new Date('2020-01-01');
+    expect((await grant()).recordFees).toBe(false);
+  });
   it('limits admission approval to active whole-unit leaders and chiefs', async () => {
     const service = new MembersService(f.em);
     const assignment = f.list('assignment')[0];

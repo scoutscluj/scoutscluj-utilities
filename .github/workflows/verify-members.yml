@@ -35,6 +35,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Verify production ARM64 package source
+        run: curl --fail --silent --show-error --retry 2 --connect-timeout 10 --max-time 30 https://mirrors.mit.edu/ubuntu-ports/dists/noble/InRelease --output /dev/null
       - run: pnpm --filter api lint
       - run: pnpm --filter api typecheck
       - run: pnpm --filter api test --runInBand

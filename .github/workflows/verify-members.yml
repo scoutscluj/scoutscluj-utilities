@@ -43,7 +43,10 @@ jobs:
       - name: Render and inspect the supplied fixed agreement
         timeout-minutes: 10
         run: |
-          # Preserve the runner's mirror list so one unavailable host can fail over.
+          # Use independent mirrors when Ubuntu's archive DNS is unavailable.
+          # The runner's ubuntu.sources retains Ubuntu's Signed-By keyring.
+          printf '%s\n' 'https://mirrors.edge.kernel.org/ubuntu/' 'https://mirrors.mit.edu/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          printf '%s\n' 'https://mirrors.edge.kernel.org/ubuntu/' 'https://mirrors.mit.edu/ubuntu/' | sudo tee /etc/apt/apt-mirrors-security.txt >/dev/null
           apt_options=(-o Acquire::ForceIPv4=true -o Acquire::Retries=1 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15)
           sudo apt-get "${apt_options[@]}" -o APT::Update::Error-Mode=any update -qq
           sudo apt-get "${apt_options[@]}" install -y --no-install-recommends libreoffice-writer fonts-crosextra-carlito fonts-liberation python3-lxml python3-pypdf python3-reportlab poppler-utils

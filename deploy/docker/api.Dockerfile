@@ -32,8 +32,10 @@ ENV PLAYWRIGHT_BROWSERS_PATH="/ms-playwright"
 
 WORKDIR /app
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends fonts-dejavu-core fonts-liberation fonts-crosextra-carlito python3 python3-lxml python3-pypdf python3-reportlab libreoffice-writer \
+RUN find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) \
+      -exec sed -i -E 's@https?://azure[.]ports[.]ubuntu[.]com/@https://ports.ubuntu.com/@g; s@https?://azure[.]archive[.]ubuntu[.]com/@https://mirrors.edge.kernel.org/@g' {} + \
+    && apt-get -o Acquire::ForceIPv4=true -o Acquire::Retries=1 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 -o APT::Update::Error-Mode=any update \
+    && apt-get -o Acquire::ForceIPv4=true -o Acquire::Retries=1 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 install -y --no-install-recommends fonts-dejavu-core fonts-liberation fonts-crosextra-carlito python3 python3-lxml python3-pypdf python3-reportlab libreoffice-writer \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=deps /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./

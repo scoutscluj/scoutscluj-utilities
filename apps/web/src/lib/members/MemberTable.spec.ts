@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/svelte';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { afterEach, expect, it, vi } from 'vitest';
 import MemberTable from './MemberTable.svelte';
 import type { Member, Registry } from './types';
@@ -11,6 +11,22 @@ vi.mock('@lucide/svelte', async () => ({
 }));
 
 afterEach(cleanup);
+
+it.each([true, false])(
+	'shows direct manual payment action only with authority: %s',
+	async (recordFees) => {
+		render(MemberTable, {
+			registry,
+			members: [{ ...member, access: { ...member.access!, recordFees } }]
+		});
+		await fireEvent.click(screen.getByRole('button', { name: 'Acțiuni pentru Membru test' }));
+		await waitFor(() => {
+			const action = screen.queryByRole('menuitem', { name: 'Înregistrează plată manuală' });
+			if (recordFees) expect(action).toBeInTheDocument();
+			else expect(action).not.toBeInTheDocument();
+		});
+	}
+);
 
 const member: Member = {
 	id: 'member',

@@ -126,6 +126,7 @@ export function permissions(
       leaders.length > 0 ||
       direct.some((a) => a.canSeeSensitive),
     fees: admin || leaders.length > 0 || direct.some((a) => a.canSeeFees),
+    recordFees: admin || leaders.length > 0,
     notes: admin || leaders.length > 0 || direct.some((a) => a.canSeeSensitive),
   };
 }

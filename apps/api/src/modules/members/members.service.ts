@@ -1150,6 +1150,8 @@ export class MembersService {
         current: period?.active ?? false,
         plan: o.plan,
         obligationId: o.id,
+        periodId: o.periodId,
+        reviewReason: o.reviewReason,
         startsOn: period?.startsOn,
         nationalBani: o.nationalBani,
         nationalDirectBani: o.nationalDirectBani ?? 0,

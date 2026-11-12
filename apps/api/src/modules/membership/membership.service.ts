@@ -1199,7 +1199,10 @@ export class MembershipService {
       const obligations = await this.em.find(Obligation, {
         periodId: period.id,
       });
-      for (const obligation of (await this.orgoRoster.nationalReady(user.id))
+      for (const obligation of (await this.orgoRoster.nationalReady(
+        user.id,
+        true,
+      ))
         ? obligations
         : []) {
         try {

@@ -19,7 +19,7 @@ The official operating guide https://orgo.space/docs/platform/fees/record-paymen
 - GET `/api/v1/fee-history/tenant/{productId}?uid={memberId}`; exact `intervalId` of `YYYY-MM-DD_YYYY-MM-DD`, `status`, `paid`, `unpaid`, `isPending`.
 - POST `/api/v1/fee_payments` with `userId`, `fees: {"memberId:intervalId": amountRON}`, `type: "tenant"`, `method: "check"`, `markAsPaid: true`, `productPriceId`, and national `productId`.
 
-The adapter uses the OAuth bearer token of the financial actor, never server-token fallback. Backend permissions remain authoritative. It does not approve national batches through undocumented APIs. Only exact-period paid history with no pending flag confirms synchronization. No production financial transaction is created for testing.
+Payment creation and its readback use the OAuth bearer token of the financial actor, never server-token fallback. Read-only confirmation of existing national payments uses the configured server API token, or the actor's OAuth token when no server token is configured. Roster synchronization can therefore import confirmed national credit without personal OAuth access. Local fee permissions and financial reconciliation checks still apply. The adapter does not approve national batches through undocumented APIs. Only exact-period paid history with no pending flag confirms synchronization. No production financial transaction is created for testing.
 
 ## Recovery and concurrency
 

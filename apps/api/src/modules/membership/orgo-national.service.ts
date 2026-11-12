@@ -61,12 +61,13 @@ export class OrgoNationalService {
     try {
       if (!Number.isSafeInteger(target.amountBani) || target.amountBani <= 0)
         throw new Error('Suma națională trebuie să fie pozitivă.');
-      const member = object(
-        await this.tokens.administrativeJson(
-          actorId,
-          `/api/v1/users/${target.orgoUserId}`,
-        ),
-      );
+      // Read-only confirmation can use the center's server credentials. Writes
+      // and their readback must still use the financial actor's OAuth token.
+      const read = (path: string): Promise<unknown> =>
+        allowCreate
+          ? this.tokens.administrativeJson(actorId, path)
+          : this.tokens.apiJson(actorId, path);
+      const member = object(await read(`/api/v1/users/${target.orgoUserId}`));
       if (Number(member.id) !== target.orgoUserId)
         throw new Error('Membrul ORGO nu corespunde.');
       const center = object(member.localCenter);
@@ -87,8 +88,7 @@ export class OrgoNationalService {
         this.config.getOrThrow<string>('ORGO_OAUTH_BASE_URL'),
       );
       const payload = object(
-        await this.tokens.administrativeJson(
-          actorId,
+        await read(
           `/api/v1/tenants?appHost=${encodeURIComponent(base.hostname)}`,
         ),
       );
@@ -99,10 +99,7 @@ export class OrgoNationalService {
         );
       const fees = object(object(object(tenants[0]).settingFeatures).fees);
       const product = object(
-        await this.tokens.administrativeJson(
-          actorId,
-          `/api/v1/products/${resourceId(fees.productUuid)}`,
-        ),
+        await read(`/api/v1/products/${resourceId(fees.productUuid)}`),
       );
       const productId = resourceId(product);
       const price = object(member.feeTenantProductPrice);
@@ -117,10 +114,7 @@ export class OrgoNationalService {
       let intervalId: string | undefined;
       const historyPath = `/api/v1/fee-history/tenant/${productId}?uid=${target.orgoUserId}`;
       const readPeriod = async () => {
-        const history = await this.tokens.administrativeJson(
-          actorId,
-          historyPath,
-        );
+        const history = await read(historyPath);
         if (!Array.isArray(history))
           throw new Error(
             'Istoricul cotizației ORGO are un format neașteptat.',

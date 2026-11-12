@@ -2640,6 +2640,7 @@ describe('independent national credit and scoped manual receipts', () => {
     const f = await setup();
     f.nationalReady.mockResolvedValue(true);
     await f.service.synchronizeRoster(f.staff, 'initialization');
+    expect(f.nationalReady).toHaveBeenCalledWith(f.staff.id, true);
     expect(f.obligation.nationalDirectBani).toBe(15000);
     await f.service.synchronizeRoster(f.staff, 'manual');
     expect(f.obligation.nationalDirectBani).toBe(15000);

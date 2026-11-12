@@ -51,7 +51,10 @@ function fixture() {
       throw new Error('Unexpected request');
     },
   );
-  const tokens = { administrativeJson: request, serverApiReady: () => true };
+  const read = jest.fn((actorId: number, path: string) =>
+    request(actorId, path),
+  );
+  const tokens = { administrativeJson: request, apiJson: read };
   const service = new OrgoNationalService(
     tokens as unknown as OrgoTokenService,
     new ConfigService({
@@ -63,6 +66,7 @@ function fixture() {
     service,
     post,
     request,
+    read,
     member,
     setExtraPeriods: (value: Record<string, unknown>[]) => {
       extraPeriods = value;
@@ -74,6 +78,34 @@ function fixture() {
 }
 
 describe('national ORGO marking', () => {
+  it('confirms an existing national payment with read credentials when actor OAuth is unavailable', async () => {
+    const f = fixture();
+    f.setPeriod({ ...unpaid, status: 'paid', paid: 150, unpaid: 0 });
+    f.request.mockRejectedValue(new Error('Actor OAuth unavailable'));
+    f.read.mockImplementation((_actorId, path) => {
+      if (path.includes('/users/')) return Promise.resolve(f.member);
+      if (path.includes('/tenants?'))
+        return Promise.resolve({
+          'hydra:member': [
+            { settingFeatures: { fees: { productUuid: 'product-1' } } },
+          ],
+        });
+      if (path.includes('/products/'))
+        return Promise.resolve({ id: 'product-1' });
+      return Promise.resolve([
+        { ...unpaid, status: 'paid', paid: 150, unpaid: 0 },
+      ]);
+    });
+    await expect(
+      f.service.synchronize(1, target, false),
+    ).resolves.toMatchObject({ state: 'synced' });
+    expect(f.request).not.toHaveBeenCalled();
+    expect(f.post).not.toHaveBeenCalled();
+    await expect(f.service.synchronize(1, target, true)).resolves.toMatchObject(
+      { state: 'failed' },
+    );
+    expect(f.post).not.toHaveBeenCalled();
+  });
   const annual = {
     intervalId: '2026-10-01_2027-09-30',
     paid: 150,

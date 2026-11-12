@@ -76,6 +76,54 @@ for (const width of [320, 768, 1024]) {
 	});
 }
 
+for (const theme of ['light', 'dark'] as const) {
+	test(`uploaded digital agreement visibly requests signature review in ${theme}`, async ({
+		page,
+		request
+	}) => {
+		await request.post('http://127.0.0.1:3019/test/configure', {
+			data: {
+				row: {
+					consentState: 'uploaded',
+					consentPublicationId: 1,
+					answerRevision: 1,
+					documents: [
+						{
+							id: 'bbbbbbbb-bbbb-4bbb-abbb-bbbbbbbbbbbb',
+							kind: 'signed',
+							filename: 'acord-semnat.pdf',
+							publicationId: 1,
+							answerRevision: 1,
+							createdAt: '2026-10-29T10:00:00Z'
+						}
+					]
+				}
+			}
+		});
+		await seedTheme(page, theme);
+		for (const width of [390, 1280]) {
+			await page.setViewportSize({ width, height: 844 });
+			await page.goto('/activities/1/registrations');
+			await captureWorkspace(page, `digital-agreement-review-${width}-${theme}`);
+			await expectThemeContrast(page);
+			const review = page.getByRole('button', {
+				name: /Acord pentru Participant de test:.*verifică PDF-ul/
+			});
+			await expect(review).toBeVisible();
+			await expect(review.locator('svg')).toBeVisible();
+			await review.click();
+			const dialog = page.getByRole('dialog');
+			await expect(dialog).toContainText(
+				/semnătura\s+trebuie\s+să\s+fie\s+digitală,\s+nu\s+olografă/i
+			);
+			await dialog.screenshot({
+				path: `../../tmp/design-review/digital-agreement-modal-${width}-${theme}.png`
+			});
+			await page.keyboard.press('Escape');
+		}
+	});
+}
+
 test('audit initializes its count, filters rows, and opens accessible details', async ({
 	page
 }) => {

@@ -41,17 +41,17 @@ export async function captureWorkspace(page: Page, name: string) {
 			theme: document.documentElement.dataset.theme
 		};
 	}, readingSelector);
-	if (metrics.width <= 1024)
-		expect(metrics.readingOverflow, `${name}: information must fit its content area`).toEqual([]);
-	expect(metrics.scrollWidth, `${name}: page must fit the viewport`).toBeLessThanOrEqual(
-		metrics.width
-	);
 	const directory = resolve('../../tmp/design-review');
 	await mkdir(directory, { recursive: true });
 	await page.screenshot({ path: resolve(directory, `${name}.png`) });
 	if (metrics.width === 390 || metrics.width === 1280)
 		await page.screenshot({ path: resolve(directory, `${name}-full.png`), fullPage: true });
 	await writeFile(resolve(directory, `${name}.json`), JSON.stringify(metrics, null, 2));
+	if (metrics.width <= 1024)
+		expect(metrics.readingOverflow, `${name}: information must fit its content area`).toEqual([]);
+	expect(metrics.scrollWidth, `${name}: page must fit the viewport`).toBeLessThanOrEqual(
+		metrics.width
+	);
 	return metrics;
 }
 
@@ -73,6 +73,10 @@ export async function expectThemeContrast(page: Page) {
 			['button', '--sc-on-accent', '--sc-accent', 4.5],
 			['control border', '--sc-control-border', '--sc-surface', 3],
 			['success', '--sc-success', '--sc-success-soft', 4.5],
+			['received button', '--sc-success-control-ink', '--sc-success-control-bg', 4.5],
+			['received border', '--sc-success-control-border', '--sc-success-control-bg', 3],
+			['review button', '--sc-review-control-ink', '--sc-review-control-bg', 4.5],
+			['review border', '--sc-review-control-border', '--sc-review-control-bg', 3],
 			['warning', '--sc-warning', '--sc-warning-soft', 4.5],
 			['info', '--sc-info', '--sc-info-soft', 4.5]
 		] as const;

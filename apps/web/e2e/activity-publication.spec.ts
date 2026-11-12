@@ -3,6 +3,16 @@ import {
 	emptyFixedConsent,
 	createRepresentativeOrganizerDraft
 } from '@scouts-cluj/parental-consent-schema';
+async function themeColor(page: Page, token: string) {
+	return page.evaluate((name) => {
+		const probe = document.createElement('span');
+		probe.style.color = `var(${name})`;
+		document.body.append(probe);
+		const color = getComputedStyle(probe).color;
+		probe.remove();
+		return color;
+	}, token);
+}
 async function openPublicationActions(page: Page) {
 	await page.getByRole('button', { name: 'Acțiuni de publicare', exact: true }).click();
 }
@@ -187,12 +197,12 @@ test('mobile participant lines disclose details and preserve explicit paper and 
 	await page.reload();
 	await expect(line.getByRole('button', { name: /^Acord pentru/ })).toHaveCSS(
 		'background-color',
-		'rgb(237, 247, 240)'
+		await themeColor(page, '--sc-success-control-bg')
 	);
 	await expect(line.getByRole('button', { name: /^Tranșe cash acoperite/ })).toHaveText('Cash ✓');
 	await expect(line.getByRole('button', { name: /^Tranșe cash acoperite/ })).toHaveCSS(
 		'background-color',
-		'rgb(237, 247, 240)'
+		await themeColor(page, '--sc-success-control-bg')
 	);
 	await line.screenshot({ path: '../../tmp/mobile-participant-received.png' });
 	const updated = await (await request.get('http://127.0.0.1:3019/test/row')).json();
@@ -622,6 +632,7 @@ test('registration table opens signed agreements and keeps the public controls i
 		data: {
 			row: {
 				consentState: 'uploaded',
+				cashInstallments: [],
 				consentPublicationId: 1,
 				answerRevision: 1,
 				documents: [
@@ -646,8 +657,34 @@ test('registration table opens signed agreements and keeps the public controls i
 	await expect(page.getByRole('link', { name: 'Primire participanți', exact: true })).toHaveCount(
 		0
 	);
-	await page.getByRole('button', { name: /^Acord pentru Participant de test:/ }).click();
 	const dialog = page.getByRole('dialog');
+	for (const width of [390, 1280]) {
+		await page.setViewportSize({ width, height: 844 });
+		const pending = page.getByRole('button', {
+			name: /^Acord pentru Participant de test:.*verifică PDF-ul/
+		});
+		await expect(pending).toHaveAttribute('aria-pressed', 'false');
+		await expect(pending.locator('svg')).toHaveCount(1);
+		await expect(pending.locator('svg')).toHaveAttribute('aria-hidden', 'true');
+		await expect(pending).toHaveCSS(
+			'background-color',
+			await themeColor(page, '--sc-review-control-bg')
+		);
+		await expect(pending).toHaveCSS('color', await themeColor(page, '--sc-review-control-ink'));
+		await expect(page.getByRole('button', { name: /^Cash |^Tranșe cash/ })).toHaveCount(0);
+		await pending.click();
+		await expect(
+			dialog.getByText('Verifică PDF-ul înainte de acceptare', { exact: true })
+		).toBeVisible();
+		await expect(dialog).toContainText(
+			'Pentru acordul încărcat online, semnătura trebuie să fie digitală, nu olografă (scrisă de mână).'
+		);
+		await expect(dialog).toContainText(
+			'Deschide PDF-ul și verifică semnătura înainte de acceptare.'
+		);
+		if (width === 390) await dialog.getByRole('button', { name: 'Închide dialogul' }).click();
+	}
+
 	await expect(dialog.getByRole('link', { name: 'acord-semnat.pdf' })).toHaveAttribute(
 		'href',
 		/documente\/bbbbbbbb-bbbb-4bbb-abbb-bbbbbbbbbbbb$/
@@ -660,6 +697,16 @@ test('registration table opens signed agreements and keeps the public controls i
 	await expect(
 		page.getByRole('button', { name: /^Acord pentru Participant de test: Acord digital acceptat/ })
 	).toHaveAttribute('aria-pressed', 'true');
+	const accepted = page.getByRole('button', {
+		name: /^Acord pentru Participant de test: Acord digital acceptat/
+	});
+	await expect(accepted).toHaveText('AP ✓');
+	await expect(accepted.locator('svg')).toHaveCount(0);
+	await expect(accepted).toHaveCSS(
+		'background-color',
+		await themeColor(page, '--sc-success-control-bg')
+	);
+	await expect(accepted).toHaveCSS('color', await themeColor(page, '--sc-success-control-ink'));
 	expect((await (await request.get('http://127.0.0.1:3019/test/row')).json()).consentState).toBe(
 		'signed_accepted'
 	);
@@ -679,6 +726,101 @@ test('registration table opens signed agreements and keeps the public controls i
 		fullPage: true
 	});
 });
+
+for (const state of ['pending', 'waitlisted'] as const) {
+	test(`digital agreement review preserves ${state} registration and financial eligibility`, async ({
+		page,
+		request
+	}) => {
+		await request.post('http://127.0.0.1:3019/test/configure', {
+			data: {
+				...(state === 'pending'
+					? { capabilities: { manage: false, sensitive: false, consent: true, finance: true } }
+					: {}),
+				row: {
+					state,
+					consentState: 'uploaded',
+					consentPublicationId: 1,
+					answerRevision: 1,
+					handoffPaperReady: true,
+					cashInstallments: [
+						{ key: 'cash', amountBani: 15000, remainingBani: 15000, due: '2027-08-24' }
+					],
+					documents: [
+						{
+							id: 'bbbbbbbb-bbbb-4bbb-abbb-bbbbbbbbbbbb',
+							kind: 'signed',
+							filename: 'acord-semnat.pdf',
+							publicationId: 1,
+							answerRevision: 1,
+							createdAt: '2026-10-29T10:00:00Z'
+						}
+					]
+				}
+			}
+		});
+		const before = await (await request.get('http://127.0.0.1:3019/test/row')).json();
+		const checkIns: string[] = [];
+		page.on('request', (request) => {
+			if (request.url().endsWith('/check-in') && request.method() === 'POST')
+				checkIns.push(request.url());
+		});
+		await page.goto('/activities/1/registrations');
+		const dialog = page.getByRole('dialog');
+		for (const width of [390, 1280]) {
+			await page.setViewportSize({ width, height: 844 });
+			const pending = page.getByRole('button', {
+				name: /^Acord pentru Participant de test:.*verifică PDF-ul/
+			});
+			await expect(pending.locator('svg')).toHaveCount(1);
+			await expect(pending).toHaveCSS(
+				'background-color',
+				await themeColor(page, '--sc-review-control-bg')
+			);
+			await expect(page.getByRole('button', { name: /^Cash |^Tranșe cash/ })).toHaveCount(0);
+			await pending.click();
+			await expect(dialog.getByRole('link', { name: 'acord-semnat.pdf' })).toBeVisible();
+			await expect(
+				dialog.getByRole('button', { name: 'Acord fizic primit', exact: true })
+			).toHaveCount(0);
+			if (width === 390) await dialog.getByRole('button', { name: 'Închide dialogul' }).click();
+		}
+		const acceptance = page.waitForRequest(
+			(request) =>
+				request.method() === 'PATCH' && request.postDataJSON()?.action === 'signed_accepted'
+		);
+		await dialog
+			.getByRole('button', { name: 'Am verificat PDF-ul — acceptă acordul digital' })
+			.click();
+		expect((await acceptance).postDataJSON()).toMatchObject({
+			action: 'signed_accepted',
+			revision: before.revision
+		});
+		await expect(dialog).not.toBeVisible();
+		await page.reload();
+		const accepted = page.getByRole('button', {
+			name: /^Acord pentru Participant de test: Acord digital acceptat/
+		});
+		await expect(accepted).toHaveText('AP ✓');
+		await expect(accepted).toHaveCSS(
+			'background-color',
+			await themeColor(page, '--sc-success-control-bg')
+		);
+		await accepted.click();
+		await expect(
+			page.getByRole('dialog', { name: 'Acord digital · Participant de test' })
+		).toBeVisible();
+		await expect(page.getByRole('dialog', { name: /Anulează primirea/ })).toHaveCount(0);
+		const after = await (await request.get('http://127.0.0.1:3019/test/row')).json();
+		expect(after.state).toBe(state);
+		expect(after.consentState).toBe('signed_accepted');
+		expect(after.cashBani).toBe(before.cashBani);
+		expect(after.remainingBani).toBe(before.remainingBani);
+		expect(after.cashInstallments).toEqual(before.cashInstallments);
+		expect(after.entries).toEqual(before.entries);
+		expect(checkIns).toEqual([]);
+	});
+}
 
 test('receipt controls respect consent and financial capabilities', async ({ page, request }) => {
 	await request.post('http://127.0.0.1:3019/test/configure', {

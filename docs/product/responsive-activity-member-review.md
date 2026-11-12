@@ -37,6 +37,13 @@ The independent shared-interface review passed at 9.1/10: appearance 9.1,
 Orgo dialog 9.0, stable mobile navigation 8.9 and 320px shell/topbar 8.9.
 The final dark placeholder was measured live at 7.63:1.
 
+The subsequent requested AP state uses an orange eye for uploaded PDFs awaiting
+review and stronger green AP/Cash confirmation buttons. Independent follow-up
+reviews score these lists and the signature-review dialog 8.7–9.1. The new
+review/confirmation text palettes have contrast ratios of 6.37–7.40:1, with
+control boundaries above 3:1. The dialog explicitly requires a digital signature
+instead of a handwritten signature and asks the leader to inspect the PDF.
+
 | Surface independently reviewed | Final scores |
 | ------------------------------ | ------------ |
 | Activity workspace surfaces    | 8.6–9.0      |

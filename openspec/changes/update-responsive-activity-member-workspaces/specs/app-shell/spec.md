@@ -32,6 +32,16 @@ Activity and member/unit workspaces SHALL prioritize their primary content and r
 - **THEN** member identity and its actions are accessible without horizontal page scrolling
 - **AND** secondary filters can be expanded with the active selection retained.
 
+### Requirement: Visible digital agreement review
+
+An uploaded digital parental agreement awaiting acceptance SHALL use an orange AP button with an eye icon. Opening it SHALL ask the authorized leader to inspect the PDF and state that the signature must be digital, not handwritten. Confirmed agreement and cash states SHALL use a clearly visible green treatment and check mark in both appearances, preserving existing acceptance permissions and revision checks.
+
+#### Scenario: Leader checks an uploaded agreement
+
+- **WHEN** an uploaded parental agreement awaits review
+- **THEN** the AP control shows an eye and orange review state on mobile and desktop
+- **AND** its dialog explains the digital-signature requirement before the existing acceptance action.
+
 ### Requirement: Independent design acceptance
 
 The release SHALL be reviewed using new desktop/mobile and light/dark evidence by independent subagents. Reviewed surfaces SHALL score above 8.5 out of 10 without unresolved overflow, contrast, keyboard or inaccessible-action blockers.

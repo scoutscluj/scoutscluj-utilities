@@ -129,6 +129,7 @@
 	.panel,
 	.modal-form {
 		display: grid;
+		min-width: 0;
 		gap: 14px;
 	}
 
@@ -136,6 +137,7 @@
 	.section-heading,
 	.modal-heading {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 12px;
 		align-items: center;
 		justify-content: space-between;
@@ -151,7 +153,7 @@
 
 	.need-list {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
 		gap: 8px;
 	}
 
@@ -164,6 +166,8 @@
 	}
 
 	.table-wrap {
+		min-width: 0;
+		max-width: 100%;
 		overflow-x: auto;
 	}
 
@@ -217,6 +221,7 @@
 
 	input {
 		width: 100%;
+		min-width: 0;
 		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
 		padding: 9px 10px;
@@ -276,5 +281,26 @@
 		background: var(--sc-inset);
 		color: var(--sc-ink);
 		border-color: var(--sc-control-border);
+	}
+
+	.page-heading > div,
+	.section-heading > *,
+	.need-list,
+	.need-list > div,
+	label {
+		min-width: 0;
+	}
+	.need-list strong,
+	.need-list span,
+	h1,
+	h2 {
+		overflow-wrap: anywhere;
+	}
+	meter {
+		width: 100%;
+		max-width: 100%;
+	}
+	h1 {
+		font-size: clamp(24px, 3vw, 30px);
 	}
 </style>

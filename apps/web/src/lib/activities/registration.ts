@@ -89,6 +89,8 @@ export type Entry = {
 	receivedOn: string;
 	note: string;
 	reversedEntryId?: string;
+	installmentKey?: string | null;
+	checkoutId?: string | null;
 };
 export type RegistrationDraft = {
 	id: string;
@@ -109,6 +111,7 @@ export type Registration = {
 	id: string;
 	orgoId: number;
 	memberName: string;
+	grade?: number | null;
 	branch: string;
 	role: string;
 	state: string;

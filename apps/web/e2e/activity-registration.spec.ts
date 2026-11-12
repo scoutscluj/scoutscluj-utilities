@@ -17,6 +17,7 @@ for (const width of [1280, 390]) {
 				{ name: 'scoutscluj_session', value: 'synthetic-admin', url: 'http://127.0.0.1:5186' }
 			]);
 		await page.goto('/activities/1/registrations');
+		await page.getByRole('combobox', { name: 'Filtrează' }).selectOption('withdrawn');
 		await page.getByRole('button', { name: 'Acțiuni pentru Participant de test' }).click();
 		await page.getByRole('menuitem', { name: 'Șterge complet înscrierea' }).click();
 		const dialog = page.getByRole('dialog');

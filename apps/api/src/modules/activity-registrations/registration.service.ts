@@ -1163,6 +1163,16 @@ export class RegistrationService {
       { activityId },
       { orderBy: { createdAt: 'asc' } },
     );
+    const grades = new Map(
+      (rows.length
+        ? await this.em.find(
+            ScoutMember,
+            { id: { $in: [...new Set(rows.map((row) => row.memberId))] } },
+            { fields: ['id', 'grade'] },
+          )
+        : []
+      ).map((member) => [member.id, member.grade]),
+    );
     const paymentSettings = await this.em.findOne(MembershipPaymentSettings, {
       id: 'membership',
     });
@@ -1203,6 +1213,7 @@ export class RegistrationService {
           id: r.id,
           orgoId: r.orgoId,
           memberName: r.memberName,
+          grade: r.role === 'staff' ? null : (grades.get(r.memberId) ?? null),
           branch: r.branch,
           role: r.role,
           state: r.state,
@@ -1352,18 +1363,24 @@ export class RegistrationService {
             !Number.isFinite(Date.parse(receivedOn))
           )
             throw new BadRequestException('Dată invalidă.');
-          if (
-            await tx.findOne(Entry, {
-              registrationId: id,
-              method,
-              amountBani: method === 'refund' ? -value : value,
-              receivedOn,
-              note,
-            })
-          )
-            throw new ConflictException(
-              'Există deja o înregistrare cu aceeași sumă, dată și referință. Verifică evidența; pentru o operațiune distinctă folosește referința ei.',
-            );
+          const duplicates = await tx.find(Entry, {
+            registrationId: id,
+            method,
+            amountBani: method === 'refund' ? -value : value,
+            receivedOn,
+            note,
+          });
+          for (const duplicate of duplicates)
+            if (
+              !duplicate.reversedEntryId &&
+              !(await tx.findOne(Entry, {
+                registrationId: id,
+                reversedEntryId: duplicate.id,
+              }))
+            )
+              throw new ConflictException(
+                'Există deja o înregistrare cu aceeași sumă, dată și referință. Verifică evidența; pentru o operațiune distinctă folosește referința ei.',
+              );
           const entry = tx.create(Entry, {
             registrationId: id,
             method,
@@ -1523,6 +1540,87 @@ export class RegistrationService {
         );
       const cashKeys =
         b.cashKeys === undefined ? [] : stringsForCheckIn(b.cashKeys);
+      if (b.undo !== undefined) {
+        if (b.confirm !== true || b.paper === true || cashKeys.length)
+          throw new BadRequestException('Confirmă separat anularea primirii.');
+        if (b.undo === 'paper') {
+          if (
+            !this.manager(user, activity) &&
+            !data.administrativeUserIds.includes(user.id)
+          )
+            throw new ForbiddenException();
+          if (
+            !row.minor ||
+            !['paper_received', 'signed_accepted'].includes(row.consentState)
+          )
+            throw new ConflictException(
+              'Acordul nu mai este marcat ca primit.',
+            );
+          const previous = row.consentState;
+          const signed =
+            row.consentPublicationId &&
+            (await tx.count(Document, {
+              registrationId: id,
+              kind: 'signed',
+              publicationId: row.consentPublicationId,
+              answerRevision: row.answerRevision,
+            }));
+          row.consentState = signed ? 'uploaded' : 'awaiting';
+          row.revision++;
+          row.updatedAt = new Date();
+          this.audit(tx, activityId, user.id, 'consent_receipt_reverted', id, {
+            previous,
+            next: row.consentState,
+          });
+        } else if (b.undo === 'cash') {
+          if (!this.financial(user, activity)) throw new ForbiddenException();
+          const entries = await tx.find(Entry, { registrationId: id });
+          const reversed = new Set(
+            entries.map((entry) => entry.reversedEntryId),
+          );
+          const receipts = entries.filter(
+            (entry) =>
+              entry.method === 'cash' &&
+              entry.amountBani > 0 &&
+              entry.installmentKey &&
+              !entry.checkoutId &&
+              !entry.reversedEntryId &&
+              !reversed.has(entry.id),
+          );
+          const expectedIds = stringsForCheckIn(b.entryIds).map(uuid).sort();
+          const total = receipts.reduce(
+            (sum, entry) => sum + entry.amountBani,
+            0,
+          );
+          if (
+            !receipts.length ||
+            b.amountBani !== total ||
+            JSON.stringify(expectedIds) !==
+              JSON.stringify(receipts.map((entry) => entry.id).sort())
+          )
+            throw new ConflictException(
+              'Încasările cash s-au schimbat. Verifică din nou înainte de corecție.',
+            );
+          for (const entry of receipts)
+            await this.update(
+              activityId,
+              id,
+              {
+                action: 'reversal',
+                revision: row.revision,
+                entryId: entry.id,
+                note: 'Corecție la primire: numerarul nu a fost primit.',
+              },
+              user,
+              tx,
+            );
+          this.audit(tx, activityId, user.id, 'cash_receipt_reverted', id, {
+            amountBani: total,
+            entryIds: expectedIds,
+          });
+        } else throw new BadRequestException('Tip de anulare necunoscut.');
+        return { success: true, revision: row.revision };
+      }
       if (b.paper !== true && !cashKeys.length)
         throw new BadRequestException('Alege ce ai primit.');
       if (b.paper === true) {

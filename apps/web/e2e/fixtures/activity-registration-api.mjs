@@ -208,9 +208,44 @@ createServer(async (req, res) => {
 	if (path.endsWith('/check-in')) {
 		if (input.revision !== row.revision)
 			return send(res, { message: 'Înscriere modificată. Verifică din nou.' }, 409);
+		if (input.undo) {
+			if (input.confirm !== true) return send(res, { message: 'Confirmă corecția.' }, 400);
+			if (input.undo === 'paper')
+				row.consentState = row.documents.some((d) => d.kind === 'signed') ? 'uploaded' : 'awaiting';
+			else if (input.undo === 'cash') {
+				for (const entry of row.entries.filter((entry) => input.entryIds.includes(entry.id))) {
+					row.entries.push({
+						...entry,
+						id: randomUUID(),
+						amountBani: -entry.amountBani,
+						reversedEntryId: entry.id
+					});
+					const installment = row.cashInstallments.find(
+						(item) => item.key === entry.installmentKey
+					);
+					installment.remainingBani += entry.amountBani;
+					row.cashBani -= entry.amountBani;
+					row.remainingBani += entry.amountBani;
+				}
+				row.cashRemainingBani = row.cashInstallments.reduce(
+					(sum, item) => sum + item.remainingBani,
+					0
+				);
+			}
+			row.revision++;
+			return send(res, { success: true });
+		}
 		if (input.paper) row.consentState = 'paper_received';
 		for (const item of row.cashInstallments ?? [])
 			if (input.cashKeys.includes(item.key)) {
+				row.entries.push({
+					id: randomUUID(),
+					method: 'cash',
+					amountBani: item.remainingBani,
+					installmentKey: item.key,
+					receivedOn: '2026-11-12',
+					note: 'Cash la predare'
+				});
 				row.remainingBani -= item.remainingBani;
 				row.cashBani += item.remainingBani;
 				item.remainingBani = 0;

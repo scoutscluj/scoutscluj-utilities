@@ -245,7 +245,7 @@
 	}
 	nav .active {
 		background: var(--sc-accent);
-		color: white;
+		color: var(--sc-on-accent);
 	}
 	section {
 		display: grid;
@@ -287,7 +287,7 @@
 		border: 0;
 		border-radius: 7px;
 		background: var(--sc-accent);
-		color: white;
+		color: var(--sc-on-accent);
 		font: inherit;
 		cursor: pointer;
 	}
@@ -308,12 +308,20 @@
 		margin: 0;
 	}
 	a {
-		color: var(--sc-accent);
+		color: var(--sc-link);
 	}
 	@media (max-width: 600px) {
 		.grid,
 		dl {
 			grid-template-columns: 1fr;
 		}
+	}
+
+	input:not([type='hidden']):not([type='checkbox']):not([type='radio']),
+	select,
+	textarea {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
 	}
 </style>

@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
+	import { RefreshCw, CircleAlert } from '@lucide/svelte';
+	import Modal from '$lib/components/ui/Modal.svelte';
+	let { open = $bindable(false) }: { open?: boolean } = $props();
 	let syncState = $state('idle');
 	let message = $state('');
 	let lastSucceededAt = $state<string | null>(null);
@@ -42,40 +45,121 @@
 	});
 </script>
 
-{#if syncState === 'running' || syncState === 'failed'}
-	<aside class="sync-status" aria-live="polite">
-		<span>{syncState === 'running' ? 'Se actualizează datele din Orgo…' : message}</span>
-		{#if lastSucceededAt}<small
-				>Ultima actualizare: {new Date(lastSucceededAt).toLocaleString('ro-RO')}</small
+<button
+	class="sync-indicator"
+	class:failed={syncState === 'failed'}
+	class:idle={syncState !== 'running' && syncState !== 'failed'}
+	aria-label={syncState === 'running'
+		? 'Actualizări Orgo: în curs'
+		: syncState === 'failed'
+			? 'Actualizări Orgo: necesită atenție'
+			: 'Actualizări Orgo'}
+	title="Actualizări Orgo"
+	onclick={() => (open = true)}
+>
+	{#if syncState === 'failed'}<CircleAlert size={18} aria-hidden="true" />{:else}<RefreshCw
+			size={17}
+			class={syncState === 'running' ? 'spinning' : ''}
+			aria-hidden="true"
+		/>{/if}
+</button>
+<span class="sc-sr-only" aria-live="polite"
+	>{syncState === 'running'
+		? 'Se actualizează datele din Orgo.'
+		: syncState === 'failed'
+			? message
+			: ''}</span
+>
+<Modal
+	bind:open
+	title="Actualizări Orgo"
+	description="Datele se actualizează în fundal; poți continua lucrul."
+>
+	<div class="sync-details">
+		<p>
+			{syncState === 'running'
+				? 'Se actualizează datele din Orgo…'
+				: syncState === 'failed'
+					? message
+					: lastSucceededAt
+						? 'Datele din Orgo sunt actualizate.'
+						: 'Starea actualizării Orgo este disponibilă la conectare.'}
+		</p>
+		{#if lastSucceededAt}<p class="last-sync">
+				Ultima actualizare: {new Intl.DateTimeFormat('ro-RO', {
+					dateStyle: 'medium',
+					timeStyle: 'short',
+					timeZone: 'Europe/Bucharest'
+				}).format(new Date(lastSucceededAt))}
+			</p>{/if}
+		{#if syncState === 'failed'}<button
+				class="retry sc-primary-button"
+				disabled={retrying}
+				onclick={retry}>{retrying ? 'Se reîncearcă…' : 'Reîncearcă actualizarea'}</button
 			>{/if}
-		{#if syncState === 'failed'}<button type="button" disabled={retrying} onclick={retry}
-				>Reîncearcă</button
-			>{/if}
-	</aside>
-{/if}
+	</div>
+</Modal>
 
 <style>
-	.sync-status {
-		display: flex;
-		flex-wrap: wrap;
+	.sync-indicator {
+		display: inline-flex;
 		align-items: center;
-		gap: 8px 16px;
-		padding: 8px 16px;
-		background: var(--sc-surface);
-		border-bottom: 1px solid var(--sc-border);
+		justify-content: center;
+		flex-shrink: 0;
+		width: 44px;
+		height: 44px;
+		padding: 0;
+		border: 0;
+		border-radius: 8px;
+		background: transparent;
 		color: var(--sc-muted);
-		font-size: 0.8rem;
-	}
-	small {
-		font-size: inherit;
-	}
-	button {
-		min-height: 36px;
-		border: 1px solid var(--sc-border);
-		border-radius: 7px;
-		background: var(--sc-surface);
-		color: var(--sc-ink);
-		padding: 4px 12px;
 		cursor: pointer;
+	}
+	.sync-indicator:hover {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+	}
+	.sync-indicator.failed {
+		color: var(--sc-warning);
+		background: var(--sc-warning-soft);
+	}
+	.sync-details {
+		display: grid;
+		gap: 12px;
+	}
+	p {
+		margin: 0;
+		line-height: 1.6;
+	}
+	.last-sync {
+		color: var(--sc-muted);
+		font-size: 13px;
+	}
+	.retry {
+		min-height: 44px;
+		padding: 8px 14px;
+		border: 1px solid var(--sc-accent);
+		border-radius: 7px;
+		color: var(--sc-on-accent);
+		background: var(--sc-accent);
+		cursor: pointer;
+	}
+	:global(.sync-indicator .spinning) {
+		animation: sync-turn 2s linear infinite;
+	}
+	@keyframes sync-turn {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+	@media (max-width: 360px) {
+		.sync-indicator.idle {
+			display: none;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		:global(.sync-indicator .spinning) {
+			animation: none;
+		}
 	}
 </style>

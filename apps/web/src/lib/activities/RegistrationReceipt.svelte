@@ -379,12 +379,12 @@
 		min-width: 0;
 	}
 	button {
-		min-height: 40px;
+		min-height: 44px;
 		padding: 8px 12px;
 		border: 1px solid var(--sc-accent);
 		border-radius: 7px;
 		background: var(--sc-accent);
-		color: white;
+		color: var(--sc-on-accent);
 		font: inherit;
 		font-size: 13px;
 		text-align: left;
@@ -408,7 +408,7 @@
 		cursor: wait;
 	}
 	a {
-		color: var(--sc-accent);
+		color: var(--sc-link);
 		overflow-wrap: anywhere;
 	}
 	small {

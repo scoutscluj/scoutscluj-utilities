@@ -8,6 +8,7 @@
 		planCurrent = $state('normal');
 	import Columns3 from '@lucide/svelte/icons/columns-3';
 	import Download from '@lucide/svelte/icons/download';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import { feeLabel, memberCsv, statusLabels } from './registry-table';
 	import { highlightSearch, matchesSearch } from '$lib/components/ui/table-search';
 	import { resolve } from '$app/paths';
@@ -68,6 +69,8 @@
 	const canSeeFees = $derived(members.some((m) => m.access?.fees));
 	let editError = $state('');
 	let feesOpen = $state(false);
+	let columnsOpen = $state(false);
+	let expandedMembers = $state<string[]>([]);
 	let manualPayment = $state(false);
 	let pending = $state(false);
 	let displayedFees = $state<typeof feeMenu>();
@@ -130,6 +133,47 @@
 		pageRows.length > 0 &&
 			pageRows.filter((m) => m.access?.edit).every((m) => selected.includes(m.id))
 	);
+	function selectVisibleMembers() {
+		selected = allPageSelected
+			? selected.filter((id) => !pageRows.some((m) => m.id === id))
+			: [...new Set([...selected, ...pageRows.filter((m) => m.access?.edit).map((m) => m.id)])];
+	}
+	function structureLabel(member: Member) {
+		return (
+			registry.structures?.find((structure) => structure.id === (member.structureId ?? 'cluj'))
+				?.name ?? '—'
+		);
+	}
+	function categoryLabel(member: Member) {
+		return (
+			branchLabels[member.category ?? member.branch ?? ''] ?? member.orgoType ?? 'De verificat'
+		);
+	}
+	function memberRoles(member: Member) {
+		return (member.roles ?? [])
+			.filter((role) => role !== 'beneficiary')
+			.map((role) => roleLabels[role] ?? role)
+			.join(', ');
+	}
+	function mobileSummary(member: Member) {
+		const gradeLabel =
+			showGrade && hasSchoolGrade(member)
+				? member.grade === 0
+					? 'Pregătitoare'
+					: `Clasa ${member.grade ?? '—'}`
+				: '';
+		const placement =
+			showUnit && hasSchoolGrade(member)
+				? memberPlacement(registry.units, member)
+				: categoryLabel(member);
+		return [
+			gradeLabel,
+			structureLabel(member),
+			placement === '—' ? categoryLabel(member) : placement
+		]
+			.filter(Boolean)
+			.join(' · ');
+	}
 	function sortBy(column: string) {
 		descending = sort === column ? !descending : false;
 		sort = column;
@@ -425,67 +469,116 @@
 		</form>
 	{/if}
 </Modal>
-<TableToolbar
-	primary={!inactive ? searchContent : undefined}
-	footer={!inactive ? filterSummary : undefined}
->
-	{#snippet filters()}
-		{#if inactive}<label
-				>Caută în istoricul Orgo (membri.scout.ro)<input
-					type="search"
-					bind:value={inactiveSearch}
-					placeholder="Nume"
-					oninput={() => (page = 0)}
+{#snippet tableFooter()}
+	<div class="member-footer-summary">
+		{#if management && registry.canManage}<label
+				class="mobile-select-all selection-hit"
+				title="Selectează pagina curentă"
+				><input
+					type="checkbox"
+					aria-label="Selectează pagina curentă"
+					checked={allPageSelected}
+					indeterminate={pageRows.some((m) => selected.includes(m.id)) && !allPageSelected}
+					onchange={selectVisibleMembers}
 				/></label
-			>{:else if filterContent}{@render filterContent()}{/if}
-	{/snippet}
-
-	{#if !inactive}<details class="column-picker">
-			<summary class="sc-table-column-trigger" aria-label="Alege coloanele" title="Alege coloanele"
-				><Columns3 size={18} aria-hidden="true" /></summary
-			>
-			<div>
-				<label><input type="checkbox" bind:checked={showUnit} />Unitate / grupă</label><label
-					><input type="checkbox" bind:checked={showGrade} />Clasa</label
-				><label><input type="checkbox" bind:checked={showAge} />Vârsta</label>
-				<label><input type="checkbox" bind:checked={showStatus} />Status</label>
-			</div>
-		</details>{/if}
-
-	<button
-		type="button"
-		class="export-button"
-		onclick={exportCsv}
-		disabled={!sorted.length}
-		title={`Exportă toți cei ${sorted.length} membri din rezultatele filtrate`}
-		><Download size={16} aria-hidden="true" />Exportă CSV</button
+			>{/if}
+		<div class="member-filter-summary">
+			{#if filterSummary}{@render filterSummary()}{:else}<span class="mobile-result-count"
+					>{filtered.length} membri</span
+				>{/if}
+		</div>
+	</div>
+{/snippet}
+<div class="member-toolbar">
+	<TableToolbar
+		primary={!inactive ? searchContent : undefined}
+		footer={filterSummary || (inactive && management && registry.canManage)
+			? tableFooter
+			: undefined}
 	>
+		{#snippet filters()}
+			{#if inactive}<label
+					>Caută în istoricul Orgo (membri.scout.ro)<input
+						type="search"
+						bind:value={inactiveSearch}
+						placeholder="Nume"
+						oninput={() => (page = 0)}
+					/></label
+				>{:else if filterContent}{@render filterContent()}{/if}
+		{/snippet}
 
-	{#if controls}{@render controls()}{/if}
-</TableToolbar>
+		{#if controls}{@render controls()}{/if}
+		<div class="desktop-table-options">
+			{#if !inactive}<details class="column-picker">
+					<summary
+						class="sc-table-column-trigger"
+						aria-label="Alege coloanele"
+						title="Alege coloanele"><Columns3 size={18} aria-hidden="true" /></summary
+					>
+					<div>
+						<label><input type="checkbox" bind:checked={showUnit} />Unitate / grupă</label><label
+							><input type="checkbox" bind:checked={showGrade} />Clasa</label
+						><label><input type="checkbox" bind:checked={showAge} />Vârsta</label>
+						<label><input type="checkbox" bind:checked={showStatus} />Status</label>
+					</div>
+				</details>{/if}
+
+			<button
+				type="button"
+				class="export-button"
+				onclick={exportCsv}
+				disabled={!sorted.length}
+				title={`Exportă toți cei ${sorted.length} membri din rezultatele filtrate`}
+				><Download size={16} aria-hidden="true" />Exportă CSV</button
+			>
+		</div>
+		<div class="mobile-table-options">
+			<ActionMenu
+				label="Opțiuni registru"
+				items={[
+					{ label: 'Exportă CSV', action: exportCsv, disabled: !sorted.length },
+					...(!inactive ? [{ label: 'Alege coloanele', action: () => (columnsOpen = true) }] : []),
+					{ label: 'Sortează după nume', action: () => sortBy('name') },
+					...(!inactive
+						? [
+								{ label: 'Sortează după clasă', action: () => sortBy('grade') },
+								{ label: 'Sortează după unitate', action: () => sortBy('unit') },
+								{ label: 'Sortează după vârstă', action: () => sortBy('age') },
+								{ label: 'Sortează după status', action: () => sortBy('status') }
+							]
+						: [])
+				]}
+			/>
+		</div>
+	</TableToolbar>
+</div>
 <div class="table">
 	<table use:highlightSearch={inactive ? inactiveSearch : searchQuery}>
 		<thead
-			><tr>
-				{#if management && registry.canManage}<th
-						><input
-							type="checkbox"
-							aria-label="Selectează pagina curentă"
-							checked={allPageSelected}
-							indeterminate={pageRows.some((m) => selected.includes(m.id)) && !allPageSelected}
-							onchange={() => {
-								selected = allPageSelected
-									? selected.filter((id) => !pageRows.some((m) => m.id === id))
-									: [
-											...new Set([
-												...selected,
-												...pageRows.filter((m) => m.access?.edit).map((m) => m.id)
-											])
-										];
-							}}
-						/></th
+			><tr class:selectable={management && registry.canManage}>
+				{#if management && registry.canManage}<th class="selection-cell"
+						><label class="selection-hit"
+							><input
+								type="checkbox"
+								aria-label="Selectează pagina curentă"
+								checked={allPageSelected}
+								indeterminate={pageRows.some((m) => selected.includes(m.id)) && !allPageSelected}
+								onchange={() => {
+									selected = allPageSelected
+										? selected.filter((id) => !pageRows.some((m) => m.id === id))
+										: [
+												...new Set([
+													...selected,
+													...pageRows.filter((m) => m.access?.edit).map((m) => m.id)
+												])
+											];
+								}}
+							/></label
+						></th
 					>{/if}
-				<th aria-sort={sort === 'name' ? (descending ? 'descending' : 'ascending') : 'none'}
+				<th
+					class="identity-heading"
+					aria-sort={sort === 'name' ? (descending ? 'descending' : 'ascending') : 'none'}
 					><button type="button" class="sort-button" onclick={() => sortBy('name')}
 						>Membru {sort === 'name' ? (descending ? '↓' : '↑') : '↕'}</button
 					></th
@@ -521,20 +614,25 @@
 				>
 			</tr></thead
 		><tbody>
-			{#each pageRows as m (m.id)}<tr class:selected={selected.includes(m.id)}>
-					{#if management && registry.canManage}<td
-							><input
-								type="checkbox"
-								disabled={!m.access?.edit}
-								aria-label={`Selectează ${m.name}`}
-								value={m.id}
-								bind:group={selected}
-							/></td
+			{#each pageRows as m (m.id)}<tr
+					class:selected={selected.includes(m.id)}
+					class:selectable={management && registry.canManage}
+				>
+					{#if management && registry.canManage}<td class="selection-cell"
+							><label class="selection-hit"
+								><input
+									type="checkbox"
+									disabled={!m.access?.edit}
+									aria-label={`Selectează ${m.name}`}
+									value={m.id}
+									bind:group={selected}
+								/></label
+							></td
 						>{/if}
-					<td
+					<td class="member-identity"
 						>{#if m.access?.detail}<a href={resolve(`/units/${m.id}`)}>{m.name}</a>{:else}<strong
 								>{m.name}</strong
-							>{/if}<small
+							>{/if}<small class="desktop-member-summary"
 							>{registry.structures?.find((s) => s.id === (m.structureId ?? 'cluj'))
 								?.name}{(m.category ?? m.branch)
 								? ` · ${branchLabels[m.category ?? m.branch ?? ''] ?? 'De verificat'}`
@@ -543,23 +641,75 @@
 									: m.categoryReview
 										? ' · De verificat'
 										: ''}
-							{(m.roles ?? [])
-								.filter((role) => role !== 'beneficiary')
-								.map((role) => roleLabels[role] ?? role)
-								.join(', ')}
-						</small></td
-					>
-					{#if !inactive}{#if showUnit}<td>{memberPlacement(registry.units, m)}</td
-							>{/if}{#if showGrade}<td>{hasSchoolGrade(m) ? (m.grade ?? '—') : '—'}</td
-							>{/if}{#if showAge}<td>{m.age ?? '—'}</td>{/if}{#if showStatus}<td
+							{memberRoles(m) ? ` · ${memberRoles(m)}` : ''}
+						</small>
+						<small class="mobile-identity-summary">{mobileSummary(m)}</small>
+						<button
+							type="button"
+							class="mobile-member-toggle"
+							aria-label={`Detalii pentru ${m.name}`}
+							aria-expanded={expandedMembers.includes(m.id)}
+							aria-controls={`member-information-${m.id}`}
+							onclick={() =>
+								(expandedMembers = expandedMembers.includes(m.id)
+									? expandedMembers.filter((id) => id !== m.id)
+									: [...expandedMembers, m.id])}
+							><ChevronDown size={16} aria-hidden="true" /></button
+						>
+						<dl
+							class="mobile-member-information"
+							id={`member-information-${m.id}`}
+							hidden={!expandedMembers.includes(m.id)}
+						>
+							<div>
+								<dt>Structură</dt>
+								<dd>{structureLabel(m)}</dd>
+							</div>
+							<div>
+								<dt>Categorie</dt>
+								<dd>{categoryLabel(m)}</dd>
+							</div>
+							{#if showUnit}<div>
+									<dt>Unitate / grupă</dt>
+									<dd>{memberPlacement(registry.units, m)}</dd>
+								</div>{/if}
+							{#if showGrade && hasSchoolGrade(m)}<div>
+									<dt>Clasa</dt>
+									<dd>{m.grade === 0 ? 'Pregătitoare' : (m.grade ?? '—')}</dd>
+								</div>{/if}
+							{#if showAge}<div>
+									<dt>Vârsta</dt>
+									<dd>{m.age != null ? `${m.age} ani` : '—'}</dd>
+								</div>{/if}
+							{#if showStatus}<div>
+									<dt>Status</dt>
+									<dd>{statusLabels[m.status] ?? 'De verificat'}</dd>
+								</div>{/if}
+							{#if memberRoles(m)}<div>
+									<dt>Responsabilități</dt>
+									<dd>{memberRoles(m)}</dd>
+								</div>{/if}
+							{#if m.syncMessage}<div>
+									<dt>Actualizare Orgo</dt>
+									<dd>{m.syncMessage}</dd>
+								</div>{/if}
+						</dl>
+					</td>
+					{#if !inactive}{#if showUnit}<td class="desktop-metadata"
+								>{memberPlacement(registry.units, m)}</td
+							>{/if}{#if showGrade}<td class="desktop-metadata"
+								>{hasSchoolGrade(m) ? (m.grade ?? '—') : '—'}</td
+							>{/if}{#if showAge}<td class="desktop-metadata">{m.age ?? '—'}</td
+							>{/if}{#if showStatus}<td class="desktop-metadata"
 								>{statusLabels[m.status] ?? 'De verificat'}
 								{#if m.syncMessage}<small title={m.syncMessage}>{m.syncMessage}</small>{/if}</td
 							>{/if}{/if}
-					{#if canSeeFees}<td>
+					{#if canSeeFees}<td class="fees-cell" class:empty-fee={!m.access?.fees}>
 							{#if m.access?.fees}
 								<button
 									type="button"
 									class="fee-status"
+									class:paid={m.feeSummary?.collectible && m.feeSummary.remainingBani === 0}
 									onclick={() => loadFees(m)}
 									aria-label={`Cotizații pentru ${m.name}`}
 								>
@@ -574,7 +724,7 @@
 								</button>
 							{:else}<span aria-label="Fără acces la cotizație">—</span>{/if}
 						</td>{/if}
-					<td
+					<td class="actions-cell"
 						>{#if rowActions(m).length}<ActionMenu
 								label={`Acțiuni pentru ${m.name}`}
 								items={rowActions(m)}
@@ -674,6 +824,19 @@
 	{/if}
 </Modal>
 
+<Modal
+	bind:open={columnsOpen}
+	title="Coloanele registrului"
+	description="Alege informațiile afișate în registru și în export."
+>
+	<div class="column-settings">
+		<label><input type="checkbox" bind:checked={showUnit} />Unitate / grupă</label>
+		<label><input type="checkbox" bind:checked={showGrade} />Clasa</label>
+		<label><input type="checkbox" bind:checked={showAge} />Vârsta</label>
+		<label><input type="checkbox" bind:checked={showStatus} />Status</label>
+	</div>
+</Modal>
+
 <FeePlanDialog
 	bind:open={planOpen}
 	obligationId={planId}
@@ -682,6 +845,39 @@
 />
 
 <style>
+	.desktop-table-options {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.mobile-table-options,
+	.mobile-member-toggle,
+	.mobile-member-information,
+	.mobile-identity-summary {
+		display: none;
+	}
+	.mobile-select-all.selection-hit {
+		display: none;
+	}
+	.mobile-result-count {
+		display: none;
+	}
+	.selection-hit {
+		display: grid;
+		place-items: center;
+		min-width: 44px;
+		min-height: 44px;
+	}
+	.column-settings {
+		display: grid;
+		gap: 8px;
+	}
+	.column-settings label {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		min-height: 44px;
+	}
 	.export-button {
 		display: inline-flex;
 		align-items: center;
@@ -690,7 +886,7 @@
 		height: 40px;
 		box-sizing: border-box;
 		padding: 8px 12px;
-		border: 1px solid var(--sc-border-strong);
+		border: 1px solid var(--sc-control-border);
 		border-radius: 7px;
 		background: var(--sc-surface);
 		color: var(--sc-ink);
@@ -702,7 +898,7 @@
 		background: var(--sc-canvas);
 	}
 	.export-button:focus-visible {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 2px;
 	}
 
@@ -738,6 +934,12 @@
 	.fee-status:hover {
 		text-decoration: underline;
 	}
+	.fee-status.paid {
+		background: var(--sc-success-soft);
+		color: var(--sc-success);
+		border-radius: 6px;
+		padding: 6px 8px;
+	}
 	.sort-button {
 		border: 0;
 		background: transparent;
@@ -767,7 +969,7 @@
 		text-decoration: none;
 	}
 	td > a:hover {
-		color: var(--sc-accent);
+		color: var(--sc-link);
 		text-decoration: underline;
 	}
 	input[type='checkbox'] {
@@ -816,7 +1018,7 @@
 		margin-top: 5px;
 	}
 	a {
-		color: var(--sc-accent);
+		color: var(--sc-link);
 	}
 	label {
 		display: grid;
@@ -827,13 +1029,13 @@
 	select {
 		font: inherit;
 		padding: 9px;
-		border: 1px solid var(--sc-border-strong);
+		border: 1px solid var(--sc-control-border);
 		border-radius: 6px;
 	}
 	button {
 		cursor: pointer;
-		background: white;
-		color: var(--sc-accent);
+		background: var(--sc-surface);
+		color: var(--sc-link);
 	}
 	button:disabled {
 		cursor: not-allowed;
@@ -856,5 +1058,197 @@
 	article + article {
 		border-top: 1px solid var(--sc-border-strong);
 		padding-top: 14px;
+	}
+	@media (max-width: 1200px) {
+		.member-toolbar :global(.sc-table-toolbar) {
+			gap: 8px;
+			margin-bottom: 8px;
+		}
+		.member-footer-summary {
+			display: flex;
+			gap: 4px;
+			align-items: center;
+		}
+		.member-filter-summary {
+			flex: 1;
+			min-width: 0;
+		}
+		.mobile-select-all.selection-hit {
+			display: grid;
+			margin: 0;
+		}
+		.mobile-result-count {
+			display: block;
+			color: var(--sc-muted);
+			font-size: 13px;
+		}
+		.desktop-table-options {
+			display: none;
+		}
+		.mobile-table-options {
+			display: block;
+		}
+		.mobile-table-options :global(.sc-icon-button) {
+			min-width: 44px;
+			min-height: 44px;
+		}
+		.table {
+			overflow: visible;
+			border: 0;
+			border-radius: 0;
+		}
+		table,
+		thead,
+		tbody {
+			display: block;
+		}
+		thead {
+			display: none;
+		}
+		tr {
+			display: grid;
+			grid-template-columns: [identity] minmax(0, 1fr) [actions] 44px;
+			border-bottom: 1px solid var(--sc-border);
+		}
+		tr.selectable {
+			grid-template-columns: [selection] 44px [identity] minmax(0, 1fr) [actions] 44px;
+		}
+		th,
+		td {
+			display: none;
+			padding: 0;
+			border: 0;
+			min-width: 0;
+		}
+		.table :is(th, td) {
+			padding: 0;
+			border: 0;
+		}
+		tbody td[colspan] {
+			display: block;
+			grid-column: 1 / -1;
+			padding: 16px 4px;
+		}
+		th.selection-cell,
+		td.selection-cell {
+			display: block;
+			grid-column: selection;
+			grid-row: 1;
+			align-self: start;
+		}
+		th.identity-heading {
+			display: flex;
+			align-items: center;
+			grid-column: identity / -1;
+			min-height: 44px;
+		}
+		th.identity-heading .sort-button {
+			min-height: 44px;
+		}
+		td.member-identity {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) 44px;
+			grid-column: identity;
+			grid-row: 1;
+			padding: 6px 4px;
+		}
+		.member-identity > a,
+		.member-identity > strong {
+			display: flex;
+			align-items: center;
+			grid-column: 1;
+			grid-row: 1;
+			min-height: 44px;
+			overflow-wrap: anywhere;
+			font-size: 14px;
+			line-height: 20px;
+		}
+		.member-identity > small {
+			font-size: 12px;
+			margin-top: 2px;
+			line-height: 18px;
+		}
+		td.actions-cell {
+			display: flex;
+			grid-column: actions;
+			grid-row: 1;
+			justify-content: flex-end;
+			align-items: flex-start;
+			width: auto;
+			padding-top: 6px;
+		}
+		.actions-cell :global(.sc-icon-button) {
+			min-width: 44px;
+			min-height: 44px;
+		}
+		.member-identity > .desktop-member-summary {
+			display: none;
+		}
+		.member-identity > .mobile-identity-summary {
+			display: block;
+			grid-column: 1 / -1;
+			grid-row: 2;
+			margin: 0;
+			color: var(--sc-muted);
+			font-size: 12px;
+			line-height: 18px;
+		}
+		.mobile-member-toggle {
+			display: grid;
+			place-items: center;
+			grid-column: 2;
+			grid-row: 1;
+			min-width: 44px;
+			min-height: 44px;
+			padding: 8px;
+			border: 0;
+			background: transparent;
+			color: var(--sc-muted);
+		}
+		.mobile-member-toggle[aria-expanded='true'] :global(svg) {
+			transform: rotate(180deg);
+		}
+		.mobile-member-information {
+			display: grid;
+			grid-column: 1 / -1;
+			gap: 8px;
+			margin: 0;
+			padding: 12px 0 4px;
+			font-size: 13px;
+		}
+		.mobile-member-information[hidden] {
+			display: none;
+		}
+		.mobile-member-information > div {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+			gap: 10px;
+		}
+		.mobile-member-information dt {
+			color: var(--sc-muted);
+		}
+		.mobile-member-information dd {
+			margin: 0;
+			overflow-wrap: anywhere;
+		}
+		td.fees-cell {
+			display: block;
+			grid-column: identity / -1;
+			padding: 0 4px 10px;
+		}
+		td.fees-cell.empty-fee {
+			display: none;
+		}
+		.fee-status {
+			min-height: 44px;
+			color: var(--sc-link);
+		}
+		.fee-status small {
+			margin-top: 2px;
+			font-size: 12px;
+		}
+		.toolbar button {
+			min-height: 44px;
+		}
 	}
 </style>

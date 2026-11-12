@@ -99,8 +99,8 @@
 	}
 
 	.handoff-note {
-		border-left: 3px solid #0f766e;
-		background: #f0fdfa;
+		border-left: 3px solid var(--sc-success);
+		background: var(--sc-success-soft);
 		padding: 10px 12px;
 		font-weight: 600;
 	}
@@ -114,7 +114,7 @@
 	.fixed-activity {
 		display: grid;
 		gap: 4px;
-		border: 1px solid #dbe3ef;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
 		background: var(--sc-canvas);
 		padding: 10px 12px;
@@ -154,7 +154,7 @@
 	}
 
 	button {
-		min-height: 38px;
+		min-height: 44px;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -162,7 +162,7 @@
 		border-radius: 8px;
 		background: var(--sc-accent);
 		padding: 0 14px;
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 		font-weight: 600;
 		cursor: pointer;
 	}

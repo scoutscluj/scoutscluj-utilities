@@ -54,7 +54,13 @@
 		border: 0;
 		border-radius: 7px;
 		background: var(--sc-accent);
-		color: white;
+		color: var(--sc-on-accent);
 		font: inherit;
+	}
+
+	input:not([type='hidden']):not([type='checkbox']):not([type='radio']) {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
 	}
 </style>

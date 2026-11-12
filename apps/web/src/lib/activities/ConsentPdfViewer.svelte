@@ -138,7 +138,7 @@
 	}
 	button,
 	select {
-		min-height: 32px;
+		min-height: 44px;
 		border: 1px solid var(--sc-border);
 		border-radius: 6px;
 		background: var(--sc-surface);
@@ -176,7 +176,13 @@
 		color: var(--sc-muted);
 	}
 	a {
-		color: var(--sc-accent);
+		color: var(--sc-link);
 		font-size: 12px;
+	}
+
+	select {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
 	}
 </style>

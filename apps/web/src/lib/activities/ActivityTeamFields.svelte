@@ -73,4 +73,11 @@
 		margin: 0;
 		line-height: 1.5;
 	}
+
+	input:not([type='hidden']):not([type='checkbox']):not([type='radio']),
+	select {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
+	}
 </style>

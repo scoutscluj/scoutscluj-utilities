@@ -143,7 +143,7 @@
 
 	.panel,
 	.form-message {
-		border: 1px solid #dbe3ef;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
 		background: var(--sc-surface);
 		padding: 14px;
@@ -204,7 +204,7 @@
 		border-radius: 8px;
 		background: var(--sc-surface);
 		padding: 18px;
-		box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
+		box-shadow: var(--sc-shadow);
 	}
 
 	label {
@@ -224,11 +224,11 @@
 	}
 
 	button {
-		min-height: 38px;
+		min-height: 44px;
 		border: 0;
 		border-radius: 8px;
-		background: #0f766e;
-		color: var(--sc-surface);
+		background: var(--sc-accent);
+		color: var(--sc-on-accent);
 		padding: 0 12px;
 		font-weight: 600;
 		cursor: pointer;
@@ -270,5 +270,11 @@
 		font-size: 0.7rem;
 		font-weight: 600;
 		text-transform: uppercase;
+	}
+
+	input:not([type='hidden']):not([type='checkbox']):not([type='radio']) {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
 	}
 </style>

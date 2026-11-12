@@ -115,7 +115,7 @@
 		min-width: 0;
 		height: 40px;
 		padding: 9px 11px;
-		border: 1px solid var(--sc-border);
+		border: 1px solid var(--sc-control-border);
 		border-radius: 8px;
 		background: var(--sc-surface);
 		color: var(--sc-ink);
@@ -129,19 +129,19 @@
 			box-shadow 150ms;
 	}
 	:global(.filter-trigger:hover) {
-		border-color: var(--sc-border-strong);
+		border-color: var(--sc-control-border);
 		background: var(--sc-canvas);
 	}
 	:global(.filter-trigger:not([data-active])) {
 		color: var(--sc-muted);
 	}
 	:global(.filter-trigger[data-active]) {
-		border-color: color-mix(in srgb, var(--sc-accent) 28%, var(--sc-border));
+		border-color: var(--sc-link);
 		background: color-mix(in srgb, var(--sc-accent-soft) 30%, var(--sc-surface));
 	}
 	:global(.filter-trigger[data-state='open']),
 	:global(.filter-trigger:focus-visible) {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 2px;
 	}
 	:global(.filter-trigger > span:first-child) {
@@ -159,7 +159,7 @@
 		padding: 1px 6px;
 		border-radius: 10px;
 		background: var(--sc-accent-soft);
-		color: var(--sc-accent);
+		color: var(--sc-link);
 		font-size: 12px;
 	}
 	:global(.filter-popover) {
@@ -197,7 +197,7 @@
 	}
 	.filter-heading button {
 		background: transparent;
-		color: var(--sc-accent);
+		color: var(--sc-link);
 		border: 0;
 		border-radius: 4px;
 		padding: 6px 8px;
@@ -210,7 +210,7 @@
 		opacity: 0.55;
 	}
 	.filter-heading button:focus-visible {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 2px;
 	}
 	.filter-options {
@@ -223,7 +223,7 @@
 		display: flex;
 		align-items: center;
 		gap: 10px;
-		min-height: 40px;
+		min-height: 44px;
 		padding: 8px;
 		box-sizing: border-box;
 		border-radius: 6px;

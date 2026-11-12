@@ -62,9 +62,9 @@
 	section {
 		margin: 24px 0;
 		padding: 20px;
-		border: 1px solid #dce5df;
+		border: 1px solid var(--sc-border);
 		border-radius: 12px;
-		background: white;
+		background: var(--sc-surface);
 	}
 	summary {
 		cursor: pointer;
@@ -80,7 +80,7 @@
 	}
 	input {
 		padding: 10px;
-		border: 1px solid #bacbc2;
+		border: 1px solid var(--sc-control-border);
 		border-radius: 8px;
 		font: inherit;
 	}
@@ -88,6 +88,6 @@
 		padding: 8px 0;
 	}
 	a {
-		color: var(--sc-accent);
+		color: var(--sc-link);
 	}
 </style>

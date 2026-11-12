@@ -38,6 +38,9 @@
 	.stacked > :global(.sc-table-filters) {
 		display: block;
 	}
+	.stacked > :global(.sc-table-filters:has(> [hidden]:only-child)) {
+		display: none;
+	}
 	.primary-row > :global(.sc-table-options) {
 		flex-shrink: 0;
 		width: auto;
@@ -47,14 +50,15 @@
 	}
 	@media (max-width: 560px) {
 		.primary-row {
-			flex-wrap: wrap;
-			gap: 12px;
+			flex-wrap: nowrap;
+			gap: 8px;
 		}
 		.primary-content {
-			flex-basis: 100%;
+			flex: 1 1 0;
+			min-width: 0;
 		}
 		.primary-row > :global(.sc-table-options) {
-			width: 100%;
+			width: auto;
 			justify-content: flex-end;
 		}
 	}

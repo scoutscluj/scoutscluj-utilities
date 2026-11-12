@@ -25,25 +25,37 @@
 		{/if}
 	</div>
 
-	<div class="document-actions">
-		<form method="POST" action="?/linkDocument">
-			<input type="hidden" name="eventId" value={event.id} />
-			<select name="financialDocumentId" required>
-				<option value="">Document existent</option>
-				{#each documents as document (document.id)}
-					<option value={document.id}>{document.originalFilename}</option>
-				{/each}
-			</select>
-			<button class="secondary" type="submit">Leagă</button>
-		</form>
+	<details>
+		<summary>Atașează factură sau bon</summary>
+		<div class="document-actions">
+			<form method="POST" action="?/linkDocument">
+				<input type="hidden" name="eventId" value={event.id} />
+				<label
+					><span>Document existent</span><select name="financialDocumentId" required>
+						<option value="">Document existent</option>
+						{#each documents as document (document.id)}
+							<option value={document.id}>{document.originalFilename}</option>
+						{/each}
+					</select></label
+				>
+				<button class="secondary" type="submit">Leagă</button>
+			</form>
 
-		<form method="POST" action="?/uploadDocument" enctype="multipart/form-data">
-			<input type="hidden" name="eventId" value={event.id} />
-			<input name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif" required />
-			<input name="notes" placeholder="notițe" />
-			<button type="submit">Încarcă</button>
-		</form>
-	</div>
+			<form method="POST" action="?/uploadDocument" enctype="multipart/form-data">
+				<input type="hidden" name="eventId" value={event.id} />
+				<label
+					><span>Fișier</span><input
+						name="file"
+						type="file"
+						accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif"
+						required
+					/></label
+				>
+				<label><span>Notițe</span><input name="notes" placeholder="notițe" /></label>
+				<button type="submit">Încarcă</button>
+			</form>
+		</div>
+	</details>
 </section>
 
 <style>
@@ -77,14 +89,14 @@
 	}
 
 	button {
-		min-height: 38px;
+		min-height: 44px;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		border: 0;
 		border-radius: 8px;
-		background: #0f766e;
-		color: var(--sc-surface);
+		background: var(--sc-accent);
+		color: var(--sc-on-accent);
 		padding: 0 12px;
 		font-weight: 600;
 		cursor: pointer;
@@ -121,5 +133,26 @@
 		.document-actions form:first-child {
 			grid-template-columns: 1fr;
 		}
+	}
+
+	input:not([type='hidden']):not([type='checkbox']):not([type='radio']),
+	select {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
+	}
+
+	label {
+		display: grid;
+		gap: 6px;
+		min-width: 0;
+		color: var(--sc-ink);
+		font-size: 13px;
+	}
+	summary {
+		min-height: 44px;
+		align-content: center;
+		cursor: pointer;
+		color: var(--sc-link);
 	}
 </style>

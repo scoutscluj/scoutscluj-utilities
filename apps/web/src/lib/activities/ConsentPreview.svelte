@@ -185,13 +185,13 @@
 		padding: 10px 12px;
 		border-radius: 7px;
 		border: 1px solid var(--sc-accent);
-		color: var(--sc-accent);
+		color: var(--sc-link);
 		font-weight: 600;
 		text-decoration: none;
 		line-height: 1.5;
 	}
 	.error {
-		color: var(--sc-accent);
+		color: var(--sc-link);
 		border: 1px solid var(--sc-accent);
 		border-radius: 7px;
 		padding: 12px;
@@ -201,11 +201,11 @@
 	}
 	.error button {
 		justify-self: start;
-		min-height: 38px;
+		min-height: 44px;
 		padding: 8px 12px;
 		border: 1px solid var(--sc-accent);
 		border-radius: 7px;
-		color: var(--sc-accent);
+		color: var(--sc-link);
 		background: var(--sc-surface);
 		cursor: pointer;
 	}
@@ -215,5 +215,11 @@
 			max-height: none;
 			overflow: visible;
 		}
+	}
+
+	select {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
 	}
 </style>

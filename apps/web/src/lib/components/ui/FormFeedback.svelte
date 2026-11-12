@@ -71,7 +71,7 @@
 		line-height: 1.5;
 	}
 	.feedback:focus {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 3px;
 	}
 	.feedback :global(svg) {
@@ -79,10 +79,10 @@
 	}
 	.error {
 		background: var(--sc-accent-soft);
-		border-color: var(--sc-accent);
+		border-color: var(--sc-danger);
 	}
 	.error :global(svg) {
-		color: var(--sc-accent);
+		color: var(--sc-danger);
 	}
 	.success {
 		background: var(--sc-success-soft);
@@ -109,7 +109,7 @@
 		border: 0;
 		background: transparent;
 		padding: 2px 0;
-		color: var(--sc-accent);
+		color: var(--sc-link);
 		text-decoration: underline;
 		font: inherit;
 		font-weight: 600;
@@ -117,7 +117,7 @@
 		min-height: 32px;
 	}
 	button:focus-visible {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 2px;
 	}
 </style>

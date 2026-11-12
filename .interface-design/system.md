@@ -83,6 +83,30 @@ and row expansions that move the rest of the register.
 
 ## Implementation
 
+### Responsive workspaces and appearance
+
+- Appearance offers Sistem / Luminoasă / Întunecată in the profile menu. Persist
+  the preference in this browser, apply it before first paint, and follow device
+  changes in System mode. Use shared semantic tokens for canvas, surfaces, ink,
+  borders, focus and statuses. Solid accent and readable accent text have separate
+  tokens; do not put dark-theme pink text on a pale hardcoded background.
+- Keep the mobile topbar compact. Orgo refresh runs in the background, with status
+  and retry in a focused dialog available from the header/profile menu. It must
+  not push page content down or reload entered form data.
+- Mobile participant and member lists prioritize names, useful affiliation/class,
+  quick actions and a context menu. Expand secondary details within the row.
+  Put search and the filter trigger on one row; reveal filter controls on demand,
+  count active filters and preserve a visible reset action.
+- Use actual available content width for participant layout: the sidebar can
+  leave tablet content narrower than the viewport breakpoint suggests. Menus and
+  receipt actions remain reachable without scrolling the page horizontally.
+- Activity settings and kitchen use one section selector on mobile. Financial
+  summaries and advanced settings are progressive disclosures, preserving the
+  original actions, validation and revision checks.
+- Mobile interactive controls have 44px targets. Text contrast is at least 4.5:1;
+  essential control boundaries at least 3:1. Verify rendered elements as well as
+  tokens in light/dark at 320, 390, 768, 1024 and desktop widths.
+
 The Interface Design and official shadcn-svelte agent skills are installed.
 Follow their composition and accessibility guidance. The current app uses
 scoped CSS and Bits UI directly; reuse them rather than introducing a parallel
@@ -92,6 +116,10 @@ components around existing Bits UI, not generated registry components.
 Validate interaction changes with the synthetic local API and Playwright suite
 in `apps/web/e2e`, including desktop/mobile screenshots. Do not test mutations
 against production.
+
+Run Svelte checks and the production build sequentially; both use generated
+SvelteKit files. Browser acceptance waits for application initialization and
+rejects runtime errors, in addition to inspecting the rendered layout.
 
 - Activity registrations own participant handoff: physical agreement and cash receipts live in each table row, with exact amounts and the existing atomic combined action. Authorized readers open uploaded signed PDFs from that row; acceptance remains limited to consent administrators. At widths up to 760px, use simple divider-separated rows: name (up to two lines), current school grade, applicable agreement/cash buttons and the context menu. Tapping the name expands the other details and family selection. Quick receipt buttons open the existing explicit confirmation dialogs; never silently record a receipt. Keep 44px touch targets, filtering and pagination. Keep publication/link controls in one compact bar and secondary bulk actions in a disclosure. Legacy handoff and activity agreement pages redirect to registrations.
 

@@ -131,9 +131,9 @@
 <style>
 	section {
 		padding: 24px;
-		border: 1px solid #dce5df;
+		border: 1px solid var(--sc-border);
 		border-radius: 14px;
-		background: white;
+		background: var(--sc-surface);
 	}
 	h2 {
 		margin-top: 0;
@@ -161,14 +161,14 @@
 	button {
 		font: inherit;
 		padding: 10px;
-		border: 1px solid var(--sc-border-strong);
+		border: 1px solid var(--sc-control-border);
 		border-radius: 7px;
 		min-width: 0;
 	}
 	span {
 		overflow-wrap: anywhere;
 		white-space: pre-wrap;
-		color: #50675a;
+		color: var(--sc-muted);
 	}
 	form {
 		display: grid;
@@ -178,7 +178,7 @@
 	button {
 		cursor: pointer;
 		background: var(--sc-accent);
-		color: white;
+		color: var(--sc-on-accent);
 	}
 	details {
 		margin: 12px 0;

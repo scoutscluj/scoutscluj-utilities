@@ -36,10 +36,10 @@
 	}
 	:global(.info-trigger:hover) {
 		background: var(--sc-inset);
-		color: var(--sc-accent);
+		color: var(--sc-link);
 	}
 	:global(.info-trigger:focus-visible) {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 2px;
 	}
 	:global(.info-content) {
@@ -56,5 +56,12 @@
 	}
 	p {
 		margin: 0;
+	}
+	@media (max-width: 760px) {
+		:global(.info-trigger) {
+			width: 44px;
+			height: 44px;
+			min-height: 44px;
+		}
 	}
 </style>

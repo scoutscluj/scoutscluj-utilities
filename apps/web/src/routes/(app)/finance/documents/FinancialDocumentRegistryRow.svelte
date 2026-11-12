@@ -308,33 +308,33 @@
 	}
 
 	.ready_to_send {
-		background: #ecfeff;
-		color: #155e75;
+		background: var(--sc-info-soft);
+		color: var(--sc-info);
 	}
 
 	.sent {
-		background: #dcfce7;
-		color: #166534;
+		background: var(--sc-success-soft);
+		color: var(--sc-success);
 	}
 
 	.needs_clarification {
-		background: #fffbeb;
-		color: #92400e;
+		background: var(--sc-warning-soft);
+		color: var(--sc-warning);
 	}
 
 	.rejected {
-		background: #fee2e2;
-		color: var(--sc-accent-hover);
+		background: var(--sc-accent-soft);
+		color: var(--sc-danger);
 	}
 
 	.send_failed {
 		background: var(--sc-accent-soft);
-		color: #b91c1c;
+		color: var(--sc-danger);
 	}
 
 	.archived {
 		background: var(--sc-inset);
-		color: #475569;
+		color: var(--sc-muted);
 	}
 
 	.meta-grid {
@@ -354,7 +354,7 @@
 	}
 
 	.meta-grid a {
-		color: #2563eb;
+		color: var(--sc-link);
 		font-weight: 600;
 	}
 
@@ -373,15 +373,15 @@
 	}
 
 	.reviewer-notes {
-		border-left: 3px solid #0f766e;
+		border-left: 3px solid var(--sc-success);
 		padding-left: 8px;
 	}
 
 	.handoff-error {
-		border-left: 3px solid #dc2626;
+		border-left: 3px solid var(--sc-danger);
 		background: var(--sc-accent-soft);
 		padding: 7px 9px;
-		color: var(--sc-accent-hover);
+		color: var(--sc-danger);
 		font-size: 0.84rem;
 		font-weight: 600;
 	}
@@ -417,7 +417,7 @@
 
 	.icon-action:hover,
 	:global(.dialog-icon-button:hover) {
-		border-color: #94a3b8;
+		border-color: var(--sc-control-border);
 		background: var(--sc-canvas);
 	}
 
@@ -429,22 +429,22 @@
 	.icon-action.primary {
 		border-color: var(--sc-accent);
 		background: var(--sc-accent);
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 	}
 
 	.icon-action.primary:hover {
-		border-color: var(--sc-accent-hover);
+		border-color: var(--sc-danger);
 		background: var(--sc-accent-hover);
 	}
 
 	.icon-action.danger {
-		border-color: #fecaca;
-		background: #fff1f2;
-		color: #b91c1c;
+		border-color: var(--sc-control-border);
+		background: var(--sc-accent-soft);
+		color: var(--sc-danger);
 	}
 
 	.icon-action.danger:hover {
-		background: #fee2e2;
+		background: var(--sc-accent-soft);
 	}
 
 	.icon-action:focus-visible,
@@ -474,7 +474,7 @@
 		border-radius: 8px;
 		background: var(--sc-surface);
 		padding: 18px;
-		box-shadow: 0 24px 70px rgb(15 23 42 / 0.22);
+		box-shadow: var(--sc-shadow);
 		transform: translate(-50%, -50%);
 	}
 
@@ -547,7 +547,7 @@
 
 	.primary-action,
 	:global(.secondary-action) {
-		min-height: 38px;
+		min-height: 44px;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -560,7 +560,7 @@
 	.primary-action {
 		border: 0;
 		background: var(--sc-accent);
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 	}
 
 	.primary-action:hover {

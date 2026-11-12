@@ -3,12 +3,15 @@
 	import { DropdownMenu } from 'bits-ui';
 	import { pwa } from '$lib/pwa/pwa.svelte';
 	import type { CurrentUser } from '$lib/auth/types';
+	import AppearanceSettings from '$lib/components/ui/AppearanceSettings.svelte';
 
 	type Props = {
 		user: CurrentUser;
+		onOrgoSync?: () => void;
 	};
 
-	let { user }: Props = $props();
+	let { user, onOrgoSync }: Props = $props();
+	let appearanceOpen = $state(false);
 
 	const userInitial = $derived(user.displayName.slice(0, 1).toUpperCase());
 	const statusLabel = $derived(pwa.isOffline ? 'Offline' : 'Online');
@@ -45,6 +48,16 @@
 				<DropdownMenu.Separator class="profile-menu-separator" />
 
 				<DropdownMenu.Group aria-label="Cont utilizator">
+					{#if onOrgoSync}<DropdownMenu.Item
+							class="profile-menu-item"
+							textValue="Actualizări Orgo"
+							onSelect={onOrgoSync}>Actualizări Orgo</DropdownMenu.Item
+						>{/if}
+					<DropdownMenu.Item
+						class="profile-menu-item"
+						textValue="Aspectul aplicației"
+						onSelect={() => (appearanceOpen = true)}>Aspectul aplicației</DropdownMenu.Item
+					>
 					<DropdownMenu.Item class="profile-menu-item" textValue="Cotizație">
 						{#snippet child({ props })}
 							<a {...props} href={resolve('/cotizatie')}>Cotizație</a>
@@ -77,6 +90,7 @@
 		</DropdownMenu.Portal>
 	</DropdownMenu.Root>
 </div>
+<AppearanceSettings bind:open={appearanceOpen} />
 
 <style>
 	.profile-menu {
@@ -87,8 +101,8 @@
 
 	:global(.profile-trigger) {
 		position: relative;
-		width: 42px;
-		height: 42px;
+		width: 44px;
+		height: 44px;
 		display: grid;
 		place-items: center;
 		border: 1px solid transparent;
@@ -106,7 +120,7 @@
 
 	:global(.profile-trigger:focus-visible),
 	:global(.profile-menu-item:focus-visible) {
-		outline: 3px solid rgb(200 30 30 / 0.24);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 2px;
 	}
 
@@ -117,7 +131,7 @@
 		place-items: center;
 		border-radius: 999px;
 		background: var(--sc-accent);
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 		font-size: 0.8rem;
 		font-weight: 600;
 	}
@@ -136,11 +150,11 @@
 		height: 11px;
 		border: 2px solid var(--sc-surface);
 		border-radius: 999px;
-		background: #16a34a;
+		background: var(--sc-success);
 	}
 
 	.profile-status-dot.offline {
-		background: #f59e0b;
+		background: var(--sc-warning);
 	}
 
 	:global(.profile-menu-content) {
@@ -150,7 +164,7 @@
 		border-radius: 8px;
 		background: var(--sc-surface);
 		padding: 6px;
-		box-shadow: 0 16px 40px rgb(15 23 42 / 0.14);
+		box-shadow: var(--sc-shadow);
 	}
 
 	.profile-menu-heading {
@@ -202,7 +216,7 @@
 		border-radius: 999px;
 		background: var(--sc-surface);
 		padding: 0 9px;
-		color: #475569;
+		color: var(--sc-muted);
 		font-size: 0.78rem;
 		font-weight: 600;
 		white-space: nowrap;
@@ -212,17 +226,17 @@
 		width: 8px;
 		height: 8px;
 		border-radius: 999px;
-		background: #16a34a;
+		background: var(--sc-success);
 	}
 
 	.status-badge.offline {
-		border-color: #f59e0b;
-		background: #fffbeb;
-		color: #92400e;
+		border-color: var(--sc-warning);
+		background: var(--sc-warning-soft);
+		color: var(--sc-warning);
 	}
 
 	.status-badge.offline span {
-		background: #f59e0b;
+		background: var(--sc-warning);
 	}
 
 	:global(.profile-menu-separator) {
@@ -237,7 +251,7 @@
 
 	:global(.profile-menu-item) {
 		width: 100%;
-		min-height: 36px;
+		min-height: 44px;
 		display: flex;
 		align-items: center;
 		border: 0;
@@ -254,7 +268,7 @@
 	:global(.profile-menu-item:hover),
 	:global(.profile-menu-item[data-highlighted]) {
 		background: var(--sc-accent-soft);
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 	}
 
 	:global(.profile-menu-item.danger) {
@@ -264,6 +278,6 @@
 	:global(.profile-menu-item.danger:hover),
 	:global(.profile-menu-item.danger[data-highlighted]) {
 		background: var(--sc-accent-soft);
-		color: var(--sc-accent-hover);
+		color: var(--sc-danger);
 	}
 </style>

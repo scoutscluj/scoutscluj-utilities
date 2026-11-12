@@ -55,7 +55,9 @@
 		<div class={`status ${event.status}`}>{statusLabels[event.status]}</div>
 	</div>
 
-	<ProcurementEventForm {event} />
+	<details class="event-details">
+		<summary>Detalii aprovizionare · modifică</summary><ProcurementEventForm {event} />
+	</details>
 
 	<div class="event-actions">
 		<form method="POST" action="?/addRemaining">
@@ -83,11 +85,11 @@
 	}
 
 	.panel {
-		border: 1px solid #dbe3ef;
+		border: 1px solid var(--sc-border);
 		background: var(--sc-surface);
 		border-radius: 8px;
 		padding: 18px;
-		box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
+		box-shadow: var(--sc-shadow);
 	}
 
 	.event-heading,
@@ -105,7 +107,7 @@
 
 	.event-actions a,
 	button {
-		min-height: 38px;
+		min-height: 44px;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -117,8 +119,8 @@
 
 	button {
 		border: 0;
-		background: #0f766e;
-		color: var(--sc-surface);
+		background: var(--sc-accent);
+		color: var(--sc-on-accent);
 		cursor: pointer;
 	}
 
@@ -130,28 +132,28 @@
 	}
 
 	.danger {
-		border: 1px solid #fecaca;
+		border: 1px solid var(--sc-border-strong);
 		background: var(--sc-surface);
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 	}
 
 	.status {
 		border-radius: 999px;
 		padding: 6px 10px;
-		background: #eef2ff;
-		color: #3730a3;
+		background: var(--sc-info-soft);
+		color: var(--sc-info);
 		font-size: 0.8rem;
 		font-weight: 600;
 	}
 
 	.status.completed {
-		background: #dcfce7;
-		color: #166534;
+		background: var(--sc-success-soft);
+		color: var(--sc-success);
 	}
 
 	.status.in_progress {
-		background: #fef3c7;
-		color: #92400e;
+		background: var(--sc-warning-soft);
+		color: var(--sc-warning);
 	}
 
 	h2,
@@ -169,10 +171,23 @@
 
 	.eyebrow {
 		margin: 0 0 8px;
-		color: #2563eb;
+		color: var(--sc-muted);
 		font-size: 0.78rem;
 		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0;
+	}
+
+	input:not([type='hidden']):not([type='checkbox']):not([type='radio']) {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
+	}
+
+	.event-details summary {
+		min-height: 44px;
+		align-content: center;
+		cursor: pointer;
+		color: var(--sc-link);
 	}
 </style>

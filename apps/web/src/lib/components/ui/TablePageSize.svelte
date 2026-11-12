@@ -40,11 +40,20 @@
 		min-height: 36px;
 		box-sizing: border-box;
 		padding: 6px 28px 6px 10px;
-		border: 1px solid var(--sc-border);
+		border: 1px solid var(--sc-control-border);
 		border-radius: 6px;
 		background: var(--sc-surface);
 		color: var(--sc-ink);
 		font: inherit;
 		line-height: 22px;
+	}
+	@media (max-width: 540px) {
+		.sc-table-page-size.inline > span {
+			display: none;
+		}
+		.sc-table-page-size.inline select {
+			min-height: 44px;
+			height: 44px;
+		}
 	}
 </style>

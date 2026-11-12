@@ -28,11 +28,14 @@
 <div class="setup">
 	<a href={resolve('/units')}>← Membri și unități</a>
 	<h1>Repartizare Cluj și Florești</h1>
-	<p>
-		Numele din Orgo (membri.scout.ro) propune apartenența inițială. Verifică structura și categoria
-		fiecărui membru înainte de confirmare. Schimbarea ulterioară a numelui nu va modifica
-		apartenența.
-	</p>
+	<p class="intro">Verifică structura și categoria fiecărui membru.</p>
+	<details class="setup-help">
+		<summary>Cum se confirmă apartenența</summary>
+		<p>
+			Numele din Orgo propune apartenența inițială. Schimbarea ulterioară a numelui nu modifică
+			apartenența. Transferurile se fac din fișa membrului.
+		</p>
+	</details>
 	{#if form?.message}<p role="status">{form.message}</p>{/if}
 	{#if !data.preview.members.length && !data.preview.units.length}<p>
 			Toate apartenențele sunt confirmate. Transferurile se fac din fișa membrului.
@@ -41,32 +44,10 @@
 			<input type="hidden" name="action" value="classify" />
 			<input type="hidden" name="members" value={JSON.stringify(members)} />
 			<input type="hidden" name="units" value={JSON.stringify(units)} />
-			{#if units.length}<section>
-					<h2>Surse Orgo și subunități</h2>
-					<p>
-						Unitățile sunt fixe. Păstrează sursa ca legătură Orgo sau confirmă explicit că numele
-						vechi reprezintă o subunitate. Membrii compatibili din sursa veche vor fi repartizați în
-						ea; apartenența lor principală rămâne aceeași.
-					</p>
-					{#each units as unit (unit.id)}<article>
-							<label class="check"
-								><input type="checkbox" bind:checked={unit.convert} />Transformă „{unit.name}” în
-								subunitate</label
-							>
-							{#if unit.convert}<label
-									>Unitate părinte<select bind:value={unit.parentId} required
-										><option value="">Alege unitatea</option
-										>{#each data.registry.units.filter((u) => !u.parentId && u.branch === unit.branch) as parent (parent.id)}<option
-												value={parent.id}
-												>{data.preview.structures.find((s) => s.id === parent.structureId)?.name} · {parent.name}</option
-											>{/each}</select
-									></label
-								>{/if}
-						</article>{/each}
-				</section>{/if}
+
 			<section>
 				<h2>Membri</h2>
-				<p>{members.length} apartenențe de verificat. Istoricul inactiv este separat.</p>
+				<p>{members.length} apartenențe de verificat</p>
 				<TableToolbar
 					>{#snippet filters()}<label
 							>Caută membru<input
@@ -109,6 +90,32 @@
 					loadedTotal={members.length}
 				/>
 			</section>
+			{#if units.length}<section class="sources">
+					<details>
+						<summary>Surse Orgo și subunități ({units.length})</summary>
+						<p>
+							Unitățile sunt fixe. Păstrează sursa ca legătură Orgo sau confirmă explicit că numele
+							vechi reprezintă o subunitate. Membrii compatibili din sursa veche vor fi repartizați
+							în ea; apartenența lor principală rămâne aceeași.
+						</p>
+						{#each units as unit (unit.id)}<article>
+								<label class="check"
+									><input type="checkbox" bind:checked={unit.convert} />Transformă „{unit.name}” în
+									subunitate</label
+								>
+								{#if unit.convert}<label
+										>Unitate părinte<select bind:value={unit.parentId} required
+											><option value="">Alege unitatea</option
+											>{#each data.registry.units.filter((u) => !u.parentId && u.branch === unit.branch) as parent (parent.id)}<option
+													value={parent.id}
+													>{data.preview.structures.find((s) => s.id === parent.structureId)?.name} ·
+													{parent.name}</option
+												>{/each}</select
+										></label
+									>{/if}
+							</article>{/each}
+					</details>
+				</section>{/if}
 			<label class="check"
 				><input type="checkbox" name="confirm" required />Am verificat toate repartizările, inclusiv
 				membrii inactivi.</label
@@ -126,7 +133,7 @@
 	section {
 		background: var(--sc-surface);
 		padding: 24px;
-		margin: 24px 0;
+		margin: 16px 0;
 		border: 1px solid var(--sc-border);
 		border-radius: 14px;
 	}
@@ -139,13 +146,48 @@
 	input,
 	button {
 		font: inherit;
-		padding: 10px;
-		border: 1px solid var(--sc-border-strong);
-		border-radius: 7px;
+		padding: 10px 12px;
+		border: 1px solid var(--sc-control-border);
+		border-radius: 8px;
+		box-sizing: border-box;
+	}
+	select,
+	input {
+		background: var(--sc-surface);
+		color: var(--sc-ink);
+	}
+	:is(select, input:not([type='checkbox']), button, .check) {
+		min-height: 44px;
+		min-width: 0;
+		max-width: 100%;
+	}
+	:is(input, select, button, summary):focus-visible {
+		outline: 2px solid var(--sc-focus);
+		outline-offset: 2px;
+	}
+	h1 {
+		overflow-wrap: anywhere;
+		margin: 16px 0 8px;
+	}
+	h2 {
+		font-size: 20px;
+		margin: 0 0 8px;
+	}
+	.intro {
+		margin: 8px 0;
+	}
+	.setup-help {
+		margin: 8px 0 16px;
+	}
+	summary {
+		min-height: 44px;
+		align-content: center;
+		cursor: pointer;
+		color: var(--sc-link);
 	}
 	button {
 		background: var(--sc-accent);
-		color: white;
+		color: var(--sc-on-accent);
 		cursor: pointer;
 	}
 	button:disabled {
@@ -170,6 +212,19 @@
 		line-height: 1.6;
 	}
 	a {
-		color: var(--sc-accent);
+		color: var(--sc-link);
+	}
+	@media (max-width: 600px) {
+		h1 {
+			font-size: 26px;
+			line-height: 32px;
+		}
+		section {
+			padding: 16px;
+		}
+		.fields {
+			grid-template-columns: minmax(0, 1fr);
+			gap: 0;
+		}
 	}
 </style>

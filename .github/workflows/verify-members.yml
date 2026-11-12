@@ -24,7 +24,7 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/scoutscluj_test
-      DATABASE_SSL: 'false'
+      DATABASE_SSL: "false"
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -87,6 +87,16 @@ jobs:
           pnpm --filter web exec playwright test --config playwright.registration.config.ts
           pnpm --filter web exec playwright test --config playwright.admissions.config.ts
           pnpm --filter web exec playwright test --config playwright.members.config.ts
+          pnpm --filter web exec playwright test --config playwright.design.config.ts
           pnpm --filter web exec playwright test --config playwright.profile.config.ts --grep "creates through|validates required"
           pnpm --filter web exec playwright test --config playwright.membership.config.ts e2e/membership-finance.spec.ts --grep "member modal saves cash|receipts modal accepts cash|bank admission can share"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: responsive-design-review
+          path: |
+            tmp/design-review/
+            tmp/*design*.png
+          if-no-files-found: ignore
+          retention-days: 7
       - run: pnpm --filter infra verify

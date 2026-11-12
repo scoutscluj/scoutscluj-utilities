@@ -89,11 +89,13 @@
 	import Search from '@lucide/svelte/icons/search';
 	import X from '@lucide/svelte/icons/x';
 	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 	import type { Unit, Member } from '$lib/members/types';
 	let pendingAction = $state('');
 	let submissionError = $state('');
 	let actionFailed = $state(false);
 	let refreshOpen = $state(false);
+	let filtersOpen = $state(false);
 	const submitWorkspace: SubmitFunction = ({ formData, cancel }) => {
 		if (pendingAction) {
 			cancel();
@@ -354,18 +356,21 @@
 				>{/if}
 			<button
 				type="button"
-				class="secondary"
+				class="secondary units-shortcut"
 				aria-haspopup="dialog"
 				onclick={() => (structureOpen = true)}>Unități și subunități</button
 			>
 			{#if management && data.registry.canManage}<button
 					type="button"
+					class="add-member"
+					aria-label="Adaugă membru"
 					onclick={() => goto(resolve('/applications'))}
-					><Plus size={18} aria-hidden="true" />Adaugă membru</button
+					><Plus size={18} aria-hidden="true" /><span>Adaugă membru</span></button
 				>{/if}
 			<ActionMenu
 				label="Mai multe acțiuni pentru registru"
 				items={[
+					{ label: 'Unități și subunități', action: () => (structureOpen = true) },
 					...(management && data.registry.canManage
 						? [
 								{
@@ -401,6 +406,10 @@
 			/>
 		</div>
 	</header>
+	{#if management && data.pendingApplications > 0}<a
+			class="new-applications mobile-applications"
+			href={resolve('/applications')}>Cereri noi ({data.pendingApplications})</a
+		>{/if}
 	{#if form?.message && !(activeSection === 'bulk' && 'success' in form && form.success)}<FormFeedback
 			message={form.message}
 			kind={actionFailed ? 'error' : 'success'}
@@ -444,7 +453,12 @@
 			</label>
 		{/snippet}
 		{#snippet registryFilters()}
-			<div class="registry-filter-grid" style:--filter-columns={filterGroups.length}>
+			<div
+				class="registry-filter-grid"
+				id="member-registry-filters"
+				hidden={!filtersOpen}
+				style:--filter-columns={filterGroups.length}
+			>
 				{#each filterGroups as group (group.key)}
 					<MultiSelectFilter
 						label={group.label}
@@ -455,6 +469,18 @@
 					/>
 				{/each}
 			</div>
+		{/snippet}
+		{#snippet registryTools()}
+			<button
+				type="button"
+				class="secondary filter-toggle"
+				aria-expanded={filtersOpen}
+				aria-controls="member-registry-filters"
+				onclick={() => (filtersOpen = !filtersOpen)}
+				><SlidersHorizontal size={18} aria-hidden="true" /><span
+					>Filtre{activeFilters.length ? ` (${activeFilters.length})` : ''}</span
+				></button
+			>
 		{/snippet}
 		{#snippet registryFilterSummary()}
 			<div class="filter-summary">
@@ -491,8 +517,9 @@
 				{#if activeFilters.length || search}<button
 						type="button"
 						class="reset-filters"
+						aria-label="Resetează filtrele"
 						onclick={clearFilters}
-						><RotateCcw size={14} aria-hidden="true" />Resetează filtrele</button
+						><RotateCcw size={14} aria-hidden="true" /><span>Resetează filtrele</span></button
 					>{/if}
 			</div>
 		{/snippet}
@@ -503,6 +530,7 @@
 			filterContent={registryFilters}
 			searchContent={registrySearch}
 			filterSummary={registryFilterSummary}
+			controls={registryTools}
 			searchQuery={search}
 			onResponsibilities={(member) => {
 				responsibilityMember = member;
@@ -543,8 +571,15 @@
 					{#each unitRows.slice(unitCurrentPage * unitEffectiveSize, (unitCurrentPage + 1) * unitEffectiveSize) as u (u.id)}<tr
 						>
 							<td>{structures.find((st) => st.id === (u.structureId ?? 'cluj'))?.name}</td>
+							<td class="unit-mobile-identity" class:unit-child={!!u.parentId}
+								><strong>{u.name}</strong><small
+									>{structures.find((st) => st.id === (u.structureId ?? 'cluj'))?.name}{u.parentId
+										? ` · ${name(u.parentId)}`
+										: ' · Unitate'}</small
+								></td
+							>
 							<td>{u.parentId ? name(u.parentId) : u.name}</td><td>{u.parentId ? u.name : '—'}</td>
-							<td
+							<td class="unit-actions"
 								>{#if u.canManage}
 									{#if !u.parentId}<button
 											type="button"
@@ -774,6 +809,25 @@
 </Modal>
 
 <style>
+	.unit-actions :global(.sc-icon-button) {
+		min-width: 44px;
+		min-height: 44px;
+	}
+	.unit-mobile-identity {
+		display: none;
+	}
+	.filter-toggle {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		min-height: 44px;
+	}
+	.registry-filter-grid[hidden] {
+		display: none;
+	}
+	.new-applications.mobile-applications {
+		display: none;
+	}
 	.new-applications {
 		display: inline-flex;
 		align-items: center;
@@ -782,7 +836,7 @@
 		padding: 8px 14px;
 		border-radius: 7px;
 		background: var(--sc-accent);
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 		font-size: 14px;
 		font-weight: 600;
 		text-decoration: none;
@@ -791,7 +845,7 @@
 		background: var(--sc-accent-hover);
 	}
 	.new-applications:focus-visible {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 3px;
 	}
 
@@ -825,7 +879,7 @@
 			background-color 150ms;
 	}
 	:global(.sc-table-toolbar) .registry-search input:focus-visible {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 2px;
 		background: var(--sc-surface);
 	}
@@ -889,7 +943,7 @@
 	}
 	button.filter-chip:hover {
 		background: var(--sc-accent-soft);
-		border-color: var(--sc-accent);
+		border-color: var(--sc-link);
 	}
 	button.reset-filters {
 		display: inline-flex;
@@ -904,11 +958,11 @@
 		white-space: nowrap;
 	}
 	button.reset-filters:hover {
-		color: var(--sc-accent);
+		color: var(--sc-link);
 	}
 	button.filter-chip:focus-visible,
 	button.reset-filters:focus-visible {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 2px;
 	}
 	@container (max-width: 560px) {
@@ -1099,14 +1153,14 @@
 	button {
 		font: inherit;
 		padding: 8px 10px;
-		border: 1px solid var(--sc-border-strong);
+		border: 1px solid var(--sc-control-border);
 		border-radius: 7px;
 		min-width: 0;
 	}
 	button {
 		cursor: pointer;
 		background: var(--sc-accent);
-		color: white;
+		color: var(--sc-on-accent);
 		font-weight: 500;
 	}
 	.secondary {
@@ -1124,7 +1178,7 @@
 		color: var(--sc-muted);
 	}
 	a {
-		color: var(--sc-accent);
+		color: var(--sc-link);
 	}
 	.notice {
 		padding: 12px;
@@ -1177,6 +1231,167 @@
 		}
 		section {
 			padding: 12px;
+		}
+	}
+	@media (max-width: 1200px) {
+		.workspace {
+			gap: 12px;
+		}
+		header {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 8px;
+		}
+		.heading-summary {
+			display: grid;
+			gap: 4px;
+			min-width: 0;
+		}
+		h1 {
+			font-size: 22px;
+			line-height: 28px;
+			letter-spacing: -0.02em;
+		}
+		.registry-summary {
+			gap: 12px;
+			font-size: 12px;
+		}
+		.new-applications.mobile-applications {
+			display: inline-flex;
+			justify-self: start;
+			min-height: 44px;
+		}
+		.workspace-actions {
+			flex-wrap: nowrap;
+			gap: 4px;
+		}
+		.workspace-actions .units-shortcut,
+		.workspace-actions .new-applications,
+		.add-member > span {
+			display: none;
+		}
+		.workspace-actions > button.add-member {
+			min-width: 44px;
+			min-height: 44px;
+			padding: 10px;
+			justify-content: center;
+		}
+		.workspace-actions :global(.sc-icon-button) {
+			min-width: 44px;
+			min-height: 44px;
+		}
+		section.registry-panel {
+			padding: 8px;
+		}
+		.registry-search {
+			max-width: none;
+		}
+		.registry-search > span:first-child {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+		}
+		:global(.sc-table-toolbar) .registry-search input {
+			min-height: 44px;
+			font-size: 14px;
+		}
+		button.filter-toggle {
+			padding: 8px;
+			font-size: 13px;
+		}
+		.filter-summary {
+			display: flex;
+			align-items: center;
+			flex-wrap: wrap;
+			gap: 4px 8px;
+			padding-top: 0;
+			border-top: 0;
+		}
+		.active-filters {
+			flex: 1;
+			min-width: 0;
+		}
+		button.filter-chip {
+			min-height: 44px;
+			max-width: 100%;
+		}
+		button.reset-filters {
+			min-width: 44px;
+			min-height: 44px;
+			justify-content: center;
+			padding: 8px;
+		}
+		button.reset-filters > span {
+			display: none;
+		}
+		.registry-filter-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			padding-top: 4px;
+		}
+		.unit-table {
+			overflow: visible;
+		}
+		.unit-table table,
+		.unit-table tbody {
+			display: block;
+		}
+		.unit-table thead {
+			display: none;
+		}
+		.unit-table tr {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) 44px;
+			gap: 4px;
+			border-bottom: 1px solid var(--sc-border);
+		}
+		.unit-table td {
+			display: none;
+		}
+		.unit-table td.unit-mobile-identity {
+			display: block;
+			grid-column: 1;
+			grid-row: 1;
+			border: 0;
+			padding: 12px 4px;
+			min-width: 0;
+			overflow-wrap: anywhere;
+		}
+		.unit-mobile-identity.unit-child {
+			padding-left: 16px;
+		}
+		.unit-mobile-identity small {
+			display: block;
+			margin-top: 4px;
+			color: var(--sc-muted);
+			font-size: 12px;
+			line-height: 18px;
+		}
+		.unit-table td.unit-actions {
+			display: flex;
+			grid-column: 2;
+			grid-row: 1;
+			border: 0;
+			padding: 4px 0;
+			justify-content: flex-end;
+			align-items: center;
+		}
+		.unit-actions :global(.sc-icon-button) {
+			min-width: 44px;
+			min-height: 44px;
+		}
+	}
+	@media (max-width: 360px) {
+		h1 {
+			font-size: 20px;
+		}
+		.registry-summary {
+			gap: 8px;
+			font-size: 11px;
+		}
+		.registry-filter-grid {
+			grid-template-columns: minmax(0, 1fr);
 		}
 	}
 </style>

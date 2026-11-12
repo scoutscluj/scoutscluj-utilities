@@ -115,7 +115,7 @@ export const formatAuditEntry = (entry: AuditEntry): AuditEntryDisplay => {
 
 	return {
 		title: actionTitles[entry.action] ?? humanizeKey(entry.action),
-		summary: summaryFor(entry, entityLabel),
+		summary: summaryFor(entry, entityName),
 		entityLabel,
 		metadataRows: metadataRows(metadata),
 		rawDetails: JSON.stringify(metadata, null, 2)

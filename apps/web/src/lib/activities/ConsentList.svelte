@@ -80,10 +80,10 @@
 		background: var(--sc-surface);
 	}
 	input[aria-invalid='true'] {
-		border-color: var(--sc-accent);
+		border-color: var(--sc-link);
 	}
 	button {
-		min-height: 38px;
+		min-height: 44px;
 		padding: 8px 12px;
 		border: 1px solid var(--sc-border);
 		border-radius: 7px;
@@ -96,5 +96,11 @@
 	}
 	small {
 		color: var(--sc-muted);
+	}
+
+	input:not([type='hidden']):not([type='checkbox']):not([type='radio']) {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
 	}
 </style>

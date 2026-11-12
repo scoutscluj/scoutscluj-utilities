@@ -16,7 +16,9 @@
 			<p class="eyebrow">Acoperire</p>
 			<h2>Următoarele mese</h2>
 		</div>
-		<span>{overview.mealCoverage.length} mese</span>
+		<span
+			>{overview.mealCoverage.length} {overview.mealCoverage.length === 1 ? 'masă' : 'mese'}</span
+		>
 	</div>
 	<div class="coverage-list">
 		{#each overview.mealCoverage as meal (meal.mealId)}
@@ -53,11 +55,11 @@
 	}
 
 	.panel {
-		border: 1px solid #dbe3ef;
+		border: 1px solid var(--sc-border);
 		background: var(--sc-surface);
 		border-radius: 8px;
 		padding: 18px;
-		box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
+		box-shadow: var(--sc-shadow);
 	}
 
 	.section-heading {
@@ -85,7 +87,7 @@
 
 	.coverage-items span,
 	.condiments {
-		border: 1px solid #dbe3ef;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
 		background: var(--sc-canvas);
 		padding: 7px 9px;
@@ -98,21 +100,21 @@
 	}
 
 	.coverage-items .covered {
-		border-color: #bbf7d0;
-		background: #f0fdf4;
-		color: #166534;
+		border-color: var(--sc-border);
+		background: var(--sc-success-soft);
+		color: var(--sc-success);
 	}
 
 	.coverage-items .partial {
-		border-color: #fde68a;
-		background: #fffbeb;
-		color: #92400e;
+		border-color: var(--sc-warning);
+		background: var(--sc-warning-soft);
+		color: var(--sc-warning);
 	}
 
 	.coverage-items .uncovered {
-		border-color: #fecaca;
+		border-color: var(--sc-border-strong);
 		background: var(--sc-accent-soft);
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 	}
 
 	h2,
@@ -132,7 +134,7 @@
 
 	.eyebrow {
 		margin: 0 0 8px;
-		color: #2563eb;
+		color: var(--sc-muted);
 		font-size: 0.78rem;
 		font-weight: 600;
 		text-transform: uppercase;

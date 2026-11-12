@@ -61,7 +61,7 @@
 	}
 	button:focus-visible,
 	textarea:focus-visible {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 2px;
 	}
 	.status {

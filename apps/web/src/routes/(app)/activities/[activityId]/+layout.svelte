@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { setContext } from 'svelte';
+	import { goto } from '$app/navigation';
 	import ActivityPublication from '$lib/activities/ActivityPublication.svelte';
 	import { activityEditContext } from '$lib/activities/activity-edit-state';
 	const editing = $state({ dirty: false });
@@ -52,6 +53,23 @@
 				page.url.pathname.endsWith('/finance/participation')}
 		/>{/if}
 	{#if isKitchenRoute}
+		<label class="mobile-kitchen-nav"
+			><span>Secțiune bucătărie</span><select
+				aria-label="Secțiune bucătărie"
+				value={kitchenGroups.flatMap((group) => group.tabs).find((tab) => isActive(tab.href))
+					?.href ?? kitchenPath}
+				onchange={(event) => {
+					const next = kitchenGroups
+						.flatMap((group) => group.tabs)
+						.find((tab) => tab.href === event.currentTarget.value);
+					if (next) void goto(next.href);
+				}}
+				>{#each kitchenGroups as group (group.label)}<optgroup label={group.label}
+						>{#each group.tabs as tab (tab.href)}<option value={tab.href}>{tab.label}</option
+							>{/each}</optgroup
+					>{/each}</select
+			></label
+		>
 		<nav class="kitchen-tabs" aria-label="Meniu bucătărie">
 			{#each kitchenGroups as group (group.label)}
 				<div class="kitchen-tab-group">
@@ -70,6 +88,35 @@
 </section>
 
 <style>
+	.mobile-kitchen-nav {
+		display: none;
+	}
+	@media (max-width: 760px) {
+		.activity-shell .kitchen-tabs {
+			display: none;
+		}
+		.mobile-kitchen-nav {
+			display: block;
+		}
+		.mobile-kitchen-nav span {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+		}
+		.mobile-kitchen-nav select {
+			width: 100%;
+			min-height: 44px;
+			border: 1px solid var(--sc-control-border);
+			background: var(--sc-surface);
+			color: var(--sc-ink);
+			border-radius: 7px;
+			padding: 10px 12px;
+			font: inherit;
+		}
+	}
+
 	.activity-shell {
 		display: grid;
 		gap: 12px;
@@ -80,7 +127,7 @@
 		overflow-x: auto;
 		gap: 10px;
 		align-items: center;
-		border-bottom: 1px solid #dbe3ef;
+		border-bottom: 1px solid var(--sc-border);
 		padding-bottom: 8px;
 	}
 
@@ -95,7 +142,7 @@
 
 	.kitchen-tab-group span {
 		padding: 0 7px;
-		color: #94a3b8;
+		color: var(--sc-muted);
 		font-size: 0.68rem;
 		font-weight: 600;
 		text-transform: uppercase;
@@ -107,14 +154,14 @@
 	}
 
 	.kitchen-tabs a {
-		min-height: 34px;
+		min-height: 44px;
 		display: inline-flex;
 		align-items: center;
 		border: 1px solid transparent;
 		border-radius: 8px;
 		background: var(--sc-canvas);
 		padding: 0 12px;
-		color: #475569;
+		color: var(--sc-muted);
 		font-size: 0.9rem;
 		font-weight: 600;
 		text-decoration: none;
@@ -123,8 +170,14 @@
 
 	.kitchen-tabs a.active,
 	.kitchen-tabs a:hover {
-		border-color: #dbe3ef;
+		border-color: var(--sc-border);
 		background: var(--sc-surface);
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
+	}
+
+	select {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
 	}
 </style>

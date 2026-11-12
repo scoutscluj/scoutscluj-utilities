@@ -1,8 +1,12 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
 	emptyFixedConsent,
 	createRepresentativeOrganizerDraft
 } from '@scouts-cluj/parental-consent-schema';
+async function openPublicationActions(page: Page) {
+	await page.getByRole('button', { name: 'Acțiuni de publicare', exact: true }).click();
+}
+
 test.beforeEach(async ({ page, request }) => {
 	await request.post('http://127.0.0.1:3019/test/reset');
 	await page
@@ -254,22 +258,28 @@ test('dates show Romanian order even in an English browser and save canonical da
 test('publication is available at the top of activity administration', async ({ page }) => {
 	await page.goto('/activities/1/settings/payments');
 	await expect(page.getByRole('region', { name: 'Publicarea activității' })).toBeVisible();
+	await openPublicationActions(page);
 	await expect(
-		page.getByRole('button', { name: 'Retrage pagina publică', exact: true })
+		page.getByRole('menuitem', { name: 'Retrage pagina publică', exact: true })
 	).toBeVisible();
+	await page.keyboard.press('Escape');
 	await page.getByLabel('Taxă de participare, în lei').fill('100');
+	await openPublicationActions(page);
 	await expect(
-		page.getByRole('button', { name: 'Retrage pagina publică', exact: true })
+		page.getByRole('menuitem', { name: 'Retrage pagina publică', exact: true })
 	).toBeDisabled();
+	await page.keyboard.press('Escape');
 	await page.getByRole('button', { name: 'Salvează setările de plată', exact: true }).click();
+	await openPublicationActions(page);
 	await expect(
-		page.getByRole('button', { name: 'Retrage pagina publică', exact: true })
+		page.getByRole('menuitem', { name: 'Retrage pagina publică', exact: true })
 	).toBeEnabled();
-	await page.getByRole('button', { name: 'Retrage pagina publică', exact: true }).click();
+	await page.getByRole('menuitem', { name: 'Retrage pagina publică', exact: true }).click();
+	await openPublicationActions(page);
 	await expect(
-		page.getByRole('button', { name: 'Publică activitatea', exact: true })
+		page.getByRole('menuitem', { name: 'Publică activitatea', exact: true })
 	).toBeVisible();
-	await page.getByRole('button', { name: 'Publică activitatea', exact: true }).click();
+	await page.getByRole('menuitem', { name: 'Publică activitatea', exact: true }).click();
 	await expect(page.getByRole('region', { name: 'Publicarea activității' })).toContainText(
 		'Activitate publică'
 	);
@@ -481,15 +491,36 @@ test('handoff confirms paper and cash with one explicit action and displays the 
 		}
 	});
 	await page.goto('/activities/1/check-in');
-	await page.getByRole('button', { name: /Confirmă acord \+ cash/ }).click();
+	await page.getByRole('button', { name: /^Acord pentru Participant de test:/ }).click();
+	const receipt = page.getByRole('dialog', { name: 'Primire · Participant de test' });
+	await expect(receipt).toBeVisible();
+	const confirmation = page.waitForRequest(
+		(request) => request.url().endsWith('/check-in') && request.method() === 'POST'
+	);
+	await receipt.getByRole('button', { name: /Confirmă acord \+ cash/ }).click();
+	expect((await confirmation).postDataJSON()).toMatchObject({
+		paper: true,
+		cashKeys: ['cash'],
+		cashBani: 15000
+	});
 	await expect(page.getByRole('status')).toContainText('acord fizic primit și numerar încasat');
 	const row = await (await request.get('http://127.0.0.1:3019/test/row')).json();
 	expect(row.consentState).toBe('paper_received');
 	expect(row.cashRemainingBani).toBe(0);
 	expect(row.remainingBani).toBe(20000);
 	await expect(page).toHaveURL(/\/activities\/1\/registrations$/);
-	await expect(page.getByText('Nimic de încasat cash')).toBeVisible();
-	await expect(page.getByRole('button', { name: /Cash .* primit/ })).toHaveCount(0);
+	await receipt.getByRole('button', { name: 'Închide dialogul' }).click();
+	const line = page.getByRole('button', {
+		name: /^Tranșe cash acoperite pentru Participant de test/
+	});
+	await expect(line).toHaveText('Cash ✓');
+	await expect(line).toHaveAttribute('aria-pressed', 'true');
+	await expect(
+		page.getByRole('button', { name: /^Cash .* de primit de la Participant de test/ })
+	).toHaveCount(0);
+	await expect(
+		page.getByRole('button', { name: /^Acord pentru Participant de test:/ })
+	).toHaveAttribute('aria-pressed', 'true');
 	await page.setViewportSize({ width: 390, height: 844 });
 	await expect
 		.poll(() => page.locator('#app-navigation').evaluate((e) => e.getBoundingClientRect().right))
@@ -608,14 +639,14 @@ test('registration table opens signed agreements and keeps the public controls i
 	});
 	await page.goto('/activities/1/registrations');
 	await expect(
-		page.getByRole('link', { name: 'Deschide pagina publică ↗', exact: true })
+		page.getByRole('link', { name: 'Deschide pagina publică', exact: true })
 	).toHaveCount(1);
 	await expect(page.getByText('Pagina pe care o distribui participanților')).toHaveCount(0);
 	await expect(page.getByRole('link', { name: 'Acord parental', exact: true })).toHaveCount(0);
 	await expect(page.getByRole('link', { name: 'Primire participanți', exact: true })).toHaveCount(
 		0
 	);
-	await page.getByRole('button', { name: 'Deschide acordul digital' }).click();
+	await page.getByRole('button', { name: /^Acord pentru Participant de test:/ }).click();
 	const dialog = page.getByRole('dialog');
 	await expect(dialog.getByRole('link', { name: 'acord-semnat.pdf' })).toHaveAttribute(
 		'href',
@@ -627,8 +658,11 @@ test('registration table opens signed agreements and keeps the public controls i
 		.click();
 	await expect(dialog).not.toBeVisible();
 	await expect(
-		page.getByRole('cell').getByText('Acord digital acceptat', { exact: true })
-	).toBeVisible();
+		page.getByRole('button', { name: /^Acord pentru Participant de test: Acord digital acceptat/ })
+	).toHaveAttribute('aria-pressed', 'true');
+	expect((await (await request.get('http://127.0.0.1:3019/test/row')).json()).consentState).toBe(
+		'signed_accepted'
+	);
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.getByRole('button', { name: /^Acord pentru/ }).click();
 	await page.getByRole('dialog').getByRole('button', { name: 'Deschide acordul digital' }).click();
@@ -659,6 +693,8 @@ test('receipt controls respect consent and financial capabilities', async ({ pag
 	});
 	await page.goto('/activities/1/registrations');
 	await expect(page.getByRole('button', { name: 'Deschide acordul digital' })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: /^Acord pentru/ })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: /^Cash .* de primit/ })).toBeVisible();
 	await expect(page.getByRole('button', { name: /Acord fizic primit|Confirmă acord/ })).toHaveCount(
 		0
 	);
@@ -687,7 +723,7 @@ test('authorized document readers can download without accepting agreements', as
 		}
 	});
 	await page.goto('/activities/1/registrations');
-	await page.getByRole('button', { name: 'Deschide acordul digital' }).click();
+	await page.getByRole('button', { name: /^Acord pentru Participant de test:/ }).click();
 	const dialog = page.getByRole('dialog');
 	const downloadPromise = page.waitForEvent('download');
 	await dialog.getByRole('link', { name: 'acord-semnat.pdf' }).click();
@@ -720,7 +756,7 @@ test('outdated signed agreements remain accessible without accepting an old vers
 		}
 	});
 	await page.goto('/activities/1/registrations');
-	await page.getByRole('button', { name: 'Acorduri digitale anterioare' }).click();
+	await page.getByRole('button', { name: /^Acord pentru Participant de test:/ }).click();
 	const dialog = page.getByRole('dialog');
 	await expect(dialog.getByRole('link', { name: 'acord-anterior.pdf' })).toBeVisible();
 	await expect(dialog.getByText('Versiune anterioară', { exact: false })).toBeVisible();

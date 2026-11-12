@@ -37,7 +37,7 @@
 		gap: 8px;
 		align-items: center;
 		padding: 8px 12px;
-		min-height: 38px;
+		min-height: 44px;
 		border: 1px solid var(--sc-border);
 		border-radius: 7px;
 		color: var(--sc-ink);

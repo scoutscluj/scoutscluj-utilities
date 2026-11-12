@@ -11,23 +11,8 @@
 	const dateRange = $derived(`${formatDate(activity.startDate)} - ${formatDate(activity.endDate)}`);
 </script>
 
-<section class="overview-panel">
-	<div>
-		<p class="eyebrow">Prezentare</p>
-		<p class="description">
-			{activity.description ?? 'Activitatea nu are încă o descriere.'}
-		</p>
-	</div>
-
+<section class="overview-panel" aria-label="Detaliile activității">
 	<dl>
-		<div>
-			<dt>Tip</dt>
-			<dd>{activityTypeLabel(activity.type)}</dd>
-		</div>
-		<div>
-			<dt>Stare</dt>
-			<dd>{activityStatusLabel(activity.status)}</dd>
-		</div>
 		<div>
 			<dt>Perioadă</dt>
 			<dd>{dateRange}</dd>
@@ -41,61 +26,89 @@
 			<dd>{activity.coordinatorName}</dd>
 		</div>
 	</dl>
+	<div class="activity-tags">
+		<span>{activityTypeLabel(activity.type)}</span><span
+			>{activityStatusLabel(activity.status)}</span
+		>
+	</div>
+	{#if activity.description}<details>
+			<summary>Despre activitate</summary>
+			<p>{activity.description}</p>
+		</details>{/if}
 </section>
 
 <style>
 	.overview-panel {
 		display: grid;
-		grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.9fr);
-		gap: 16px;
-		border: 1px solid #dbe3ef;
-		border-radius: 8px;
-		background: var(--sc-surface);
+		gap: 14px;
+		border: 1px solid var(--sc-border);
+		border-radius: 10px;
 		padding: 16px;
-		box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+		background: var(--sc-surface);
 	}
-
-	.eyebrow,
-	.description,
-	dl,
-	dd {
-		margin: 0;
-	}
-
-	.eyebrow {
-		color: #2563eb;
-		font-size: 0.72rem;
-		font-weight: 600;
-		text-transform: uppercase;
-	}
-
-	.description {
-		margin-top: 6px;
-		color: var(--sc-ink);
-		line-height: 1.5;
-	}
-
 	dl {
+		margin: 0;
 		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 10px;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 16px;
 	}
-
+	dl > div {
+		display: grid;
+		align-content: start;
+		gap: 4px;
+		min-width: 0;
+	}
 	dt {
 		color: var(--sc-muted);
-		font-size: 0.75rem;
-		font-weight: 600;
+		font-size: 12px;
 	}
-
 	dd {
+		margin: 0;
 		color: var(--sc-ink);
-		font-weight: 600;
+		font-size: 14px;
+		line-height: 1.5;
+		overflow-wrap: anywhere;
 	}
-
-	@media (max-width: 860px) {
-		.overview-panel,
+	.activity-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+	.activity-tags span {
+		border-radius: 5px;
+		background: var(--sc-inset);
+		color: var(--sc-muted);
+		padding: 3px 7px;
+		font-size: 12px;
+	}
+	summary {
+		display: flex;
+		align-items: center;
+		min-height: 44px;
+		cursor: pointer;
+		font-size: 13px;
+		color: var(--sc-link);
+	}
+	summary::before {
+		content: '›';
+		margin-right: 8px;
+	}
+	details[open] summary::before {
+		transform: rotate(90deg);
+	}
+	p {
+		margin: 8px 0 0;
+		line-height: 1.6;
+		color: var(--sc-ink);
+		font-size: 14px;
+	}
+	@media (max-width: 600px) {
 		dl {
-			grid-template-columns: 1fr;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 12px;
+		}
+		dl > div:first-child {
+			grid-column: 1/-1;
 		}
 	}
 </style>

@@ -78,5 +78,49 @@
 	}
 	summary {
 		cursor: pointer;
+		min-height: 44px;
+		align-content: center;
+		color: var(--sc-link);
+	}
+	input,
+	select,
+	textarea {
+		width: 100%;
+		min-width: 0;
+		min-height: 44px;
+		padding: 10px 12px;
+		border: 1px solid var(--sc-control-border);
+		border-radius: 8px;
+		background: var(--sc-surface);
+		color: var(--sc-ink);
+		font: inherit;
+	}
+	textarea {
+		min-height: 96px;
+		resize: vertical;
+	}
+	button {
+		min-height: 44px;
+		padding: 10px 14px;
+		border: 1px solid transparent;
+		border-radius: 8px;
+		background: var(--sc-accent);
+		color: var(--sc-on-accent);
+		font: inherit;
+		cursor: pointer;
+	}
+	:is(input, select, textarea, button, summary):focus-visible {
+		outline: 2px solid var(--sc-focus);
+		outline-offset: 2px;
+	}
+	p {
+		color: var(--sc-muted);
+		line-height: 1.5;
+	}
+	p[role='status'] {
+		padding: 10px 12px;
+		background: var(--sc-warning-soft);
+		color: var(--sc-warning);
+		border-radius: 8px;
 	}
 </style>

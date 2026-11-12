@@ -85,11 +85,11 @@
 	.panel {
 		display: grid;
 		gap: 16px;
-		border: 1px solid #dbe3ef;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
 		background: var(--sc-surface);
 		padding: 18px;
-		box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+		box-shadow: var(--sc-shadow);
 	}
 
 	.panel-title,
@@ -147,18 +147,18 @@
 	}
 
 	button {
-		min-height: 38px;
+		min-height: 44px;
 		border: 0;
 		border-radius: 8px;
-		background: #0f766e;
+		background: var(--sc-accent);
 		padding: 0 14px;
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 		font-weight: 600;
 		cursor: pointer;
 	}
 
 	.form-actions p {
-		color: #1e3a8a;
+		color: var(--sc-info);
 		font-weight: 600;
 	}
 
@@ -166,5 +166,13 @@
 		.form-grid {
 			grid-template-columns: 1fr;
 		}
+	}
+
+	input:not([type='hidden']):not([type='checkbox']):not([type='radio']),
+	select,
+	textarea {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
 	}
 </style>

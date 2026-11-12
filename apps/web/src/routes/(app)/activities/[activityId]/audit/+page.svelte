@@ -5,61 +5,34 @@
 </script>
 
 <section class="audit-page">
-	<div class="panel">
-		<div class="section-heading">
-			<div>
-				<p class="eyebrow">Audit</p>
-				<h2>Istoricul activității</h2>
-			</div>
-			<span>{data.entries.length} evenimente</span>
-		</div>
-
-		<AuditEntryTable entries={data.entries} />
-	</div>
+	<header class="section-heading">
+		<h1>Istoricul activității</h1>
+		<span>{data.entries.length} {data.entries.length === 1 ? 'acțiune' : 'acțiuni'}</span>
+	</header>
+	<AuditEntryTable entries={data.entries} />
 </section>
 
 <style>
-	.audit-page,
-	.panel {
+	.audit-page {
 		display: grid;
 		gap: 16px;
+		min-width: 0;
 	}
-
-	.panel {
-		border: 1px solid #dbe3ef;
-		background: var(--sc-surface);
-		border-radius: 8px;
-		padding: 18px;
-		box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
-	}
-
 	.section-heading {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 12px;
 		align-items: center;
 		justify-content: space-between;
+		gap: 8px 16px;
 	}
-
-	.section-heading span {
-		color: var(--sc-muted);
-	}
-
-	h2,
-	p {
+	h1 {
 		margin: 0;
-	}
-
-	h2 {
+		font-size: clamp(24px, 3vw, 30px);
 		color: var(--sc-ink);
+		letter-spacing: -0.025em;
 	}
-
-	.eyebrow {
-		margin: 0 0 8px;
-		color: #2563eb;
-		font-size: 0.78rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0;
+	.section-heading span {
+		font-size: 13px;
+		color: var(--sc-muted);
 	}
 </style>

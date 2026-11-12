@@ -8,6 +8,82 @@ test.beforeEach(async ({ page, request }) => {
 			{ name: 'scoutscluj_session', value: 'synthetic-member-admin', url: 'http://127.0.0.1:5187' }
 		]);
 });
+
+for (const width of [320, 390, 768, 1024, 1280]) {
+	for (const appearance of ['light', 'dark']) {
+		test(`member register keeps data and row actions accessible at ${width}px in ${appearance}`, async ({
+			page
+		}) => {
+			await page.addInitScript(
+				(value) => localStorage.setItem('scoutscluj-appearance', value),
+				appearance
+			);
+			await page.setViewportSize({ width, height: 900 });
+			await page.goto('/units');
+			await expect(
+				page.getByRole('heading', { name: 'Membri și unități', exact: true })
+			).toBeVisible();
+			await expect(page.locator('#member-registry-filters')).toBeHidden();
+			const first = page.getByRole('link', { name: 'Beneficiar secundar test', exact: true });
+			await expect(first).toBeVisible();
+			if (width <= 1200) {
+				expect((await first.boundingBox())!.y).toBeLessThan(350);
+				const menu = page.getByRole('button', {
+					name: 'Acțiuni pentru Lider adult test',
+					exact: true
+				});
+				const bounds = (await menu.boundingBox())!;
+				expect(bounds.x).toBeGreaterThanOrEqual(0);
+				expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
+				expect(bounds.width).toBeGreaterThanOrEqual(44);
+				const details = page.getByRole('button', {
+					name: 'Detalii pentru Beneficiar secundar test',
+					exact: true
+				});
+				await expect(details).toHaveAttribute('aria-expanded', 'false');
+				const information = page.locator(`#${await details.getAttribute('aria-controls')}`);
+				await expect(information).toBeHidden();
+				await details.click();
+				await expect(details).toHaveAttribute('aria-expanded', 'true');
+				await expect(information).toBeVisible();
+				await expect(information).toContainText('Categorie');
+				await details.click();
+				await expect(information).toBeHidden();
+			}
+			expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+				true
+			);
+			await page.screenshot({
+				path: `../../tmp/members-design-${width}-${appearance}.png`,
+				fullPage: true
+			});
+			await page.getByRole('button', { name: /^Filtre/ }).click();
+			await expect(page.locator('#member-registry-filters')).toBeVisible();
+			await page.getByRole('button', { name: /^Filtre/ }).click();
+			await page
+				.getByRole('button', { name: 'Acțiuni pentru Lider adult test', exact: true })
+				.click();
+			await page.getByRole('menuitem', { name: 'Responsabilități', exact: true }).click();
+			await expect(page.getByRole('dialog')).toBeVisible();
+			await page.keyboard.press('Escape');
+			if (width <= 1200) {
+				await page
+					.getByRole('button', { name: 'Mai multe acțiuni pentru registru', exact: true })
+					.click();
+				await page.getByRole('menuitem', { name: 'Unități și subunități', exact: true }).click();
+			} else await page.getByRole('button', { name: 'Unități și subunități', exact: true }).click();
+			await expect(
+				page.getByRole('dialog', { name: 'Unități și subunități', exact: true })
+			).toBeVisible();
+			await page
+				.getByRole('dialog')
+				.screenshot({ path: `../../tmp/units-design-${width}-${appearance}.png` });
+			expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+				true
+			);
+		});
+	}
+}
 async function responsibilities(page: import('@playwright/test').Page) {
 	await page.goto('/units');
 	await page.getByRole('button', { name: 'Acțiuni pentru Lider adult test', exact: true }).click();
@@ -372,4 +448,34 @@ test('shows the red new-applications shortcut only while pending requests exist'
 	await expect(shortcut).toBeVisible();
 	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 	await page.screenshot({ path: 'test-results/new-applications-mobile.png', fullPage: true });
+});
+
+test('profile sections keep medical fields in the saved form and provide direct fee navigation', async ({
+	page,
+	request
+}) => {
+	await request.post('http://127.0.0.1:3020/test/configure', { data: { designMode: true } });
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto('/units/22222222-2222-4222-8222-222222222222');
+	await expect(page.getByLabel('Prenume', { exact: true })).toBeVisible();
+	await expect(page.getByLabel('Alergii', { exact: true })).toBeHidden();
+	const profileForm = page
+		.locator('form')
+		.filter({ has: page.getByRole('button', { name: 'Salvează fișa', exact: true }) });
+	expect(
+		await profileForm.evaluate((form) =>
+			new FormData(form as HTMLFormElement).get('profile.allergies')
+		)
+	).toBe('Alune');
+	await page.getByText('Sănătate și alte nevoi', { exact: true }).click();
+	await expect(page.getByLabel('Alergii', { exact: true })).toBeVisible();
+	await expect(page.getByLabel('Alergii', { exact: true })).toHaveValue('Alune');
+	await page
+		.getByRole('navigation', { name: 'Secțiunile fișei' })
+		.getByRole('link', { name: 'Cotizații', exact: true })
+		.click();
+	await expect(
+		page.getByRole('heading', { name: 'Cotizații și adeziune', exact: true })
+	).toBeInViewport();
+	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

@@ -55,7 +55,7 @@
 	}
 
 	a {
-		min-height: 34px;
+		min-height: 44px;
 		display: inline-flex;
 		align-items: center;
 		border: 1px solid var(--sc-border-strong);
@@ -69,7 +69,7 @@
 	}
 
 	a:hover {
-		border-color: var(--sc-accent-hover);
-		color: var(--sc-accent-hover);
+		border-color: var(--sc-link);
+		color: var(--sc-link);
 	}
 </style>

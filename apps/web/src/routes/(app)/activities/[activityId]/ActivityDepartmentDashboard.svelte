@@ -37,9 +37,9 @@
 				label: 'Financiar',
 				href: resolve(`/activities/${activity.id}/finance`),
 				signals: [
-					`${activity.financeSummary.openDocuments} documente deschise`,
-					`${activity.financeSummary.needsClarification} clarificări`,
-					`${activity.financeSummary.sentDocuments} trimise`
+					`${activity.financeSummary.openDocuments} ${activity.financeSummary.openDocuments === 1 ? 'document deschis' : 'documente deschise'}`,
+					`${activity.financeSummary.needsClarification} ${activity.financeSummary.needsClarification === 1 ? 'clarificare' : 'clarificări'}`,
+					`${activity.financeSummary.sentDocuments} ${activity.financeSummary.sentDocuments === 1 ? 'document trimis' : 'documente trimise'}`
 				]
 			});
 		}
@@ -50,43 +50,20 @@
 				href: resolve(`/activities/${activity.id}/kitchen`),
 				signals: kitchenOverview
 					? [
-							`${kitchenMeals} mese planificate`,
-							`${kitchenGaps} nevoi neacoperite`,
+							`${kitchenMeals} ${kitchenMeals === 1 ? 'masă planificată' : 'mese planificate'}`,
+							`${kitchenGaps} ${kitchenGaps === 1 ? 'nevoie neacoperită' : 'nevoi neacoperite'}`,
 							`${kitchenOverview.condimentReminders.length} condimente`
 						]
 					: ['Sumarul este disponibil pentru echipa care gestionează bucătăria']
 			});
 		}
-		if (hasDepartment('program')) {
-			items.push({
-				id: 'program',
-				label: 'Program',
-				signals: ['Departament activ', 'Pagina nu este implementată încă']
-			});
-		}
-		if (hasDepartment('logistics')) {
-			items.push({
-				id: 'logistics',
-				label: 'Logistică',
-				signals: ['Departament activ', 'Pagina nu este implementată încă']
-			});
-		}
-		if (hasDepartment('administrative')) {
-			items.push({
+		if (hasDepartment('administrative') && registrationAccess)
+			items.unshift({
 				id: 'administrative',
-				label: 'Administrativ',
-				features: [
-					...(registrationAccess
-						? [
-								{
-									label: 'Înscrieri și participare',
-									href: resolve(`/activities/${activity.id}/registrations`)
-								}
-							]
-						: [])
-				]
+				label: 'Înscrieri și acorduri',
+				href: resolve(`/activities/${activity.id}/registrations`),
+				signals: ['Participanți, AP și numerar']
 			});
-		}
 		return items;
 	};
 	const cards = $derived(buildCards());
@@ -127,28 +104,36 @@
 {/if}
 
 <style>
+	@media (max-width: 600px) {
+		.department-card {
+			min-height: 0;
+			padding: 14px 16px;
+			gap: 6px;
+		}
+	}
+
 	.department-grid {
 		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 		gap: 12px;
 	}
 
 	.department-card {
-		min-height: 134px;
+		min-height: 104px;
 		display: grid;
 		gap: 10px;
 		align-content: start;
-		border: 1px solid #dbe3ef;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
 		background: var(--sc-surface);
 		padding: 14px;
 		color: var(--sc-ink);
 		text-decoration: none;
-		box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+		box-shadow: var(--sc-shadow);
 	}
 
 	a.department-card:hover {
-		border-color: var(--sc-accent-hover);
+		border-color: var(--sc-link);
 	}
 
 	.department-card.inactive {
@@ -162,10 +147,12 @@
 	}
 
 	ul {
-		display: grid;
-		gap: 6px;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px 12px;
 		margin: 0;
-		padding-left: 18px;
+		padding: 0;
+		list-style: none;
 	}
 
 	li {
@@ -173,12 +160,12 @@
 	}
 
 	.feature-list a {
-		color: #0f766e;
+		color: var(--sc-success);
 		font-weight: 600;
 	}
 
 	.feature-list a:hover {
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 	}
 
 	@media (max-width: 760px) {

@@ -215,15 +215,13 @@ test('member CSV includes all filtered pages and respects hidden columns', async
 test('cotizatie distinguishes unpaid and partially paid members and exports both selected groups', async ({
 	page
 }) => {
-	await page
-		.context()
-		.addCookies([
-			{
-				name: 'scoutscluj_session',
-				value: 'synthetic-fee-filter-cases',
-				url: 'http://127.0.0.1:5182'
-			}
-		]);
+	await page.context().addCookies([
+		{
+			name: 'scoutscluj_session',
+			value: 'synthetic-fee-filter-cases',
+			url: 'http://127.0.0.1:5182'
+		}
+	]);
 	await page.goto('/units');
 	const registry = page.getByRole('region', { name: 'Registrul membrilor', exact: true });
 	await setMultiSelect(page, 'Cotizație', ['Neachitată']);
@@ -248,6 +246,9 @@ test('member filters keep an even responsive grid and support keyboard selection
 }, info) => {
 	await page.goto('/units');
 	const registry = page.getByRole('region', { name: 'Registrul membrilor', exact: true });
+	await expect(registry.locator('#member-registry-filters')).toBeHidden();
+	await registry.getByRole('button', { name: /^Filtre(?:\s|\(|$)/ }).click();
+	await expect(registry.locator('#member-registry-filters')).toBeVisible();
 	for (const width of [1440, 1024, 768, 375]) {
 		await page.setViewportSize({ width, height: 960 });
 		if (width < 900) {

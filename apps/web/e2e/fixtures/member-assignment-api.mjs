@@ -106,6 +106,7 @@ const registry = {
 	transitions: [],
 	ownMemberId: null
 };
+let designMode = false;
 let pendingApplications = 0;
 let assignment = null;
 let assignmentError = false;
@@ -124,6 +125,7 @@ createServer(async (req, res) => {
 		if (data) input = JSON.parse(data);
 	}
 	if (path === '/test/reset') {
+		designMode = false;
 		pendingApplications = 0;
 		assignment = null;
 		assignmentError = false;
@@ -136,6 +138,7 @@ createServer(async (req, res) => {
 		return send(res, {});
 	}
 	if (path === '/test/configure') {
+		if (typeof input.designMode === 'boolean') designMode = input.designMode;
 		if (typeof input.pendingApplications === 'number')
 			pendingApplications = input.pendingApplications;
 		assignmentError = !!input.assignmentError;
@@ -161,6 +164,44 @@ createServer(async (req, res) => {
 		return send(res, { state: 'idle', message: null, lastSucceededAt: new Date().toISOString() });
 	if (path === '/api/member-applications/pending-count')
 		return send(res, { count: pendingApplications });
+	if (path === '/api/members/orgo')
+		return send(res, {
+			message: 'Registru sintetic pregătit pentru verificare.',
+			version: 'synthetic-orgo-v1',
+			serverToken: true,
+			writesEnabled: false,
+			importedUnitIds: [8001],
+			units: [{ id: 8001, name: 'Temerari Cluj', parent: null, type: 'TEMERARI' }],
+			members: [
+				{ id: 90002, name: 'Beneficiar test', status: 'ACTIVE', type: 'Temerar', roles: [] }
+			],
+			inactiveMembers: [{ id: 90003, name: 'Membru retras de test' }]
+		});
+	if (path === '/api/members/structures/preview')
+		return send(res, {
+			structures: registry.structures,
+			units: [
+				{
+					id: 'legacy-temerari',
+					name: 'Patrula de test Cluj',
+					structureId: 'cluj',
+					branch: 'temerari',
+					convert: false,
+					parentId: 'cluj-temerari'
+				}
+			],
+			members: registry.members
+				.filter((member) => member.id !== leader.id)
+				.map((member) => ({
+					id: member.id,
+					name: member.name,
+					revision: member.revision,
+					unitId: member.unitId,
+					inactive: false,
+					category: member.category,
+					structureId: member.structureId
+				}))
+		});
 	if (path === '/api/members') return send(res, registry);
 	if (path === '/api/members/bulk') {
 		bulkRequests.push(input);
@@ -195,24 +236,76 @@ createServer(async (req, res) => {
 		assignment = input;
 		return send(res, { ok: true });
 	}
-	if (path === '/api/members/' + leader.id) {
+	const detailMember =
+		req.method === 'GET'
+			? registry.members.find((member) => path === '/api/members/' + member.id)
+			: undefined;
+	if (detailMember) {
+		const isLeader = detailMember.id === leader.id;
 		return send(res, {
 			member: {
-				...leader,
-				birthDate: '1990-01-01',
+				...detailMember,
+				birthDate: isLeader ? '1990-01-01' : '2013-05-12',
 				promiseDate: null,
-				profile: {},
+				skipProgressionYear: null,
+				profile: {
+					email: isLeader ? 'lider@example.test' : 'beneficiar@example.test',
+					phone: '0700000000',
+					parentName: isLeader ? '' : 'Părinte de test',
+					parentPhone: isLeader ? '' : '0700000001',
+					parentEmail: isLeader ? '' : 'parinte@example.test',
+					emergencyName: 'Contact de test',
+					emergencyPhone: '0700000002',
+					...(designMode
+						? {
+								medical: 'Fără afecțiuni declarate',
+								allergies: 'Alune',
+								medication: 'Fără tratament permanent',
+								dietary: 'Vegetarian',
+								needs: 'Preferă instrucțiuni scrise pentru activități.'
+							}
+						: {})
+				},
 				orgoFields: {},
-				orgoProfile: {},
+				orgoProfile: {
+					id: isLeader ? 90001 : 90002,
+					firstName: isLeader ? 'Lider' : 'Beneficiar',
+					lastName: 'Test',
+					email: isLeader ? 'lider@example.test' : 'beneficiar@example.test',
+					status: 'ACTIVE',
+					localCenter: { id: 8, name: 'Centrul Local Cluj' }
+				},
 				orgoReadonly: [],
+				conflicts: {},
 				photoData: null
 			},
-			access,
+			access: {
+				...detailMember.access,
+				notes: true,
+				...(designMode ? { fees: true, recordFees: true, sensitive: true } : {})
+			},
+			admission: null,
 			assignments: [],
 			notes: [],
 			history: [],
 			sync: [],
-			fees: []
+			fees: designMode
+				? [
+						{
+							period: '2026–2027',
+							current: true,
+							periodId: 'synthetic-period',
+							obligationId: 'synthetic-obligation',
+							totalBani: 45500,
+							nationalBani: 15000,
+							nationalDirectBani: 15000,
+							localPaidBani: 10000,
+							paidBani: 25000,
+							remainingBani: 20500,
+							collectible: true
+						}
+					]
+				: []
 		});
 	}
 	return send(res, {});

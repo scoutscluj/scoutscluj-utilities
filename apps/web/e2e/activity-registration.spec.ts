@@ -1,4 +1,9 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+async function registrationAction(page: Page, label: string) {
+	await page.getByRole('button', { name: 'Acțiuni înscrieri', exact: true }).click();
+	await page.getByRole('menuitem', { name: label, exact: true }).click();
+}
+
 test.beforeEach(async ({ request }) => {
 	await request.post('http://127.0.0.1:3019/test/reset');
 });
@@ -85,8 +90,13 @@ test('authenticated organizer sees separate money, support and agreement states 
 		]);
 	await page.goto('/activities/1/registrations');
 	await expect(page.getByRole('heading', { name: 'Înscrieri', exact: true })).toBeVisible();
-	await expect(page.getByText('Susținere din centrul local', { exact: true })).toBeVisible();
-	await page.getByRole('button', { name: 'Înregistrează sumă' }).click();
+	await page.getByRole('button', { name: 'Deschide sumarul financiar' }).click();
+	await expect(
+		page.getByRole('dialog').getByText('Susținere din centrul local', { exact: true })
+	).toBeVisible();
+	await page.getByRole('dialog').getByRole('button', { name: 'Închide dialogul' }).click();
+	await page.getByRole('button', { name: 'Acțiuni pentru Participant de test' }).click();
+	await page.getByRole('menuitem', { name: 'Înregistrează sumă', exact: true }).click();
 	const dialog = page.getByRole('dialog');
 	await dialog.getByLabel('Suma în lei').fill('50');
 	await dialog.getByLabel('Referință și explicație').fill('Transfer de test, extras 1');
@@ -95,7 +105,7 @@ test('authenticated organizer sees separate money, support and agreement states 
 	await expect(page.getByRole('main').getByText('Modificările au fost salvate.')).toBeVisible();
 	await page.evaluate(() => window.scrollTo(0, 0));
 	await page.screenshot({ path: '../../tmp/registration-organizer-desktop.png', fullPage: true });
-	await page.getByRole('link', { name: 'Setări înscrieri', exact: true }).click();
+	await registrationAction(page, 'Setări înscrieri');
 	await expect(page.getByRole('group', { name: 'Locuri', exact: true })).toBeVisible();
 	await expect(page.getByLabel('Taxă de participare, în lei')).not.toBeVisible();
 	await page
@@ -119,7 +129,7 @@ test('activity settings use separate submenus and one fee field with dismissible
 		]);
 	await page.goto('/activities');
 	await page.screenshot({ path: '../../tmp/activities-list-compact-desktop.png', fullPage: true });
-	await expect(page.getByRole('link', { name: '＋ Activitate nouă', exact: true })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Activitate nouă', exact: true })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Activitate nouă', exact: true })).toHaveCount(0);
 	await expect(page.getByRole('link', { name: 'Toate activitățile', exact: true })).toHaveCount(0);
 	await expect(
@@ -246,17 +256,15 @@ test('new activity wizard configures a different organizer, departments and part
 	expect(values.registrationSettings.feeBani).toBe(52500);
 	expect(values.registrationSettings.consent.commonActivities).toContain('Drumeții');
 	await page.goto('/activities/1/registrations');
-	await expect(page.getByRole('link', { name: 'Setări înscrieri', exact: true })).toHaveAttribute(
-		'href',
-		'/activities/1/settings/registrations'
-	);
+	await registrationAction(page, 'Setări înscrieri');
+	await expect(page).toHaveURL(/\/activities\/1\/settings\/registrations$/);
+	await page.goto('/activities/1/registrations');
 	await expect(page.getByRole('link', { name: 'Înscrieri', exact: true })).toBeVisible();
 	await page.getByRole('link', { name: 'Plăți participare', exact: true }).click();
 	await expect(page.getByRole('heading', { name: 'Plăți participare', exact: true })).toBeVisible();
-	await expect(page.getByRole('link', { name: 'Setări plată', exact: true })).toHaveAttribute(
-		'href',
-		'/activities/1/settings/payments'
-	);
+	await registrationAction(page, 'Setări plată');
+	await expect(page).toHaveURL(/\/activities\/1\/settings\/payments$/);
+	await page.goto('/activities/1/finance/participation');
 	await page.screenshot({ path: '../../tmp/activity-wizard-payments.png', fullPage: true });
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.goto('/activities/new');

@@ -168,12 +168,12 @@
 		align-items: stretch;
 		width: 100%;
 		min-width: 0;
-		border: 1px solid var(--sc-border);
+		border: 1px solid var(--sc-control-border);
 		border-radius: 7px;
 		background: var(--sc-surface);
 	}
 	.date-control:focus-within {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 2px;
 	}
 	.date-control input[type='text'] {
@@ -268,7 +268,7 @@
 	}
 	:global(.date-day[data-selected]) {
 		background: var(--sc-accent);
-		color: white;
+		color: var(--sc-on-accent);
 	}
 	:global(.date-day[data-disabled]),
 	:global(.date-day[data-outside-month]) {
@@ -277,7 +277,7 @@
 	:global(.date-day:focus-visible),
 	:global(.date-trigger:focus-visible),
 	:global(.date-nav:focus-visible) {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 2px;
 	}
 </style>

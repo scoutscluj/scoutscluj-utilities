@@ -37,25 +37,26 @@
 
 	<section class="summary-band">
 		<div>
-			<p class="eyebrow">Plan bucătărie</p>
-			<h1>{data.activity.title}</h1>
+			<h1>Bucătărie</h1>
 			<p>
-				{formatDate(data.activity.startDate)} - {formatDate(data.activity.endDate)} ·
-				{data.overview.plan.defaultParticipantCount} participanți impliciți
+				{formatDate(data.activity.startDate)} - {formatDate(data.activity.endDate)}
 			</p>
 		</div>
-		<form class="setup-form" method="POST" action="?/setup">
-			<label>
-				<span>Participanți</span>
-				<input
-					name="defaultParticipantCount"
-					type="number"
-					min="0"
-					value={data.overview.plan.defaultParticipantCount}
-				/>
-			</label>
-			<button type="submit">Salvează</button>
-		</form>
+		<details class="plan-settings">
+			<summary>{data.overview.plan.defaultParticipantCount} participanți · modifică</summary>
+			<form class="setup-form" method="POST" action="?/setup">
+				<label>
+					<span>Participanți</span>
+					<input
+						name="defaultParticipantCount"
+						type="number"
+						min="0"
+						value={data.overview.plan.defaultParticipantCount}
+					/>
+				</label>
+				<button type="submit">Salvează</button>
+			</form>
+		</details>
 	</section>
 
 	{#if !data.overview.plan.hasCompleteActivityDates}
@@ -73,11 +74,11 @@
 		</a>
 		<a href={resolve(`/activities/${data.activity.id}/kitchen/meals`)}>
 			<span>{plannedMeals}</span>
-			<p>mese planificate</p>
+			<p>{plannedMeals === 1 ? 'masă planificată' : 'mese planificate'}</p>
 		</a>
 		<a href={resolve(`/activities/${data.activity.id}/kitchen/procurement`)}>
 			<span>{coverageGaps.length}</span>
-			<p>poziții neacoperite</p>
+			<p>{coverageGaps.length === 1 ? 'poziție neacoperită' : 'poziții neacoperite'}</p>
 		</a>
 		<a href={resolve(`/activities/${data.activity.id}/kitchen/reports`)}>
 			<span>{formatMoney(totalEstimatedCost)}</span>
@@ -86,16 +87,27 @@
 	</section>
 
 	<section class="work-grid">
-		<article>
-			<h2>Atenție</h2>
-			<ul>
-				<li class:ok={emptyDays === 0}>{emptyDays} zile fără mese planificate</li>
-				<li class:ok={staleRecipes === 0}>{staleRecipes} rețete atribuite diferă de catalog</li>
-				<li class:ok={coverageGaps.length === 0}>
-					{coverageGaps.length} nevoi neacoperite complet
-				</li>
-			</ul>
-		</article>
+		{#if emptyDays || staleRecipes || coverageGaps.length}<article>
+				<h2>Atenție</h2>
+				<ul>
+					{#if emptyDays > 0}<li>
+							{emptyDays}
+							{emptyDays === 1 ? 'zi fără mese planificate' : 'zile fără mese planificate'}
+						</li>{/if}
+					{#if staleRecipes > 0}<li>
+							{staleRecipes}
+							{staleRecipes === 1
+								? 'rețetă atribuită diferă de catalog'
+								: 'rețete atribuite diferă de catalog'}
+						</li>{/if}
+					{#if coverageGaps.length > 0}<li>
+							{coverageGaps.length}
+							{coverageGaps.length === 1
+								? 'nevoie neacoperită complet'
+								: 'nevoi neacoperite complet'}
+						</li>{/if}
+				</ul>
+			</article>{/if}
 
 		<article>
 			<h2>Următoarele lipsuri</h2>
@@ -138,6 +150,7 @@
 	.gap-list {
 		display: grid;
 		gap: 14px;
+		align-content: start;
 	}
 
 	.summary-band {
@@ -146,7 +159,7 @@
 		gap: 16px;
 		align-items: end;
 		justify-content: space-between;
-		border-bottom: 1px solid #dbe3ef;
+		border-bottom: 1px solid var(--sc-border);
 		padding-bottom: 14px;
 	}
 
@@ -164,6 +177,7 @@
 	}
 
 	.work-grid {
+		align-items: start;
 		grid-template-columns: 0.9fr 1.4fr 1fr;
 	}
 
@@ -171,7 +185,7 @@
 	.work-grid article,
 	.notice,
 	.form-message {
-		border: 1px solid #dbe3ef;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
 		background: var(--sc-surface);
 		padding: 14px;
@@ -179,7 +193,7 @@
 	}
 
 	.overview-grid span {
-		color: #0f766e;
+		color: var(--sc-success);
 		font-size: 1.25rem;
 		font-weight: 600;
 	}
@@ -187,8 +201,8 @@
 	.notice {
 		display: flex;
 		gap: 10px;
-		background: #fffbeb;
-		border-color: #fbbf24;
+		background: var(--sc-warning-soft);
+		border-color: var(--sc-warning);
 	}
 
 	.gap-list div,
@@ -197,18 +211,17 @@
 		padding-bottom: 8px;
 	}
 
-	li.ok {
-		color: #047857;
-	}
-
 	.chips {
+		align-items: start;
+		align-content: start;
 		display: flex;
 		flex-wrap: wrap;
 		gap: 6px;
 	}
 
 	.chips span {
-		border: 1px solid #dbe3ef;
+		height: fit-content;
+		border: 1px solid var(--sc-border);
 		border-radius: 999px;
 		padding: 5px 9px;
 		background: var(--sc-canvas);
@@ -244,13 +257,6 @@
 		color: var(--sc-muted);
 	}
 
-	.eyebrow {
-		color: #2563eb;
-		font-size: 0.72rem;
-		font-weight: 600;
-		text-transform: uppercase;
-	}
-
 	label {
 		display: grid;
 		gap: 5px;
@@ -268,11 +274,11 @@
 	}
 
 	button {
-		min-height: 38px;
+		min-height: 44px;
 		border: 0;
 		border-radius: 8px;
-		background: #0f766e;
-		color: var(--sc-surface);
+		background: var(--sc-accent);
+		color: var(--sc-on-accent);
 		padding: 0 12px;
 		font-weight: 600;
 		cursor: pointer;
@@ -298,5 +304,60 @@
 			grid-template-columns: 1fr;
 			display: grid;
 		}
+	}
+
+	.plan-settings summary {
+		display: flex;
+		align-items: center;
+		min-height: 44px;
+		cursor: pointer;
+		color: var(--sc-link);
+		font-size: 13px;
+	}
+	.plan-settings[open] {
+		flex-basis: 100%;
+	}
+	.plan-settings .setup-form {
+		padding: 12px 0 0;
+		flex-wrap: wrap;
+	}
+	.plan-settings input {
+		color: var(--sc-ink);
+		background: var(--sc-surface);
+	}
+	@media (max-width: 640px) {
+		.summary-band {
+			gap: 4px;
+			padding-bottom: 8px;
+		}
+		.summary-band p {
+			font-size: 12px;
+			line-height: 1.5;
+		}
+		.overview-grid {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+		.overview-grid a {
+			padding: 12px;
+			min-width: 0;
+		}
+		.overview-grid a p {
+			font-size: 12px;
+		}
+		.overview-grid span {
+			font-size: 18px;
+			color: var(--sc-ink);
+			font-variant-numeric: tabular-nums;
+		}
+		.work-grid article {
+			padding: 14px;
+		}
+	}
+
+	input:not([type='hidden']):not([type='checkbox']):not([type='radio']) {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
 	}
 </style>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { Eye } from '@lucide/svelte';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import FormFeedback from '$lib/components/ui/FormFeedback.svelte';
 	import {
@@ -33,6 +34,11 @@
 		documentsOpen = $state(false);
 	let detail = $state<Registration | null>(null);
 	const eligible = $derived(['accepted', 'reserved'].includes(row.state));
+	const agreementAwaitingVerification = $derived(row.consentState === 'uploaded');
+	const canReviewDigitalAgreement = $derived(capabilities.consent || capabilities.sensitive);
+	const digitalAgreementReadable = $derived(
+		canReviewDigitalAgreement && ['uploaded', 'signed_accepted'].includes(row.consentState)
+	);
 	const agreementReceived = $derived(
 		['paper_received', 'signed_accepted'].includes(row.consentState)
 	);
@@ -174,7 +180,7 @@
 {#snippet receiptContent()}
 	<div class="receipt" aria-label={`Primire ${row.memberName}`} aria-busy={busy}>
 		<span>{states[row.consentState] ?? row.consentState}</span>
-		{#if capabilities.sensitive && ['uploaded', 'signed_accepted', 'update_required'].includes(row.consentState)}
+		{#if canReviewDigitalAgreement && ['uploaded', 'signed_accepted', 'update_required'].includes(row.consentState)}
 			<button class="secondary" disabled={busy} onclick={documents}
 				>{row.consentState === 'update_required'
 					? 'Acorduri digitale anterioare'
@@ -231,20 +237,28 @@
 {/snippet}
 {#if compact}
 	<div class="compact-receipt" aria-label={`Primire ${row.memberName}`} aria-busy={busy}>
-		{#if eligible && row.minor && row.role !== 'staff' && (capabilities.consent || capabilities.sensitive)}
+		{#if row.minor && row.role !== 'staff' && ((eligible && (capabilities.consent || capabilities.sensitive)) || digitalAgreementReadable)}
 			<button
 				class="secondary compact-trigger"
 				class:received={agreementReceived}
+				class:awaiting-verification={agreementAwaitingVerification}
+				title={agreementAwaitingVerification
+					? 'PDF încărcat · verifică semnătura digitală'
+					: undefined}
 				aria-pressed={agreementReceived}
 				disabled={busy}
-				aria-label={`Acord pentru ${row.memberName}: ${states[row.consentState] ?? row.consentState}`}
+				aria-label={`Acord pentru ${row.memberName}: ${states[row.consentState] ?? row.consentState}${agreementAwaitingVerification ? ' — verifică PDF-ul și semnătura digitală' : ''}`}
 				onclick={() =>
-					agreementReceived && capabilities.consent
+					agreementReceived && capabilities.consent && eligible
 						? askUndo('paper')
-						: capabilities.sensitive &&
+						: canReviewDigitalAgreement &&
 							  ['uploaded', 'signed_accepted', 'update_required'].includes(row.consentState)
 							? documents()
-							: (receiptOpen = true)}>AP{agreementReceived ? ' ✓' : ''}</button
+							: (receiptOpen = true)}
+				>{#if agreementAwaitingVerification}<Eye
+						size={14}
+						aria-hidden="true"
+					/>{/if}AP{agreementReceived ? ' ✓' : ''}</button
 			>
 		{/if}
 		{#if cash.length}
@@ -289,7 +303,7 @@
 				Marchezi acordul ca neprimit / neverificat? Documentele încărcate rămân păstrate și pot fi
 				verificate din nou.
 			</p>
-			{#if capabilities.sensitive && ['signed_accepted', 'uploaded', 'update_required'].includes(row.consentState)}
+			{#if canReviewDigitalAgreement && ['signed_accepted', 'uploaded', 'update_required'].includes(row.consentState)}
 				<button
 					class="secondary"
 					disabled={busy}
@@ -333,6 +347,13 @@
 	description="Descarcă și verifică documentul înainte de acceptare."
 >
 	<div class="receipt">
+		<div class="digital-review-guidance">
+			<strong>Verifică PDF-ul înainte de acceptare</strong>
+			<p>
+				Pentru acordul încărcat online, semnătura trebuie să fie <strong>digitală</strong>, nu
+				olografă (scrisă de mână). Deschide PDF-ul și verifică semnătura înainte de acceptare.
+			</p>
+		</div>
 		{#each detail?.documents?.filter((d) => d.kind === 'signed') ?? [] as document (document.id)}
 			<a href={resolve(`/activitati/${activityId}/inscriere/${row.id}/documente/${document.id}`)}
 				>{document.filename}</a
@@ -368,6 +389,11 @@
 		gap: 8px;
 	}
 	button.compact-trigger {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 4px;
+		font-weight: 600;
 		min-height: 44px;
 		padding: 6px 8px;
 		white-space: nowrap;
@@ -379,12 +405,12 @@
 		min-width: 0;
 	}
 	button {
-		min-height: 40px;
+		min-height: 44px;
 		padding: 8px 12px;
 		border: 1px solid var(--sc-accent);
 		border-radius: 7px;
 		background: var(--sc-accent);
-		color: white;
+		color: var(--sc-on-accent);
 		font: inherit;
 		font-size: 13px;
 		text-align: left;
@@ -395,25 +421,50 @@
 		color: var(--sc-ink);
 		border-color: var(--sc-border);
 	}
+	button.secondary.compact-trigger {
+		background: var(--sc-info-soft);
+		color: var(--sc-info);
+		border-color: var(--sc-info);
+	}
+	button.secondary.compact-trigger.awaiting-verification {
+		background: var(--sc-review-control-bg);
+		color: var(--sc-review-control-ink);
+		border-color: var(--sc-review-control-border);
+	}
 	button.secondary.received {
-		background: var(--sc-success-soft);
-		color: var(--sc-success);
-		border-color: color-mix(in srgb, var(--sc-success) 24%, var(--sc-success-soft));
+		background: var(--sc-success-control-bg);
+		color: var(--sc-success-control-ink);
+		border-color: var(--sc-success-control-border);
 	}
 	button.secondary.received:hover {
-		background: color-mix(in srgb, var(--sc-success) 8%, var(--sc-success-soft));
+		background: color-mix(in srgb, var(--sc-success-control-ink) 6%, var(--sc-success-control-bg));
 	}
 	button:disabled {
 		opacity: 0.5;
 		cursor: wait;
 	}
 	a {
-		color: var(--sc-accent);
+		color: var(--sc-link);
 		overflow-wrap: anywhere;
 	}
 	small {
 		color: var(--sc-ink-muted);
 		font-size: 12px;
 		line-height: 1.5;
+	}
+
+	.digital-review-guidance {
+		display: grid;
+		gap: 6px;
+		border-left: 3px solid var(--sc-warning);
+		background: var(--sc-warning-soft);
+		color: var(--sc-warning);
+		padding: 12px;
+		border-radius: 6px;
+		font-size: 14px;
+		line-height: 1.5;
+	}
+	.digital-review-guidance p {
+		margin: 0;
 	}
 </style>

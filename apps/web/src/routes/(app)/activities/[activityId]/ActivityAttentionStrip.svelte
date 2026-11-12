@@ -54,7 +54,7 @@
 					: undefined,
 				activity.financeSummary.needsClarification > 0
 					? {
-							label: `${activity.financeSummary.needsClarification} documente cer clarificări`,
+							label: `${activity.financeSummary.needsClarification} ${activity.financeSummary.needsClarification === 1 ? 'document necesită clarificări' : 'documente necesită clarificări'}`,
 							href: resolve(`/activities/${activity.id}/finance`)
 						}
 					: undefined,
@@ -66,19 +66,19 @@
 					: undefined,
 				emptyKitchenDays > 0
 					? {
-							label: `${emptyKitchenDays} zile fără mese planificate`,
+							label: `${emptyKitchenDays} ${emptyKitchenDays === 1 ? 'zi fără mese planificate' : 'zile fără mese planificate'}`,
 							href: resolve(`/activities/${activity.id}/kitchen/meals`)
 						}
 					: undefined,
 				staleRecipes > 0
 					? {
-							label: `${staleRecipes} rețete atribuite diferă de catalog`,
+							label: `${staleRecipes} ${staleRecipes === 1 ? 'rețetă atribuită diferă de catalog' : 'rețete atribuite diferă de catalog'}`,
 							href: resolve(`/activities/${activity.id}/kitchen/meals`)
 						}
 					: undefined,
 				coverageGaps > 0
 					? {
-							label: `${coverageGaps} nevoi de aprovizionare neacoperite`,
+							label: `${coverageGaps} ${coverageGaps === 1 ? 'nevoie de aprovizionare neacoperită' : 'nevoi de aprovizionare neacoperite'}`,
 							href: resolve(`/activities/${activity.id}/kitchen/procurement`)
 						}
 					: undefined
@@ -87,18 +87,18 @@
 	);
 </script>
 
-<section class:empty={issues.length === 0} class="attention-strip">
-	<strong>{issues.length ? 'Atenție' : 'Totul arată bine'}</strong>
-	{#if issues.length}
-		<div>
-			{#each issues.slice(0, 5) as issue (issue.label)}
-				<a href={issue.href}>{issue.label}</a>
-			{/each}
-		</div>
-	{:else}
-		<span>Nu sunt semnale urgente pentru această activitate.</span>
-	{/if}
-</section>
+{#if issues.length}<section class="attention-strip">
+		<strong>{issues.length ? 'Atenție' : 'Totul arată bine'}</strong>
+		{#if issues.length}
+			<div>
+				{#each issues.slice(0, 5) as issue (issue.label)}
+					<a href={issue.href}>{issue.label}</a>
+				{/each}
+			</div>
+		{:else}
+			<span>Nu sunt semnale urgente pentru această activitate.</span>
+		{/if}
+	</section>{/if}
 
 <style>
 	.attention-strip {
@@ -106,23 +106,14 @@
 		flex-wrap: wrap;
 		gap: 10px;
 		align-items: center;
-		border: 1px solid #f59e0b;
+		border: 1px solid var(--sc-warning);
 		border-radius: 8px;
-		background: #fffbeb;
+		background: var(--sc-warning-soft);
 		padding: 12px 14px;
 	}
 
-	.attention-strip.empty {
-		border-color: #bbf7d0;
-		background: #f0fdf4;
-	}
-
 	strong {
-		color: #92400e;
-	}
-
-	.empty strong {
-		color: #047857;
+		color: var(--sc-warning);
 	}
 
 	div {

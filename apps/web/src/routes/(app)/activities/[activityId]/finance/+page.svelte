@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { Settings, Upload, X } from '@lucide/svelte';
+	import { goto } from '$app/navigation';
+	import ActionMenu from '$lib/components/ui/ActionMenu.svelte';
+	import { Upload, X } from '@lucide/svelte';
 	import { Dialog } from 'bits-ui';
 	import FinanceSettingsForm from '../../../finance/documents/FinanceSettingsForm.svelte';
 	import FinancialDocumentRegistryRow from '../../../finance/documents/FinancialDocumentRegistryRow.svelte';
@@ -15,6 +17,39 @@
 	{#if form?.message}
 		<p class="form-message">{form.message}</p>
 	{/if}
+
+	<div class="page-heading">
+		<h1>Documente</h1>
+		<div class="page-actions">
+			<button
+				class="add-document-button"
+				type="button"
+				aria-label="Adaugă document"
+				onclick={() => (uploadDialogOpen = true)}
+				><Upload size={18} aria-hidden="true" /><span>Adaugă document</span></button
+			><ActionMenu
+				label="Acțiuni documente financiare"
+				items={[
+					...(data.isFinanceManager && data.settings
+						? [
+								{
+									label: 'Configurare Keez',
+									action: () => {
+										settingsDialogOpen = true;
+									}
+								}
+							]
+						: []),
+					{
+						label: 'Registru general',
+						action: () => {
+							void goto(resolve('/finance/documents'));
+						}
+					}
+				]}
+			/>
+		</div>
+	</div>
 
 	<div class="summary-grid" aria-label="Sumar financiar">
 		<div>
@@ -32,26 +67,6 @@
 		<div>
 			<span>{data.activity.financeSummary.needsClarification}</span>
 			<p>Clarificări</p>
-		</div>
-	</div>
-
-	<div class="page-heading">
-		<div>
-			<p class="eyebrow">Financiar</p>
-			<h2>Documente atașate</h2>
-		</div>
-		<div class="page-actions">
-			{#if data.isFinanceManager && data.settings}
-				<button class="secondary-button" type="button" onclick={() => (settingsDialogOpen = true)}>
-					<Settings size={16} strokeWidth={2.4} aria-hidden="true" />
-					Keez
-				</button>
-			{/if}
-			<button class="add-document-button" type="button" onclick={() => (uploadDialogOpen = true)}>
-				<Upload size={16} strokeWidth={2.4} aria-hidden="true" />
-				Adaugă document
-			</button>
-			<a class="secondary-link" href={resolve('/finance/documents')}>Registru general</a>
 		</div>
 	</div>
 
@@ -123,255 +138,163 @@
 <style>
 	.finance-tab,
 	.documents-panel,
-	.document-list,
-	.empty-state {
+	.document-list {
 		display: grid;
 		gap: 16px;
+		min-width: 0;
 	}
-
 	.document-list {
 		gap: 10px;
 	}
-
-	.summary-grid {
-		display: grid;
-		grid-template-columns: repeat(4, minmax(0, 1fr));
-		gap: 10px;
-	}
-
-	.summary-grid div,
-	.empty-state {
-		border: 1px solid #dbe3ef;
-		border-radius: 8px;
-		background: var(--sc-surface);
-		box-shadow: 0 14px 40px rgb(15 23 42 / 0.08);
-	}
-
-	.summary-grid div {
-		display: grid;
-		gap: 2px;
-		padding: 12px 14px;
-	}
-
-	.summary-grid span {
-		color: #0f766e;
-		font-size: 1.35rem;
-		font-weight: 600;
-	}
-
 	.page-heading {
 		display: flex;
-		align-items: flex-start;
+		align-items: center;
 		justify-content: space-between;
-		gap: 16px;
+		gap: 12px;
 	}
-
+	h1 {
+		margin: 0;
+		font-size: clamp(24px, 3vw, 30px);
+		letter-spacing: -0.025em;
+	}
 	.page-actions {
 		display: flex;
-		flex-wrap: wrap;
-		justify-content: flex-end;
+		align-items: center;
 		gap: 8px;
 	}
-
-	.eyebrow,
-	h2,
-	h3,
-	p {
-		margin: 0;
-	}
-
-	.eyebrow {
-		color: var(--sc-muted);
-		font-size: 0.78rem;
-		font-weight: 600;
-		letter-spacing: 0;
-		text-transform: uppercase;
-	}
-
-	h2 {
-		margin-top: 4px;
-		color: var(--sc-ink);
-		font-size: 1.35rem;
-	}
-
-	.empty-state p,
-	.summary-grid p {
-		color: var(--sc-muted);
-	}
-
-	.add-document-button,
-	.secondary-button,
-	.secondary-link {
-		min-height: 38px;
+	.add-document-button {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		gap: 8px;
-		border-radius: 8px;
-		font-weight: 600;
-		text-decoration: none;
-	}
-
-	.add-document-button {
-		flex: 0 0 auto;
+		min-height: 44px;
+		padding: 8px 14px;
 		border: 0;
+		border-radius: 7px;
+		font: inherit;
+		font-size: 14px;
+		font-weight: 600;
 		background: var(--sc-accent);
-		padding: 0 14px;
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 		cursor: pointer;
 	}
-
-	.secondary-button,
-	.secondary-link {
-		flex: 0 0 auto;
-		border: 1px solid var(--sc-border-strong);
-		background: var(--sc-surface);
-		padding: 0 12px;
-		color: var(--sc-ink);
-		cursor: pointer;
-	}
-
 	.add-document-button:hover {
 		background: var(--sc-accent-hover);
 	}
-
-	.secondary-button:hover,
-	.secondary-link:hover {
-		background: var(--sc-canvas);
+	.add-document-button:focus-visible {
+		outline: 2px solid var(--sc-focus);
+		outline-offset: 2px;
 	}
-
-	.empty-state {
-		min-height: 180px;
-		align-content: center;
-		padding: 22px;
-		text-align: center;
+	.summary-grid {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px 20px;
 	}
-
-	.form-message {
-		border: 1px solid #badbcc;
-		border-radius: 8px;
-		background: #f0fdf4;
-		padding: 12px 14px;
-		color: #166534;
+	.summary-grid div {
+		display: flex;
+		align-items: baseline;
+		gap: 5px;
+	}
+	.summary-grid span {
+		color: var(--sc-ink);
+		font-size: 14px;
 		font-weight: 600;
+		font-variant-numeric: tabular-nums;
 	}
-
+	.summary-grid p {
+		margin: 0;
+		font-size: 12px;
+		color: var(--sc-muted);
+	}
+	.empty-state {
+		display: grid;
+		gap: 8px;
+		padding: 32px 20px;
+		border: 1px solid var(--sc-border);
+		border-radius: 10px;
+		background: var(--sc-surface);
+	}
+	.empty-state h3,
+	.empty-state p {
+		margin: 0;
+	}
+	.empty-state p {
+		color: var(--sc-muted);
+		line-height: 1.5;
+	}
+	.form-message {
+		padding: 12px 14px;
+		margin: 0;
+		border-radius: 8px;
+		background: var(--sc-success-soft);
+		color: var(--sc-success);
+	}
 	:global(.upload-dialog-overlay) {
 		position: fixed;
 		inset: 0;
 		z-index: 50;
-		background: rgb(15 23 42 / 0.4);
+		background: rgb(15 23 42 / 0.45);
 	}
-
-	:global(.upload-dialog-content) {
-		position: fixed;
-		top: 50%;
-		left: 50%;
-		z-index: 60;
-		width: min(560px, calc(100vw - 32px));
-		max-height: calc(100vh - 32px);
-		display: grid;
-		gap: 18px;
-		overflow: auto;
-		border: 1px solid var(--sc-border);
-		border-radius: 8px;
-		background: var(--sc-surface);
-		padding: 18px;
-		box-shadow: 0 24px 70px rgb(15 23 42 / 0.22);
-		transform: translate(-50%, -50%);
-	}
-
+	:global(.upload-dialog-content),
 	:global(.settings-dialog-content) {
 		position: fixed;
 		top: 50%;
 		left: 50%;
 		z-index: 60;
-		width: min(480px, calc(100vw - 32px));
-		max-height: calc(100vh - 32px);
+		width: min(560px, calc(100vw - 32px));
+		max-height: calc(100dvh - 32px);
+		overflow: auto;
 		display: grid;
 		gap: 18px;
-		overflow: auto;
+		padding: 20px;
 		border: 1px solid var(--sc-border);
-		border-radius: 8px;
+		border-radius: 14px;
 		background: var(--sc-surface);
-		padding: 18px;
-		box-shadow: 0 24px 70px rgb(15 23 42 / 0.22);
+		color: var(--sc-ink);
+		box-shadow: var(--sc-shadow);
 		transform: translate(-50%, -50%);
 	}
-
+	:global(.settings-dialog-content) {
+		width: min(480px, calc(100vw - 32px));
+	}
 	.dialog-heading {
 		display: flex;
 		align-items: flex-start;
 		justify-content: space-between;
 		gap: 12px;
 	}
-
 	:global(.dialog-title) {
 		margin: 0;
 		color: var(--sc-ink);
-		font-size: 1.12rem;
+		font-size: 18px;
 		font-weight: 600;
 	}
-
 	:global(.dialog-description) {
 		margin-top: 4px;
 		color: var(--sc-muted);
-		font-size: 0.92rem;
+		font-size: 14px;
+		line-height: 1.5;
 	}
-
 	:global(.dialog-icon-button) {
-		width: 34px;
-		height: 34px;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
+		display: inline-grid;
+		place-items: center;
+		width: 44px;
+		height: 44px;
+		flex-shrink: 0;
 		border: 1px solid var(--sc-border);
-		border-radius: 8px;
-		background: var(--sc-surface);
+		border-radius: 7px;
 		color: var(--sc-ink);
+		background: var(--sc-inset);
 		cursor: pointer;
 	}
-
-	:global(.dialog-icon-button:hover) {
-		background: var(--sc-canvas);
-	}
-
-	.add-document-button:focus-visible,
-	.secondary-button:focus-visible,
-	.secondary-link:focus-visible,
-	:global(.dialog-icon-button:focus-visible) {
-		outline: 3px solid rgb(200 30 30 / 0.24);
-		outline-offset: 2px;
-	}
-
-	@media (max-width: 760px) {
-		.page-heading {
-			display: grid;
-			align-items: start;
-			justify-content: stretch;
+	@media (max-width: 600px) {
+		.add-document-button {
+			width: 44px;
+			padding: 0;
 		}
-
-		.page-actions {
-			display: grid;
-			justify-content: stretch;
-		}
-
-		.add-document-button,
-		.secondary-button,
-		.secondary-link {
-			width: 100%;
-		}
-	}
-
-	@media (max-width: 640px) {
-		.summary-grid {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-		}
-	}
-
-	@media (max-width: 420px) {
-		.summary-grid {
-			grid-template-columns: 1fr;
+		.add-document-button span {
+			display: none;
 		}
 	}
 </style>

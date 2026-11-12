@@ -66,6 +66,7 @@ const settings = {
 	administrativeUserIds: [],
 	terms: 'Taxa este aceeași pentru toate metodele de plată. Retragerea se discută cu organizatorul.'
 };
+let designMode = false;
 let drafts = [];
 let previews = [];
 let eligibleBranchesOverride = null;
@@ -78,6 +79,7 @@ let concurrentAfterSave = false;
 const originalSettings = structuredClone(settings);
 const originalActivity = structuredClone(activity);
 function reset() {
+	designMode = false;
 	Object.assign(activity, originalActivity);
 	previews = [];
 	drafts = [];
@@ -133,6 +135,293 @@ function reset() {
 		mailState: 'pending'
 	};
 }
+const designIngredients = [
+	{
+		id: 1,
+		name: 'Orez',
+		category: 'Cereale',
+		unitFamily: 'mass',
+		defaultUnit: 'kg',
+		defaultPricePerUnit: 8.5
+	},
+	{
+		id: 2,
+		name: 'Morcovi',
+		category: 'Legume',
+		unitFamily: 'mass',
+		defaultUnit: 'kg',
+		defaultPricePerUnit: 5
+	}
+];
+const designRecipes = [
+	{
+		id: 1,
+		name: 'Orez cu legume',
+		description: 'Prânz cald pentru echipa de camp.',
+		condiments: ['Sare', 'Piper'],
+		servings: 10,
+		ingredients: [
+			{ id: 1, ingredientId: 1, ingredientName: 'Orez', quantity: 1, unit: 'kg' },
+			{ id: 2, ingredientId: 2, ingredientName: 'Morcovi', quantity: 0.6, unit: 'kg' }
+		]
+	}
+];
+const designKitchen = {
+	plan: { id: 1, activityId: 1, defaultParticipantCount: 32, hasCompleteActivityDates: true },
+	days: [
+		{ id: 1, date: '2027-08-24', dateStatus: 'current' },
+		{ id: 2, date: '2027-08-25', dateStatus: 'current' }
+	],
+	meals: [
+		{
+			id: 11,
+			kitchenDayId: 1,
+			slot: 'lunch',
+			name: 'Prânzul de sosire',
+			sortOrder: 0,
+			attendanceMode: 'plan_default',
+			attendanceTotal: 32,
+			recipes: [
+				{
+					id: 21,
+					mealId: 11,
+					recipeId: 1,
+					recipeName: 'Orez cu legume',
+					servings: 32,
+					condiments: ['Sare', 'Piper'],
+					isSnapshot: true,
+					isStale: false,
+					scalingMode: 'proportional'
+				}
+			],
+			attendance: [{ id: 31, subgroupName: 'Temerari', attendance: 20 }],
+			adjustments: []
+		}
+	],
+	ingredientNeeds: [
+		{
+			ingredientId: 1,
+			ingredientName: 'Orez',
+			category: 'Cereale',
+			unit: 'kg',
+			neededQuantity: 3.2,
+			procuredQuantity: 2,
+			remainingQuantity: 1.2,
+			coveragePercent: 62.5,
+			estimatedCost: 27.2,
+			breakdown: [{ date: '2027-08-24', mealId: 11, mealLabel: 'Prânz', quantity: 3.2 }]
+		},
+		{
+			ingredientId: 2,
+			ingredientName: 'Morcovi',
+			category: 'Legume',
+			unit: 'kg',
+			neededQuantity: 1.92,
+			procuredQuantity: 2,
+			remainingQuantity: 0,
+			coveragePercent: 100,
+			estimatedCost: 9.6,
+			breakdown: [{ date: '2027-08-24', mealId: 11, mealLabel: 'Prânz', quantity: 1.92 }]
+		}
+	],
+	mealCoverage: [
+		{
+			mealId: 11,
+			kitchenDayId: 1,
+			date: '2027-08-24',
+			slot: 'lunch',
+			mealLabel: 'Prânzul de sosire',
+			items: [
+				{
+					ingredientId: 1,
+					ingredientName: 'Orez',
+					neededQuantity: 3.2,
+					coveredQuantity: 2,
+					remainingQuantity: 1.2,
+					overCoveredQuantity: 0,
+					unit: 'kg',
+					state: 'partial'
+				},
+				{
+					ingredientId: 2,
+					ingredientName: 'Morcovi',
+					neededQuantity: 1.92,
+					coveredQuantity: 1.92,
+					remainingQuantity: 0,
+					overCoveredQuantity: 0.08,
+					unit: 'kg',
+					state: 'covered'
+				}
+			],
+			condiments: ['Sare', 'Piper']
+		}
+	],
+	condimentReminders: ['Sare', 'Piper']
+};
+const designProcurement = [
+	{
+		id: 1,
+		kitchenPlanId: 1,
+		name: 'Cumpărături înainte de camp',
+		supplier: 'Magazin local',
+		ownerName: 'Echipa logistică',
+		date: '2027-08-23',
+		method: 'shopping_run',
+		status: 'in_progress',
+		notes: 'Verificați cantitatea de orez înainte de plecare.',
+		items: [
+			{
+				id: 1,
+				ingredientId: 1,
+				ingredientName: 'Orez',
+				quantity: 2,
+				unit: 'kg',
+				estimatedUnitPrice: 8.5,
+				estimatedTotalCost: 17
+			}
+		],
+		documents: []
+	}
+];
+const designDocuments = [
+	{
+		id: 501,
+		uploaderId: 1,
+		uploaderName: 'Coordonator de test',
+		status: 'ready_to_send',
+		originalFilename: 'Bon cumpărături bucătărie.pdf',
+		contentType: 'application/pdf',
+		fileSize: 42600,
+		checksumSha256: 'synthetic',
+		activityId: 1,
+		activityTitle: 'Camp de test — Cântul Vâlvelor',
+		notes: 'Aprovizionarea inițială a campului.',
+		createdAt: '2026-11-10T10:00:00Z',
+		updatedAt: '2026-11-10T10:00:00Z'
+	},
+	{
+		id: 502,
+		uploaderId: 1,
+		uploaderName: 'Coordonator de test',
+		status: 'needs_clarification',
+		originalFilename: 'Factură transport.pdf',
+		contentType: 'application/pdf',
+		fileSize: 64200,
+		checksumSha256: 'synthetic-2',
+		activityId: 1,
+		activityTitle: 'Camp de test — Cântul Vâlvelor',
+		reviewerNotes: 'Lipsește dovada plății.',
+		createdAt: '2026-11-09T09:00:00Z',
+		updatedAt: '2026-11-10T11:00:00Z'
+	}
+];
+const designAudit = [
+	{
+		id: 1,
+		actorId: 1,
+		actorName: 'Coordonator de test',
+		action: 'registration.paper_received',
+		entityType: 'activity_registration',
+		entityId: id,
+		activityId: 1,
+		metadata: { memberName: 'Maria Popescu' },
+		createdAt: '2026-11-12T09:30:00Z'
+	},
+	{
+		id: 2,
+		actorId: 1,
+		actorName: 'Coordonator de test',
+		action: 'registration.receipt_recorded',
+		entityType: 'activity_registration',
+		entityId: id,
+		activityId: 1,
+		metadata: { method: 'cash', amountBani: 15000 },
+		createdAt: '2026-11-12T09:25:00Z'
+	}
+];
+function designActivityList() {
+	return [
+		activity,
+		{
+			...activity,
+			id: 2,
+			title: 'Drumeție în Cheile Turzii',
+			type: 'hike',
+			location: 'Cheile Turzii',
+			status: 'planned',
+			startDate: '2027-09-12T07:00:00Z',
+			financeSummary: {
+				totalDocuments: 0,
+				openDocuments: 0,
+				sentDocuments: 0,
+				needsClarification: 0
+			}
+		},
+		{
+			...activity,
+			id: 3,
+			title: 'Atelier de orientare și prim ajutor',
+			type: 'training',
+			location: 'Sediul centrului local',
+			status: 'active',
+			financeSummary: {
+				totalDocuments: 1,
+				openDocuments: 0,
+				sentDocuments: 1,
+				needsClarification: 0
+			}
+		},
+		{
+			...activity,
+			id: 4,
+			title: 'Campul de vară al centrului local',
+			status: 'completed',
+			startDate: '2026-08-01T07:00:00Z',
+			financeSummary: {
+				totalDocuments: 12,
+				openDocuments: 0,
+				sentDocuments: 12,
+				needsClarification: 0
+			}
+		}
+	];
+}
+function designRows() {
+	return [
+		row,
+		...[
+			['Maria Popescu', 5, 'paper_received', 0],
+			['Andrei Ionescu', 7, 'awaiting', 15000],
+			['Alexandra Ștefan', 0, 'uploaded', 15000],
+			['Radu Marinescu', null, 'not_required', 0]
+		].map(([memberName, grade, consentState, cashRemainingBani], index) => ({
+			...row,
+			id: `22222222-2222-4222-8222-${String(index + 1).padStart(12, '0')}`,
+			orgoId: 36806 + index,
+			memberName,
+			grade,
+			consentState,
+			minor: index !== 3,
+			role: index === 3 ? 'staff' : 'beneficiary',
+			cashRemainingBani,
+			cashInstallments:
+				index === 3
+					? []
+					: [
+							{
+								key: 'cash',
+								amountBani: 15000,
+								remainingBani: cashRemainingBani,
+								due: '2027-08-24'
+							}
+						],
+			entries: [],
+			totalBani: index === 3 ? 0 : 50000,
+			remainingBani: index === 3 ? 0 : cashRemainingBani
+		}))
+	];
+}
+
 reset();
 function previewPdf() {
 	const stream = 'BT /F1 15 Tf 40 760 Td (Previzualizare sintetica - fara date personale) Tj ET';
@@ -180,6 +469,21 @@ createServer(async (req, res) => {
 		if (input.information) informationOverride = input.information;
 		Object.assign(row, input.row ?? {});
 		if (input.capabilities) settings.testCapabilities = input.capabilities;
+		if (input.designMode !== undefined) {
+			designMode = input.designMode;
+			if (designMode) {
+				if (!input.activity?.departments)
+					activity.departments = ['administrative', 'finance', 'kitchen'];
+				if (!input.activity?.financeSummary)
+					activity.financeSummary = {
+						totalDocuments: 3,
+						openDocuments: 2,
+						sentDocuments: 1,
+						needsClarification: 1
+					};
+				if (!input.row?.grade) row.grade = 6;
+			}
+		}
 		return send(res, {});
 	}
 	if (path === '/test/previews') return send(res, previews);
@@ -343,7 +647,7 @@ createServer(async (req, res) => {
 					orgoConnection: { orgoUserId: 36805 }
 				})
 			: send(res, { message: 'Autentificare necesară' }, 401);
-	if (path === '/api/activities') return send(res, [activity]);
+	if (path === '/api/activities') return send(res, designMode ? designActivityList() : [activity]);
 	if (path === '/api/activities/1') return send(res, activity);
 	if (path === '/api/activity-registrations/1/access')
 		return send(res, {
@@ -352,7 +656,7 @@ createServer(async (req, res) => {
 			sensitive: authenticated && !memberMode,
 			consent: authenticated && !memberMode
 		});
-	if (path.startsWith('/api/audit')) return send(res, []);
+	if (path.startsWith('/api/audit')) return send(res, designMode ? designAudit : []);
 	if (path === '/api/activity-registrations') return send(res, [activity]);
 	if (path === '/api/activity-registrations/eligible') return send(res, [activity]);
 	if (path === '/api/activity-registrations/1')
@@ -379,7 +683,7 @@ createServer(async (req, res) => {
 				sensitive: true,
 				consent: true
 			},
-			rows: row ? [row] : [],
+			rows: row ? (designMode ? designRows() : [row]) : [],
 			lists,
 			priceAdvice: {
 				recommendedBani: 51000,
@@ -388,6 +692,24 @@ createServer(async (req, res) => {
 				fee: { percentageBasisPoints: 119, fixedBani: 30 }
 			}
 		});
+	if (designMode) {
+		if (path === '/api/activities/1/kitchen') return send(res, designKitchen);
+		if (path === '/api/activities/1/kitchen/ingredients') return send(res, designIngredients);
+		if (path === '/api/activities/1/kitchen/recipes') return send(res, designRecipes);
+		if (path === '/api/activities/1/kitchen/procurement') return send(res, designProcurement);
+		if (path.startsWith('/api/finance/documents?') || path === '/api/finance/documents')
+			return send(res, designDocuments);
+		if (path === '/api/finance/documents/handoff-guidance')
+			return send(res, { keezHandoffMode: 'review_first' });
+		if (path === '/api/finance/settings')
+			return send(res, {
+				keezHandoffMode: 'review_first',
+				keezConfigured: true,
+				keezEnvironment: 'test',
+				keezDocumentUploadAvailable: true,
+				keezEmailHandoffAvailable: false
+			});
+	}
 	if (path.includes('/documents/') && req.method === 'GET') {
 		if (!authenticated) return send(res, {}, 403);
 		res.writeHead(200, {

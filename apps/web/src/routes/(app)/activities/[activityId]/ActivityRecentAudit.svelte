@@ -13,7 +13,8 @@
 </script>
 
 {#if entries.length}
-	<section class="audit-panel">
+	<details class="audit-panel">
+		<summary>Activitate recentă <span>{entries.length}</span></summary>
 		<div class="heading">
 			<p>Activitate recentă</p>
 			<a href={resolve(`/activities/${activity.id}/audit`)}>Audit</a>
@@ -29,10 +30,29 @@
 				</div>
 			{/each}
 		</div>
-	</section>
+	</details>
 {/if}
 
 <style>
+	summary {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		cursor: pointer;
+		min-height: 44px;
+		color: var(--sc-muted);
+		font-size: 14px;
+	}
+	summary::before {
+		content: '›';
+	}
+	details[open] summary::before {
+		transform: rotate(90deg);
+	}
+	summary span {
+		font-size: 12px;
+	}
+
 	.audit-panel,
 	.entry-list {
 		display: grid;
@@ -40,7 +60,7 @@
 	}
 
 	.audit-panel {
-		border: 1px solid #dbe3ef;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
 		background: var(--sc-surface);
 		padding: 14px;
@@ -72,7 +92,7 @@
 	}
 
 	a:hover {
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 	}
 
 	.entry-list div {
@@ -93,7 +113,7 @@
 	}
 
 	small {
-		color: #94a3b8;
+		color: var(--sc-muted);
 		font-size: 0.78rem;
 	}
 </style>

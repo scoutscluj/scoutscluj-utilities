@@ -205,7 +205,7 @@
 		grid-template-columns: minmax(180px, 0.8fr) minmax(220px, 1fr) minmax(160px, 0.8fr);
 		gap: 12px;
 		align-items: center;
-		border: 1px solid #dbe3ef;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
 		background: var(--sc-surface);
 		padding: 12px;
@@ -224,7 +224,7 @@
 	}
 
 	.chips small {
-		border: 1px solid #dbe3ef;
+		border: 1px solid var(--sc-border);
 		border-radius: 999px;
 		padding: 4px 8px;
 		background: var(--sc-canvas);
@@ -251,7 +251,7 @@
 		border-radius: 8px;
 		background: var(--sc-surface);
 		padding: 18px;
-		box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
+		box-shadow: var(--sc-shadow);
 	}
 
 	.fields,
@@ -295,11 +295,11 @@
 	}
 
 	button {
-		min-height: 38px;
+		min-height: 44px;
 		border: 0;
 		border-radius: 8px;
-		background: #0f766e;
-		color: var(--sc-surface);
+		background: var(--sc-accent);
+		color: var(--sc-on-accent);
 		padding: 0 12px;
 		font-weight: 600;
 		cursor: pointer;
@@ -325,11 +325,11 @@
 	}
 
 	.form-message {
-		border: 1px solid #bfdbfe;
+		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
-		background: #eff6ff;
+		background: var(--sc-info-soft);
 		padding: 12px 14px;
-		color: #1e3a8a;
+		color: var(--sc-info);
 	}
 
 	h1,
@@ -365,5 +365,13 @@
 		.ingredient-line {
 			grid-template-columns: 1fr;
 		}
+	}
+
+	input:not([type='hidden']):not([type='checkbox']):not([type='radio']),
+	select,
+	textarea {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
 	}
 </style>

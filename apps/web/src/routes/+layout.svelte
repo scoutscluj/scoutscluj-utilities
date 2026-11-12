@@ -1,5 +1,7 @@
 <script lang="ts">
 	import '$lib/styles/theme.css';
+	import { onMount } from 'svelte';
+	import { initializeAppearance } from '$lib/styles/appearance.svelte';
 	import { page } from '$app/state';
 	import { usesAuthenticatedShell } from '$lib/auth/authenticated-shell';
 	import { Toaster } from '$lib/components/ui/sonner';
@@ -8,6 +10,14 @@
 	import AppShell from './(app)/AppShell.svelte';
 
 	let { data, children } = $props();
+	onMount(() => {
+		const cleanup = initializeAppearance();
+		document.documentElement.dataset.appReady = 'true';
+		return () => {
+			delete document.documentElement.dataset.appReady;
+			cleanup();
+		};
+	});
 </script>
 
 <svelte:head>

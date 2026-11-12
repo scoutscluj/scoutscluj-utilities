@@ -28,7 +28,7 @@
 
 {#if entries.length}
 	<div class="table-wrap">
-		<TableView label="Caută în jurnal"
+		<TableView compact label="Caută în jurnal"
 			><table>
 				<thead>
 					<tr>
@@ -45,12 +45,12 @@
 					{#each entries as entry (entry.id)}
 						{@const display = formatAuditEntry(entry)}
 						<tr>
-							<td class="date-cell">{formatAuditDateTime(entry.createdAt)}</td>
-							<td>{entry.actorName ?? 'Sistem'}</td>
+							<td class="date-cell" data-label="Când">{formatAuditDateTime(entry.createdAt)}</td>
+							<td class="actor-cell" data-label="Cine">{entry.actorName ?? 'Sistem'}</td>
 							{#if showActivity}
-								<td>{entry.activityId ? `#${entry.activityId}` : '-'}</td>
+								<td data-label="Activitate">{entry.activityId ? `#${entry.activityId}` : '-'}</td>
 							{/if}
-							<td>
+							<td class="event-cell">
 								<button
 									class="entry-button"
 									type="button"
@@ -58,10 +58,10 @@
 									onclick={() => openDetails(entry)}
 								>
 									<strong>{display.title}</strong>
-									<span>{display.entityLabel}</span>
+									<span>{display.entityLabel.split(' #')[0]}</span>
 								</button>
 							</td>
-							<td>{display.summary}</td>
+							<td class="summary-cell">{display.summary}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -76,7 +76,8 @@
 
 <style>
 	.table-wrap {
-		overflow-x: auto;
+		container-type: inline-size;
+		overflow-x: visible;
 	}
 
 	table {
@@ -93,7 +94,7 @@
 	}
 
 	th {
-		color: #475569;
+		color: var(--sc-muted);
 		font-size: 0.78rem;
 		text-transform: uppercase;
 	}
@@ -117,17 +118,18 @@
 		background: transparent;
 		color: inherit;
 		padding: 0;
+		min-height: 44px;
 		text-align: left;
 		cursor: pointer;
 	}
 
 	.entry-button:hover strong,
 	.entry-button:focus-visible strong {
-		color: #0f766e;
+		color: var(--sc-link);
 	}
 
 	.entry-button:focus-visible {
-		outline: 2px solid #14b8a6;
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 4px;
 	}
 
@@ -143,5 +145,46 @@
 
 	.muted {
 		margin: 0;
+	}
+
+	@container (max-width: 900px) {
+		table,
+		tbody {
+			display: block;
+		}
+		thead {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+		}
+		tr {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr);
+			gap: 6px;
+			padding: 14px 0;
+			border-bottom: 1px solid var(--sc-border);
+		}
+		td {
+			border: 0;
+			padding: 0;
+			min-width: 0;
+			overflow-wrap: anywhere;
+		}
+		.date-cell {
+			min-width: 0;
+			font-size: 12px;
+		}
+		.actor-cell {
+			color: var(--sc-muted);
+			font-size: 13px;
+		}
+		.entry-button {
+			padding: 4px 0;
+		}
+		.summary-cell {
+			font-size: 13px;
+		}
 	}
 </style>

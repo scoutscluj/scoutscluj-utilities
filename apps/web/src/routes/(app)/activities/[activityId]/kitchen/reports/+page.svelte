@@ -31,6 +31,7 @@
 </script>
 
 <section class="reports-page">
+	<h1>Rapoarte bucătărie</h1>
 	<div class="report-actions">
 		<a href={resolve(`/activities/${data.activityId}/kitchen/reports/ingredients.csv`)}>
 			CSV necesar ingrediente
@@ -150,7 +151,11 @@
 			<article class="procurement-report">
 				<h3>{event.name}</h3>
 				<p>
-					{event.supplier ?? 'Fără furnizor'} · {event.ownerName ?? 'fără responsabil'} · {event.status}
+					{event.supplier ?? 'Fără furnizor'} · {event.ownerName ?? 'fără responsabil'} · {{
+						planned: 'Planificat',
+						in_progress: 'În lucru',
+						completed: 'Finalizat'
+					}[event.status]}
 				</p>
 				<TableView label="Caută în raport" paginated={false}
 					><table>
@@ -213,7 +218,7 @@
 
 	.report-actions a,
 	.report-actions button {
-		min-height: 40px;
+		min-height: 44px;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -231,17 +236,17 @@
 
 	.report-actions button {
 		border: 0;
-		background: #0f766e;
-		color: var(--sc-surface);
+		background: var(--sc-accent);
+		color: var(--sc-on-accent);
 		cursor: pointer;
 	}
 
 	.report-sheet {
-		border: 1px solid #dbe3ef;
+		border: 1px solid var(--sc-border);
 		background: var(--sc-surface);
 		border-radius: 8px;
 		padding: 18px;
-		box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
+		box-shadow: var(--sc-shadow);
 	}
 
 	.day-report,
@@ -271,7 +276,7 @@
 	}
 
 	th {
-		color: #475569;
+		color: var(--sc-muted);
 		font-size: 0.78rem;
 		text-transform: uppercase;
 	}
@@ -296,7 +301,7 @@
 
 	.eyebrow {
 		margin: 0 0 8px;
-		color: #2563eb;
+		color: var(--sc-muted);
 		font-size: 0.78rem;
 		font-weight: 600;
 		text-transform: uppercase;
@@ -312,5 +317,12 @@
 			break-inside: avoid;
 			box-shadow: none;
 		}
+	}
+
+	h1 {
+		margin: 0;
+		color: var(--sc-ink);
+		font-size: clamp(24px, 3vw, 30px);
+		line-height: 1.2;
 	}
 </style>

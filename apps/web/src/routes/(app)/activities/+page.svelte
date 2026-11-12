@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { CalendarDays, MapPin, ArrowUpRight, Plus } from '@lucide/svelte';
+	import { matchesSearch } from '$lib/components/ui/table-search';
 	import type { ActivityStatus, ActivityType } from './+page.server';
-
 	let { data, form } = $props();
-
+	let query = $state(''),
+		status = $state('current');
 	const activityTypeLabels: Record<ActivityType, string> = {
 		camp: 'Camp',
 		hike: 'Drumeție',
@@ -12,255 +14,350 @@
 		meeting: 'Întâlnire',
 		other: 'Alt tip'
 	};
-
 	const activityStatusLabels: Record<ActivityStatus, string> = {
 		planned: 'Planificată',
 		active: 'În desfășurare',
 		completed: 'Încheiată',
 		cancelled: 'Anulată'
 	};
-
 	const formatDate = (value?: string) =>
 		value
-			? new Intl.DateTimeFormat('ro-RO', {
-					dateStyle: 'medium'
-				}).format(new Date(value))
+			? new Intl.DateTimeFormat('ro-RO', { dateStyle: 'medium' }).format(new Date(value))
 			: 'Fără dată';
+	const activities = $derived(
+		data.activities.filter(
+			(activity) =>
+				(status === 'all' ||
+					(status === 'current'
+						? ['active', 'planned'].includes(activity.status)
+						: activity.status === status)) &&
+				matchesSearch(
+					[
+						activity.title,
+						activity.location,
+						activity.coordinatorName,
+						activityTypeLabels[activity.type]
+					]
+						.filter(Boolean)
+						.join(' '),
+					query
+				)
+		)
+	);
 </script>
 
-<svelte:head>
-	<title>Activități | Scouts Cluj Utilities</title>
-</svelte:head>
-
+<svelte:head><title>Activități | Scouts Cluj Utilities</title></svelte:head>
 <section class="activities-page">
-	<div class="page-heading">
+	<header class="page-heading">
 		<div>
-			<h1>Activități locale</h1>
-			<p>Campuri, drumeții, festivaluri și alte activități ale centrului local.</p>
+			<h1>Activități</h1>
+			<span class="result-count">{data.activities.length} în centrul local</span>
 		</div>
-		<a class="new-activity" href={resolve('/activities/new')}>＋ Activitate nouă</a>
+		<a class="new-activity" href={resolve('/activities/new')}
+			><Plus size={18} aria-hidden="true" /><span>Activitate nouă</span></a
+		>
+	</header>
+	{#if form?.message}<p class="form-message" role="status">{form.message}</p>{/if}
+	<div class="activity-filters">
+		<label class="search"
+			><span class="sr-only">Caută o activitate</span><input
+				type="search"
+				bind:value={query}
+				placeholder="Caută o activitate…"
+			/></label
+		><label
+			><span class="sr-only">Starea activităților</span><select
+				aria-label="Starea activităților"
+				bind:value={status}
+				><option value="current">Activități curente</option><option value="all"
+					>Toate activitățile</option
+				><option value="planned">Planificate</option><option value="active">În desfășurare</option
+				><option value="completed">Încheiate</option><option value="cancelled">Anulate</option
+				></select
+			></label
+		>
 	</div>
-
-	{#if form?.message}
-		<p class="form-message">{form.message}</p>
-	{/if}
-
-	<div class="content-grid">
-		<section class="activity-list" aria-label="Lista activităților">
-			{#if data.activities.length}
-				{#each data.activities as activity (activity.id)}
-					<article class="activity-card">
-						<div class="card-main">
-							<div>
-								<p class="activity-type">{activityTypeLabels[activity.type]}</p>
-								<h2>{activity.title}</h2>
-							</div>
-							<span class={`status ${activity.status}`}
-								>{activityStatusLabels[activity.status]}</span
-							>
-						</div>
-
-						<div class="meta-grid">
-							<span>{formatDate(activity.startDate)}</span>
-							<span>{activity.location ?? 'Fără loc'}</span>
-							<span>{activity.coordinatorName}</span>
-						</div>
-
-						<div class="finance-strip">
-							<span>{activity.financeSummary.totalDocuments} documente</span>
-							<span>{activity.financeSummary.openDocuments} deschise</span>
-							<span>{activity.financeSummary.sentDocuments} trimise</span>
-						</div>
-
-						<a href={resolve(`/activities/${activity.id}`)}>Deschide</a>
-					</article>
-				{/each}
-			{:else}
-				<div class="empty-state">
-					<h2>Nu există activități încă.</h2>
-					<p>Prima activitate creată va apărea aici.</p>
+	<div class="activity-list" aria-label="Lista activităților">
+		{#each activities as activity (activity.id)}
+			<a
+				class="activity-row"
+				href={resolve(`/activities/${activity.id}`)}
+				aria-label={`Deschide activitatea ${activity.title}`}
+			>
+				<div class="activity-identity">
+					<span class="activity-type">{activityTypeLabels[activity.type]}</span>
+					<h2>{activity.title}</h2>
+					<div class="activity-meta">
+						<span
+							><CalendarDays size={14} aria-hidden="true" />{formatDate(activity.startDate)}</span
+						>{#if activity.location}<span
+								><MapPin size={14} aria-hidden="true" />{activity.location}</span
+							>{/if}
+					</div>
+					<span class="coordinator">{activity.coordinatorName}</span>
 				</div>
-			{/if}
-		</section>
+				<div class="activity-trailing">
+					<span class="status" data-status={activity.status}
+						>{activityStatusLabels[activity.status]}</span
+					>{#if activity.financeSummary.needsClarification > 0}<small class="needs-attention"
+							>{activity.financeSummary.needsClarification}
+							{activity.financeSummary.needsClarification === 1
+								? 'clarificare'
+								: 'clarificări'}</small
+						>{:else if activity.financeSummary.totalDocuments > 0}<small
+							>{activity.financeSummary.totalDocuments}
+							{activity.financeSummary.totalDocuments === 1 ? 'document' : 'documente'}</small
+						>{/if}<ArrowUpRight size={18} aria-hidden="true" />
+				</div>
+			</a>
+		{:else}<div class="empty-state">
+				<h2>
+					{data.activities.length
+						? 'Nicio activitate în această selecție'
+						: 'Nu există activități încă'}
+				</h2>
+				<p>
+					{data.activities.length
+						? 'Încearcă alt nume sau alege toate activitățile.'
+						: 'Creează prima activitate pentru a organiza echipa și participanții.'}
+				</p>
+			</div>{/each}
 	</div>
 </section>
 
 <style>
 	.activities-page {
 		display: grid;
-		gap: 22px;
+		gap: 20px;
+		max-width: 1120px;
 	}
-
 	.page-heading {
 		display: flex;
-		gap: 16px;
+		align-items: center;
 		justify-content: space-between;
-		align-items: start;
-		flex-wrap: wrap;
+		gap: 16px;
 	}
 	.page-heading > div {
-		display: grid;
-		gap: 8px;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 8px 12px;
+		min-width: 0;
 	}
-	.new-activity {
-		display: inline-flex;
-		align-items: center;
-		min-height: 38px;
-		padding: 8px 16px;
-		background: var(--sc-accent);
-		color: var(--sc-surface);
-		border-radius: 7px;
-		text-decoration: none;
-		white-space: nowrap;
-	}
-	.new-activity:hover {
-		background: var(--sc-accent-hover);
-	}
-
-	.activity-type {
-		margin: 0;
-		color: #2563eb;
-		font-size: 0.78rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0;
-	}
-
 	h1,
 	h2,
 	p {
 		margin: 0;
 	}
-
 	h1 {
-		font-size: clamp(2rem, 4vw, 3rem);
-		color: var(--sc-ink);
+		font-size: clamp(26px, 3vw, 32px);
+		letter-spacing: -0.025em;
 	}
-
-	h2 {
-		font-size: 1.1rem;
-		color: var(--sc-ink);
-	}
-
-	.page-heading p:last-child,
-	.meta-grid,
-	.empty-state p {
+	.result-count {
+		font-size: 13px;
 		color: var(--sc-muted);
 	}
-
-	.content-grid {
-		display: grid;
-		gap: 18px;
-		align-items: start;
-	}
-
-	.activity-card,
-	.empty-state {
-		border: 1px solid #dbe3ef;
-		background: var(--sc-surface);
-		border-radius: 8px;
-		box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
-	}
-
-	.activity-card,
-	.empty-state {
-		display: grid;
-		gap: 16px;
-		padding: 18px;
-	}
-
-	.activity-card a {
-		min-height: 40px;
+	.new-activity {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		border-radius: 8px;
-		font-weight: 600;
+		gap: 7px;
+		min-height: 44px;
+		flex-shrink: 0;
+		padding: 8px 14px;
+		border-radius: 7px;
+		color: var(--sc-on-accent);
+		background: var(--sc-accent);
+		font-size: 14px;
 		text-decoration: none;
+		font-weight: 600;
 	}
-
-	.activity-card a {
-		justify-self: start;
-		border: 1px solid var(--sc-border-strong);
+	.new-activity:hover {
+		background: var(--sc-accent-hover);
+	}
+	.activity-filters {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.activity-filters label {
+		min-width: 0;
+	}
+	.search {
+		flex: 1;
+	}
+	.activity-filters input,
+	.activity-filters select {
+		width: 100%;
+		min-height: 44px;
+		border: 1px solid var(--sc-control-border);
+		border-radius: 7px;
+		padding: 10px 12px;
 		background: var(--sc-surface);
-		padding: 0 14px;
 		color: var(--sc-ink);
+		font: inherit;
+		font-size: 14px;
 	}
-
-	.form-message {
-		border: 1px solid #bfdbfe;
-		background: #eff6ff;
-		border-radius: 8px;
-		padding: 12px 14px;
-		color: #1e3a8a;
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
 	}
-
 	.activity-list {
 		display: grid;
-		gap: 12px;
+		border: 1px solid var(--sc-border);
+		border-radius: 10px;
+		background: var(--sc-surface);
+		overflow: hidden;
 	}
-
-	.card-main,
-	.finance-strip,
-	.meta-grid {
+	.activity-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 16px;
+		padding: 18px 20px;
+		color: var(--sc-ink);
+		text-decoration: none;
+		border-bottom: 1px solid var(--sc-border);
+	}
+	.activity-row:last-child {
+		border-bottom: 0;
+	}
+	.activity-row:hover {
+		background: var(--sc-inset);
+	}
+	.activity-row:focus-visible,
+	.new-activity:focus-visible {
+		outline: 2px solid var(--sc-focus);
+		outline-offset: -3px;
+	}
+	.activity-identity {
+		display: grid;
+		gap: 5px;
+		min-width: 0;
+	}
+	.activity-type {
+		color: var(--sc-muted);
+		font-size: 12px;
+	}
+	h2 {
+		font-size: 17px;
+		line-height: 1.4;
+		font-weight: 600;
+		overflow-wrap: anywhere;
+	}
+	.activity-meta {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 10px;
 		align-items: center;
+		gap: 5px 16px;
+		color: var(--sc-muted);
+		font-size: 13px;
 	}
-
-	.card-main {
-		justify-content: space-between;
+	.activity-meta span {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
 	}
-
+	.coordinator {
+		font-size: 12px;
+		color: var(--sc-muted);
+	}
+	.activity-trailing {
+		display: grid;
+		justify-items: end;
+		gap: 10px;
+		flex-shrink: 0;
+	}
+	.activity-trailing > :global(svg) {
+		color: var(--sc-muted);
+	}
+	.activity-trailing small {
+		color: var(--sc-muted);
+		font-size: 12px;
+	}
+	.activity-trailing small.needs-attention {
+		color: var(--sc-danger);
+	}
 	.status {
-		border-radius: 999px;
-		padding: 5px 9px;
-		background: #eef2ff;
-		color: #3730a3;
-		font-size: 0.78rem;
-		font-weight: 600;
+		padding: 4px 8px;
+		border-radius: 6px;
+		background: var(--sc-inset);
+		color: var(--sc-muted);
+		font-size: 12px;
+		white-space: nowrap;
 	}
-
-	.status.active {
-		background: #dcfce7;
-		color: #166534;
+	.status[data-status='active'] {
+		background: var(--sc-success-soft);
+		color: var(--sc-success);
 	}
-
-	.status.completed {
-		background: #e0f2fe;
-		color: #075985;
+	.status[data-status='cancelled'] {
+		background: var(--sc-accent-soft);
+		color: var(--sc-danger);
 	}
-
-	.status.cancelled {
-		background: #fee2e2;
-		color: var(--sc-accent-hover);
-	}
-
-	.finance-strip span {
-		border-radius: 8px;
-		background: var(--sc-canvas);
-		padding: 8px 10px;
-		color: var(--sc-ink);
-		font-size: 0.88rem;
-		font-weight: 700;
-	}
-
 	.empty-state {
-		min-height: 180px;
-		align-content: center;
-		text-align: center;
+		padding: 32px 20px;
+		display: grid;
+		gap: 8px;
 	}
-
-	@media (max-width: 900px) {
-		.content-grid {
-			grid-template-columns: 1fr;
+	.empty-state p {
+		color: var(--sc-muted);
+		line-height: 1.5;
+	}
+	.form-message {
+		padding: 12px 14px;
+		border-radius: 8px;
+		background: var(--sc-info-soft);
+		color: var(--sc-info);
+	}
+	@media (max-width: 600px) {
+		.activities-page {
+			gap: 16px;
+		}
+		.page-heading {
+			align-items: start;
+		}
+		.page-heading > div {
+			display: grid;
+			gap: 3px;
+		}
+		.new-activity {
+			padding: 8px 10px;
+			font-size: 13px;
+		}
+		.activity-row {
+			align-items: start;
+			gap: 10px;
+			padding: 14px 12px;
+		}
+		.activity-trailing {
+			max-width: 108px;
+		}
+		.status {
+			white-space: normal;
+			text-align: right;
+		}
+		.activity-meta {
+			font-size: 12px;
+		}
+		h2 {
+			font-size: 15px;
+		}
+		.coordinator {
+			display: none;
+		}
+		.activity-filters select {
+			max-width: 152px;
+			font-size: 13px;
 		}
 	}
 
-	@media (max-width: 560px) {
-		.activity-card a {
-			width: 100%;
-		}
+	input:not([type='hidden']):not([type='checkbox']):not([type='radio']),
+	select {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
 	}
 </style>

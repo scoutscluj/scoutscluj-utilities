@@ -110,14 +110,14 @@
 	}
 
 	button {
-		min-height: 38px;
+		min-height: 44px;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		border: 0;
 		border-radius: 8px;
-		background: #0f766e;
-		color: var(--sc-surface);
+		background: var(--sc-accent);
+		color: var(--sc-on-accent);
 		padding: 0 12px;
 		font-weight: 600;
 		cursor: pointer;
@@ -131,5 +131,12 @@
 		.event-form .wide {
 			grid-column: auto;
 		}
+	}
+
+	input:not([type='hidden']):not([type='checkbox']):not([type='radio']),
+	select {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
 	}
 </style>

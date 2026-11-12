@@ -188,7 +188,7 @@
 		white-space: pre-wrap;
 	}
 	button {
-		min-height: 38px;
+		min-height: 44px;
 		border: 1px solid var(--sc-border);
 		border-radius: 7px;
 		background: var(--sc-surface);
@@ -201,5 +201,11 @@
 		.consent-layout {
 			grid-template-columns: minmax(0, 1fr);
 		}
+	}
+
+	textarea {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
 	}
 </style>

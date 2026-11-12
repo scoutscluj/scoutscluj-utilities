@@ -259,7 +259,7 @@
 	.department-items a:hover,
 	.active {
 		background: var(--sc-accent-soft);
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 	}
 
 	.group-items {
@@ -285,7 +285,7 @@
 
 	.department-heading {
 		padding: 6px 10px 2px;
-		color: #475569;
+		color: var(--sc-ink);
 		font-size: 0.84rem;
 		font-weight: 600;
 	}
@@ -305,8 +305,8 @@
 
 	.utility-label {
 		padding: 0 10px;
-		color: #94a3b8;
-		font-size: 0.66rem;
+		color: var(--sc-muted);
+		font-size: 0.75rem;
 		font-weight: 600;
 		text-transform: uppercase;
 	}
@@ -314,9 +314,9 @@
 	.department-items a {
 		min-height: 30px;
 		padding: 0 10px;
-		color: #475569;
+		color: var(--sc-ink);
 		font-size: 0.84rem;
-		font-weight: 720;
+		font-weight: 500;
 	}
 
 	.department-items a.utility-link {
@@ -324,7 +324,21 @@
 	}
 
 	.disabled {
-		color: #94a3b8;
+		color: var(--sc-muted);
 		cursor: not-allowed;
+	}
+	.department-items a.active {
+		color: var(--sc-link);
+	}
+	@media (max-width: 899px) {
+		.group-button,
+		.activity-link,
+		.department-items a,
+		.settings-submenu a {
+			min-height: 44px;
+		}
+		.activity-heading {
+			grid-template-columns: minmax(0, 1fr) 44px;
+		}
 	}
 </style>

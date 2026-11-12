@@ -175,11 +175,28 @@
 			busy = false;
 		}
 	}
+	function revealInvalidFields(node: HTMLElement) {
+		const reveal = (event: Event) => {
+			if (!(event.target instanceof HTMLElement)) return;
+			let disclosure = event.target.closest('details');
+			while (disclosure) {
+				disclosure.open = true;
+				disclosure = disclosure.parentElement?.closest('details') ?? null;
+			}
+		};
+		node.addEventListener('invalid', reveal, true);
+		return {
+			destroy() {
+				node.removeEventListener('invalid', reveal, true);
+			}
+		};
+	}
 </script>
 
 <svelte:element
 	this={embedded ? 'div' : 'form'}
 	class="settings-form"
+	use:revealInvalidFields
 	onsubmit={(e: SubmitEvent) => {
 		e.preventDefault();
 		void save();
@@ -218,11 +235,10 @@
 		hidden={section !== 'all' && section !== 'consent'}
 		disabled={section !== 'all' && section !== 'consent'}
 	>
-		<legend>Acord parental · format fix</legend>
+		<legend>Acord parental</legend>
 		<p>
-			Folosim formatul documentului Cântul Vâlvelor 2026. Textele generale și structura documentului
-			sunt fixe; editorul de șabloane este suspendat temporar. Completează mai jos informațiile
-			specifice acestei activități. Numele, perioada și locația sunt preluate din activitate.
+			Completează activitățile, transportul și echipamentul pentru acord. Numele, perioada și locul
+			sunt preluate automat din activitate.
 		</p>
 		{#if !settings.consent}<button
 				type="button"
@@ -379,211 +395,231 @@
 			decid manual.
 		</p>
 	</fieldset>
-	<fieldset
-		id="reduceri-familie"
-		hidden={section !== 'all' && section !== 'payment'}
-		disabled={section !== 'all' && section !== 'payment'}
-	>
-		<legend>Reduceri de familie</legend>
-		<p>
-			Tarifele se aplică după confirmarea grupului familial participant la aceeași activitate.
-			Ultimul tarif se aplică și următorilor membri.
-		</p>
-		{#each settings.familyFees as value, index (index)}<div class="row">
-				<label
-					>Membrul {index + 1}, lei<input
-						type="number"
-						min="0"
-						step="0.01"
-						value={value / 100}
-						oninput={(e) =>
-							(settings.familyFees[index] = Math.round(Number(e.currentTarget.value) * 100))}
-					/></label
-				><button
-					type="button"
-					class="secondary"
-					onclick={() => settings.familyFees.splice(index, 1)}>Elimină tariful {index + 1}</button
-				>
-			</div>{/each}
-		<button
-			type="button"
-			class="secondary"
-			onclick={() => settings.familyFees.push(settings.feeBani)}>Adaugă tarif de familie</button
+	<details class="advanced-section" hidden={section !== 'all' && section !== 'payment'}>
+		<summary>Reduceri de familie · {settings.familyFees.length} tarife</summary>
+		<fieldset
+			id="reduceri-familie"
+			hidden={section !== 'all' && section !== 'payment'}
+			disabled={section !== 'all' && section !== 'payment'}
 		>
-	</fieldset>
-	<fieldset
-		id="transe"
-		hidden={section !== 'all' && section !== 'payment'}
-		disabled={section !== 'all' && section !== 'payment'}
-	>
-		<legend>Tranșe</legend>
-		<p>
-			Fără tranșe, se achită soldul integral. Pentru taxele reduse, tranșele se limitează la taxa
-			participantului; soldul neacoperit de tranșe rămâne achitabil. Tranșele cash rămân în sold și
-			se validează la primirea participantului. Plata cu cardul le exclude.
-		</p>
-		{#each settings.installments as installment, index (index)}<div class="row">
-				<label
-					>Suma, lei<input
-						type="number"
-						min="0.01"
-						step="0.01"
-						required
-						value={installment.amountBani / 100}
-						oninput={(e) =>
-							(installment.amountBani = Math.round(Number(e.currentTarget.value) * 100))}
-					/></label
-				><label
-					>Modalitate<select
-						value={installment.method ?? 'platform'}
-						onchange={(e) => (installment.method = e.currentTarget.value as 'platform' | 'cash')}
-						><option value="platform">Card / transfer / înregistrare manuală</option><option
-							value="cash">Doar cash la predare</option
-						></select
-					></label
-				><label>Scadența<DateInput type="date" bind:value={installment.due} required /></label
-				><button
-					type="button"
-					class="secondary"
-					onclick={() => settings.installments.splice(index, 1)}>Elimină tranșa {index + 1}</button
-				>
-			</div>{/each}
-		<button
-			type="button"
-			class="secondary"
-			onclick={() =>
-				settings.installments.push({
-					amountBani: 0,
-					due: '',
-					key: crypto.randomUUID(),
-					method: 'platform'
-				})}>Adaugă tranșă</button
-		>
-		{#if !embedded}<p>
-				Modificările se aplică înscrierilor viitoare. Pentru cele existente, salvează și aplică
-				explicit planul.
+			<legend class="sr-only">Reduceri de familie</legend>
+			<p>
+				Tarifele se aplică după confirmarea grupului familial participant la aceeași activitate.
+				Ultimul tarif se aplică și următorilor membri.
 			</p>
+			{#each settings.familyFees as value, index (index)}<div class="row">
+					<label
+						>Membrul {index + 1}, lei<input
+							type="number"
+							min="0"
+							step="0.01"
+							value={value / 100}
+							oninput={(e) =>
+								(settings.familyFees[index] = Math.round(Number(e.currentTarget.value) * 100))}
+						/></label
+					><button
+						type="button"
+						class="secondary"
+						onclick={() => settings.familyFees.splice(index, 1)}>Elimină tariful {index + 1}</button
+					>
+				</div>{/each}
 			<button
 				type="button"
 				class="secondary"
-				disabled={busy || JSON.stringify(settings) !== baseline}
-				onclick={() => (applyOpen = true)}>Aplică planul salvat înscrierilor existente</button
-			>{/if}
-	</fieldset>
-	<fieldset
-		id="intrebari"
-		hidden={section !== 'all' && section !== 'registration'}
-		disabled={section !== 'all' && section !== 'registration'}
-	>
-		<legend>Întrebări suplimentare</legend>
-		{#each settings.questions as question, index (index)}<div class="question">
-				<div class="grid">
+				onclick={() => settings.familyFees.push(settings.feeBani)}>Adaugă tarif de familie</button
+			>
+		</fieldset>
+	</details>
+	<details class="advanced-section" hidden={section !== 'all' && section !== 'payment'}>
+		<summary>Tranșe · {settings.installments.length} tranșe</summary>
+		<fieldset
+			id="transe"
+			hidden={section !== 'all' && section !== 'payment'}
+			disabled={section !== 'all' && section !== 'payment'}
+		>
+			<legend class="sr-only">Tranșe</legend>
+			<p>
+				Fără tranșe, se achită soldul integral. Pentru taxele reduse, tranșele se limitează la taxa
+				participantului; soldul neacoperit de tranșe rămâne achitabil. Tranșele cash rămân în sold
+				și se validează la primirea participantului. Plata cu cardul le exclude.
+			</p>
+			{#each settings.installments as installment, index (index)}<div class="row">
 					<label
-						>Identificator<input
-							bind:value={question.code}
-							pattern="[a-z][a-z0-9_]*"
+						>Suma, lei<input
+							type="number"
+							min="0.01"
+							step="0.01"
 							required
+							value={installment.amountBani / 100}
+							oninput={(e) =>
+								(installment.amountBani = Math.round(Number(e.currentTarget.value) * 100))}
 						/></label
-					><label>Întrebare<input bind:value={question.label} required /></label><label
-						>Tip<select bind:value={question.type}
-							><option value="text">Text</option><option value="choice">O singură alegere</option
-							><option value="multiple">Alegeri multiple</option><option value="number"
-								>Număr</option
-							><option value="date">Dată</option></select
+					><label
+						>Modalitate<select
+							value={installment.method ?? 'platform'}
+							onchange={(e) => (installment.method = e.currentTarget.value as 'platform' | 'cash')}
+							><option value="platform">Card / transfer / înregistrare manuală</option><option
+								value="cash">Doar cash la predare</option
+							></select
+						></label
+					><label>Scadența<DateInput type="date" bind:value={installment.due} required /></label
+					><button
+						type="button"
+						class="secondary"
+						onclick={() => settings.installments.splice(index, 1)}
+						>Elimină tranșa {index + 1}</button
+					>
+				</div>{/each}
+			<button
+				type="button"
+				class="secondary"
+				onclick={() =>
+					settings.installments.push({
+						amountBani: 0,
+						due: '',
+						key: crypto.randomUUID(),
+						method: 'platform'
+					})}>Adaugă tranșă</button
+			>
+			{#if !embedded}<p>
+					Modificările se aplică înscrierilor viitoare. Pentru cele existente, salvează și aplică
+					explicit planul.
+				</p>
+				<button
+					type="button"
+					class="secondary"
+					disabled={busy || JSON.stringify(settings) !== baseline}
+					onclick={() => (applyOpen = true)}>Aplică planul salvat înscrierilor existente</button
+				>{/if}
+		</fieldset>
+	</details>
+	<details class="advanced-section" hidden={section !== 'all' && section !== 'registration'}>
+		<summary>Întrebări suplimentare · {settings.questions.length}</summary>
+		<fieldset
+			id="intrebari"
+			hidden={section !== 'all' && section !== 'registration'}
+			disabled={section !== 'all' && section !== 'registration'}
+		>
+			<legend class="sr-only">Întrebări suplimentare</legend>
+			{#each settings.questions as question, index (index)}<div class="question">
+					<div class="grid">
+						<label
+							>Identificator<input
+								bind:value={question.code}
+								pattern="[a-z][a-z0-9_]*"
+								required
+							/></label
+						><label>Întrebare<input bind:value={question.label} required /></label><label
+							>Tip<select bind:value={question.type}
+								><option value="text">Text</option><option value="choice">O singură alegere</option
+								><option value="multiple">Alegeri multiple</option><option value="number"
+									>Număr</option
+								><option value="date">Dată</option></select
+							></label
+						>
+					</div>
+					{#if ['choice', 'multiple'].includes(question.type)}<label
+							>Opțiuni, câte una pe linie<textarea
+								value={question.options.join('\n')}
+								oninput={(e) =>
+									(question.options = e.currentTarget.value.split('\n').filter(Boolean))}
+								required
+							></textarea></label
+						>{/if}
+					<label
+						>Ramuri — fără selecție înseamnă toate<select multiple bind:value={question.branches}
+							>{#each branches as branch (branch.id)}<option value={branch.id}>{branch.name}</option
+								>{/each}</select
 						></label
 					>
-				</div>
-				{#if ['choice', 'multiple'].includes(question.type)}<label
-						>Opțiuni, câte una pe linie<textarea
-							value={question.options.join('\n')}
-							oninput={(e) =>
-								(question.options = e.currentTarget.value.split('\n').filter(Boolean))}
-							required
-						></textarea></label
-					>{/if}
-				<label
-					>Ramuri — fără selecție înseamnă toate<select multiple bind:value={question.branches}
-						>{#each branches as branch (branch.id)}<option value={branch.id}>{branch.name}</option
-							>{/each}</select
-					></label
-				>
-				<label class="choice"
-					><input type="checkbox" bind:checked={question.required} />Obligatorie</label
-				><label class="choice"
-					><input type="checkbox" bind:checked={question.inPdf} />Include răspunsul în acordul PDF</label
-				><button type="button" class="secondary" onclick={() => settings.questions.splice(index, 1)}
-					>Elimină întrebarea</button
-				>
-			</div>{/each}
-		<button
-			type="button"
-			class="secondary"
-			onclick={() =>
-				settings.questions.push({
-					code: `intrebare_${settings.questions.length + 1}`,
-					label: '',
-					type: 'text',
-					required: false,
-					options: [],
-					branches: [],
-					inPdf: false
-				})}>Adaugă întrebare</button
-		>
-	</fieldset>
-	<fieldset
-		id="conditii"
-		hidden={section !== 'all' && section !== 'payment'}
-		disabled={section !== 'all' && section !== 'payment'}
-	>
-		<legend>Condiții de participare și plată</legend><label
-			>Condiții publice de participare, plată și retragere<textarea
-				bind:value={settings.terms}
-				rows="5"
-			></textarea></label
-		>
-	</fieldset>
-	<fieldset
-		id="acces-inscrieri"
-		hidden={section !== 'all' && section !== 'registration'}
-		disabled={section !== 'all' && section !== 'registration'}
-	>
-		<legend>Acces la înscrieri</legend>
-		<details>
-			<summary>Acces delegat la înscrieri</summary>
-			<p>
-				Introdu ID-urile conturilor din Resurse, separate prin virgulă. Acordă acces numai
-				persoanelor desemnate.
-			</p>
-			<label
-				>Responsabili medicali<input
-					value={settings.medicalUserIds.join(', ')}
-					oninput={(e) =>
-						(settings.medicalUserIds = e.currentTarget.value
-							.split(',')
-							.map((v) => Number(v.trim()))
-							.filter((v) => v > 0))}
-				/></label
-			><label
-				>Responsabili administrativi<input
-					value={settings.administrativeUserIds.join(', ')}
-					oninput={(e) =>
-						(settings.administrativeUserIds = e.currentTarget.value
-							.split(',')
-							.map((v) => Number(v.trim()))
-							.filter((v) => v > 0))}
-				/></label
+					<label class="choice"
+						><input type="checkbox" bind:checked={question.required} />Obligatorie</label
+					><label class="choice"
+						><input type="checkbox" bind:checked={question.inPdf} />Include răspunsul în acordul PDF</label
+					><button
+						type="button"
+						class="secondary"
+						onclick={() => settings.questions.splice(index, 1)}>Elimină întrebarea</button
+					>
+				</div>{/each}
+			<button
+				type="button"
+				class="secondary"
+				onclick={() =>
+					settings.questions.push({
+						code: `intrebare_${settings.questions.length + 1}`,
+						label: '',
+						type: 'text',
+						required: false,
+						options: [],
+						branches: [],
+						inPdf: false
+					})}>Adaugă întrebare</button
 			>
-		</details>
-	</fieldset>
-	{#if !embedded}<button disabled={busy}
-			>{busy
-				? 'Se salvează…'
-				: section === 'payment'
-					? 'Salvează setările de plată'
-					: section === 'consent'
-						? 'Salvează acordul'
-						: 'Salvează setările înscrierilor'}</button
-		>{/if}
+		</fieldset>
+	</details>
+	<details class="advanced-section" hidden={section !== 'all' && section !== 'payment'}>
+		<summary>Condiții de participare și plată</summary>
+		<fieldset
+			id="conditii"
+			hidden={section !== 'all' && section !== 'payment'}
+			disabled={section !== 'all' && section !== 'payment'}
+		>
+			<legend class="sr-only">Condiții de participare și plată</legend><label
+				>Condiții publice de participare, plată și retragere<textarea
+					bind:value={settings.terms}
+					rows="5"
+				></textarea></label
+			>
+		</fieldset>
+	</details>
+	<details class="advanced-section" hidden={section !== 'all' && section !== 'registration'}>
+		<summary>Acces delegat la înscrieri</summary>
+		<fieldset
+			id="acces-inscrieri"
+			hidden={section !== 'all' && section !== 'registration'}
+			disabled={section !== 'all' && section !== 'registration'}
+		>
+			<legend class="sr-only">Acces la înscrieri</legend>
+			<details>
+				<summary>Acces delegat la înscrieri</summary>
+				<p>
+					Introdu ID-urile conturilor din Resurse, separate prin virgulă. Acordă acces numai
+					persoanelor desemnate.
+				</p>
+				<label
+					>Responsabili medicali<input
+						value={settings.medicalUserIds.join(', ')}
+						oninput={(e) =>
+							(settings.medicalUserIds = e.currentTarget.value
+								.split(',')
+								.map((v) => Number(v.trim()))
+								.filter((v) => v > 0))}
+					/></label
+				><label
+					>Responsabili administrativi<input
+						value={settings.administrativeUserIds.join(', ')}
+						oninput={(e) =>
+							(settings.administrativeUserIds = e.currentTarget.value
+								.split(',')
+								.map((v) => Number(v.trim()))
+								.filter((v) => v > 0))}
+					/></label
+				>
+			</details>
+		</fieldset>
+	</details>
+	{#if !embedded && (section !== 'consent' || settings.consent)}<div class="save-actions">
+			<button disabled={busy}
+				>{busy
+					? 'Se salvează…'
+					: section === 'payment'
+						? 'Salvează setările de plată'
+						: section === 'consent'
+							? 'Salvează acordul'
+							: 'Salvează setările înscrierilor'}</button
+			>
+		</div>{/if}
 </svelte:element>
 
 <Modal
@@ -595,6 +631,72 @@
 >
 
 <style>
+	.advanced-section[hidden] {
+		display: none;
+	}
+	.advanced-section {
+		border: 1px solid var(--sc-border);
+		border-radius: 10px;
+		background: var(--sc-surface);
+	}
+	.advanced-section > summary {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		cursor: pointer;
+		min-height: 48px;
+		padding: 12px 16px;
+		font-weight: 600;
+		font-size: 14px;
+		color: var(--sc-ink);
+	}
+	.advanced-section > summary::before {
+		content: '›';
+		color: var(--sc-muted);
+		font-size: 20px;
+		line-height: 1;
+	}
+	.advanced-section[open] > summary::before {
+		transform: rotate(90deg);
+	}
+	.advanced-section > summary:focus-visible {
+		outline: 2px solid var(--sc-focus);
+		outline-offset: 2px;
+		border-radius: 8px;
+	}
+	.advanced-section > fieldset {
+		border: 0;
+		border-top: 1px solid var(--sc-border);
+		border-radius: 0;
+		padding: 16px;
+	}
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+	}
+	.save-actions {
+		position: sticky;
+		bottom: 0;
+		display: flex;
+		padding: 10px 0;
+		background: var(--sc-canvas);
+		border-top: 1px solid var(--sc-border);
+	}
+	.save-actions button {
+		min-height: 44px;
+	}
+	@media (max-width: 600px) {
+		.save-actions button {
+			width: 100%;
+		}
+		fieldset {
+			padding: 16px;
+		}
+	}
+
 	fieldset[hidden] {
 		display: none;
 	}
@@ -652,12 +754,12 @@
 	}
 	button {
 		width: fit-content;
-		min-height: 38px;
+		min-height: 44px;
 		padding: 10px 16px;
 		border: 0;
 		border-radius: 7px;
 		background: var(--sc-accent);
-		color: #fff;
+		color: var(--sc-on-accent);
 		cursor: pointer;
 	}
 	button:disabled {
@@ -692,5 +794,13 @@
 		.grid {
 			grid-template-columns: 1fr;
 		}
+	}
+
+	input:not([type='hidden']):not([type='checkbox']):not([type='radio']),
+	select,
+	textarea {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
 	}
 </style>

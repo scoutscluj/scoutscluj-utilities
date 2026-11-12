@@ -224,12 +224,12 @@
 	}
 	button {
 		width: fit-content;
-		min-height: 38px;
+		min-height: 44px;
 		border: 1px solid var(--sc-border);
 		border-radius: 7px;
 		padding: 10px 16px;
 		background: var(--sc-surface);
-		color: var(--sc-accent);
+		color: var(--sc-link);
 		cursor: pointer;
 	}
 	button:disabled {
@@ -237,5 +237,13 @@
 	}
 	p {
 		line-height: 1.6;
+	}
+
+	input:not([type='hidden']):not([type='checkbox']):not([type='radio']),
+	select,
+	textarea {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
 	}
 </style>

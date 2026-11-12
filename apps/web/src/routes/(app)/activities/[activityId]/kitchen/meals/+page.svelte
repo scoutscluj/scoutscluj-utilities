@@ -63,7 +63,7 @@
 	{#if selectedDay}
 		<section class="slot-grid">
 			{#each slotEntries as [slot, label] (slot)}
-				<article class="slot">
+				<article class="slot" class:empty={!mealsFor(slot).length}>
 					<h2>{label}</h2>
 					{#if mealsFor(slot).length}
 						{#each mealsFor(slot) as meal (meal.id)}
@@ -263,15 +263,15 @@
 
 	.slot-grid {
 		display: grid;
-		grid-template-columns: repeat(5, minmax(190px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
 		gap: 10px;
-		overflow-x: auto;
+		overflow-x: visible;
 	}
 
 	.slot,
 	.meal-card,
 	.form-message {
-		border: 1px solid #dbe3ef;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
 		background: var(--sc-surface);
 		padding: 12px;
@@ -285,8 +285,8 @@
 	}
 
 	.recipe-row.stale {
-		border-color: #f59e0b;
-		background: #fffbeb;
+		border-color: var(--sc-warning);
+		background: var(--sc-warning-soft);
 	}
 
 	.recipe-row div:first-child {
@@ -320,7 +320,7 @@
 		border-radius: 8px;
 		background: var(--sc-surface);
 		padding: 18px;
-		box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
+		box-shadow: var(--sc-shadow);
 	}
 
 	label {
@@ -343,11 +343,11 @@
 	}
 
 	button {
-		min-height: 36px;
+		min-height: 44px;
 		border: 0;
 		border-radius: 8px;
-		background: #0f766e;
-		color: var(--sc-surface);
+		background: var(--sc-accent);
+		color: var(--sc-on-accent);
 		padding: 0 11px;
 		font-weight: 600;
 		cursor: pointer;
@@ -369,24 +369,24 @@
 	}
 
 	.day-tabs button.active {
-		border-color: #0f766e;
-		color: #0f766e;
+		border-color: var(--sc-link);
+		color: var(--sc-success);
 	}
 
 	.day-tabs button.outside {
-		border-color: #fbbf24;
-		background: #fffbeb;
+		border-color: var(--sc-warning);
+		background: var(--sc-warning-soft);
 	}
 
 	.danger {
-		border: 1px solid #fecaca;
+		border: 1px solid var(--sc-border-strong);
 		background: var(--sc-surface);
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 	}
 
 	.danger-text,
 	.warning {
-		color: #92400e;
+		color: var(--sc-warning);
 	}
 
 	h1,
@@ -421,5 +421,47 @@
 		.compact-form:not(:has(textarea)) {
 			grid-template-columns: 1fr;
 		}
+	}
+
+	input:not([type='hidden']):not([type='checkbox']):not([type='radio']),
+	select,
+	textarea {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
+	}
+
+	.slot-grid {
+		align-items: start;
+	}
+	.slot {
+		align-content: start;
+		min-width: 0;
+	}
+	@media (max-width: 1200px) {
+		.slot-grid {
+			grid-template-columns: minmax(0, 1fr);
+			overflow: visible;
+		}
+		.slot.empty {
+			min-height: 80px;
+			gap: 8px;
+		}
+		.slot.empty h2 {
+			font-size: 16px;
+		}
+	}
+
+	.meal-card,
+	.recipe-list,
+	.recipe-row,
+	.recipe-row div,
+	.meal-heading > div {
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+	.slot .compact-form,
+	.slot .compact-form:not(:has(textarea)) {
+		grid-template-columns: minmax(0, 1fr);
 	}
 </style>

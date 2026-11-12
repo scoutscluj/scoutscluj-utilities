@@ -30,6 +30,18 @@
 		if (!data.registry.delegableRoles?.includes(role))
 			role = data.registry.delegableRoles?.[0] ?? 'helper';
 	});
+	const profileGroups = [
+		{ title: 'Contacte personale', keys: ['email', 'phone'] },
+		{
+			title: 'Părinte și contact de urgență',
+			keys: ['parentName', 'parentPhone', 'parentEmail', 'emergencyName', 'emergencyPhone']
+		},
+		{
+			title: 'Sănătate și alte nevoi',
+			keys: ['medical', 'allergies', 'medication', 'dietary', 'needs'],
+			sensitive: true
+		}
+	];
 	const structures = $derived(data.registry.structures ?? []);
 	const units = $derived(data.registry.units.filter((u) => !u.parentId && !u.archived));
 	const name = (id: string | null) => unitName(data.registry.units, id, 'Centru / fără unitate');
@@ -53,8 +65,8 @@
 	<header>
 		<div>
 			<h1>{m.name}</h1>
-			<p>{structures.find((st) => st.id === (m.structureId ?? 'cluj'))?.name}</p>
-			<p>
+			<p class="member-affiliation">
+				{structures.find((st) => st.id === (m.structureId ?? 'cluj'))?.name} ·
 				{name(m.unitId)}{m.groupId ? ` / ${name(m.groupId)}` : ''} · {m.status === 'active'
 					? 'Activ'
 					: m.status === 'review'
@@ -62,10 +74,18 @@
 						: 'Retras din activitate'}
 			</p>
 		</div>
-		<span class="badge">{m.orgoId ? `Orgo #${m.orgoId}` : 'Identitate Orgo în așteptare'}</span>
+		<span class="badge" class:pending={!m.orgoId}
+			>{m.orgoId ? `Orgo #${m.orgoId}` : 'Identitate Orgo în așteptare'}</span
+		>
 	</header>
 	{#if form?.message}<p role="status" class="notice">{form.message}</p>{/if}
-	<section>
+	<nav class="profile-navigation" aria-label="Secțiunile fișei">
+		<a href="#member-profile">Fișa membrului</a>
+		{#if a.fees}<a href="#member-fees">Cotizații</a>{/if}
+		<a href="#member-responsibilities">Responsabilități</a>
+		{#if a.notes}<a href="#member-notes">Notițe</a>{/if}
+	</nav>
+	<section id="member-profile">
 		<h2>Fișa membrului</h2>
 		<form method="POST">
 			<input type="hidden" name="action" value="profile" /><input
@@ -73,78 +93,88 @@
 				name="revision"
 				value={m.revision}
 			/>
-			<div class="grid">
-				<label
-					>Prenume<input
-						name={a.identity ? 'firstName' : undefined}
-						value={String(m.orgoProfile?.firstName ?? '')}
-						readonly={!a.identity}
-						required={a.identity}
-					/></label
-				>
-				<label
-					>Nume de familie<input
-						name={a.identity ? 'lastName' : undefined}
-						value={String(m.orgoProfile?.lastName ?? '')}
-						readonly={!a.identity}
-						required={a.identity}
-					/></label
-				>
-				<label
-					>Alte prenume<input
-						name={a.identity ? 'middleName' : undefined}
-						value={String(m.orgoProfile?.middleName ?? '')}
-						readonly={!a.identity}
-					/></label
-				>
-				<label
-					>Data nașterii<DateInput
-						type="date"
-						name={a.identity ? 'birthDate' : undefined}
-						value={m.birthDate ?? ''}
-						readonly={!a.identity}
-					/></label
-				>
-				{#if hasSchoolGrade(m)}<label
-						>Clasa<input
-							type="number"
-							min="0"
-							max="12"
-							name={a.edit ? 'grade' : undefined}
-							value={m.grade ?? ''}
-							readonly={!a.edit}
+			<details class="profile-group" open>
+				<summary>Identitate și clasă</summary>
+				<div class="grid">
+					<label
+						>Prenume<input
+							name={a.identity ? 'firstName' : undefined}
+							value={String(m.orgoProfile?.firstName ?? '')}
+							readonly={!a.identity}
+							required={a.identity}
 						/></label
 					>
-				{/if}
-				{#if a.edit && hasSchoolGrade(m)}<label
-						>Excepție de la progresia anuală (an)<input
-							type="number"
-							name="skipProgressionYear"
-							value={m.skipProgressionYear ?? ''}
-							placeholder="Fără excepție"
+					<label
+						>Nume de familie<input
+							name={a.identity ? 'lastName' : undefined}
+							value={String(m.orgoProfile?.lastName ?? '')}
+							readonly={!a.identity}
+							required={a.identity}
 						/></label
-					>{/if}
-				{#each Object.entries(profileLabels).filter(([key]) => a.sensitive || !['medical', 'allergies', 'medication', 'dietary', 'needs'].includes(key)) as [key, label] (key)}<label
-						>{label}{#if key === 'dietary' && dietaryChoices.length}<select
-								name={a.edit || a.own ? 'profile.dietary' : undefined}
-								disabled={!a.edit && !a.own}
-								value={m.profile.dietary ?? ''}
-								><option value="">Nespecificat</option
-								>{#each dietaryChoices as choice (choice)}<option value={choice}>{choice}</option
-									>{/each}</select
-							>{:else if ['medical', 'allergies', 'medication', 'dietary', 'needs'].includes(key)}<textarea
-								name={a.edit || a.own ? `profile.${key}` : undefined}
-								readonly={!a.edit && !a.own}
-								maxlength="4000"
-								rows="3">{m.profile[key] ?? ''}</textarea
-							>{:else}<input
-								name={a.edit || a.own ? `profile.${key}` : undefined}
-								value={m.profile[key] ?? ''}
-								readonly={!a.edit && !a.own}
-								maxlength="255"
-							/>{/if}</label
-					>{/each}
-			</div>
+					>
+					<label
+						>Alte prenume<input
+							name={a.identity ? 'middleName' : undefined}
+							value={String(m.orgoProfile?.middleName ?? '')}
+							readonly={!a.identity}
+						/></label
+					>
+					<label
+						>Data nașterii<DateInput
+							type="date"
+							name={a.identity ? 'birthDate' : undefined}
+							value={m.birthDate ?? ''}
+							readonly={!a.identity}
+						/></label
+					>
+					{#if hasSchoolGrade(m)}<label
+							>Clasa<input
+								type="number"
+								min="0"
+								max="12"
+								name={a.edit ? 'grade' : undefined}
+								value={m.grade ?? ''}
+								readonly={!a.edit}
+							/></label
+						>
+					{/if}
+					{#if a.edit && hasSchoolGrade(m)}<label
+							>Excepție de la progresia anuală (an)<input
+								type="number"
+								name="skipProgressionYear"
+								value={m.skipProgressionYear ?? ''}
+								placeholder="Fără excepție"
+							/></label
+						>{/if}
+				</div>
+			</details>
+			{#each profileGroups.filter((group) => !group.sensitive || a.sensitive) as group (group.title)}
+				<details class="profile-group">
+					<summary>{group.title}</summary>
+					<div class="grid">
+						{#each Object.entries(profileLabels).filter( ([key]) => group.keys.includes(key) ) as [key, label] (key)}<label
+								>{label}{#if key === 'dietary' && dietaryChoices.length}<select
+										name={a.edit || a.own ? 'profile.dietary' : undefined}
+										disabled={!a.edit && !a.own}
+										value={m.profile.dietary ?? ''}
+										><option value="">Nespecificat</option
+										>{#each dietaryChoices as choice (choice)}<option value={choice}
+												>{choice}</option
+											>{/each}</select
+									>{:else if ['medical', 'allergies', 'medication', 'dietary', 'needs'].includes(key)}<textarea
+										name={a.edit || a.own ? `profile.${key}` : undefined}
+										readonly={!a.edit && !a.own}
+										maxlength="4000"
+										rows="3">{m.profile[key] ?? ''}</textarea
+									>{:else}<input
+										name={a.edit || a.own ? `profile.${key}` : undefined}
+										value={m.profile[key] ?? ''}
+										readonly={!a.edit && !a.own}
+										maxlength="255"
+									/>{/if}</label
+							>{/each}
+					</div>
+				</details>{/each}
 			{#if a.edit || a.own}<button>Salvează fișa</button>{/if}
 		</form>
 		<p class="hint">
@@ -153,7 +183,7 @@
 		</p>
 	</section>
 	<OrgoProfile detail={data.detail} />
-	{#if a.notes}<section>
+	{#if a.notes}<section id="member-notes">
 			<h2>Notițe interne</h2>
 			<p class="hint">
 				Vizibile liderilor unității curente. Nu sunt trimise în Orgo (membri.scout.ro) sau afișate
@@ -170,7 +200,7 @@
 					><button>Adaugă notiță</button>
 				</form>{/if}
 		</section>{/if}
-	{#if a.fees}<section>
+	{#if a.fees}<section id="member-fees">
 			<h2>Cotizații și adeziune</h2>
 			{#if data.nationalMessage}<p role="status">{data.nationalMessage}</p>{/if}
 			{#each data.detail.fees as fee (fee.period)}
@@ -191,17 +221,17 @@
 					>
 				</p>{/if}
 			<div class="table">
-				<TableView label="Caută în tabel"
+				<TableView label="Caută cotizația" paginated={false} compact
 					><table>
 						<thead><tr><th>Perioadă</th><th>Total</th><th>Plătit</th><th>Rămas</th></tr></thead
 						><tbody
 							>{#each data.detail.fees as fee (fee.period)}<tr
-									><td
+									><td data-label="Perioadă"
 										>{fee.period}{#if !fee.collectible}<small>În afara urmăririi la plată</small
 											>{/if}</td
-									><td>{money(fee.totalBani)}</td><td>{money(fee.paidBani)}</td><td
-										>{money(fee.remainingBani)}</td
-									></tr
+									><td data-label="Total">{money(fee.totalBani)}</td><td data-label="Plătit"
+										>{money(fee.paidBani)}</td
+									><td data-label="Rămas">{money(fee.remainingBani)}</td></tr
 								>{:else}<tr><td colspan="4">Nu există cotizații asociate.</td></tr>{/each}</tbody
 						>
 					</table></TableView
@@ -274,7 +304,7 @@
 				</form>{/if}
 		</section>{/if}
 	<section>
-		<h2>Responsabilități și istoric</h2>
+		<h2 id="member-responsibilities">Responsabilități și istoric</h2>
 		{#each data.detail.assignments as assignment (assignment.id)}<article class="assignment">
 				<div>
 					<strong>{roleLabels[assignment.role] ?? assignment.role}</strong>
@@ -388,7 +418,8 @@
 		max-width: 1100px;
 		margin: auto;
 		display: grid;
-		gap: 24px;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 16px;
 		color: var(--sc-ink);
 	}
 	header {
@@ -398,10 +429,51 @@
 		gap: 15px;
 	}
 	h1 {
-		font-size: 2rem;
-		margin: 8px 0;
+		font-size: 1.75rem;
+		line-height: 1.2;
+		margin: 0 0 6px;
+	}
+	.profile-navigation {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+	.profile-navigation a {
+		min-height: 44px;
+		display: inline-flex;
+		align-items: center;
+		padding: 8px 12px;
+		border: 1px solid var(--sc-control-border);
+		border-radius: 8px;
+		background: var(--sc-surface);
+		font-size: 14px;
+	}
+	.profile-group {
+		margin: 0;
+		border-bottom: 1px solid var(--sc-border);
+	}
+	.profile-group > summary {
+		min-height: 48px;
+		align-content: center;
+		padding: 12px 0;
+		color: var(--sc-ink);
+		font-weight: 600;
+	}
+	.profile-group > .grid {
+		padding: 4px 0 20px;
+	}
+	[id] {
+		scroll-margin-top: 88px;
+	}
+	.member-affiliation {
+		white-space: normal;
+		text-align: left;
+		margin: 0;
+		font-size: 14px;
+		color: var(--sc-muted);
 	}
 	section {
+		min-width: 0;
 		padding: 24px;
 		border: 1px solid var(--sc-border);
 		border-radius: 14px;
@@ -428,27 +500,42 @@
 	button {
 		font: inherit;
 		padding: 10px;
-		border: 1px solid var(--sc-border-strong);
+		border: 1px solid var(--sc-control-border);
 		border-radius: 7px;
 		min-width: 0;
 	}
+	input,
+	select,
+	textarea {
+		background: var(--sc-surface);
+		color: var(--sc-ink);
+	}
+	input::placeholder,
+	textarea::placeholder {
+		color: var(--sc-muted);
+		opacity: 1;
+	}
+	:is(input, select, textarea, button, summary):focus-visible {
+		outline: 2px solid var(--sc-focus);
+		outline-offset: 2px;
+	}
 	input[readonly],
 	textarea[readonly] {
-		background: #f5f7f6;
+		background: var(--sc-inset);
 	}
 	button {
 		cursor: pointer;
 		background: var(--sc-accent);
-		color: white;
+		color: var(--sc-on-accent);
 		font-weight: 600;
 		margin-top: 16px;
 	}
 	.secondary {
 		background: var(--sc-surface);
-		color: var(--sc-accent);
+		color: var(--sc-link);
 	}
 	.danger {
-		background: #9f352e;
+		background: var(--sc-danger);
 	}
 	.hint,
 	small {
@@ -459,7 +546,7 @@
 		display: block;
 	}
 	a {
-		color: var(--sc-accent);
+		color: var(--sc-link);
 	}
 	p {
 		line-height: 1.6;
@@ -467,9 +554,13 @@
 	}
 	.notice,
 	.badge {
-		background: #eef5ed;
-		padding: 12px;
+		background: var(--sc-success-soft);
+		padding: 8px 10px;
 		border-radius: 8px;
+	}
+	.badge.pending {
+		background: var(--sc-warning-soft);
+		color: var(--sc-warning);
 	}
 	.badge {
 		font-size: 0.8rem;
@@ -498,7 +589,7 @@
 	}
 	summary {
 		cursor: pointer;
-		color: #9f352e;
+		color: var(--sc-danger);
 	}
 	.table {
 		overflow: auto;
@@ -514,12 +605,79 @@
 		border-bottom: 1px solid var(--sc-border);
 	}
 	@media (max-width: 600px) {
-		header,
+		thead {
+			display: none;
+		}
+		table,
+		tbody {
+			display: block;
+		}
+		tbody tr {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 12px;
+			padding: 12px 0;
+			border-bottom: 1px solid var(--sc-border);
+		}
+		td {
+			display: block;
+			border: 0;
+			padding: 0;
+			min-width: 0;
+		}
+		td::before {
+			content: attr(data-label);
+			display: block;
+			margin-bottom: 4px;
+			color: var(--sc-muted);
+			font-size: 12px;
+		}
+		td[colspan] {
+			grid-column: 1 / -1;
+		}
+		td[colspan]::before {
+			display: none;
+		}
+
+		header {
+			flex-wrap: wrap;
+			gap: 8px;
+		}
 		.assignment {
 			display: block;
 		}
 		section {
 			padding: 16px;
+		}
+		.workspace {
+			gap: 16px;
+			min-width: 0;
+		}
+		header > div {
+			min-width: 0;
+		}
+		h1 {
+			font-size: 26px;
+			line-height: 32px;
+			overflow-wrap: anywhere;
+		}
+		.grid {
+			grid-template-columns: minmax(0, 1fr);
+		}
+		input,
+		select,
+		button {
+			min-height: 44px;
+			max-width: 100%;
+			box-sizing: border-box;
+		}
+		.checks label {
+			min-height: 44px;
+		}
+		summary {
+			min-height: 44px;
+			padding: 10px 0;
+			box-sizing: border-box;
 		}
 	}
 </style>

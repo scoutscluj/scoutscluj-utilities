@@ -148,11 +148,11 @@
 	}
 	button {
 		padding: 10px 16px;
-		min-height: 38px;
+		min-height: 44px;
 		border: 0;
 		border-radius: 7px;
 		background: var(--sc-accent);
-		color: white;
+		color: var(--sc-on-accent);
 		cursor: pointer;
 	}
 	button:disabled {
@@ -170,5 +170,11 @@
 		padding: 12px;
 		border: 1px solid var(--sc-border);
 		border-radius: 7px;
+	}
+
+	input:not([type='hidden']):not([type='checkbox']):not([type='radio']) {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
 	}
 </style>

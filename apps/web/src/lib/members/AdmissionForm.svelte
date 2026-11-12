@@ -446,7 +446,7 @@
 		cursor: pointer;
 	}
 	.choices label.selected {
-		border-color: var(--sc-accent);
+		border-color: var(--sc-link);
 		background: var(--sc-accent-soft);
 	}
 	.choices input {
@@ -454,7 +454,7 @@
 		min-height: 18px;
 		margin: 3px 0 0;
 		flex-shrink: 0;
-		accent-color: var(--sc-accent);
+		accent-color: var(--sc-link);
 	}
 	.choices span {
 		display: grid;
@@ -511,7 +511,7 @@
 		min-height: 20px;
 		flex-shrink: 0;
 		margin-top: 2px;
-		accent-color: var(--sc-accent);
+		accent-color: var(--sc-link);
 	}
 	.hint,
 	.age,
@@ -553,7 +553,7 @@
 		border: 0;
 		padding: 0;
 		background: var(--sc-accent);
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 		position: relative;
 		display: grid;
 		place-items: center;
@@ -576,7 +576,7 @@
 		height: 32px;
 		border-radius: 50%;
 		background: var(--sc-surface);
-		color: var(--sc-accent);
+		color: var(--sc-link);
 		border: 1px solid var(--sc-border);
 		display: grid;
 		place-items: center;
@@ -607,7 +607,7 @@
 		padding: 8px;
 	}
 	.error {
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 		margin: 0;
 		font-size: 0.85rem;
 	}
@@ -621,7 +621,7 @@
 		border: 0;
 		border-radius: 7px;
 		background: var(--sc-accent);
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 		font-weight: 600;
 	}
 	.submit:hover {
@@ -634,7 +634,7 @@
 	.text-button {
 		border: 0;
 		background: transparent;
-		color: var(--sc-accent);
+		color: var(--sc-link);
 		padding: 0;
 		text-align: left;
 		justify-self: start;
@@ -643,7 +643,7 @@
 	input:focus-visible,
 	select:focus-visible,
 	button:focus-visible {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 2px;
 	}
 	@media (max-width: 600px) {

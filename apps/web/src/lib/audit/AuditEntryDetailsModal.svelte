@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Modal from '$lib/components/ui/Modal.svelte';
 	import { formatAuditDateTime, type AuditEntry } from './audit-entry';
 	import { formatAuditEntry } from './audit-labels';
 
@@ -13,17 +14,17 @@
 
 {#if entry}
 	{@const display = formatAuditEntry(entry)}
-	<div class="modal-backdrop" role="presentation">
-		<button class="backdrop-button" type="button" aria-label="Închide" onclick={onClose}></button>
-		<div class="modal" role="dialog" aria-modal="true" aria-labelledby="audit-entry-title">
-			<div class="modal-heading">
-				<div>
-					<p class="eyebrow">Detalii audit</p>
-					<h2 id="audit-entry-title">{display.title}</h2>
-				</div>
-				<button class="ghost" type="button" aria-label="Închide" onclick={onClose}>×</button>
-			</div>
-
+	<Modal
+		bind:open={
+			() => !!entry,
+			(open) => {
+				if (!open) onClose();
+			}
+		}
+		title={display.title}
+		description="Detalii audit"
+	>
+		<div class="audit-details">
 			<p class="summary">{display.summary}</p>
 
 			<dl class="meta-list">
@@ -72,58 +73,14 @@
 				<pre>{display.rawDetails}</pre>
 			</section>
 		</div>
-	</div>
+	</Modal>
 {/if}
 
 <style>
-	.modal-backdrop {
-		position: fixed;
-		inset: 0;
-		z-index: 30;
+	.audit-details {
 		display: grid;
-		place-items: center;
-		background: rgba(15, 23, 42, 0.3);
-		padding: 16px;
-	}
-
-	.backdrop-button {
-		position: absolute;
-		inset: 0;
-		border: 0;
-		background: transparent;
-	}
-
-	.modal {
-		position: relative;
-		z-index: 1;
-		display: grid;
-		width: min(760px, 100%);
-		max-height: min(86vh, 760px);
-		overflow: auto;
 		gap: 16px;
-		border-radius: 8px;
-		background: var(--sc-surface);
-		padding: 18px;
-		box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
-	}
-
-	.modal-heading {
-		display: flex;
-		gap: 12px;
-		align-items: flex-start;
-		justify-content: space-between;
-	}
-
-	.ghost {
-		min-width: 34px;
-		min-height: 34px;
-		border: 0;
-		border-radius: 8px;
-		background: var(--sc-canvas);
-		color: var(--sc-ink);
-		font-size: 1.1rem;
-		font-weight: 600;
-		cursor: pointer;
+		min-width: 0;
 	}
 
 	.summary {
@@ -134,7 +91,7 @@
 	.meta-list,
 	.detail-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
 		gap: 10px;
 	}
 
@@ -152,8 +109,7 @@
 	}
 
 	dt,
-	.detail-grid span,
-	.eyebrow {
+	.detail-grid span {
 		color: var(--sc-muted);
 		font-size: 0.72rem;
 		font-weight: 600;
@@ -161,7 +117,6 @@
 	}
 
 	dd,
-	h2,
 	h3,
 	p {
 		margin: 0;
@@ -178,7 +133,6 @@
 		gap: 8px;
 	}
 
-	h2,
 	h3 {
 		color: var(--sc-ink);
 	}

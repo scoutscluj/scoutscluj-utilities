@@ -286,8 +286,12 @@
 		<p class="description">{activity.description}</p>
 		<div class="facts">
 			<span><strong>{money(settings.feeBani)}</strong> taxa de participare</span><span
-				><strong>{data.page.counts.beneficiaries}</strong> beneficiari cu loc</span
-			><span><strong>{data.page.counts.staff}</strong> membri în echipa adultă</span>
+				><strong>{data.page.counts.beneficiaries}</strong>
+				{data.page.counts.beneficiaries === 1 ? 'beneficiar cu loc' : 'beneficiari cu loc'}</span
+			><span
+				><strong>{data.page.counts.staff}</strong>
+				{data.page.counts.staff === 1 ? 'membru în echipa adultă' : 'membri în echipa adultă'}</span
+			>
 		</div>
 
 		{#if settings.closesAt}<aside class="deadline" aria-label="Termen de înscriere">
@@ -849,7 +853,7 @@
 		display: grid;
 		place-items: center;
 		background: var(--sc-accent-soft);
-		color: var(--sc-accent);
+		color: var(--sc-link);
 		border-radius: 8px;
 		font-size: 22px;
 	}
@@ -871,13 +875,13 @@
 		padding: 12px 18px;
 		border-radius: 7px;
 		background: var(--sc-accent);
-		color: white;
+		color: var(--sc-on-accent);
 		text-decoration: none;
 		font-weight: 600;
 	}
 	.secondary-link {
 		background: var(--sc-surface);
-		color: var(--sc-accent);
+		color: var(--sc-link);
 		border: 1px solid var(--sc-border);
 	}
 	#registration,
@@ -926,7 +930,7 @@
 		padding: 24px;
 	}
 	a {
-		color: var(--sc-accent);
+		color: var(--sc-link);
 	}
 	.facts {
 		display: flex;
@@ -965,10 +969,11 @@
 	select,
 	textarea {
 		width: 100%;
+		min-height: 44px;
 		padding: 10px;
-		border: 1px solid var(--sc-border);
+		border: 1px solid var(--sc-control-border);
 		border-radius: 7px;
-		background: var(--sc-surface);
+		background: var(--sc-inset);
 		color: var(--sc-ink);
 		font: inherit;
 	}
@@ -985,10 +990,10 @@
 	}
 	button {
 		width: fit-content;
-		min-height: 38px;
+		min-height: 44px;
 		padding: 10px 16px;
 		background: var(--sc-accent);
-		color: #fff;
+		color: var(--sc-on-accent);
 		border: 0;
 		border-radius: 7px;
 		font: inherit;
@@ -1019,5 +1024,11 @@
 		.grid {
 			grid-template-columns: 1fr;
 		}
+	}
+
+	input::placeholder,
+	textarea::placeholder {
+		color: var(--sc-muted);
+		opacity: 1;
 	}
 </style>

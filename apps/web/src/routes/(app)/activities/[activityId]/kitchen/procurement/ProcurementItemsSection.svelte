@@ -15,63 +15,118 @@
 	{#if event.items.length}
 		<div class="item-list">
 			{#each event.items as item (item.id)}
-				<div class="item-row">
-					<form class="item-form" method="POST" action="?/updateItem">
-						<input type="hidden" name="itemId" value={item.id} />
-						<select name="ingredientId" aria-label="Ingredient">
-							{#each ingredients as ingredient (ingredient.id)}
-								<option value={ingredient.id} selected={item.ingredientId === ingredient.id}>
-									{ingredient.name}
-								</option>
-							{/each}
-						</select>
-						<input name="quantity" type="number" min="0.01" step="0.01" value={item.quantity} />
-						<input name="unit" value={item.unit} />
-						<input
-							name="estimatedTotalCost"
-							type="number"
-							min="0"
-							step="0.01"
-							value={item.estimatedTotalCost ?? ''}
-							placeholder="estimat"
-						/>
-						<input
-							name="realTotalCost"
-							type="number"
-							min="0"
-							step="0.01"
-							value={item.realTotalCost ?? ''}
-							placeholder="real"
-						/>
-						<input name="notes" value={item.notes ?? ''} placeholder="notițe" />
-						<button type="submit">Salvează</button>
-					</form>
-					<form method="POST" action="?/deleteItem">
-						<input type="hidden" name="itemId" value={item.id} />
-						<button class="danger compact" type="submit">Șterge</button>
-					</form>
-				</div>
+				<details class="item-editor">
+					<summary
+						>{item.ingredientName} · {item.quantity} {item.unit} <span>Modifică</span></summary
+					>
+					<div class="item-row">
+						<form class="item-form" method="POST" action="?/updateItem">
+							<input type="hidden" name="itemId" value={item.id} />
+							<label
+								><span>Ingredient</span><select name="ingredientId" aria-label="Ingredient">
+									{#each ingredients as ingredient (ingredient.id)}
+										<option value={ingredient.id} selected={item.ingredientId === ingredient.id}>
+											{ingredient.name}
+										</option>
+									{/each}
+								</select></label
+							>
+							<label
+								><span>Cantitate</span><input
+									name="quantity"
+									type="number"
+									min="0.01"
+									step="0.01"
+									value={item.quantity}
+								/></label
+							>
+							<label><span>Unitate</span><input name="unit" value={item.unit} /></label>
+							<label
+								><span>Cost estimat (lei)</span><input
+									name="estimatedTotalCost"
+									type="number"
+									min="0"
+									step="0.01"
+									value={item.estimatedTotalCost ?? ''}
+									placeholder="estimat"
+								/></label
+							>
+							<label
+								><span>Cost real (lei)</span><input
+									name="realTotalCost"
+									type="number"
+									min="0"
+									step="0.01"
+									value={item.realTotalCost ?? ''}
+									placeholder="real"
+								/></label
+							>
+							<label
+								><span>Notițe</span><input
+									name="notes"
+									value={item.notes ?? ''}
+									placeholder="notițe"
+								/></label
+							>
+							<button type="submit">Salvează</button>
+						</form>
+						<form method="POST" action="?/deleteItem">
+							<input type="hidden" name="itemId" value={item.id} />
+							<button class="danger compact" type="submit">Șterge</button>
+						</form>
+					</div>
+				</details>
 			{/each}
 		</div>
 	{:else}
 		<p class="muted">Nu sunt poziții adăugate.</p>
 	{/if}
 
-	<form class="item-form add" method="POST" action="?/addItem">
-		<input type="hidden" name="eventId" value={event.id} />
-		<select name="ingredientId" required aria-label="Ingredient">
-			<option value="">Ingredient</option>
-			{#each ingredients as ingredient (ingredient.id)}
-				<option value={ingredient.id}>{ingredient.name}</option>
-			{/each}
-		</select>
-		<input name="quantity" type="number" min="0.01" step="0.01" placeholder="cantitate" required />
-		<input name="unit" placeholder="unitate" required />
-		<input name="estimatedTotalCost" type="number" min="0" step="0.01" placeholder="estimat" />
-		<input name="realTotalCost" type="number" min="0" step="0.01" placeholder="real" />
-		<input name="notes" placeholder="notițe" />
-		<button type="submit">Adaugă</button>
-	</form>
+	<details class="item-editor">
+		<summary>Adaugă ingredient</summary>
+		<form class="item-form add" method="POST" action="?/addItem">
+			<input type="hidden" name="eventId" value={event.id} />
+			<label
+				><span>Ingredient</span><select name="ingredientId" required aria-label="Ingredient">
+					<option value="">Ingredient</option>
+					{#each ingredients as ingredient (ingredient.id)}
+						<option value={ingredient.id}>{ingredient.name}</option>
+					{/each}
+				</select></label
+			>
+			<label
+				><span>Cantitate</span><input
+					name="quantity"
+					type="number"
+					min="0.01"
+					step="0.01"
+					placeholder="cantitate"
+					required
+				/></label
+			>
+			<label><span>Unitate</span><input name="unit" placeholder="unitate" required /></label>
+			<label
+				><span>Cost estimat (lei)</span><input
+					name="estimatedTotalCost"
+					type="number"
+					min="0"
+					step="0.01"
+					placeholder="estimat"
+				/></label
+			>
+			<label
+				><span>Cost real (lei)</span><input
+					name="realTotalCost"
+					type="number"
+					min="0"
+					step="0.01"
+					placeholder="real"
+				/></label
+			>
+			<label><span>Notițe</span><input name="notes" placeholder="notițe" /></label>
+			<button type="submit">Adaugă</button>
+		</form>
+	</details>
 </section>
 
 <style>
@@ -98,23 +153,23 @@
 	}
 
 	button {
-		min-height: 38px;
+		min-height: 44px;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		border: 0;
 		border-radius: 8px;
-		background: #0f766e;
-		color: var(--sc-surface);
+		background: var(--sc-accent);
+		color: var(--sc-on-accent);
 		padding: 0 12px;
 		font-weight: 600;
 		cursor: pointer;
 	}
 
 	.danger {
-		border: 1px solid #fecaca;
+		border: 1px solid var(--sc-border-strong);
 		background: var(--sc-surface);
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 	}
 
 	.compact {
@@ -149,5 +204,34 @@
 		.item-row {
 			grid-template-columns: 1fr;
 		}
+	}
+
+	input:not([type='hidden']):not([type='checkbox']):not([type='radio']),
+	select {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
+	}
+
+	label {
+		display: grid;
+		gap: 6px;
+		min-width: 0;
+		color: var(--sc-ink);
+		font-size: 13px;
+	}
+	summary {
+		min-height: 44px;
+		align-content: center;
+		cursor: pointer;
+		color: var(--sc-ink);
+	}
+	summary span {
+		color: var(--sc-link);
+		font-size: 13px;
+		margin-left: 8px;
+	}
+	.item-editor[open] summary {
+		margin-bottom: 12px;
 	}
 </style>

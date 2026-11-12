@@ -174,7 +174,9 @@ export const activitySubtitle = (activity: SidebarActivity, pathname: string) =>
 					? 'Audit'
 					: pathname.includes('/settings')
 						? 'Setări'
-						: 'Prezentare';
+						: pathname.includes('/registrations') || pathname.includes('/check-in')
+							? 'Înscrieri'
+							: 'Prezentare';
 	const details = [
 		section,
 		activityTypeLabels[activity.type],

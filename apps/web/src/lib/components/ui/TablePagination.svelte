@@ -123,7 +123,7 @@
 		cursor: default;
 	}
 	.sc-page-button:focus-visible {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 2px;
 	}
 	.sr-only {
@@ -135,12 +135,19 @@
 	}
 	@media (max-width: 540px) {
 		.sc-table-pagination {
-			justify-content: center;
+			justify-content: space-between;
+			gap: 8px;
 		}
 		.sc-table-pagination > div {
 			flex-wrap: wrap;
-			justify-content: center;
-			gap: 12px;
+			width: 100%;
+			justify-content: space-between;
+			gap: 8px;
+		}
+		.sc-table-pagination .sc-page-button {
+			width: 44px;
+			height: 44px;
+			min-height: 44px;
 		}
 	}
 </style>

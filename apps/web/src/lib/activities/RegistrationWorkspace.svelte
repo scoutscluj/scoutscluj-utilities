@@ -9,7 +9,7 @@
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import ActionMenu from '$lib/components/ui/ActionMenu.svelte';
 	import TableView from '$lib/components/ui/TableView.svelte';
-	import ActivitySettingsLink from '$lib/activities/ActivitySettingsLink.svelte';
+	import { activitySettingsHref } from '$lib/activities/activity-settings';
 	import {
 		registrationRequest,
 		money,
@@ -34,6 +34,8 @@
 		familyOpen = $state(false),
 		familyNote = $state('');
 	let expandedRows = $state<string[]>([]);
+	let financialOpen = $state(false),
+		mailOpen = $state(false);
 	let active = $state<Registration | null>(null),
 		dialogOpen = $state(false),
 		action = $state('receipt');
@@ -194,6 +196,76 @@
 
 		return items;
 	}
+	function workspaceActions() {
+		const items: { label: string; action: () => void; disabled?: boolean }[] = [
+			{
+				label: paymentsView ? 'Înscrieri și acorduri' : 'Vezi plățile participării',
+				action: () => {
+					void goto(
+						resolve(
+							`/activities/${activityId}/${paymentsView ? 'registrations' : 'finance/participation'}`
+						)
+					);
+				}
+			},
+			{
+				label: 'Prezentarea activității',
+				action: () => {
+					void goto(resolve(`/activities/${activityId}`));
+				}
+			}
+		];
+		if (overview.capabilities.manage)
+			items.push({
+				label: paymentsView ? 'Setări plată' : 'Setări înscrieri',
+				action: () => {
+					void goto(activitySettingsHref(activityId, paymentsView ? 'payments' : 'registrations'));
+				}
+			});
+		if (overview.capabilities.finance)
+			items.push({
+				label: 'Sumar financiar',
+				action: () => {
+					financialOpen = true;
+				}
+			});
+		if (overview.capabilities.manage && overview.mailConfigured === false)
+			items.push({
+				label: 'Confirmări e-mail în așteptare',
+				action: () => {
+					mailOpen = true;
+				}
+			});
+		items.push({ label: 'Exportă CSV', action: csv });
+		if (overview.capabilities.manage) {
+			items.push({
+				label: `Confirmă familia (${selected.length})`,
+				action: () => {
+					familyOpen = true;
+				},
+				disabled: !selected.length
+			});
+			if (!paymentsView)
+				items.push(
+					{
+						label: 'Solicită acord actualizat',
+						action: () => {
+							action = 'renew';
+							active = null;
+							dialogOpen = true;
+						}
+					},
+					{
+						label: 'Înscrie o excepție',
+						action: () => {
+							void goto(resolve(`/activitati/${activityId}?exceptie=1`));
+						}
+					}
+				);
+		}
+		return items;
+	}
+
 	function csv() {
 		const escape = (value: unknown) =>
 			`"${String(value ?? '')
@@ -243,87 +315,53 @@
 	></svelte:head
 >
 <section class="workspace">
-	<header>
-		<div>
-			<a href={resolve(`/activities/${activityId}`)}>← {data.activity.title}</a>
+	<header class="registration-heading">
+		<div class="heading-title">
 			<h1>{paymentsView ? 'Plăți participare' : 'Înscrieri'}</h1>
+			<span class="row-count">{rows.length}</span>
 		</div>
-		<div class="header-actions">
-			{#if overview.capabilities.manage}<ActivitySettingsLink
-					{activityId}
-					section={paymentsView ? 'plati' : 'inscrieri'}
-					label={paymentsView ? 'Setări plată' : 'Setări înscrieri'}
-				/>{/if}
-			<a
-				class="button secondary"
-				href={resolve(
-					`/activities/${activityId}/${paymentsView ? 'registrations' : 'finance/participation'}`
-				)}>{paymentsView ? 'Înscrieri și acorduri' : 'Vezi plățile participării'}</a
-			>
-		</div>
+		<ActionMenu label="Acțiuni înscrieri" items={workspaceActions()} />
 	</header>
-	{#if overview.capabilities.manage && overview.mailConfigured === false}<details
-			class="mail-notice"
+	{#if overview.capabilities.finance}<button
+			class="financial-brief"
+			onclick={() => (financialOpen = true)}
+			aria-label="Deschide sumarul financiar"
 		>
-			<summary>Confirmările prin e-mail sunt în așteptare</summary>
-			<p>
-				Trimiterea e-mailurilor nu este configurată. Pagina personală este disponibilă imediat după
-				înscriere.
-			</p>
-		</details>{/if}
-	{#if overview.capabilities.finance}<div class="totals">
-			<div><small>Încasări nete de restituiri</small><strong>{money(totals.cash)}</strong></div>
-			<div><small>Susținere din centrul local</small><strong>{money(totals.support)}</strong></div>
-			<div><small>Sold de acoperit</small><strong>{money(totals.remaining)}</strong></div>
-		</div>{/if}
+			<span>Încasat <strong>{money(totals.cash)}</strong></span><span
+				>Rest <strong>{money(totals.remaining)}</strong></span
+			><ChevronDown size={14} aria-hidden="true" />
+		</button>{/if}
 	{#if message}<FormFeedback {message} kind={failed ? 'error' : 'info'} />{/if}
 
-	<div class="toolbar">
-		<label
-			>Filtrează<select bind:value={filter} onchange={() => (selected = [])}
-				><option value="current">Fără retrageri</option><option value="all"
-					>Toate, inclusiv retragerile</option
-				><option value="pending">Așteaptă aprobarea</option><option value="waitlisted"
-					>Lista de așteptare</option
-				><option value="accepted">Participare confirmată</option><option value="reserved"
-					>Loc rezervat</option
-				><option value="unpaid">Sold de acoperit</option>{#if !paymentsView}<option
-						value="missing_consent">Acorduri de urmărit</option
-					><option value="handoff">Documente sau cash de primit</option>{/if}<option
-					value="withdrawn">Doar retrași</option
-				></select
-			></label
-		>
-		<details class="more-actions">
-			<summary>Mai multe acțiuni</summary>
-			<div class="bulk-actions">
-				<button class="secondary" onclick={csv}>Exportă CSV</button>
-				{#if overview.capabilities.manage}<button
-						class="secondary"
-						onclick={() => (familyOpen = true)}
-						disabled={!selected.length}>Confirmă familia ({selected.length})</button
-					>{#if !paymentsView}<button
-							class="secondary"
-							onclick={() => {
-								action = 'renew';
-								active = null;
-								dialogOpen = true;
-							}}>Solicită acord actualizat</button
-						><a href={resolve(`/activitati/${activityId}?exceptie=1`)}>Înscrie o excepție</a
-						>{/if}{/if}
-			</div>
-		</details>
-	</div>
-	{#if !rows.length}<div class="empty">
-			<h2>Nicio înscriere în această selecție</h2>
-			<p>
-				{overview.rows.length
-					? 'Schimbă filtrul pentru a vedea celelalte înscrieri, inclusiv retragerile.'
-					: 'Configurează și publică pagina activității, apoi distribuie linkul către participanți.'}
-			</p>
-		</div>{:else}
-		<TableView label="Caută participantul sau ID-ul Orgo"
-			><table>
+	<TableView compact label="Caută participantul sau ID-ul Orgo">
+		{#snippet controls()}<label class="registration-filter"
+				><span>Filtrează</span><select
+					aria-label="Filtrează"
+					bind:value={filter}
+					onchange={() => (selected = [])}
+				>
+					<option value="current">Fără retrageri</option><option value="all"
+						>Toate, inclusiv retragerile</option
+					><option value="pending">Așteaptă aprobarea</option><option value="waitlisted"
+						>Lista de așteptare</option
+					><option value="accepted">Participare confirmată</option><option value="reserved"
+						>Loc rezervat</option
+					><option value="unpaid">Sold de acoperit</option>{#if !paymentsView}<option
+							value="missing_consent">Acorduri de urmărit</option
+						><option value="handoff">Documente sau cash de primit</option>{/if}<option
+						value="withdrawn">Doar retrași</option
+					>
+				</select></label
+			>
+		{/snippet}
+		{#if !rows.length}<div class="empty">
+				<h2>Nicio înscriere în această selecție</h2>
+				<p>
+					{overview.rows.length
+						? 'Schimbă filtrul pentru a vedea celelalte înscrieri, inclusiv retragerile.'
+						: 'Configurează și publică pagina activității, apoi distribuie linkul către participanți.'}
+				</p>
+			</div>{:else}<table>
 				<thead
 					><tr
 						>{#if overview.capabilities.manage}<th scope="col">Familie</th>{/if}<th scope="col"
@@ -367,6 +405,9 @@
 											class={expandedRows.includes(row.id) ? 'expanded-chevron' : ''}
 										/>
 									</button>
+									{#if paymentsView}<span class="payment-balance" class:paid={!row.remainingBani}
+											>{row.remainingBani ? `Rest ${money(row.remainingBani)}` : 'Achitat'}</span
+										>{/if}
 									{#if !paymentsView}<RegistrationReceipt
 											{activityId}
 											{row}
@@ -523,28 +564,51 @@
 										{activityId}
 										{row}
 										capabilities={overview.capabilities}
+										compact
 									/></td
 								>{/if}<td data-label="Acțiuni"
 								><div class="row-actions">
-									{#if overview.capabilities.sensitive}<a
-											href={resolve(`/activitati/${activityId}/inscriere/${row.id}`)}
-											>Fișa înscrierii</a
-										>{/if}
-									{#if overview.capabilities.finance && row.role !== 'staff'}<button
-											class="secondary"
-											onclick={() => open(row, 'receipt')}>Înregistrează sumă</button
-										>{/if}
-									{#if rowMenu(row).length}<ActionMenu
+									{#if rowMenu(row, true).length}<ActionMenu
 											label={`Acțiuni pentru ${row.memberName}`}
-											items={rowMenu(row)}
+											items={rowMenu(row, true)}
 										/>{/if}
 								</div></td
 							>
 						</tr>{/each}</tbody
 				>
-			</table></TableView
-		>{/if}
+			</table>{/if}</TableView
+	>
 </section>
+<Modal
+	bind:open={financialOpen}
+	title="Sumar financiar"
+	description="Sumele includ toate înscrierile activității, indiferent de filtrul listei."
+>
+	<dl class="financial-details">
+		<div>
+			<dt>Încasări nete de restituiri</dt>
+			<dd>{money(totals.cash)}</dd>
+		</div>
+		<div>
+			<dt>Susținere din centrul local</dt>
+			<dd>{money(totals.support)}</dd>
+		</div>
+		<div>
+			<dt>Sold de acoperit</dt>
+			<dd>{money(totals.remaining)}</dd>
+		</div>
+	</dl>
+</Modal>
+<Modal
+	bind:open={mailOpen}
+	title="Confirmări e-mail în așteptare"
+	description="Trimiterea e-mailurilor nu este configurată."
+	><p>
+		Pagina personală este disponibilă imediat după înscriere. Confirmările vor putea fi trimise după
+		configurarea serviciului de e-mail.
+	</p></Modal
+>
+
 <Modal
 	bind:open={dialogOpen}
 	title={action === 'renew'
@@ -708,44 +772,92 @@
 </Modal>
 
 <style>
-	.more-actions {
-		font-size: 14px;
+	.registration-heading {
+		min-height: 44px;
 	}
-	.more-actions summary {
-		padding: 10px 12px;
-		cursor: pointer;
-		border: 1px solid var(--sc-border);
-		border-radius: 7px;
-	}
-	.bulk-actions {
+	.heading-title {
 		display: flex;
-		flex-wrap: wrap;
 		align-items: center;
-		gap: 8px;
-		padding-top: 8px;
+		gap: 10px;
+		min-width: 0;
 	}
-	.header-actions {
-		display: flex;
-		gap: 8px;
-		flex-wrap: wrap;
-		align-items: center;
-	}
-	.mail-notice {
+	.row-count {
 		font-size: 13px;
-		color: var(--sc-ink-muted);
+		color: var(--sc-muted);
+		background: var(--sc-inset);
+		min-width: 24px;
+		padding: 3px 7px;
+		text-align: center;
+		border-radius: 6px;
 	}
-	.mail-notice summary {
-		cursor: pointer;
+	button.financial-brief {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: flex-start;
+		gap: 4px 16px;
+		padding: 0;
+		min-height: 28px;
+		background: transparent;
+		color: var(--sc-muted);
+		text-align: left;
+		font-size: 12px;
 	}
-	.mail-notice p {
-		margin: 8px 0;
+	.financial-brief span {
+		display: inline-flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 5px;
 	}
+	.financial-brief strong {
+		color: var(--sc-ink);
+		font-size: 13px;
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
+	}
+	.financial-brief:focus-visible {
+		outline: 2px solid var(--sc-accent);
+		outline-offset: 3px;
+		border-radius: 4px;
+	}
+	.financial-details {
+		display: grid;
+		gap: 16px;
+		margin: 0;
+	}
+	.financial-details > div {
+		display: flex;
+		gap: 12px;
+		flex-wrap: wrap;
+		justify-content: space-between;
+	}
+	.financial-details dt {
+		color: var(--sc-muted);
+	}
+	.financial-details dd {
+		margin: 0;
+		color: var(--sc-ink);
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
+	}
+	.registration-filter span {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+	}
+	.registration-filter select {
+		min-height: 44px;
+	}
+
 	td:has(.member-name) {
 		min-width: 180px;
 	}
 	.workspace {
+		container-type: inline-size;
 		display: grid;
-		gap: 12px;
+		gap: 8px;
 		min-width: 0;
 	}
 	header {
@@ -756,29 +868,9 @@
 		flex-wrap: wrap;
 	}
 	h1 {
-		font-size: 2rem;
+		font-size: clamp(24px, 3vw, 30px);
 		letter-spacing: -0.025em;
-		margin: 8px 0;
-	}
-	a {
-		color: var(--sc-accent);
-	}
-	.totals {
-		display: flex;
-		gap: 32px;
-		flex-wrap: wrap;
-		background: var(--sc-surface);
-		padding: 12px 16px;
-		border: 1px solid var(--sc-border);
-		border-radius: 10px;
-	}
-	.totals div {
-		display: grid;
-		gap: 6px;
-	}
-	.totals strong {
-		font-size: 1.1rem;
-		font-variant-numeric: tabular-nums;
+		margin: 0;
 	}
 	small {
 		display: block;
@@ -786,19 +878,17 @@
 		font-size: 0.8rem;
 		line-height: 1.6;
 	}
-	.toolbar,
 	.row-actions {
 		display: flex;
 		gap: 8px;
 		flex-wrap: wrap;
 		align-items: center;
 	}
-	button,
-	.button {
-		min-height: 36px;
+	button {
+		min-height: 44px;
 		padding: 8px 12px;
 		background: var(--sc-accent);
-		color: white;
+		color: var(--sc-on-accent);
 		border: 0;
 		border-radius: 7px;
 		cursor: pointer;
@@ -808,11 +898,6 @@
 	button:disabled {
 		opacity: 0.5;
 		cursor: default;
-	}
-	.secondary {
-		background: var(--sc-surface);
-		color: var(--sc-ink);
-		border: 1px solid var(--sc-border);
 	}
 	label,
 	.dialog-form {
@@ -855,11 +940,7 @@
 		min-width: 48px;
 	}
 	.row-actions {
-		min-width: 200px;
-	}
-	.row-actions button {
-		font-size: 0.8rem;
-		min-height: 32px;
+		min-width: 44px;
 	}
 	.badge {
 		display: inline-block;
@@ -877,9 +958,9 @@
 		line-height: 1.6;
 	}
 	.attention {
-		color: var(--sc-accent);
+		color: var(--sc-danger);
 	}
-	@media (max-width: 760px) {
+	@container (max-width: 900px) {
 		table,
 		tbody {
 			display: block;
@@ -1004,22 +1085,25 @@
 		.row-actions {
 			min-width: 0;
 		}
-		.header-actions {
-			width: 100%;
-		}
-		.toolbar label {
-			width: 100%;
-		}
-		.toolbar select {
-			width: 100%;
-		}
 	}
 	@media (max-width: 600px) {
-		.totals {
-			gap: 20px;
-		}
-		.totals strong {
-			font-size: 1.2rem;
-		}
+	}
+
+	input:not([type='hidden']):not([type='checkbox']):not([type='radio']),
+	select,
+	textarea {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
+	}
+
+	.payment-balance {
+		flex-shrink: 0;
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--sc-ink);
+	}
+	.payment-balance.paid {
+		color: var(--sc-success);
 	}
 </style>

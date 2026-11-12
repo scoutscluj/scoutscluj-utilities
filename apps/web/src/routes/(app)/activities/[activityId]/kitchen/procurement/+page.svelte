@@ -7,16 +7,17 @@
 </script>
 
 <section class="procurement-page">
+	<h1>Aprovizionare</h1>
 	{#if form?.message}
 		<p class="form-message">{form.message}</p>
 	{/if}
 
 	<ProcurementCoveragePanel overview={data.overview} />
 
-	<section class="panel">
-		<h2>Aprovizionare nouă</h2>
+	<details class="panel">
+		<summary>Aprovizionare nouă</summary>
 		<ProcurementEventForm />
-	</section>
+	</details>
 
 	{#each data.events as event (event.id)}
 		<ProcurementEventCard
@@ -36,27 +37,37 @@
 	}
 
 	.panel {
-		border: 1px solid #dbe3ef;
+		border: 1px solid var(--sc-border);
 		background: var(--sc-surface);
 		border-radius: 8px;
 		padding: 18px;
-		box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
+		box-shadow: var(--sc-shadow);
 	}
 
-	h2,
 	p {
 		margin: 0;
 	}
 
-	h2 {
-		color: var(--sc-ink);
-	}
-
 	.form-message {
-		border: 1px solid #bfdbfe;
-		background: #eff6ff;
+		border: 1px solid var(--sc-border-strong);
+		background: var(--sc-info-soft);
 		border-radius: 8px;
 		padding: 12px 14px;
-		color: #1e3a8a;
+		color: var(--sc-info);
+	}
+
+	h1 {
+		margin: 0;
+		color: var(--sc-ink);
+		font-size: clamp(24px, 3vw, 30px);
+		line-height: 1.2;
+	}
+
+	summary {
+		min-height: 44px;
+		align-content: center;
+		cursor: pointer;
+		font-weight: 600;
+		color: var(--sc-ink);
 	}
 </style>

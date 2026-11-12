@@ -97,14 +97,14 @@
 	}
 
 	.notice {
-		border-left: 3px solid #d97706;
-		background: #fffbeb;
+		border-left: 3px solid var(--sc-warning);
+		background: var(--sc-warning-soft);
 		padding: 10px 12px;
 		font-weight: 600;
 	}
 
 	button {
-		min-height: 38px;
+		min-height: 44px;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -112,7 +112,7 @@
 		border-radius: 8px;
 		background: var(--sc-accent);
 		padding: 0 14px;
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 		font-weight: 600;
 		cursor: pointer;
 	}

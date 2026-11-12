@@ -6,8 +6,16 @@
 	let {
 		children,
 		label = 'Caută în tabel',
-		paginated = true
-	}: { children: Snippet; label?: string; paginated?: boolean } = $props();
+		paginated = true,
+		compact = false,
+		controls
+	}: {
+		children: Snippet;
+		label?: string;
+		paginated?: boolean;
+		compact?: boolean;
+		controls?: Snippet;
+	} = $props();
 	let query = $state('');
 	let page = $state(0);
 	let pageSize = $state(25);
@@ -43,17 +51,18 @@
 	});
 </script>
 
-<div class="sc-table-view">
+<div class="sc-table-view" class:compact>
 	<div class="sc-table-view-controls">
 		<TableToolbar
 			>{#snippet filters()}<label
-					>{label}<input
+					><span class:sc-sr-only={compact}>{label}</span><input
 						type="search"
 						bind:value={query}
 						oninput={() => (page = 0)}
 						placeholder="Caută…"
+						aria-label={label}
 					/></label
-				>{/snippet}</TableToolbar
+				>{@render controls?.()}{/snippet}</TableToolbar
 		>
 	</div>
 	<div class="sc-table-view-content" bind:this={container} use:highlightSearch={query}>
@@ -69,6 +78,22 @@
 
 <style>
 	.sc-table-view {
+		min-width: 0;
+	}
+	.compact :global(.sc-table-toolbar) {
+		margin-bottom: 8px;
+	}
+	.compact :global(.sc-table-filters) {
+		flex-wrap: nowrap;
+		gap: 8px;
+		flex-basis: 100%;
+	}
+	.compact :global(.sc-table-filters > label) {
+		min-width: 0;
+		flex: 1 1 0;
+	}
+	.compact :global(.sc-table-filters > label:has(input[type='search'])) {
+		flex: 1.35 1 0;
 		min-width: 0;
 	}
 	.sc-table-view-content {

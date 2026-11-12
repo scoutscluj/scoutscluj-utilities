@@ -129,6 +129,7 @@
 	.panel,
 	.modal-form {
 		display: grid;
+		min-width: 0;
 		gap: 14px;
 	}
 
@@ -136,6 +137,7 @@
 	.section-heading,
 	.modal-heading {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 12px;
 		align-items: center;
 		justify-content: space-between;
@@ -143,7 +145,7 @@
 
 	.panel,
 	.form-message {
-		border: 1px solid #dbe3ef;
+		border: 1px solid var(--sc-border);
 		border-radius: 8px;
 		background: var(--sc-surface);
 		padding: 14px;
@@ -151,7 +153,7 @@
 
 	.need-list {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
 		gap: 8px;
 	}
 
@@ -164,6 +166,8 @@
 	}
 
 	.table-wrap {
+		min-width: 0;
+		max-width: 100%;
 		overflow-x: auto;
 	}
 
@@ -204,7 +208,7 @@
 		border-radius: 8px;
 		background: var(--sc-surface);
 		padding: 18px;
-		box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
+		box-shadow: var(--sc-shadow);
 	}
 
 	label {
@@ -217,6 +221,7 @@
 
 	input {
 		width: 100%;
+		min-width: 0;
 		border: 1px solid var(--sc-border-strong);
 		border-radius: 8px;
 		padding: 9px 10px;
@@ -224,11 +229,11 @@
 	}
 
 	button {
-		min-height: 38px;
+		min-height: 44px;
 		border: 0;
 		border-radius: 8px;
-		background: #0f766e;
-		color: var(--sc-surface);
+		background: var(--sc-accent);
+		color: var(--sc-on-accent);
 		padding: 0 12px;
 		font-weight: 600;
 		cursor: pointer;
@@ -270,5 +275,32 @@
 		font-size: 0.7rem;
 		font-weight: 600;
 		text-transform: uppercase;
+	}
+
+	input:not([type='hidden']):not([type='checkbox']):not([type='radio']) {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
+	}
+
+	.page-heading > div,
+	.section-heading > *,
+	.need-list,
+	.need-list > div,
+	label {
+		min-width: 0;
+	}
+	.need-list strong,
+	.need-list span,
+	h1,
+	h2 {
+		overflow-wrap: anywhere;
+	}
+	meter {
+		width: 100%;
+		max-width: 100%;
+	}
+	h1 {
+		font-size: clamp(24px, 3vw, 30px);
 	}
 </style>

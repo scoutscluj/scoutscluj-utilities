@@ -1124,9 +1124,131 @@ async function main() {
       handoffBalance.entries.filter((e) => e.installmentKey === 'cash').length,
       1,
     );
-    const cashEntry = handoffBalance.entries.find(
+    const receivedEntry = handoffBalance.entries.find(
       (e) => e.installmentKey === 'cash',
     )!;
+    const undoCash = {
+      revision: handoffRow.revision,
+      undo: 'cash',
+      confirm: true,
+      entryIds: [receivedEntry.id],
+      amountBani: 15000,
+    };
+    await assert.rejects(
+      make(orm.em.fork()).checkIn(
+        handoffActivity.id,
+        registered.id,
+        { ...undoCash, confirm: false },
+        actor,
+      ),
+    );
+    await assert.rejects(
+      make(orm.em.fork()).checkIn(
+        handoffActivity.id,
+        registered.id,
+        { ...undoCash, revision: handoffRow.revision - 1 },
+        actor,
+      ),
+    );
+    await assert.rejects(
+      make(orm.em.fork()).checkIn(handoffActivity.id, registered.id, undoCash, {
+        ...actor,
+        id: medicalUser.id,
+        roles: [],
+      }),
+    );
+    await assert.rejects(
+      make(orm.em.fork()).checkIn(
+        handoffActivity.id,
+        registered.id,
+        { ...undoCash, amountBani: 1 },
+        actor,
+      ),
+    );
+    const documentsBeforeUndo = await orm.em
+      .fork()
+      .count(ActivityRegistrationDocument, { registrationId: registered.id });
+    await assert.rejects(
+      make(orm.em.fork()).checkIn(
+        handoffActivity.id,
+        registered.id,
+        { revision: handoffRow.revision, undo: 'paper', confirm: true },
+        { ...actor, id: medicalUser.id, roles: [] },
+      ),
+    );
+    await make(orm.em.fork()).checkIn(
+      handoffActivity.id,
+      registered.id,
+      { revision: handoffRow.revision, undo: 'paper', confirm: true },
+      actor,
+    );
+    handoffRow = await orm.em
+      .fork()
+      .findOneOrFail(ActivityRegistration, { id: registered.id });
+    assert.equal(handoffRow.consentState, 'awaiting');
+    assert.equal(
+      await orm.em
+        .fork()
+        .count(ActivityRegistrationDocument, { registrationId: registered.id }),
+      documentsBeforeUndo,
+    );
+    await make(orm.em.fork()).checkIn(
+      handoffActivity.id,
+      registered.id,
+      { revision: handoffRow.revision, paper: true },
+      actor,
+    );
+    handoffRow = await orm.em
+      .fork()
+      .findOneOrFail(ActivityRegistration, { id: registered.id });
+    await make(orm.em.fork()).checkIn(
+      handoffActivity.id,
+      registered.id,
+      { ...undoCash, revision: handoffRow.revision },
+      actor,
+    );
+    handoffRow = await orm.em
+      .fork()
+      .findOneOrFail(ActivityRegistration, { id: registered.id });
+    handoffBalance = await make(orm.em.fork()).balance(handoffRow);
+    assert.equal(handoffBalance.cashRemainingBani, 15000);
+    assert.equal(handoffBalance.remainingBani, 35000);
+    assert(
+      handoffBalance.entries.some(
+        (entry) =>
+          entry.reversedEntryId === receivedEntry.id &&
+          entry.amountBani === -15000,
+      ),
+    );
+    await assert.rejects(
+      make(orm.em.fork()).checkIn(
+        handoffActivity.id,
+        registered.id,
+        { ...undoCash, revision: handoffRow.revision },
+        actor,
+      ),
+    );
+    await make(orm.em.fork()).checkIn(
+      handoffActivity.id,
+      registered.id,
+      { revision: handoffRow.revision, cashKeys: ['cash'], cashBani: 15000 },
+      actor,
+    );
+    handoffRow = await orm.em
+      .fork()
+      .findOneOrFail(ActivityRegistration, { id: registered.id });
+    handoffBalance = await make(orm.em.fork()).balance(handoffRow);
+    const cashEntry = handoffBalance.entries.find(
+      (entry) =>
+        entry.installmentKey === 'cash' &&
+        entry.amountBani > 0 &&
+        !handoffBalance.entries.some(
+          (other) => other.reversedEntryId === entry.id,
+        ),
+    )!;
+    console.log(
+      'PASS revision-checked, permission-scoped receipt toggles retain documents and financial reversal history',
+    );
     await make(orm.em.fork()).update(
       handoffActivity.id,
       registered.id,

@@ -11,6 +11,216 @@ test.beforeEach(async ({ page, request }) => {
 			{ name: 'scoutscluj_session', value: 'synthetic-admin', url: 'http://127.0.0.1:5186' }
 		]);
 });
+
+test('withdrawn participants stay out of the default list and can be shown explicitly', async ({
+	page,
+	request
+}) => {
+	await request.post('http://127.0.0.1:3019/test/configure', {
+		data: { row: { state: 'withdrawn' } }
+	});
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto('/activities/1/registrations');
+	await expect(page.getByRole('combobox', { name: 'Filtrează' })).toHaveValue('current');
+	await expect(page.locator('tbody > tr')).toHaveCount(0);
+	await page.getByRole('combobox', { name: 'Filtrează' }).selectOption('withdrawn');
+	await expect(page.locator('tbody > tr')).toHaveCount(1);
+	await page.getByRole('combobox', { name: 'Filtrează' }).selectOption('all');
+	await expect(page.locator('tbody > tr')).toHaveCount(1);
+	await page.getByRole('combobox', { name: 'Filtrează' }).selectOption('unpaid');
+	await expect(page.locator('tbody > tr')).toHaveCount(0);
+});
+
+test('receipt toggles require confirmation and preserve correction history', async ({
+	page,
+	request
+}) => {
+	await request.post('http://127.0.0.1:3019/test/configure', {
+		data: {
+			row: {
+				handoffPaperReady: true,
+				cashRemainingBani: 15000,
+				cashInstallments: [
+					{ key: 'cash', amountBani: 15000, remainingBani: 15000, due: '2027-08-24' }
+				]
+			}
+		}
+	});
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto('/activities/1/registrations');
+	const line = page.locator('.mobile-participant');
+	await line.getByRole('button', { name: /^Cash .* de primit/ }).click();
+	await page
+		.getByRole('dialog')
+		.getByRole('button', { name: /Confirmă acord \+ cash/ })
+		.click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Închide dialogul' }).click();
+	await line.getByRole('button', { name: /^Acord pentru/ }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Păstrează confirmarea' }).click();
+	await expect(line.getByRole('button', { name: /^Acord pentru/ })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
+	await line.getByRole('button', { name: /^Acord pentru/ }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Confirmă: acord neprimit' }).click();
+	await expect(line.getByRole('button', { name: /^Acord pentru/ })).toHaveAttribute(
+		'aria-pressed',
+		'false'
+	);
+	await line.getByRole('button', { name: /^Tranșe cash acoperite/ }).click();
+	await expect(page.getByRole('dialog')).toContainText('150,00 RON');
+	await page.getByRole('dialog').screenshot({ path: '../../tmp/receipt-toggle-confirm.png' });
+	await page.getByRole('dialog').getByRole('button', { name: 'Păstrează confirmarea' }).click();
+	await expect(line.getByRole('button', { name: /^Tranșe cash acoperite/ })).toBeVisible();
+	await line.getByRole('button', { name: /^Tranșe cash acoperite/ }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Confirmă: cash neprimit' }).click();
+	await expect(line.getByRole('button', { name: /^Cash .* de primit/ })).toHaveText('Cash 150 lei');
+	await page.reload();
+	const updated = await (await request.get('http://127.0.0.1:3019/test/row')).json();
+	expect(updated.consentState).toBe('awaiting');
+	expect(updated.cashRemainingBani).toBe(15000);
+	expect(updated.remainingBani).toBe(35000);
+	expect(updated.entries).toHaveLength(2);
+	expect(updated.entries[1].reversedEntryId).toBe(updated.entries[0].id);
+	await line.getByRole('button', { name: /^Acord pentru/ }).click();
+	await page
+		.getByRole('dialog')
+		.getByRole('button', { name: 'Acord fizic primit', exact: true })
+		.click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Închide dialogul' }).click();
+	await expect(line.getByRole('button', { name: /^Acord pentru/ })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
+});
+
+test('a changed registration cannot be reverted from an old confirmation modal', async ({
+	page,
+	request
+}) => {
+	await request.post('http://127.0.0.1:3019/test/configure', {
+		data: { row: { consentState: 'paper_received' } }
+	});
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto('/activities/1/registrations');
+	await page
+		.locator('.mobile-participant')
+		.getByRole('button', { name: /^Acord pentru/ })
+		.click();
+	await request.post('http://127.0.0.1:3019/test/configure', { data: { row: { revision: 2 } } });
+	await page.getByRole('dialog').getByRole('button', { name: 'Confirmă: acord neprimit' }).click();
+	await expect(page.getByRole('dialog')).toContainText('Înscriere modificată');
+	await expect(
+		page.getByRole('dialog').getByRole('button', { name: 'Confirmă: acord neprimit' })
+	).toBeDisabled();
+	expect((await (await request.get('http://127.0.0.1:3019/test/row')).json()).consentState).toBe(
+		'paper_received'
+	);
+});
+
+test('mobile participant lines disclose details and preserve explicit paper and cash handoff', async ({
+	page,
+	request
+}) => {
+	await request.post('http://127.0.0.1:3019/test/configure', {
+		data: {
+			row: {
+				grade: 5,
+				handoffPaperReady: true,
+				cashRemainingBani: 15000,
+				cashInstallments: [
+					{ key: 'cash', amountBani: 15000, remainingBani: 15000, due: '2027-08-24' }
+				]
+			}
+		}
+	});
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto('/activities/1/registrations');
+	const line = page.locator('.mobile-participant');
+	const toggle = line.getByRole('button', { name: /Participant de test Clasa 5/ });
+	await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+	await expect(line.getByText('Susținere CL', { exact: true })).toBeHidden();
+	await expect(line.getByRole('button', { name: /^Acord pentru/ })).toBeVisible();
+	await expect(line.getByRole('button', { name: /^Cash .* de primit/ })).toBeVisible();
+	expect((await line.boundingBox())!.height).toBeLessThan(90);
+	await line.screenshot({ path: '../../tmp/mobile-participant-line.png' });
+	await page.setViewportSize({ width: 320, height: 740 });
+	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+	await line.screenshot({ path: '../../tmp/mobile-participant-narrow.png' });
+	expect((await line.boundingBox())!.height).toBeLessThan(90);
+	await page.setViewportSize({ width: 390, height: 844 });
+	await toggle.click();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+	await expect(line.getByText('Susținere CL', { exact: true })).toBeVisible();
+	await line.getByRole('checkbox', { name: /Include Participant de test/ }).check();
+	await toggle.click();
+	await line.getByRole('button', { name: 'Acțiuni pentru Participant de test' }).click();
+	await page.getByRole('menuitem', { name: 'Înregistrează sumă', exact: true }).click();
+	await expect(page.getByRole('dialog')).toBeVisible();
+	await page
+		.getByRole('dialog')
+		.getByRole('button', { name: 'Închide dialogul', exact: true })
+		.click();
+	await page.getByRole('searchbox', { name: 'Caută participantul sau ID-ul Orgo' }).fill('36805');
+	await expect(toggle).toBeVisible();
+	await page.getByRole('searchbox', { name: 'Caută participantul sau ID-ul Orgo' }).fill('absent');
+	await expect(toggle).toBeHidden();
+	await page.getByRole('searchbox', { name: 'Caută participantul sau ID-ul Orgo' }).fill('');
+	await line.getByRole('button', { name: /^Cash .* de primit/ }).click();
+	await page
+		.getByRole('dialog')
+		.getByRole('button', { name: /Confirmă acord \+ cash/ })
+		.click();
+	await expect(page.getByRole('dialog').getByRole('status')).toContainText(
+		'acord fizic primit și numerar încasat'
+	);
+	await page
+		.getByRole('dialog')
+		.getByRole('button', { name: 'Închide dialogul', exact: true })
+		.click();
+	await expect(line.getByRole('button', { name: /^Cash .* de primit/ })).toHaveCount(0);
+	await expect(line.getByRole('button', { name: /^Acord pentru/ })).toHaveText('AP ✓');
+	await page.reload();
+	await expect(line.getByRole('button', { name: /^Acord pentru/ })).toHaveCSS(
+		'background-color',
+		'rgb(237, 247, 240)'
+	);
+	await expect(line.getByRole('button', { name: /^Tranșe cash acoperite/ })).toHaveText('Cash ✓');
+	await expect(line.getByRole('button', { name: /^Tranșe cash acoperite/ })).toHaveCSS(
+		'background-color',
+		'rgb(237, 247, 240)'
+	);
+	await line.screenshot({ path: '../../tmp/mobile-participant-received.png' });
+	const updated = await (await request.get('http://127.0.0.1:3019/test/row')).json();
+	expect(updated.cashRemainingBani).toBe(0);
+	expect(updated.remainingBani).toBe(20000);
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await expect(line).toBeHidden();
+	await expect(page.getByRole('columnheader', { name: 'Participant', exact: true })).toBeVisible();
+	await page.locator('.sc-table-view').screenshot({ path: '../../tmp/participants-desktop.png' });
+});
+
+test('narrow participant lines wrap names and respect missing cash permissions', async ({
+	page,
+	request
+}) => {
+	await request.post('http://127.0.0.1:3019/test/configure', {
+		data: {
+			row: { memberName: 'Alexandru Ștefan Popescu-Ionescu', grade: 0 },
+			capabilities: { manage: false, finance: false, sensitive: true, consent: false }
+		}
+	});
+	await page.setViewportSize({ width: 320, height: 740 });
+	await page.goto('/activities/1/registrations');
+	const line = page.locator('.mobile-participant');
+	await expect(line.getByText('Pregătitoare', { exact: true })).toBeVisible();
+	await expect(line.getByRole('button', { name: /^Cash/ })).toHaveCount(0);
+	await expect(line.getByRole('button', { name: /^Acord pentru/ })).toBeVisible();
+	await line.getByRole('button', { name: /Alexandru Ștefan.*Pregătitoare/ }).click();
+	await expect(line.getByText('Sold', { exact: true })).toHaveCount(0);
+	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+	await line.screenshot({ path: '../../tmp/mobile-participant-expanded.png' });
+});
 test('eligible units and groups follow selected structures without ambiguous unit names', async ({
 	page
 }) => {
@@ -420,7 +630,10 @@ test('registration table opens signed agreements and keeps the public controls i
 		page.getByRole('cell').getByText('Acord digital acceptat', { exact: true })
 	).toBeVisible();
 	await page.setViewportSize({ width: 390, height: 844 });
-	await expect(page.getByRole('button', { name: 'Deschide acordul digital' })).toBeVisible();
+	await page.getByRole('button', { name: /^Acord pentru/ }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Deschide acordul digital' }).click();
+	await expect(page.getByRole('dialog', { name: /Acord digital/ })).toBeVisible();
+	await page.getByRole('dialog').getByRole('button', { name: 'Închide dialogul' }).click();
 	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 	await page.screenshot({
 		path: '../../tmp/registration-inline-receipt-mobile.png',

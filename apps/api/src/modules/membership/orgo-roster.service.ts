@@ -111,7 +111,9 @@ export class OrgoRosterService {
     private readonly config: ConfigService,
   ) {}
 
-  nationalReady(actorId: number) {
+  nationalReady(actorId: number, readOnly = false) {
+    if (readOnly && this.config.get<string>('ORGO_API_TOKEN')?.trim())
+      return Promise.resolve(true);
     return this.tokens.administrativeReady(actorId);
   }
 

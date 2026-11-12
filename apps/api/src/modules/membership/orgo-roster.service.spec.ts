@@ -10,6 +10,18 @@ import {
   parseOrgoRoster,
 } from './orgo-roster.service';
 
+it('allows server-backed national reads without claiming OAuth write readiness', async () => {
+  const administrativeReady = jest.fn().mockResolvedValue(false);
+  const roster = new OrgoRosterService(
+    { administrativeReady } as unknown as OrgoTokenService,
+    new ConfigService({ ORGO_API_TOKEN: 'read-only-server-token' }),
+  );
+  await expect(roster.nationalReady(1, true)).resolves.toBe(true);
+  expect(administrativeReady).not.toHaveBeenCalled();
+  await expect(roster.nationalReady(1)).resolves.toBe(false);
+  expect(administrativeReady).toHaveBeenCalledWith(1);
+});
+
 describe('ORGO membership roster parsing', () => {
   it.each([
     ['Normală', 'normal'],

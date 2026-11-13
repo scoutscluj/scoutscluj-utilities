@@ -698,7 +698,8 @@ export class MembersService {
       memberId ? { id: memberId } : {},
       { orderBy: { name: 'asc' } },
     );
-    if (memberId && !all.length) throw new NotFoundException('Membrul nu există.');
+    if (memberId && !all.length)
+      throw new NotFoundException('Membrul nu există.');
     const allAssignments = ctx.activeAssignments;
     const allUnits = [
       ...(await this.em.find(

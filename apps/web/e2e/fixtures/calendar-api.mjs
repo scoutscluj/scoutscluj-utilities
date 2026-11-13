@@ -163,6 +163,52 @@ createServer(async (req, res) => {
 			};
 		});
 	}
+	if (options.appearanceStates) {
+		const instant = Date.now();
+		const timed = (id, title, startOffset, endOffset) => ({
+			id,
+			title,
+			allDay: false,
+			start: new Date(instant + startOffset).toISOString(),
+			end: new Date(instant + endOffset).toISOString(),
+			description: '<p>Verificăm programul, <strong>echipamentul</strong> și responsabilul.</p>',
+			location: source === 'headquarters' ? 'Camera de activități' : 'Parcul Central, Cluj-Napoca'
+		});
+		page.items =
+			source === 'events'
+				? [
+						timed('appearance-live', 'Întâlnire în desfășurare', -60000, 3600000),
+						timed(
+							'appearance-future',
+							'Drumeție de pregătire cu un titlu lung pentru mobil',
+							7200000,
+							10800000
+						),
+						{
+							id: 'appearance-all-day',
+							title: 'Camp de weekend · toate ramurile',
+							allDay: true,
+							start: addDays(today(), 1),
+							end: addDays(today(), 4)
+						}
+					]
+				: [
+						timed('appearance-ended', 'Atelier încheiat', -120000, -60000),
+						timed('appearance-booking-live', 'Pregătirea echipei', -30000, 3600000),
+						timed(
+							'appearance-booking-future',
+							'Întâlnire temerari · clasa a VII-a',
+							7200000,
+							10800000
+						)
+					];
+		page.items = page.items.filter(
+			(event) =>
+				Date.parse(event.start) < Date.parse(to) && Date.parse(event.end) > Date.parse(from)
+		);
+		delete page.nextCursor;
+	}
+
 	if (options.dense && source === 'events') {
 		page.items = page.items.map((event) => ({
 			...event,

@@ -166,11 +166,11 @@
 	}
 
 	.form-message {
-		border: 1px solid #badbcc;
+		border: 1px solid var(--sc-success);
 		border-radius: 8px;
-		background: #f0fdf4;
+		background: var(--sc-success-soft);
 		padding: 12px 14px;
-		color: #166534;
+		color: var(--sc-success);
 		font-weight: 600;
 	}
 
@@ -183,7 +183,7 @@
 	.add-document-button,
 	.secondary-button,
 	.section-heading a {
-		min-height: 38px;
+		min-height: 44px;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -205,7 +205,7 @@
 		border: 0;
 		background: var(--sc-accent);
 		padding: 0 14px;
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 		cursor: pointer;
 	}
 
@@ -241,10 +241,11 @@
 		position: fixed;
 		inset: 0;
 		z-index: 50;
-		background: rgb(15 23 42 / 0.4);
+		background: var(--sc-overlay);
 	}
 
 	:global(.upload-dialog-content) {
+		grid-template-columns: minmax(0, 1fr);
 		position: fixed;
 		top: 50%;
 		left: 50%;
@@ -263,6 +264,7 @@
 	}
 
 	:global(.settings-dialog-content) {
+		grid-template-columns: minmax(0, 1fr);
 		position: fixed;
 		top: 50%;
 		left: 50%;
@@ -281,12 +283,16 @@
 	}
 
 	.dialog-heading {
+		min-width: 0;
 		display: flex;
 		align-items: flex-start;
 		justify-content: space-between;
 		gap: 12px;
 	}
 
+	.dialog-heading > div {
+		min-width: 0;
+	}
 	:global(.dialog-title) {
 		margin: 0;
 		color: var(--sc-ink);
@@ -295,14 +301,17 @@
 	}
 
 	:global(.dialog-description) {
+		white-space: normal;
+		overflow-wrap: anywhere;
 		margin-top: 4px;
 		color: var(--sc-muted);
 		font-size: 0.92rem;
 	}
 
 	:global(.dialog-icon-button) {
-		width: 34px;
-		height: 34px;
+		width: 44px;
+		height: 44px;
+		flex: 0 0 44px;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -320,7 +329,7 @@
 	.add-document-button:focus-visible,
 	.secondary-button:focus-visible,
 	:global(.dialog-icon-button:focus-visible) {
-		outline: 3px solid rgb(200 30 30 / 0.24);
+		outline: 3px solid var(--sc-focus);
 		outline-offset: 2px;
 	}
 

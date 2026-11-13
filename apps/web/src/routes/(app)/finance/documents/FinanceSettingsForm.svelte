@@ -56,6 +56,8 @@
 <style>
 	.panel {
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		min-width: 0;
 		align-content: start;
 		gap: 14px;
 	}
@@ -82,6 +84,7 @@
 
 	label {
 		display: grid;
+		min-width: 0;
 		gap: 6px;
 		font-weight: 600;
 	}
@@ -89,7 +92,7 @@
 	select {
 		width: 100%;
 		min-width: 0;
-		border: 1px solid var(--sc-border-strong);
+		border: 1px solid var(--sc-control-border);
 		border-radius: 8px;
 		background: var(--sc-surface);
 		padding: 10px 12px;

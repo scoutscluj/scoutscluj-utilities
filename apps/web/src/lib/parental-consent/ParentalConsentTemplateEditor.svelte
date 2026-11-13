@@ -337,7 +337,7 @@
 		flex-wrap: wrap;
 		gap: 6px;
 		padding: 10px;
-		border: 1px solid #d8e0ea;
+		border: 1px solid var(--sc-border);
 		border-radius: 10px;
 		background: var(--sc-canvas);
 	}
@@ -348,16 +348,16 @@
 		font: inherit;
 	}
 	button {
-		min-height: 34px;
-		border: 1px solid var(--sc-border-strong);
+		min-height: 44px;
+		border: 1px solid var(--sc-control-border);
 		border-radius: 7px;
-		background: #fff;
+		background: var(--sc-surface);
 		padding: 5px 10px;
 		cursor: pointer;
 	}
 	button:hover:not(:disabled) {
-		border-color: var(--sc-accent-hover);
-		color: var(--sc-accent-hover);
+		border-color: var(--sc-link);
+		color: var(--sc-link);
 	}
 	button:disabled {
 		opacity: 0.45;
@@ -380,9 +380,9 @@
 	input,
 	textarea {
 		width: 100%;
-		border: 1px solid var(--sc-border-strong);
+		border: 1px solid var(--sc-control-border);
 		border-radius: 7px;
-		background: #fff;
+		background: var(--sc-surface);
 		padding: 8px;
 		color: var(--sc-ink);
 	}
@@ -422,7 +422,7 @@
 	}
 	:global(.pc-editor-page-break) {
 		margin: 16px 0;
-		border-top: 2px dashed #94a3b8;
+		border-top: 2px dashed var(--sc-border-strong);
 		color: var(--sc-muted);
 		text-align: center;
 	}
@@ -432,14 +432,14 @@
 	}
 	:global(.editor-canvas td),
 	:global(.editor-canvas th) {
-		border: 1px solid #94a3b8;
+		border: 1px solid var(--sc-border-strong);
 		padding: 7px;
 	}
 	.field-panel {
 		display: grid;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
 		gap: 10px;
-		border: 1px solid #d8e0ea;
+		border: 1px solid var(--sc-border);
 		border-radius: 10px;
 		padding: 14px;
 	}

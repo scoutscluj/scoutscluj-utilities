@@ -231,7 +231,7 @@
 	.actions .primary {
 		background: var(--sc-accent);
 		border-color: var(--sc-accent);
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 	}
 	details {
 		border-top: 1px solid var(--sc-border);

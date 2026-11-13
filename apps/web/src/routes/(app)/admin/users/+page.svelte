@@ -169,14 +169,50 @@
 				{#each visibleUsers as user (user.id)}
 					<div class="user-row" role="row">
 						<div class="identity" role="cell">
-							<div class="avatar" aria-hidden="true">{user.displayName.slice(0, 1)}</div>
-							<div class="identity-main">
-								<div class="title-line">
-									<h2>{user.displayName}</h2>
-									<span>ID {user.id}</span>
+							<div class="desktop-identity">
+								<div class="avatar" aria-hidden="true">{user.displayName.slice(0, 1)}</div>
+								<div class="identity-main">
+									<div class="title-line">
+										<h2>{user.displayName}</h2>
+										<span>ID {user.id}</span>
+									</div>
+									<span class="email">{user.email ?? 'Fără email'}</span>
 								</div>
-								<span class="email">{user.email ?? 'Fără email'}</span>
 							</div>
+							<details class="compact-identity">
+								<summary
+									><span class="compact-summary"
+										><span class="avatar" aria-hidden="true">{user.displayName.slice(0, 1)}</span
+										><span class="identity-main"
+											><strong class="compact-name">{user.displayName}</strong><span class="email"
+												>{user.email ?? 'Fără email'}</span
+											><span class="compact-meta"
+												><span class="role-chip primary-role"
+													>{getPrimaryRole(user.roles)
+														? formatRole(getPrimaryRole(user.roles))
+														: 'Membru'}</span
+												><span class="compact-notification"
+													>Notificări: {user.notificationsEnabled ? 'da' : 'nu'}</span
+												><span aria-hidden="true">⌄</span></span
+											></span
+										></span
+									></summary
+								>
+								<dl>
+									<div>
+										<dt>Orgo</dt>
+										<dd>{getOrgoHint(user)}</dd>
+									</div>
+									{#if user.lastLoginAt}<div>
+											<dt>Ultima autentificare</dt>
+											<dd>{formatDate(user.lastLoginAt)}</dd>
+										</div>{/if}
+									<div>
+										<dt>Roluri</dt>
+										<dd>{user.roles.length ? user.roles.map(formatRole).join(', ') : 'Membru'}</dd>
+									</div>
+								</dl>
+							</details>
 						</div>
 
 						<div class="muted-cell" role="cell">{getOrgoHint(user)}</div>
@@ -318,6 +354,8 @@
 
 <style>
 	.sort-button {
+		background: transparent;
+		color: var(--sc-ink);
 		padding: 0;
 		border: 0;
 		font-size: inherit;
@@ -325,6 +363,9 @@
 	}
 
 	.users-page {
+		container-type: inline-size;
+		min-width: 0;
+		grid-template-columns: minmax(0, 1fr);
 		display: grid;
 		gap: 18px;
 	}
@@ -401,7 +442,7 @@
 	}
 
 	.table-header {
-		min-height: 38px;
+		min-height: 44px;
 		border-bottom: 1px solid var(--sc-border);
 		padding: 0 12px;
 		color: var(--sc-muted);
@@ -452,7 +493,7 @@
 		place-items: center;
 		border-radius: 999px;
 		background: var(--sc-accent);
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 		font-weight: 600;
 	}
 
@@ -507,12 +548,12 @@
 
 	.primary-role {
 		background: var(--sc-accent-soft);
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 	}
 
 	.extra-role {
-		background: #eef2ff;
-		color: #3730a3;
+		background: var(--sc-privileged-soft);
+		color: var(--sc-privileged);
 	}
 
 	.notification-chip {
@@ -530,19 +571,19 @@
 	}
 
 	.notification-chip.enabled {
-		background: #ecfdf5;
-		color: #166534;
+		background: var(--sc-success-soft);
+		color: var(--sc-success);
 	}
 
 	.status-dot {
 		width: 7px;
 		height: 7px;
 		border-radius: 999px;
-		background: #94a3b8;
+		background: var(--sc-muted);
 	}
 
 	.notification-chip.enabled .status-dot {
-		background: #16a34a;
+		background: var(--sc-success);
 	}
 
 	.actions-cell {
@@ -583,7 +624,7 @@
 	:global(.menu-item:focus-visible),
 	:global(.close-button:focus-visible),
 	:global(.secondary-button:focus-visible) {
-		outline: 3px solid rgb(200 30 30 / 0.24);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 2px;
 	}
 
@@ -612,11 +653,11 @@
 	:global(.menu-item:hover),
 	:global(.menu-item[data-highlighted]) {
 		background: var(--sc-accent-soft);
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 	}
 
 	:global(.menu-item[data-disabled]) {
-		color: #94a3b8;
+		color: var(--sc-muted);
 		cursor: not-allowed;
 	}
 
@@ -665,8 +706,9 @@
 	}
 
 	:global(.close-button) {
-		width: 32px;
-		height: 32px;
+		width: 44px;
+		height: 44px;
+		min-height: 44px;
 		border: 1px solid transparent;
 		background: var(--sc-surface);
 		color: var(--sc-muted);
@@ -700,7 +742,7 @@
 
 	.role-options {
 		display: grid;
-		gap: 10px;
+		gap: 2px;
 	}
 
 	label {
@@ -726,14 +768,14 @@
 
 	button,
 	:global(.secondary-button) {
-		min-height: 38px;
+		min-height: 44px;
 		border: 0;
 		padding: 0 14px;
 	}
 
 	button {
 		background: var(--sc-accent);
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 	}
 
 	:global(.secondary-button) {
@@ -750,13 +792,13 @@
 		margin-top: 6px;
 	}
 
-	@media (max-width: 960px) {
+	@container (max-width: 960px) {
 		.table-header {
 			display: none;
 		}
 
 		.user-row {
-			grid-template-columns: minmax(0, 1fr) 42px;
+			grid-template-columns: minmax(0, 1fr) 44px;
 			gap: 10px;
 		}
 
@@ -777,7 +819,7 @@
 		}
 	}
 
-	@media (max-width: 680px) {
+	@container (max-width: 680px) {
 		.page-heading {
 			display: grid;
 			align-items: start;
@@ -795,6 +837,88 @@
 		button,
 		:global(.secondary-button) {
 			width: 100%;
+		}
+	}
+
+	input:not([type='hidden'], [type='checkbox'], [type='radio']),
+	select {
+		min-width: 0;
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
+	}
+
+	.role-options label {
+		min-height: 44px;
+		cursor: pointer;
+	}
+	.desktop-identity {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		min-width: 0;
+	}
+	.compact-identity {
+		display: none;
+	}
+	@container (max-width: 960px) {
+		.identity .desktop-identity,
+		.user-row > .muted-cell,
+		.user-row > .notification-cell,
+		.user-row > .role-cell {
+			display: none;
+		}
+		.compact-identity {
+			display: block;
+			width: 100%;
+			min-width: 0;
+		}
+		.compact-identity summary {
+			cursor: pointer;
+			list-style: none;
+			min-height: 44px;
+		}
+		.compact-identity summary::-webkit-details-marker {
+			display: none;
+		}
+		.compact-summary {
+			display: flex;
+			align-items: flex-start;
+			gap: 10px;
+		}
+		.compact-name {
+			display: block;
+			color: var(--sc-ink);
+			font-size: 14px;
+			font-weight: 600;
+		}
+		.compact-meta {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 4px 6px;
+			margin-top: 5px;
+			font-size: 12px;
+			color: var(--sc-muted);
+		}
+		.compact-notification {
+			font-size: 12px;
+			white-space: nowrap;
+		}
+		.compact-identity dl {
+			display: grid;
+			gap: 8px;
+			margin: 12px 0 0;
+			border-top: 1px solid var(--sc-border);
+			padding-top: 10px;
+			font-size: 12px;
+		}
+		.compact-identity dt {
+			color: var(--sc-muted);
+		}
+		.compact-identity dd {
+			margin: 2px 0 0;
+			overflow-wrap: anywhere;
 		}
 	}
 </style>

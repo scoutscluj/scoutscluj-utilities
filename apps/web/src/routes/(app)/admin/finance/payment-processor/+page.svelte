@@ -254,7 +254,7 @@
 		border: 1px solid var(--sc-border);
 		border-radius: 12px;
 		padding: 20px;
-		background: white;
+		background: var(--sc-surface);
 	}
 
 	.section-heading {
@@ -266,9 +266,9 @@
 
 	.active-provider {
 		border-radius: 999px;
-		background: #dcfce7;
+		background: var(--sc-success-soft);
 		padding: 6px 10px;
-		color: #166534;
+		color: var(--sc-success);
 		font-size: 0.78rem;
 		font-weight: 600;
 		text-transform: uppercase;
@@ -284,7 +284,7 @@
 		display: flex;
 		align-items: center;
 		gap: 12px;
-		border: 1px solid var(--sc-border-strong);
+		border: 1px solid var(--sc-control-border);
 		border-radius: 8px;
 		padding: 14px;
 	}
@@ -296,12 +296,12 @@
 		grid-column: 1 / -1;
 	}
 	.provider-option:has(input:checked) {
-		background: #f0fdf4;
-		border-color: #16a34a;
-		box-shadow: 0 0 0 1px #16a34a;
+		background: var(--sc-success-soft);
+		border-color: var(--sc-success);
+		box-shadow: 0 0 0 1px var(--sc-control-border);
 	}
 	.provider-option input {
-		accent-color: #166534;
+		accent-color: var(--sc-accent);
 	}
 	.provider-card {
 		background: var(--sc-canvas);
@@ -311,7 +311,7 @@
 	.provider-card select {
 		width: 100%;
 		min-width: 0;
-		background: white;
+		background: var(--sc-surface);
 	}
 	.provider-card fieldset {
 		gap: 16px;
@@ -320,7 +320,7 @@
 	select:focus-visible,
 	button:focus-visible,
 	a:focus-visible {
-		outline: 3px solid #86efac;
+		outline: 3px solid var(--sc-focus);
 		outline-offset: 3px;
 	}
 
@@ -357,7 +357,7 @@
 	select,
 	button {
 		max-width: 100%;
-		border: 1px solid #94a3b8;
+		border: 1px solid var(--sc-control-border);
 		border-radius: 6px;
 		padding: 10px;
 		font: inherit;
@@ -366,8 +366,8 @@
 	button {
 		justify-self: start;
 		margin-top: 4px;
-		background: #166534;
-		color: white;
+		background: var(--sc-accent);
+		color: var(--sc-on-accent);
 		cursor: pointer;
 	}
 
@@ -377,9 +377,9 @@
 	}
 
 	.notice {
-		border: 1px solid #f59e0b;
+		border: 1px solid var(--sc-warning);
 		border-radius: 8px;
-		background: #fffbeb;
+		background: var(--sc-warning-soft);
 		padding: 12px;
 	}
 
@@ -391,6 +391,48 @@
 		.section-heading {
 			align-items: flex-start;
 			flex-direction: column;
+		}
+	}
+
+	.page-heading h1 {
+		font-size: clamp(24px, 3vw, 28px);
+		line-height: 1.25;
+		overflow-wrap: anywhere;
+	}
+	.provider-card,
+	.provider-option,
+	.provider-option span {
+		min-width: 0;
+	}
+	input:not([type='radio'], [type='checkbox']),
+	select,
+	button {
+		min-height: 44px;
+		color: var(--sc-ink);
+	}
+	button {
+		color: var(--sc-on-accent);
+	}
+	.provider-card input:not([type='radio'], [type='checkbox']),
+	.provider-card select {
+		background: var(--sc-inset);
+	}
+	.provider-option {
+		min-height: 44px;
+		border-color: var(--sc-control-border);
+	}
+	.provider-option input {
+		flex-shrink: 0;
+	}
+	.notice {
+		color: var(--sc-warning);
+	}
+	@media (max-width: 620px) {
+		section {
+			padding: 16px;
+		}
+		.provider-card {
+			padding: 12px;
 		}
 	}
 </style>

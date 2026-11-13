@@ -5,6 +5,9 @@ finance, kitchen sections, audit, public activity, members, unit management and
 member profiles. Other platform workspaces remain a later design phase. Shared
 appearance tokens and navigation apply globally.
 
+The [November 13 follow-up](neutral-dark-platform-review.md) extends appearance
+coverage to the remaining workspaces and replaces the blue-gray dark foundation.
+
 The user authorized implementation and production publication, with independent
 subagent review above 8.5/10. The user separately approved browser-persisted
 System / Light / Dark appearance.

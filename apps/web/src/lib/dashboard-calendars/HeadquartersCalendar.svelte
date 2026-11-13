@@ -300,8 +300,8 @@
 	.view-switch {
 		display: inline-flex;
 		padding: 3px;
-		background: #f3f5f7;
-		border: 1px solid #e9ecf0;
+		background: var(--sc-inset);
+		border: 1px solid var(--sc-border);
 		border-radius: 9px;
 		gap: 2px;
 	}
@@ -310,13 +310,13 @@
 		padding: 7px 10px;
 		border-color: transparent;
 		background: transparent;
-		color: #667085;
+		color: var(--sc-muted);
 	}
 	.view-switch button[aria-pressed='true'] {
-		background: #fff;
-		border-color: #d9e6e3;
-		box-shadow: 0 1px 3px #1018280a;
-		color: #0f766e;
+		background: var(--sc-surface);
+		border-color: var(--sc-control-border);
+		box-shadow: none;
+		color: var(--sc-info);
 		font-weight: 650;
 	}
 	.period-controls {
@@ -327,7 +327,7 @@
 	.period-controls button {
 		border-color: transparent;
 		background: transparent;
-		color: #475467;
+		color: var(--sc-muted);
 	}
 	.period-controls .icon-button {
 		width: 44px;
@@ -335,7 +335,7 @@
 	}
 	.period {
 		margin: 0;
-		color: #344054;
+		color: var(--sc-ink);
 		font-size: 0.9rem;
 		font-weight: 650;
 	}
@@ -353,25 +353,25 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 5px;
-		color: #667085;
+		color: var(--sc-muted);
 		font-size: 0.7rem;
 		margin: 0;
 	}
 	.empty-day .day-availability {
-		color: #466d65;
+		color: var(--sc-success);
 	}
 	.current-day {
 		padding: 6px;
 		margin: 0 -6px;
 		border-radius: 12px;
-		background: #f0f8f5;
+		background: var(--sc-inset);
 	}
 	.loading-state {
 		display: flex;
 		align-items: center;
 		gap: 7px;
 		font-size: 0.8rem;
-		color: #667085;
+		color: var(--sc-muted);
 		padding: 16px 0;
 	}
 	.month-grid {
@@ -381,7 +381,7 @@
 	}
 	.weekday {
 		text-align: center;
-		color: #667085;
+		color: var(--sc-muted);
 		font-size: 0.68rem;
 		padding: 0 0 9px;
 	}
@@ -397,13 +397,13 @@
 		border-radius: 6px;
 	}
 	.month-day.chosen {
-		border-color: #0f766e;
-		box-shadow: inset 0 0 0 1px #0f766e;
-		background: #f2f9f7;
+		border-color: var(--sc-info);
+		box-shadow: inset 0 0 0 1px var(--sc-info);
+		background: var(--sc-inset);
 	}
 	.month-day.current .day-number {
-		background: #0f766e;
-		color: white;
+		background: var(--sc-success-control-bg);
+		color: var(--sc-success-control-ink);
 		border-radius: 50%;
 	}
 	.day-number {
@@ -421,9 +421,9 @@
 		overflow: hidden;
 		white-space: nowrap;
 		text-overflow: ellipsis;
-		color: #32665d;
-		background: #eaf4f0;
-		border-left: 2px solid #4f8b7e;
+		color: var(--sc-info);
+		background: var(--sc-info-soft);
+		border-left: 2px solid var(--sc-info);
 		padding: 2px;
 		border-radius: 0 3px 3px 0;
 	}
@@ -432,10 +432,10 @@
 	}
 	.overflow {
 		font-size: 0.65rem;
-		color: #0f766e;
+		color: var(--sc-info);
 	}
 	.outside .day-number {
-		color: #667085;
+		color: var(--sc-muted);
 	}
 	.selected-day {
 		margin-top: 12px;
@@ -454,8 +454,8 @@
 		.mobile-count {
 			display: block;
 			border-radius: 4px;
-			background: #e5f2ed;
-			color: #0f766e;
+			background: var(--sc-info-soft);
+			color: var(--sc-info);
 			font-size: 0.7rem;
 			text-align: center;
 			padding: 2px;
@@ -482,6 +482,43 @@
 		}
 		.period-controls .icon-button {
 			width: 44px;
+		}
+	}
+
+	.calendar-toolbar,
+	.period-controls,
+	.view-switch {
+		min-width: 0;
+	}
+	.period {
+		overflow-wrap: anywhere;
+	}
+	@container calendar-panel (max-width: 330px) {
+		.calendar-toolbar {
+			grid-template-columns: minmax(0, 1fr);
+		}
+		.view-switch {
+			grid-column: 1;
+			grid-row: 1;
+			justify-self: start;
+		}
+		.period-controls {
+			grid-column: 1;
+			grid-row: 2;
+			justify-self: start;
+		}
+		.period {
+			grid-column: 1;
+			grid-row: 3;
+		}
+	}
+
+	@media (max-width: 360px) {
+		.month-grid {
+			margin-inline: -12px;
+		}
+		.month-grid button.month-day:focus-visible {
+			outline-offset: -2px;
 		}
 	}
 </style>

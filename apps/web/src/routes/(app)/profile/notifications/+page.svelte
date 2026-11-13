@@ -365,7 +365,7 @@
 		margin: 16px 0 0;
 	}
 	.warning {
-		color: #991b1b;
+		color: var(--sc-danger);
 	}
 	.notification-actions {
 		display: flex;
@@ -374,12 +374,12 @@
 		margin-top: 20px;
 	}
 	button {
-		min-height: 38px;
+		min-height: 44px;
 		border: 1px solid var(--sc-accent);
 		border-radius: 7px;
 		padding: 8px 12px;
 		background: var(--sc-accent);
-		color: white;
+		color: var(--sc-on-accent);
 		font: inherit;
 		font-size: 14px;
 		cursor: pointer;

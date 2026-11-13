@@ -3,6 +3,8 @@
 	--sc-canvas: #f7f8fa;
 	--sc-surface: #ffffff;
 	--sc-inset: #f3f4f6;
+	--sc-navigation: #ffffff;
+	--sc-surface-raised: #ffffff;
 	--sc-border: #e2e5e9;
 	--sc-border-strong: #cbd0d8;
 	--sc-ink: #202630;
@@ -12,11 +14,14 @@
 	--sc-link: #b4232c;
 	--sc-focus: #b4232c;
 	--sc-on-accent: #ffffff;
+	--sc-overlay: rgb(0 0 0 / 0.5);
 	--sc-danger: #b4232c;
 	--sc-warning: #855309;
 	--sc-warning-soft: #fff5dd;
 	--sc-info: #245d93;
 	--sc-info-soft: #edf4fc;
+	--sc-privileged: #5b318c;
+	--sc-privileged-soft: #f1eaf7;
 	--sc-highlight: #fff0b3;
 	--sc-highlight-ink: #422006;
 	--sc-accent: #b4232c;
@@ -34,16 +39,21 @@
 	--sc-shadow: 0 8px 24px rgb(24 32 44 / 0.08), 0 2px 6px rgb(24 32 44 / 0.04);
 }
 
+:root:is([data-theme='light'], [data-theme='system']) {
+	color-scheme: light;
+}
 :root[data-theme='dark'] {
 	color-scheme: dark;
-	--sc-canvas: #11161d;
-	--sc-surface: #1a222d;
-	--sc-inset: #141c26;
-	--sc-border: #344152;
-	--sc-border-strong: #536176;
-	--sc-control-border: #60718a;
-	--sc-ink: #eef2f7;
-	--sc-muted: #a9b4c3;
+	--sc-canvas: #191919;
+	--sc-surface: #242424;
+	--sc-inset: #1d1d1d;
+	--sc-navigation: #202020;
+	--sc-surface-raised: #2b2b2b;
+	--sc-border: #3c3c3c;
+	--sc-border-strong: #585858;
+	--sc-control-border: #777777;
+	--sc-ink: #eeeeee;
+	--sc-muted: #b3b3b3;
 	--sc-accent: #ce3546;
 	--sc-accent-hover: #b62335;
 	--sc-accent-soft: #3b232a;
@@ -51,7 +61,7 @@
 	--sc-focus: #f9a5ac;
 	--sc-danger: #f398a0;
 	--sc-success: #a0d8b4;
-	--sc-success-soft: #193a2b;
+	--sc-success-soft: #21372a;
 	--sc-success-control-bg: #24543a;
 	--sc-success-control-ink: #c5eed0;
 	--sc-success-control-border: #78b78d;
@@ -59,9 +69,11 @@
 	--sc-review-control-ink: #ffca8a;
 	--sc-review-control-border: #d9913b;
 	--sc-warning: #f0c675;
-	--sc-warning-soft: #3b2d17;
+	--sc-warning-soft: #3a2d1d;
 	--sc-info: #a3c8ed;
-	--sc-info-soft: #18344a;
+	--sc-info-soft: #24333e;
+	--sc-privileged: #d8c2f0;
+	--sc-privileged-soft: #302938;
 	--sc-highlight: #695521;
 	--sc-highlight-ink: #fff1bd;
 	--sc-shadow: 0 12px 32px rgb(0 0 0 / 0.3), 0 2px 8px rgb(0 0 0 / 0.2);
@@ -69,14 +81,16 @@
 @media (prefers-color-scheme: dark) {
 	:root:not([data-theme='light']):not([data-theme='dark']) {
 		color-scheme: dark;
-		--sc-canvas: #11161d;
-		--sc-surface: #1a222d;
-		--sc-inset: #141c26;
-		--sc-border: #344152;
-		--sc-border-strong: #536176;
-		--sc-control-border: #60718a;
-		--sc-ink: #eef2f7;
-		--sc-muted: #a9b4c3;
+		--sc-canvas: #191919;
+		--sc-surface: #242424;
+		--sc-inset: #1d1d1d;
+		--sc-navigation: #202020;
+		--sc-surface-raised: #2b2b2b;
+		--sc-border: #3c3c3c;
+		--sc-border-strong: #585858;
+		--sc-control-border: #777777;
+		--sc-ink: #eeeeee;
+		--sc-muted: #b3b3b3;
 		--sc-accent: #ce3546;
 		--sc-accent-hover: #b62335;
 		--sc-accent-soft: #3b232a;
@@ -84,7 +98,7 @@
 		--sc-focus: #f9a5ac;
 		--sc-danger: #f398a0;
 		--sc-success: #a0d8b4;
-		--sc-success-soft: #193a2b;
+		--sc-success-soft: #21372a;
 		--sc-success-control-bg: #24543a;
 		--sc-success-control-ink: #c5eed0;
 		--sc-success-control-border: #78b78d;
@@ -92,9 +106,11 @@
 		--sc-review-control-ink: #ffca8a;
 		--sc-review-control-border: #d9913b;
 		--sc-warning: #f0c675;
-		--sc-warning-soft: #3b2d17;
+		--sc-warning-soft: #3a2d1d;
 		--sc-info: #a3c8ed;
-		--sc-info-soft: #18344a;
+		--sc-info-soft: #24333e;
+		--sc-privileged: #d8c2f0;
+		--sc-privileged-soft: #302938;
 		--sc-highlight: #695521;
 		--sc-highlight-ink: #fff1bd;
 		--sc-shadow: 0 12px 32px rgb(0 0 0 / 0.3), 0 2px 8px rgb(0 0 0 / 0.2);
@@ -346,7 +362,7 @@ table {
 	padding: 5px;
 	border: 1px solid var(--sc-border);
 	border-radius: var(--sc-radius);
-	background: var(--sc-surface);
+	background: var(--sc-surface-raised);
 	box-shadow: var(--sc-shadow);
 }
 .sc-menu-item {
@@ -374,7 +390,7 @@ table {
 	position: fixed;
 	inset: 0;
 	z-index: 70;
-	background: rgb(20 26 36 / 0.4);
+	background: var(--sc-overlay);
 	backdrop-filter: blur(2px);
 }
 .sc-dialog-content {
@@ -388,8 +404,11 @@ table {
 	overflow: auto;
 	border: 1px solid var(--sc-border);
 	border-radius: 14px;
-	background: var(--sc-surface);
+	background: var(--sc-surface-raised);
 	box-shadow: 0 24px 80px rgb(20 26 36 / 0.22);
+}
+.sc-dialog-wide {
+	width: min(820px, calc(100vw - 32px));
 }
 .sc-dialog-heading {
 	display: flex;

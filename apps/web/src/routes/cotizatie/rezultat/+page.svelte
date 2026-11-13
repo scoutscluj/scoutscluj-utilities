@@ -49,10 +49,12 @@
 	main {
 		border: 1px solid var(--sc-border);
 		border-radius: 16px;
-		background: white;
-		box-shadow: 0 4px 16px rgb(15 23 42 / 0.03);
+		background: var(--sc-surface);
+
 		max-width: 680px;
-		margin: 48px auto;
+		width: min(680px, calc(100% - 32px));
+		margin: 24px auto;
+		color: var(--sc-ink);
 		padding: 24px;
 	}
 	.eyebrow {
@@ -71,7 +73,7 @@
 		padding: 20px;
 		border-radius: 12px;
 		background: var(--sc-canvas);
-		color: #475569;
+		color: var(--sc-muted);
 	}
 	.payment-details strong {
 		font-size: 2rem;
@@ -79,8 +81,9 @@
 	}
 	.notice {
 		padding: 16px;
-		background: #fff7ed;
-		border: 1px solid #fed7aa;
+		background: var(--sc-warning-soft);
+		color: var(--sc-warning);
+		border: 1px solid var(--sc-warning);
 		border-radius: 10px;
 	}
 	.actions {
@@ -99,10 +102,31 @@
 	.actions a:first-child {
 		background: var(--sc-accent);
 		border-color: var(--sc-accent);
-		color: white;
+		color: var(--sc-on-accent);
+	}
+	a {
+		color: var(--sc-link);
+	}
+	.actions a {
+		min-height: 44px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+	}
+	h1 {
+		overflow-wrap: anywhere;
+		line-height: 1.25;
+	}
+	@media (max-width: 600px) {
+		main {
+			padding: 20px;
+		}
+		.actions a {
+			width: 100%;
+		}
 	}
 	a:focus-visible {
-		outline: 3px solid #fca5a5;
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 3px;
 	}
 	p {

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import Modal from '$lib/components/ui/Modal.svelte';
 	import PdfPagePreview from './PdfPagePreview.svelte';
 
 	type Props = {
@@ -21,19 +22,7 @@
 		contentType.startsWith('image/') || /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/.test(lowerFilename)
 	);
 	const previewKind = $derived(isPdf ? 'pdf' : isImage ? 'image' : 'file');
-
-	const closePreview = () => {
-		isOpen = false;
-	};
-
-	const handleKeydown = (event: KeyboardEvent) => {
-		if (isOpen && event.key === 'Escape') {
-			closePreview();
-		}
-	};
 </script>
-
-<svelte:window onkeydown={handleKeydown} />
 
 <div class="preview-card" class:compact class:dense>
 	<span class="preview-frame" aria-hidden="true">
@@ -57,51 +46,29 @@
 	{/if}
 </div>
 
-{#if isOpen}
-	<div class="preview-backdrop">
-		<button
-			type="button"
-			class="backdrop-close"
-			aria-label="Închide previzualizarea"
-			onclick={closePreview}
-		></button>
-		<div
-			class="preview-dialog"
-			role="dialog"
-			aria-modal="true"
-			aria-label={`Previzualizare ${filename}`}
-		>
-			<header>
-				<p>{filename}</p>
-				<button
-					type="button"
-					class="close-button"
-					aria-label="Închide previzualizarea"
-					onclick={closePreview}
-				>
-					×
-				</button>
-			</header>
-
-			<div
-				class="preview-body"
-				class:image-preview={previewKind === 'image'}
-				class:pdf-preview={previewKind === 'pdf'}
-			>
-				{#if previewKind === 'image'}
-					<img src={previewUrl} alt={filename} />
-				{:else if previewKind === 'pdf'}
-					<PdfPagePreview url={previewUrl} title={`Previzualizare PDF pentru ${filename}`} />
-				{:else}
-					<div class="unsupported-preview">
-						<p>Acest tip de fișier nu poate fi previzualizat în browser.</p>
-						<a href={fileUrl}>Descarcă documentul</a>
-					</div>
-				{/if}
+<Modal
+	wide
+	bind:open={isOpen}
+	title={`Previzualizare ${filename}`}
+	description="Consultă documentul înainte de a continua."
+>
+	<div
+		class="preview-body"
+		class:image-preview={previewKind === 'image'}
+		class:pdf-preview={previewKind === 'pdf'}
+	>
+		{#if previewKind === 'image'}
+			<img src={previewUrl} alt={filename} />
+		{:else if previewKind === 'pdf'}
+			<PdfPagePreview url={previewUrl} title={`Previzualizare PDF pentru ${filename}`} />
+		{:else}
+			<div class="unsupported-preview">
+				<p>Acest tip de fișier nu poate fi previzualizat în browser.</p>
+				<a href={fileUrl}>Descarcă documentul</a>
 			</div>
-		</div>
+		{/if}
 	</div>
-{/if}
+</Modal>
 
 <style>
 	.preview-card {
@@ -144,7 +111,7 @@
 	}
 
 	.preview-overlay:focus-visible {
-		outline: 3px solid rgb(153 27 27 / 0.18);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 2px;
 	}
 
@@ -180,9 +147,9 @@
 	.preview-badge,
 	.file-placeholder {
 		border-radius: 999px;
-		background: rgb(15 23 42 / 0.78);
+		background: rgb(0 0 0 / 0.78);
 		padding: 4px 8px;
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 		font-size: 0.72rem;
 		font-weight: 600;
 	}
@@ -201,7 +168,7 @@
 	}
 
 	.preview-label {
-		color: #475569;
+		color: var(--sc-muted);
 		font-size: 0.78rem;
 		font-weight: 600;
 	}
@@ -210,80 +177,18 @@
 		font-size: 0.72rem;
 	}
 
-	.preview-backdrop {
-		position: fixed;
-		inset: 0;
-		z-index: 80;
-		display: grid;
-		place-items: center;
-		background: rgb(15 23 42 / 0.58);
-		padding: 22px;
-	}
-
-	.backdrop-close {
-		position: absolute;
-		inset: 0;
-		border: 0;
-		background: transparent;
-		cursor: default;
-	}
-
-	.preview-dialog {
-		position: relative;
-		width: min(1040px, 100%);
-		height: min(760px, calc(100vh - 44px));
-		display: grid;
-		grid-template-rows: auto minmax(0, 1fr);
-		overflow: hidden;
-		border-radius: 8px;
-		background: var(--sc-surface);
-		box-shadow: 0 24px 70px rgb(15 23 42 / 0.28);
-	}
-
-	header {
-		min-width: 0;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 12px;
-		border-bottom: 1px solid var(--sc-border);
-		padding: 12px 14px;
-	}
-
-	header p {
-		min-width: 0;
-		margin: 0;
-		overflow: hidden;
-		color: var(--sc-ink);
-		font-weight: 600;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.close-button {
-		width: 36px;
-		height: 36px;
-		flex: 0 0 auto;
-		border: 1px solid var(--sc-border-strong);
-		border-radius: 8px;
-		background: var(--sc-surface);
-		color: var(--sc-ink);
-		font-size: 1.35rem;
-		line-height: 1;
-		cursor: pointer;
-	}
-
 	.preview-body {
-		min-height: 0;
+		height: min(620px, calc(100dvh - 220px));
+		min-height: 200px;
 		display: grid;
-		background: var(--sc-ink);
+		background: var(--sc-inset);
 	}
 
 	.preview-body.image-preview,
 	.preview-body.pdf-preview {
 		place-items: center;
 		overflow: auto;
-		background: #111827;
+		background: var(--sc-inset);
 	}
 
 	.preview-body img {
@@ -306,11 +211,11 @@
 
 	.unsupported-preview p {
 		margin: 0;
-		color: #475569;
+		color: var(--sc-muted);
 	}
 
 	.unsupported-preview a {
-		color: #2563eb;
+		color: var(--sc-link);
 		font-weight: 600;
 	}
 </style>

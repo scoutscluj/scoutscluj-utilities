@@ -388,10 +388,11 @@
 	select,
 	textarea {
 		min-height: 44px;
+		min-width: 0;
 		padding: 10px 12px;
-		border: 1px solid var(--sc-border-strong);
+		border: 1px solid var(--sc-control-border);
 		border-radius: 7px;
-		background: var(--sc-surface);
+		background: var(--sc-inset);
 		color: var(--sc-ink);
 		font: inherit;
 		box-sizing: border-box;
@@ -467,7 +468,7 @@
 		background: var(--sc-success-soft);
 	}
 	.status[data-state='rejected'] {
-		color: var(--sc-accent);
+		color: var(--sc-danger);
 		background: var(--sc-accent-soft);
 	}
 	.body {
@@ -528,7 +529,7 @@
 	.contact-lines a:hover,
 	.back-link:hover {
 		text-decoration: underline;
-		color: var(--sc-accent);
+		color: var(--sc-link);
 	}
 	.guardian-name {
 		font-size: 14px;
@@ -593,7 +594,7 @@
 		border: 1px solid var(--sc-accent);
 		border-radius: 7px;
 		background: var(--sc-accent);
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 		padding: 10px 14px;
 		min-height: 44px;
 		font: inherit;
@@ -607,15 +608,15 @@
 	.secondary {
 		background: var(--sc-surface);
 		color: var(--sc-ink);
-		border-color: var(--sc-border-strong);
+		border-color: var(--sc-control-border);
 	}
 	.secondary:hover {
 		background: var(--sc-inset);
 	}
 	.reject-button {
 		background: var(--sc-surface);
-		color: var(--sc-accent);
-		border-color: var(--sc-border-strong);
+		color: var(--sc-danger);
+		border-color: var(--sc-control-border);
 	}
 	.reject-button:hover {
 		background: var(--sc-accent-soft);
@@ -671,7 +672,7 @@
 		margin-top: 24px;
 	}
 	:is(button, input, select, textarea, summary, a):focus-visible {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 3px;
 	}
 	@media (max-width: 800px) {

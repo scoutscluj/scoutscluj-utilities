@@ -37,7 +37,7 @@
 	.date-connector {
 		width: 2px;
 		height: 12px;
-		background: #c3cbd5;
+		background: var(--sc-border-strong);
 	}
 
 	.date-badge {
@@ -46,17 +46,17 @@
 		align-items: center;
 		width: 44px;
 		min-height: 48px;
-		border: 1px solid #e0e5eb;
+		border: 1px solid var(--sc-border);
 		border-radius: 7px;
-		background: #fff;
-		color: #344054;
+		background: var(--sc-surface);
+		color: var(--sc-ink);
 		overflow: hidden;
 		font-variant-numeric: tabular-nums;
 	}
 	.month {
 		align-self: stretch;
-		background: #f0f2f5;
-		color: #586577;
+		background: var(--sc-inset);
+		color: var(--sc-muted);
 		text-align: center;
 		font-size: 0.56rem;
 		font-weight: 650;
@@ -73,27 +73,27 @@
 	}
 	small {
 		padding-bottom: 2px;
-		color: #667085;
+		color: var(--sc-muted);
 		font-size: 0.58rem;
 		line-height: 11px;
 	}
 	.year {
-		color: #667085;
+		color: var(--sc-muted);
 		font-size: 0.55rem;
 		line-height: 10px;
 		padding-bottom: 2px;
 	}
 	.current {
-		color: #0f766e;
-		border-color: #9ccfbd;
-		background: #f5fbf8;
+		color: var(--sc-success-control-ink);
+		border-color: var(--sc-success-control-border);
+		background: var(--sc-success-control-bg);
 	}
 	.current .month {
-		color: #fff;
-		background: #0f766e;
+		color: var(--sc-success-control-ink);
+		background: var(--sc-success-control-bg);
 	}
 	.current small {
-		color: #0f766e;
+		color: var(--sc-success-control-ink);
 		font-weight: 600;
 	}
 </style>

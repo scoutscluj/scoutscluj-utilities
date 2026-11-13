@@ -100,10 +100,10 @@
 
 <style>
 	.event-card {
-		--event-color: #245da8;
-		--event-tint: #f3f7fd;
+		--event-color: var(--sc-info);
+		--event-tint: var(--sc-surface);
 		position: relative;
-		border: 1px solid #e3eaf3;
+		border: 1px solid var(--sc-border);
 		border-left: 3px solid var(--event-color);
 		background: var(--event-tint);
 		border-radius: 0 9px 9px 0;
@@ -111,29 +111,29 @@
 		overflow-wrap: anywhere;
 	}
 	.booking {
-		--event-color: #0f766e;
-		--event-tint: #f3f9f8;
-		border-color: #deebe8;
+		--event-color: var(--sc-info);
+		--event-tint: var(--sc-surface);
+		border-color: var(--sc-border);
 		border-left-color: var(--event-color);
 		padding: 11px 14px;
 	}
 	.all-day {
-		--event-color: #6941a5;
-		--event-tint: #f8f6fc;
-		border-color: #eae4f2;
+		--event-color: var(--sc-info);
+		--event-tint: var(--sc-surface);
+		border-color: var(--sc-border);
 		border-left-color: var(--event-color);
 	}
 	.ongoing {
-		--event-color: #217348;
-		--event-tint: #f1f9f3;
-		border-color: #d9eade;
+		--event-color: var(--sc-success);
+		--event-tint: var(--sc-surface);
+		border-color: var(--sc-border);
 		border-left-color: var(--event-color);
 	}
 	.ended {
-		--event-color: #667085;
-		--event-tint: #fafbfc;
-		border-color: #e8ebef;
-		border-left-color: #c3cbd5;
+		--event-color: var(--sc-muted);
+		--event-tint: var(--sc-inset);
+		border-color: var(--sc-border);
+		border-left-color: var(--sc-border-strong);
 	}
 	.event-card {
 		display: grid;
@@ -155,7 +155,7 @@
 		line-height: 1.45;
 	}
 	.ended h4 {
-		color: #4b5565;
+		color: var(--sc-muted);
 	}
 	.event-meta {
 		grid-column: 2;
@@ -191,7 +191,7 @@
 		font-variant-numeric: tabular-nums;
 	}
 	.end-date {
-		color: #596579;
+		color: var(--sc-muted);
 	}
 	.status {
 		display: inline-flex;
@@ -202,13 +202,13 @@
 		white-space: nowrap;
 	}
 	.live {
-		background: #e1f1e5;
-		color: #21613d;
+		background: var(--sc-success-control-bg);
+		color: var(--sc-success-control-ink);
 		border-radius: 20px;
 		padding: 4px 7px;
 	}
 	.past {
-		color: #667085;
+		color: var(--sc-muted);
 	}
 	.event-location,
 	.continuation {
@@ -217,7 +217,7 @@
 		align-items: flex-start;
 		gap: 6px;
 		margin: 0;
-		color: #586577;
+		color: var(--sc-muted);
 		font-size: 0.75rem;
 		line-height: 1.5;
 	}
@@ -233,7 +233,7 @@
 		max-width: 100%;
 		cursor: pointer;
 		text-decoration: underline;
-		text-decoration-color: #aab4c2;
+		text-decoration-color: var(--sc-border-strong);
 		text-underline-offset: 3px;
 	}
 	.event-location:hover {
@@ -241,13 +241,13 @@
 		text-decoration-color: currentColor;
 	}
 	.event-location:focus-visible {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 3px;
 		border-radius: 2px;
 	}
 	.continuation {
 		font-size: 0.7rem;
-		color: #667085;
+		color: var(--sc-muted);
 	}
 	.event-card .details-toggle {
 		display: inline-flex;
@@ -258,7 +258,7 @@
 		min-height: 44px;
 		padding: 0;
 		margin: -13px -6px -13px 0;
-		color: #586577;
+		color: var(--sc-muted);
 		border: 0;
 		background: transparent;
 		border-radius: 6px;
@@ -289,7 +289,7 @@
 		white-space: pre-wrap;
 		font-size: 0.8rem;
 		line-height: 1.7;
-		color: #475467;
+		color: var(--sc-muted);
 	}
 	.description :global(p),
 	.description :global(div),
@@ -314,16 +314,16 @@
 	}
 	.description :global(a) {
 		cursor: pointer;
-		color: #245da8;
+		color: var(--sc-info);
 		text-decoration: underline;
 		text-underline-offset: 2px;
 	}
 	.description :global(a:focus-visible) {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 2px;
 	}
 	.description :global(blockquote) {
-		border-left: 2px solid #c3cbd5;
+		border-left: 2px solid var(--sc-border-strong);
 		padding-left: 12px;
 	}
 	.description :global(h1),
@@ -346,7 +346,7 @@
 		outline: none;
 	}
 	.details-toggle:focus-visible::after {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 2px;
 	}
 	@container bookings (max-width: 359px) {

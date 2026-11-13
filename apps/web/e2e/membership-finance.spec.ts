@@ -265,9 +265,9 @@ test('bank admission can share one transfer with membership and leaves membershi
 	).toBeLessThanOrEqual(1);
 	await page.screenshot({ path: testInfo.outputPath('bank-admission-mobile.png'), fullPage: true });
 	await panel.getByRole('button', { name: 'Înregistrează transferul și alocările' }).click();
-	await expect(page.getByRole('row').filter({ hasText: 'Andrei Ionescu' })).toContainText(
-		'Adeziune achitată'
-	);
+	const member = page.locator('.mobile-member').filter({ hasText: 'Andrei Ionescu' });
+	await member.getByRole('button', { expanded: false }).first().click();
+	await expect(member).toContainText('Adeziune achitată');
 	const submissions = await (await request.get('http://127.0.0.1:3015/test/submissions')).json();
 	expect(submissions.at(-1)).toMatchObject({
 		amountBani: 15500,

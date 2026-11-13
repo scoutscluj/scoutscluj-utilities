@@ -89,7 +89,7 @@
 		display: flex;
 		align-items: center;
 		gap: 10px;
-		color: var(--sc-accent);
+		color: var(--sc-link);
 	}
 	h2 {
 		color: var(--sc-ink);
@@ -98,7 +98,7 @@
 		margin: 0;
 	}
 	button {
-		min-height: 38px;
+		min-height: 44px;
 		padding: 8px 12px;
 		border: 1px solid var(--sc-border-strong);
 		border-radius: 7px;
@@ -113,14 +113,14 @@
 	}
 	button.primary {
 		background: var(--sc-accent);
-		border-color: var(--sc-accent);
-		color: white;
+		border-color: var(--sc-link);
+		color: var(--sc-on-accent);
 	}
 	button.primary:hover {
 		background: var(--sc-accent-hover);
 	}
 	button:focus-visible {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 3px;
 	}
 	.summary-copy {

@@ -61,10 +61,10 @@
 		gap: 24px 32px;
 		align-items: start;
 		border-top: 1px solid var(--sc-border);
-		background: #fff;
+		background: var(--sc-surface);
 		padding: 28px clamp(16px, 3vw, 40px);
 		overflow-wrap: anywhere;
-		color: #475569;
+		color: var(--sc-muted);
 		font-size: 0.86rem;
 	}
 	.identity,
@@ -92,7 +92,13 @@
 	nav {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
+	a {
+		color: var(--sc-link);
+	}
 	nav a {
+		min-height: 44px;
+		display: inline-flex;
+		align-items: center;
 		text-decoration-thickness: 1px;
 		text-underline-offset: 3px;
 	}
@@ -120,7 +126,7 @@
 		height: auto;
 	}
 	.netopia-logo:focus-visible {
-		outline: 3px solid #fca5a5;
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 4px;
 	}
 	@media (max-width: 900px) {

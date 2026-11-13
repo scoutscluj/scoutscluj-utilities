@@ -199,7 +199,7 @@
 		position: fixed;
 		inset: 0;
 		z-index: 60;
-		background: #10281d66;
+		background: var(--sc-overlay);
 		backdrop-filter: blur(3px);
 	}
 	:global(.receipt-dialog) {
@@ -211,11 +211,12 @@
 		width: min(560px, calc(100vw - 28px));
 		max-height: calc(100dvh - 32px);
 		overflow-y: auto;
-		padding: 28px;
-		border-radius: 20px;
-		background: white;
-		color: #1e293b;
-		box-shadow: 0 24px 80px #0f172a40;
+		padding: 24px;
+		border-radius: 14px;
+		background: var(--sc-surface-raised);
+		color: var(--sc-ink);
+		box-shadow: var(--sc-shadow);
+		border: 1px solid var(--sc-border);
 	}
 	.dialog-heading {
 		display: flex;
@@ -224,7 +225,7 @@
 		gap: 12px;
 	}
 	.eyebrow {
-		color: #15803d;
+		color: var(--sc-success);
 		font-size: 0.72rem;
 		font-weight: 700;
 		text-transform: uppercase;
@@ -232,7 +233,7 @@
 		margin: 0 0 6px;
 	}
 	:global(.receipt-dialog-title) {
-		font-size: 1.5rem;
+		font-size: 1.3rem;
 		margin: 0;
 	}
 	:global(.receipt-dialog-description) {
@@ -241,13 +242,13 @@
 		line-height: 1.6;
 		margin: 12px 0 20px;
 	}
-	:global(.dialog-close) {
+	:global(.receipt-dialog .dialog-close) {
 		border: 0;
 		background: var(--sc-inset);
-		color: #475569;
-		border-radius: 50%;
-		width: 36px;
-		height: 36px;
+		color: var(--sc-muted);
+		border-radius: 7px;
+		width: 44px;
+		height: 44px;
 		display: grid;
 		place-items: center;
 		cursor: pointer;
@@ -257,11 +258,11 @@
 		gap: 5px;
 		padding: 16px;
 		border-radius: 12px;
-		background: #f0fdf4;
+		background: var(--sc-success-soft);
 		margin-bottom: 20px;
 	}
 	.member-summary span {
-		color: #52665a;
+		color: var(--sc-muted);
 		font-size: 0.85rem;
 	}
 	fieldset {
@@ -285,19 +286,19 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		border: 1px solid #dce5df;
+		border: 1px solid var(--sc-border);
 		border-radius: 10px;
 		padding: 12px;
 		cursor: pointer;
 		font-size: 0.82rem;
 	}
 	.method-options label.chosen {
-		border-color: #15803d;
-		background: #f0fdf4;
-		color: #166534;
+		border-color: var(--sc-success);
+		background: var(--sc-success-soft);
+		color: var(--sc-success);
 	}
 	input[type='radio'] {
-		accent-color: #15803d;
+		accent-color: var(--sc-success);
 	}
 	.form-fields {
 		display: grid;
@@ -309,7 +310,7 @@
 		gap: 7px;
 		font-size: 0.85rem;
 		font-weight: 500;
-		color: #475569;
+		color: var(--sc-muted);
 	}
 	.full {
 		grid-column: 1 / -1;
@@ -318,11 +319,11 @@
 		width: 100%;
 		min-width: 0;
 		padding: 11px 12px;
-		border: 1px solid var(--sc-border-strong);
+		border: 1px solid var(--sc-control-border);
 		border-radius: 10px;
 		font: inherit;
-		color: #1e293b;
-		background: white;
+		color: var(--sc-ink);
+		background: var(--sc-surface);
 	}
 	.form-hint {
 		font-size: 0.8rem;
@@ -331,8 +332,8 @@
 		margin: 16px 0;
 	}
 	.form-error {
-		background: #fff1f2;
-		color: #b42318;
+		background: var(--sc-accent-soft);
+		color: var(--sc-danger);
 		border-radius: 10px;
 		padding: 12px;
 		font-size: 0.85rem;
@@ -354,21 +355,21 @@
 		cursor: pointer;
 	}
 	:global(.receipt-dialog .cancel) {
-		background: white;
-		color: #475569;
-		border: 1px solid var(--sc-border-strong);
+		background: var(--sc-surface);
+		color: var(--sc-muted);
+		border: 1px solid var(--sc-control-border);
 	}
 	.save {
-		background: #166534;
-		color: white;
-		border: 1px solid #166534;
+		background: var(--sc-accent);
+		color: var(--sc-on-accent);
+		border: 1px solid var(--sc-accent);
 	}
 	:global(.receipt-dialog :disabled) {
 		opacity: 0.6;
 		cursor: wait;
 	}
 	:global(.receipt-dialog :focus-visible) {
-		outline: 3px solid #86efac;
+		outline: 3px solid var(--sc-focus);
 		outline-offset: 3px;
 	}
 	@media (max-width: 480px) {
@@ -381,6 +382,30 @@
 		}
 		.dialog-actions {
 			flex-wrap: wrap;
+		}
+	}
+
+	:global(.receipt-dialog :is(button, select, textarea)),
+	.form-fields input {
+		min-height: 44px;
+	}
+	:global(.receipt-dialog button:hover:not(:disabled)) {
+		filter: brightness(0.96);
+	}
+	.method-options label {
+		min-height: 44px;
+		border-color: var(--sc-control-border);
+	}
+	.dialog-heading {
+		align-items: flex-start;
+	}
+	:global(.receipt-dialog .dialog-close) {
+		flex-shrink: 0;
+	}
+	@media (max-width: 480px) {
+		.dialog-actions {
+			display: grid;
+			grid-template-columns: 1fr;
 		}
 	}
 </style>

@@ -147,7 +147,7 @@
 		margin-bottom: 32px;
 	}
 	a {
-		color: var(--sc-accent);
+		color: var(--sc-link);
 	}
 	.back {
 		font-size: 0.9rem;
@@ -155,7 +155,7 @@
 	.error {
 		padding: 12px;
 		background: var(--sc-accent-soft);
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 		border-radius: 7px;
 	}
 	.success p {
@@ -170,7 +170,7 @@
 		padding-left: 8px;
 	}
 	.next-steps li::marker {
-		color: var(--sc-accent);
+		color: var(--sc-link);
 		font-weight: 600;
 	}
 	.next-steps p {
@@ -201,16 +201,16 @@
 	}
 	.next-actions a:first-child {
 		background: var(--sc-accent);
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 		border-color: var(--sc-accent);
 	}
 	.next-actions a:focus-visible {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 3px;
 	}
 	.next-actions a:hover {
 		background: var(--sc-inset);
-		color: var(--sc-accent);
+		color: var(--sc-link);
 	}
 	@media (max-width: 600px) {
 		.page-tools {

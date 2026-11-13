@@ -440,7 +440,7 @@
 		display: flex;
 		align-items: flex-start;
 		gap: 12px;
-		border: 1px solid var(--sc-border);
+		border: 1px solid var(--sc-control-border);
 		border-radius: 10px;
 		padding: 16px;
 		cursor: pointer;
@@ -492,7 +492,7 @@
 		width: 100%;
 		min-height: 44px;
 		padding: 8px 12px;
-		border: 1px solid var(--sc-border);
+		border: 1px solid var(--sc-control-border);
 		border-radius: 7px;
 		background: var(--sc-surface);
 		color: var(--sc-ink);
@@ -577,7 +577,7 @@
 		border-radius: 50%;
 		background: var(--sc-surface);
 		color: var(--sc-link);
-		border: 1px solid var(--sc-border);
+		border: 1px solid var(--sc-control-border);
 		display: grid;
 		place-items: center;
 	}

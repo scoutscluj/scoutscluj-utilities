@@ -27,6 +27,6 @@
 	}
 	.document-status[data-status='rejected'] {
 		background: var(--sc-accent-soft);
-		color: var(--sc-accent);
+		color: var(--sc-danger);
 	}
 </style>

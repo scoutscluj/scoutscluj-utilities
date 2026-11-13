@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { RefreshCw } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import {
 		notificationApiFetch,
@@ -93,13 +94,9 @@
 <section class="notifications-admin">
 	<div class="page-heading">
 		<div>
-			<p class="eyebrow">Admin</p>
 			<h1>Notificări</h1>
 			<p>Trimite broadcast-uri către utilizatorii care au activat notificările.</p>
 		</div>
-		<button type="button" class="secondary-button" onclick={loadSummary} disabled={loadingSummary}>
-			Actualizează
-		</button>
 	</div>
 
 	<div class="summary-grid" aria-label="Abonamente active">
@@ -111,6 +108,16 @@
 			<span>Dispozitive active</span>
 			<strong>{loadingSummary ? '...' : summary.devices}</strong>
 		</div>
+		<button
+			type="button"
+			class="secondary-button refresh-summary"
+			aria-label="Actualizează"
+			title="Actualizează abonamentele"
+			onclick={loadSummary}
+			disabled={loadingSummary}
+		>
+			<RefreshCw size={18} aria-hidden="true" />
+		</button>
 	</div>
 
 	<form class="broadcast-form" onsubmit={(event) => (event.preventDefault(), sendBroadcast())}>
@@ -167,8 +174,10 @@
 <style>
 	.notifications-admin {
 		display: grid;
-		gap: 18px;
+		gap: 16px;
 		max-width: 880px;
+		min-width: 0;
+		color: var(--sc-ink);
 	}
 
 	.page-heading {
@@ -178,19 +187,10 @@
 		gap: 16px;
 	}
 
-	.eyebrow,
 	h1,
 	h2,
 	p {
 		margin: 0;
-	}
-
-	.eyebrow {
-		color: var(--sc-muted);
-		font-size: 0.78rem;
-		font-weight: 600;
-		letter-spacing: 0;
-		text-transform: uppercase;
 	}
 
 	h1 {
@@ -205,8 +205,9 @@
 
 	.summary-grid {
 		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 12px;
+		grid-template-columns: repeat(2, minmax(0, 1fr)) 44px;
+		gap: 8px;
+		align-items: center;
 	}
 
 	.summary-grid div,
@@ -219,17 +220,24 @@
 
 	.summary-grid div {
 		display: grid;
-		gap: 8px;
-		padding: 16px;
+		gap: 4px;
+		padding: 12px;
 	}
 
+	.refresh-summary {
+		width: 44px;
+		padding: 0;
+		display: grid;
+		place-items: center;
+	}
 	.summary-grid span {
+		font-size: 12px;
 		color: var(--sc-muted);
 		font-weight: 600;
 	}
 
 	.summary-grid strong {
-		font-size: 2rem;
+		font-size: 22px;
 	}
 
 	.broadcast-form {
@@ -247,15 +255,23 @@
 
 	input,
 	textarea {
+		min-width: 0;
+		min-height: 44px;
 		width: 100%;
 		box-sizing: border-box;
-		border: 1px solid var(--sc-border-strong);
+		border: 1px solid var(--sc-control-border);
 		border-radius: 8px;
 		padding: 10px 12px;
 		font: inherit;
 	}
 
+	input,
 	textarea {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+	}
+	textarea {
+		min-height: 128px;
 		resize: vertical;
 	}
 
@@ -268,12 +284,12 @@
 
 	button,
 	.secondary-button {
-		min-height: 40px;
+		min-height: 44px;
 		border: 1px solid var(--sc-accent);
 		border-radius: 8px;
 		background: var(--sc-accent);
 		padding: 0 14px;
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 		font-weight: 600;
 		cursor: pointer;
 	}
@@ -284,6 +300,10 @@
 		color: var(--sc-ink);
 	}
 
+	:is(button, input, textarea):focus-visible {
+		outline: 2px solid var(--sc-focus);
+		outline-offset: 2px;
+	}
 	button:disabled {
 		opacity: 0.58;
 		cursor: not-allowed;
@@ -323,9 +343,9 @@
 			flex-direction: column;
 		}
 
-		.summary-grid,
-		.result-panel dl {
-			grid-template-columns: 1fr;
+		.result-panel dt {
+			font-size: 12px;
+			overflow-wrap: anywhere;
 		}
 	}
 </style>

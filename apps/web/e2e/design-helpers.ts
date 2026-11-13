@@ -106,6 +106,38 @@ export async function expectThemeContrast(page: Page) {
 }
 
 export async function expectRenderedContrast(page: Page) {
+	const foundations = await page.evaluate(() => {
+		const preference = document.documentElement.dataset.theme;
+		if (
+			preference !== 'dark' &&
+			(preference === 'light' || !matchMedia('(prefers-color-scheme: dark)').matches)
+		)
+			return [];
+		const probe = document.createElement('span');
+		document.body.append(probe);
+		const colors = [
+			'--sc-canvas',
+			'--sc-navigation',
+			'--sc-surface',
+			'--sc-surface-raised',
+			'--sc-inset',
+			'--sc-border',
+			'--sc-control-border'
+		].map((token) => {
+			probe.style.color = `var(${token})`;
+			return {
+				token,
+				channels: getComputedStyle(probe)
+					.color.match(/[\d.]+/g)!
+					.slice(0, 3)
+					.map(Number)
+			};
+		});
+		probe.remove();
+		return colors;
+	});
+	for (const { token, channels } of foundations)
+		expect(new Set(channels).size, `${token} is neutral charcoal, without a blue cast`).toBe(1);
 	const failures = await page.evaluate(() => {
 		const canvas = document.createElement('canvas');
 		canvas.width = canvas.height = 1;
@@ -139,14 +171,38 @@ export async function expectRenderedContrast(page: Page) {
 		const visible = (element: Element) => {
 			const r = element.getBoundingClientRect(),
 				c = getComputedStyle(element);
-			return r.width > 0 && r.height > 0 && c.visibility !== 'hidden';
+			return (
+				r.width > 0 &&
+				r.height > 0 &&
+				c.visibility !== 'hidden' &&
+				!element.closest('[hidden], .sr-only, .sc-sr-only')
+			);
+		};
+		const transparent = (element: Element) => {
+			for (let parent: Element | null = element; parent; parent = parent.parentElement)
+				if (Number(getComputedStyle(parent).opacity) === 0) return true;
+			return false;
+		};
+		const disabled = (element: Element) => !!element.closest(':disabled, [aria-disabled="true"]');
+		const ownText = (element: Element) =>
+			[...element.childNodes].some(
+				(node) => node.nodeType === Node.TEXT_NODE && !!node.textContent?.trim()
+			);
+		const foreground = (element: Element) => {
+			const ink = rgba(getComputedStyle(element).color),
+				paper = background(element);
+			let opacity = ink[3] / 255;
+			for (let parent: Element | null = element; parent; parent = parent.parentElement)
+				opacity *= Number(getComputedStyle(parent).opacity);
+			return [0, 1, 2].map((i) => ink[i] * opacity + paper[i] * (1 - opacity)).concat(255);
 		};
 		const result: { element: string; ratio: number; minimum: number }[] = [];
 		for (const element of document.querySelectorAll(
-			'nav a, main a, [role="menuitem"], .department-heading, .utility-label'
+			'nav a, [role="menuitem"], .department-heading, .utility-label, :is(main,[role="dialog"],.topbar) :is(h1,h2,h3,h4,p,label,dt,dd,strong,small,span,summary,a,button,legend,th,td,li)'
 		)) {
-			if (!visible(element) || element.getAttribute('aria-disabled') === 'true') continue;
-			const ratio = contrast(rgba(getComputedStyle(element).color), background(element));
+			if (!visible(element) || transparent(element) || disabled(element) || !ownText(element))
+				continue;
+			const ratio = contrast(foreground(element), background(element));
 			if (ratio < 4.5)
 				result.push({
 					element: (element.textContent ?? '').trim().slice(0, 70),
@@ -157,13 +213,15 @@ export async function expectRenderedContrast(page: Page) {
 		for (const element of document.querySelectorAll(
 			'input:not([type="hidden"],[type="checkbox"],[type="radio"]), select, textarea, .date-control, .filter-trigger'
 		)) {
-			if (
-				!visible(element) ||
-				element.matches(':disabled') ||
-				element.getAttribute('aria-disabled') === 'true'
-			)
-				continue;
+			if (!visible(element) || transparent(element) || disabled(element)) continue;
 			const css = getComputedStyle(element);
+			const textRatio = contrast(foreground(element), background(element));
+			if (textRatio < 4.5)
+				result.push({
+					element: `${element.getAttribute('name') ?? element.tagName} field text`,
+					ratio: textRatio,
+					minimum: 4.5
+				});
 			if (element.matches('input[placeholder], textarea[placeholder]')) {
 				const placeholder = getComputedStyle(element, '::placeholder');
 				const ratio = contrast(rgba(placeholder.color), background(element));

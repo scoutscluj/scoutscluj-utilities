@@ -247,6 +247,35 @@ createServer(async (req, res) => {
 		subscribedDevices = new Set();
 		return respond(res, {});
 	}
+	if (req.url === '/test/admin-appearance' && req.method === 'POST') {
+		let raw = '';
+		for await (const chunk of req) raw += chunk;
+		const options = raw ? JSON.parse(raw) : {};
+		ledger.orgoIntegration = options.orgoIntegration ?? 'configured';
+		ledger.paymentConfiguration.providers = [
+			['netopia', 'sandbox'],
+			['netopia', 'live'],
+			['stripe', 'test'],
+			['stripe', 'live']
+		].map(([id, environment]) => ({
+			id,
+			targetId: `synthetic-${id}-${environment}`,
+			label: id === 'stripe' ? 'Stripe' : 'NETOPIA Payments',
+			ready: true,
+			processingFee: { percentageBasisPoints: id === 'stripe' ? 150 : 100, fixedBani: 100 },
+			environment,
+			secretHint: '1234',
+			updatedAt: '2026-11-12T10:00:00Z'
+		}));
+		if (['running', 'succeeded', 'failed'].includes(options.syncState)) {
+			ledger.rosterSync.status = options.syncState;
+			ledger.rosterSync.error =
+				options.syncState === 'failed'
+					? 'Conexiunea sintetică nu a răspuns. Reîncearcă sincronizarea.'
+					: undefined;
+		}
+		return respond(res, {});
+	}
 	if (req.url === '/test/profile' && req.method === 'POST') {
 		let raw = '';
 		for await (const chunk of req) raw += chunk;
@@ -701,28 +730,34 @@ createServer(async (req, res) => {
 			period: ledger.periods[0],
 			cardEnabled: true,
 			environment: 'sandbox',
-			activeProvider: 'netopia'
+			activeProvider: 'netopia',
+			...profileOptions.selfServiceCatalog
 		});
 	if (req.url === '/api/membership/mine')
 		return profileOptions.failMembership
 			? respond(res, { message: 'Indisponibil' }, 503)
 			: respond(res, profileOptions.membershipObligations ?? []);
 	if (req.url?.startsWith('/api/membership/status/'))
-		return respond(res, { message: 'No payment' }, 404);
+		return profileOptions.selfServiceStatus
+			? respond(res, profileOptions.selfServiceStatus)
+			: respond(res, { message: 'No payment' }, 404);
 	if (req.url === '/api/membership/guest-lookup') {
 		let raw = '';
 		for await (const chunk of req) raw += chunk;
 		const body = JSON.parse(raw);
 		submissions.push(body);
+		if (profileOptions.guestLookupError)
+			return respond(res, { message: profileOptions.guestLookupError }, 404);
 		return respond(res, {
 			identifier: body.identifier,
 			displayName: 'Ana P.',
 			affiliation: 'Centrul Local Cluj',
 			amountBani: body.purpose === 'admission' ? 5500 : 30500,
-			paid: false
+			paid: false,
+			...profileOptions.guestLookup
 		});
 	}
-	if (req.url === '/api/membership/guest-checkout') {
+	if (req.url === '/api/membership/guest-checkout' || req.url === '/api/membership/checkout') {
 		let raw = '';
 		for await (const chunk of req) raw += chunk;
 		submissions.push(JSON.parse(raw));
@@ -810,6 +845,7 @@ createServer(async (req, res) => {
 		const member = ledger.obligations[0];
 		return respond(res, {
 			obligationId: member.id,
+			periodName: ledger.periods[0].name,
 			reviewState: member.reviewState,
 			reviewReason: member.reviewReason,
 			currentPlan: member.plan,

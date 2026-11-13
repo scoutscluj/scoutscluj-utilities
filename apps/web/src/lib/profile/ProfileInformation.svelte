@@ -149,10 +149,10 @@
 		gap: 12px;
 		margin-top: 20px;
 		padding: 14px 16px;
-		border: 1px solid #fde68a;
+		border: 1px solid var(--sc-warning);
 		border-radius: var(--sc-radius);
-		background: #fffbeb;
-		color: #92400e;
+		background: var(--sc-warning-soft);
+		color: var(--sc-warning);
 	}
 	.fee-warning > :global(svg) {
 		flex-shrink: 0;
@@ -247,7 +247,7 @@
 		text-underline-offset: 3px;
 	}
 	.email-field a:focus-visible {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 3px;
 	}
 	.identifier {
@@ -272,22 +272,22 @@
 		gap: 6px;
 		max-width: 100%;
 		flex-shrink: 0;
-		min-height: 38px;
+		min-height: 44px;
 		padding: 8px 12px;
 		border: 1px solid var(--sc-accent);
 		border-radius: 6px;
 		background: var(--sc-accent);
-		color: white;
+		color: var(--sc-on-accent);
 		font-size: 13px;
 		font-weight: 500;
 		text-decoration: none;
 	}
 	.fee-payment-link:hover {
 		background: var(--sc-accent-hover);
-		border-color: var(--sc-accent-hover);
+		border-color: var(--sc-link);
 	}
 	.fee-payment-link:focus-visible {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 3px;
 	}
 	.fee-payment-link :global(svg) {
@@ -305,8 +305,8 @@
 	}
 	.member-status[data-status='PENDING'],
 	.member-status[data-status='SUSPENDED'] {
-		color: #92400e;
-		background: #fffbeb;
+		color: var(--sc-warning);
+		background: var(--sc-warning-soft);
 	}
 	.fee-value {
 		display: flex;
@@ -319,8 +319,8 @@
 		color: var(--sc-success);
 	}
 	.fee-value[data-state='due'] .fee-status {
-		background: #fef3c7;
-		color: #92400e;
+		background: var(--sc-warning-soft);
+		color: var(--sc-warning);
 	}
 	.fee-value[data-state='unavailable'] .fee-status {
 		background: var(--sc-inset);
@@ -342,20 +342,20 @@
 		margin-top: 0;
 	}
 	.role-badge[data-role='super_admin'] {
-		color: #6b21a8;
-		background: #f3e8ff;
+		color: var(--sc-privileged);
+		background: var(--sc-privileged-soft);
 	}
 	.role-badge[data-role='admin'] {
-		color: #1e40af;
-		background: #eff6ff;
+		color: var(--sc-info);
+		background: var(--sc-info-soft);
 	}
 	.role-badge[data-role='finance_manager'] {
-		color: #92400e;
-		background: #fffbeb;
+		color: var(--sc-warning);
+		background: var(--sc-warning-soft);
 	}
 	.role-badge[data-role='moderator'] {
-		color: #0f766e;
-		background: #f0fdfa;
+		color: var(--sc-success);
+		background: var(--sc-success-soft);
 	}
 	.no-roles {
 		color: var(--sc-muted);

@@ -88,6 +88,10 @@ jobs:
           pnpm --filter web exec playwright test --config playwright.admissions.config.ts
           pnpm --filter web exec playwright test --config playwright.members.config.ts
           pnpm --filter web exec playwright test --config playwright.design.config.ts
+          pnpm --filter web exec playwright test --config playwright.self-service.config.ts
+          pnpm --filter web exec playwright test --config playwright.calendar-appearance.config.ts
+          pnpm --filter web exec playwright test --config playwright.finance-appearance.config.ts
+          pnpm --filter web exec playwright test --config playwright.platform-appearance.config.ts
           pnpm --filter web exec playwright test --config playwright.profile.config.ts --grep "creates through|validates required"
           pnpm --filter web exec playwright test --config playwright.membership.config.ts e2e/membership-finance.spec.ts --grep "member modal saves cash|receipts modal accepts cash|bank admission can share"
       - uses: actions/upload-artifact@v4

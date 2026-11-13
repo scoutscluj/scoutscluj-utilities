@@ -50,7 +50,7 @@
 		border-radius: 10px;
 	}
 	a {
-		color: var(--sc-accent);
+		color: var(--sc-link);
 	}
 	p {
 		line-height: 1.6;

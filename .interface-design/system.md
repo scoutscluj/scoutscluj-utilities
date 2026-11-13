@@ -130,3 +130,21 @@ rejects runtime errors, in addition to inspecting the rendered layout.
 - The member workspace is named “Membri și unități”. Responsibility dialogs separate scope fields, a vertical permissions group and a full-width action footer. Enhanced submissions preserve entered data after errors and show a disabled pending action until revalidation completes. Unit management and Orgo sync tools use centered dialogs; transfer history remains in audit. Keep the active-member and unit counts beside the page title. Put Orgo refresh status and the manual refresh command in the “Actualizări Orgo” modal opened from the header context menu. Omit missing subgroup labels from member table rows, retaining the unassigned filter.
 - Public activities emphasize the Romanian deadline above the registration actions, show practical program/transport/equipment information directly and use a branch selector only when needed. Keep the safety/privacy summary concise; the full agreement remains in the PDF. Specific activities and equipment use the shared list editor.
 - Authenticated activity registration offers explicit “Salvează și continuă mai târziu”. Show private, unsubmitted drafts separately from completed registrations, with resume and confirmed discard actions. Guests see saving progress as a login benefit. Explain the identity provider as “Orgo (membri.scout.ro)” in prose while preserving short button labels.
+
+
+### Neutral dark coverage (November 2026)
+
+- Dark canvas `#191919`, navigation `#202020`, surfaces `#242424`, raised
+  menus/dialogs `#2b2b2b`, inset controls `#1d1d1d`. Keep foundation RGB channels
+  equal: no navy cast. Semantic accents remain reserved for actions and status.
+- Light and dark cards use the same semantic surface/ink pairs, including
+  calendars, fees, admissions, inventory, audit, profiles and administration.
+  PDF pages and agreement print previews retain white paper and dark print ink.
+- Use 44px touch targets. At narrow actual content widths, registers show compact
+  identity/status/action rows; move technical metadata into labeled details.
+  Avoid hiding available actions inside wide tables behind a desktop sidebar.
+- Check actual rendered text, placeholders and control borders in both themes,
+  including dialog portals, expanded rows, errors, focus restoration and 320px
+  currency wrapping. Hidden file inputs are checked through their visible labels.
+- Notion and Google feedback iframe contents are owned by those services; verify
+  the platform shell, iframe sizing and external-link fallback separately.

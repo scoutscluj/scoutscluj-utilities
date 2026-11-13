@@ -108,8 +108,8 @@
 								>{row.structureId === 'floresti' ? 'Florești' : 'Cluj'}</span
 							></td
 						>
-						<td><DocumentBadge status={row.statuses[0]} /></td>
-						<td><DocumentBadge status={row.statuses[1] ?? 'missing'} /></td>
+						<td data-label="CIC"><DocumentBadge status={row.statuses[0]} /></td>
+						<td data-label="Cazier"><DocumentBadge status={row.statuses[1] ?? 'missing'} /></td>
 						<td
 							><button
 								class="open-dossier"
@@ -155,6 +155,8 @@
 <style>
 	.documents-page {
 		display: grid;
+		min-width: 0;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 20px;
 	}
 	h1 {
@@ -176,7 +178,7 @@
 	}
 	input,
 	select {
-		min-height: 36px;
+		min-height: 44px;
 		box-sizing: border-box;
 		border: 1px solid var(--sc-border-strong);
 		border-radius: 7px;
@@ -190,6 +192,8 @@
 		min-width: 200px;
 	}
 	.table-scroll {
+		container-type: inline-size;
+		min-width: 0;
 		overflow-x: auto;
 		border: 1px solid var(--sc-border);
 		border-radius: 10px;
@@ -231,7 +235,7 @@
 		color: inherit;
 		font: inherit;
 		padding: 0;
-		min-height: 36px;
+		min-height: 44px;
 		cursor: pointer;
 	}
 	.open-dossier {
@@ -240,7 +244,7 @@
 		background: var(--sc-surface);
 		color: var(--sc-ink);
 		padding: 8px 12px;
-		min-height: 38px;
+		min-height: 44px;
 		font: inherit;
 		font-size: 13px;
 		white-space: nowrap;
@@ -248,13 +252,13 @@
 	}
 	.open-dossier:hover {
 		background: var(--sc-inset);
-		color: var(--sc-accent);
+		color: var(--sc-link);
 	}
 	button:focus-visible,
 	input:focus-visible,
 	select:focus-visible,
 	a:focus-visible {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 3px;
 	}
 	.empty {
@@ -271,7 +275,7 @@
 		line-height: 1.6;
 	}
 	a {
-		color: var(--sc-accent);
+		color: var(--sc-link);
 	}
 	.access-note {
 		margin: 0;
@@ -296,6 +300,49 @@
 		}
 		input {
 			min-width: 160px;
+		}
+	}
+
+	input,
+	select {
+		border-color: var(--sc-control-border);
+		min-width: 0;
+	}
+	@container (max-width: 900px) {
+		table,
+		tbody {
+			display: block;
+		}
+		thead {
+			display: none;
+		}
+		tbody tr {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 8px;
+			padding: 12px;
+			border-bottom: 1px solid var(--sc-border);
+		}
+		td {
+			display: block;
+			padding: 0;
+			border: 0;
+			min-width: 0;
+		}
+		td:first-child,
+		td:last-child {
+			grid-column: 1 / -1;
+		}
+		td[data-label]::before {
+			content: attr(data-label);
+			display: block;
+			margin-bottom: 4px;
+			color: var(--sc-muted);
+			font-size: 12px;
+		}
+		.open-dossier {
+			width: 100%;
+			margin-top: 4px;
 		}
 	}
 </style>

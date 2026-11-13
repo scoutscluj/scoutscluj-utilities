@@ -73,7 +73,7 @@
 		align-items: center;
 		gap: 16px;
 		border-bottom: 1px solid var(--sc-border);
-		background: color-mix(in srgb, var(--sc-surface) 96%, transparent);
+		background: color-mix(in srgb, var(--sc-navigation) 96%, transparent);
 		padding: 0 18px;
 		backdrop-filter: blur(10px);
 	}

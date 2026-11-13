@@ -230,7 +230,7 @@
 		position: fixed;
 		inset: 0;
 		z-index: 60;
-		background: #10281d66;
+		background: var(--sc-overlay);
 		backdrop-filter: blur(3px);
 	}
 	:global(.review-dialog) {
@@ -243,10 +243,11 @@
 		max-height: calc(100dvh - 32px);
 		overflow-y: auto;
 		padding: 24px;
-		border-radius: 20px;
-		background: white;
-		color: #1e293b;
-		box-shadow: 0 24px 80px #0f172a40;
+		border-radius: 14px;
+		background: var(--sc-surface-raised);
+		color: var(--sc-ink);
+		box-shadow: var(--sc-shadow);
+		border: 1px solid var(--sc-border);
 	}
 	.heading {
 		display: flex;
@@ -269,12 +270,12 @@
 	.reason {
 		padding: 12px;
 		border-radius: 10px;
-		background: #fffbeb;
-		color: #854d0e;
+		background: var(--sc-warning-soft);
+		color: var(--sc-warning);
 	}
 	dl {
 		padding: 16px;
-		background: #f0fdf4;
+		background: var(--sc-success-soft);
 		border-radius: 12px;
 	}
 	dl div {
@@ -284,7 +285,7 @@
 		padding: 6px 0;
 	}
 	dt {
-		color: #52665a;
+		color: var(--sc-muted);
 	}
 	dd {
 		margin: 0;
@@ -292,7 +293,7 @@
 		font-weight: 600;
 	}
 	a {
-		color: #166534;
+		color: var(--sc-link);
 		text-decoration: underline;
 	}
 	label {
@@ -303,25 +304,25 @@
 	textarea {
 		width: 100%;
 		min-height: 80px;
-		border: 1px solid var(--sc-border-strong);
+		border: 1px solid var(--sc-control-border);
 		border-radius: 10px;
 		padding: 10px;
 		font: inherit;
 	}
 	button,
 	:global(.review-dialog button) {
-		border: 1px solid var(--sc-border-strong);
+		border: 1px solid var(--sc-control-border);
 		border-radius: 10px;
 		padding: 10px 14px;
-		background: white;
+		background: var(--sc-surface);
 		color: var(--sc-ink);
 		font: inherit;
 		cursor: pointer;
 	}
 	.confirm {
-		background: #166534;
-		color: white;
-		border-color: #166534;
+		background: var(--sc-accent);
+		color: var(--sc-on-accent);
+		border-color: var(--sc-accent);
 		margin-bottom: 16px;
 	}
 	button:disabled {
@@ -329,9 +330,44 @@
 		cursor: wait;
 	}
 	.error {
-		background: #fff1f2;
-		color: #b42318;
+		background: var(--sc-accent-soft);
+		color: var(--sc-danger);
 		padding: 12px;
 		border-radius: 10px;
+	}
+
+	:global(.review-dialog button) {
+		min-height: 44px;
+	}
+	:global(.review-dialog button[aria-label='Închide']) {
+		width: 44px;
+		padding: 0;
+		flex-shrink: 0;
+	}
+	:global(.review-dialog :focus-visible) {
+		outline: 3px solid var(--sc-focus);
+		outline-offset: 3px;
+	}
+	textarea {
+		color: var(--sc-ink);
+		background: var(--sc-inset);
+	}
+	:global(.review-dialog button:hover:not(:disabled)) {
+		filter: brightness(0.96);
+	}
+	.heading {
+		align-items: flex-start;
+	}
+	@media (max-width: 480px) {
+		:global(.review-dialog) {
+			padding: 16px;
+		}
+		dl div {
+			flex-wrap: wrap;
+			gap: 4px;
+		}
+		dd {
+			text-align: left;
+		}
 	}
 </style>

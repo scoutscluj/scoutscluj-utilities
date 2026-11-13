@@ -128,35 +128,35 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 30px;
-		height: 30px;
+		width: 44px;
+		height: 44px;
 		padding: 5px !important;
 		margin: 0 0 0 4px !important;
 		border: 0 !important;
 		border-radius: 50% !important;
-		background: #f0f5f3 !important;
+		background: var(--sc-inset) !important;
 		color: var(--sc-muted) !important;
 		vertical-align: middle;
 		cursor: pointer;
 	}
 	:global(.payment-info:hover),
 	:global(.payment-info:focus-visible) {
-		color: #166534 !important;
-		background: #dcfce7 !important;
+		color: var(--sc-success) !important;
+		background: var(--sc-success-soft) !important;
 	}
 	:global(.payment-tooltip) {
 		z-index: 80;
 		width: min(330px, calc(100vw - 32px));
 		max-height: min(360px, 60vh);
 		overflow-y: auto;
-		border: 1px solid #dbe5df;
+		border: 1px solid var(--sc-border);
 		border-radius: 14px;
 		padding: 16px;
-		background: white;
-		color: #1e293b;
+		background: var(--sc-surface-raised);
+		color: var(--sc-ink);
 		font-size: 0.85rem;
 		line-height: 1.5;
-		box-shadow: 0 12px 36px #0f172a26;
+		box-shadow: var(--sc-shadow);
 		overflow-wrap: anywhere;
 	}
 	.tooltip-name {
@@ -165,7 +165,7 @@
 		margin-top: 2px;
 	}
 	.tooltip-payment {
-		border-top: 1px solid #edf2f0;
+		border-top: 1px solid var(--sc-border);
 		margin-top: 12px;
 		padding-top: 12px;
 	}

@@ -110,7 +110,7 @@
 		inset: 0;
 		z-index: 10;
 		border: 0;
-		background: rgb(15 23 42 / 0.36);
+		background: var(--sc-overlay);
 	}
 
 	.workspace {
@@ -122,6 +122,7 @@
 
 	.content {
 		flex: 1;
+		min-width: 0;
 		padding: 24px;
 	}
 

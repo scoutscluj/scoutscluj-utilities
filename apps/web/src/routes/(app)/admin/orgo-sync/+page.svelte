@@ -43,15 +43,17 @@
 			<h2>{form.preview.name}</h2>
 			<p>Status curent Orgo: {form.preview.remoteStatus}</p>
 			<ul>
-				{#each form.preview.remoteRoles as role}<li>
+				{#each form.preview.remoteRoles as role, i (i)}<li>
 						{role.name}{role.unitName ? ` · ${role.unitName}` : ''}
 					</li>{/each}
 			</ul>
-			<div class="table">
+			<div class="table preview-table">
 				<table>
 					<thead><tr><th>Câmp</th><th>Intenția locală</th><th>Valoarea Orgo</th></tr></thead><tbody>
-						{#each form.preview.changes as change}<tr
-								><td>{change.label}</td><td>{change.local}</td><td>{change.remote}</td></tr
+						{#each form.preview.changes as change, i (i)}<tr
+								><td data-label="Câmp">{change.label}</td><td data-label="Intenția locală"
+									>{change.local}</td
+								><td data-label="Valoarea Orgo">{change.remote}</td></tr
 							>{/each}
 					</tbody>
 				</table>
@@ -79,10 +81,20 @@
 			<thead
 				><tr><th>Membru / operație</th><th>Stare</th><th>Detalii</th><th>Acțiune</th></tr></thead
 			><tbody
-				>{#each data.outbox.members as row}<tr
+				>{#each data.outbox.members as row (row.id)}<tr
 						><td><strong>{row.name}</strong><br />{kinds[row.kind] ?? row.kind}</td><td
-							>{states[row.state] ?? row.state}</td
-						><td>{row.message}</td><td
+							data-label="Stare"
+							><span
+								class="sync-state"
+								class:confirmed={row.state === 'synced'}
+								class:review={[
+									'review-required',
+									'permission-required',
+									'unsupported',
+									'uncertain'
+								].includes(row.state)}>{states[row.state] ?? row.state}</span
+							></td
+						><td data-label="Detalii">{row.message}</td><td class="row-actions"
 							>{#if !['running', 'synced', 'superseded'].includes(row.state) && !['local-profile', 'admission-create', 'create'].includes(row.kind)}<form
 									method="POST"
 								>
@@ -105,10 +117,20 @@
 		<table>
 			<thead><tr><th>Operație</th><th>Stare</th><th>Detalii</th><th>Rezolvare</th></tr></thead
 			><tbody
-				>{#each data.outbox.objects as row}<tr
+				>{#each data.outbox.objects as row (row.id)}<tr
 						><td>{kinds[row.kind] ?? row.kind}<small>{row.subjectId}</small></td><td
-							>{states[row.state] ?? row.state}</td
-						><td>{row.message}</td><td
+							data-label="Stare"
+							><span
+								class="sync-state"
+								class:confirmed={row.state === 'synced'}
+								class:review={[
+									'review-required',
+									'permission-required',
+									'unsupported',
+									'uncertain'
+								].includes(row.state)}>{states[row.state] ?? row.state}</span
+							></td
+						><td data-label="Detalii">{row.message}</td><td class="row-actions"
 							>{#if !['running', 'synced'].includes(row.state)}<details>
 									<summary>Reia / asociază</summary>
 									<form method="POST">
@@ -139,6 +161,9 @@
 <style>
 	section {
 		max-width: 1200px;
+		min-width: 0;
+		container: orgo-sync / inline-size;
+		color: var(--sc-ink);
 	}
 	h1 {
 		font-size: 1.9rem;
@@ -173,6 +198,7 @@
 		padding: 12px;
 		border-bottom: 1px solid var(--sc-border);
 		vertical-align: top;
+		overflow-wrap: anywhere;
 	}
 	th {
 		color: var(--sc-muted);
@@ -180,20 +206,42 @@
 	}
 	td {
 		min-width: 140px;
+		overflow-wrap: anywhere;
 	}
 	form {
 		display: grid;
 		gap: 12px;
 	}
 	button {
-		min-height: 40px;
-		border: 1px solid var(--sc-border);
+		min-height: 44px;
+		border: 1px solid var(--sc-control-border);
 		border-radius: 7px;
 		padding: 8px 12px;
 		background: var(--sc-surface);
 		color: var(--sc-ink);
 		font: inherit;
 		cursor: pointer;
+	}
+	.sync-state {
+		display: inline-flex;
+		padding: 4px 8px;
+		border-radius: 6px;
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		font-size: 12px;
+		line-height: 1.5;
+	}
+	.sync-state.confirmed {
+		background: var(--sc-success-soft);
+		color: var(--sc-success);
+	}
+	.sync-state.review {
+		background: var(--sc-warning-soft);
+		color: var(--sc-warning);
+	}
+	:is(button, input, textarea, summary):focus-visible {
+		outline: 2px solid var(--sc-focus);
+		outline-offset: 2px;
 	}
 	button:hover {
 		background: var(--sc-accent-soft);
@@ -206,10 +254,10 @@
 	input,
 	textarea {
 		max-width: 100%;
-		min-height: 40px;
-		border: 1px solid var(--sc-border);
+		min-height: 44px;
+		border: 1px solid var(--sc-control-border);
 		border-radius: 7px;
-		background: var(--sc-surface);
+		background: var(--sc-inset);
 		color: var(--sc-ink);
 		padding: 8px;
 		font: inherit;
@@ -220,6 +268,23 @@
 		align-items: center;
 		gap: 8px;
 	}
+	.check {
+		min-height: 44px;
+	}
+	.check input {
+		flex: 0 0 20px;
+		width: 20px;
+		height: 20px;
+		min-height: 20px;
+		padding: 0;
+		margin: 0;
+	}
+	textarea {
+		width: 100%;
+		min-width: 0;
+		min-height: 96px;
+		resize: vertical;
+	}
 	.notice,
 	article {
 		padding: 16px;
@@ -229,6 +294,98 @@
 	}
 	summary {
 		cursor: pointer;
-		min-height: 40px;
+		min-height: 44px;
+	}
+	@container orgo-sync (max-width: 900px) {
+		.table {
+			overflow: visible;
+		}
+		table,
+		tbody {
+			display: block;
+		}
+		thead {
+			display: none;
+		}
+		tr {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr);
+			gap: 12px;
+			padding: 16px;
+			margin: 0 0 12px;
+			background: var(--sc-surface);
+			border: 1px solid var(--sc-border);
+			border-radius: 10px;
+		}
+		td {
+			display: block;
+			padding: 0;
+			border: 0;
+			min-width: 0;
+			max-width: 100%;
+		}
+		td[data-label]::before {
+			content: attr(data-label);
+			display: block;
+			margin-bottom: 4px;
+			color: var(--sc-muted);
+			font-size: 12px;
+		}
+		td:first-child {
+			font-size: 14px;
+		}
+		td.row-actions:empty {
+			display: none;
+		}
+		td[colspan] {
+			grid-column: 1 / -1;
+		}
+		.table:not(.preview-table) tr {
+			grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
+			gap: 8px 12px;
+			padding: 12px;
+		}
+		.table:not(.preview-table) td:first-child:not([colspan]) {
+			grid-column: 1;
+			grid-row: 1;
+		}
+		.table:not(.preview-table) td:nth-child(2) {
+			grid-column: 2;
+			grid-row: 1;
+			justify-self: end;
+		}
+		.table:not(.preview-table) td:nth-child(2)::before,
+		.table:not(.preview-table) td:nth-child(3)::before {
+			display: none;
+		}
+		.table:not(.preview-table) td:nth-child(3),
+		.table:not(.preview-table) td:nth-child(4) {
+			grid-column: 1 / -1;
+		}
+		.sync-state {
+			max-width: 100%;
+		}
+		small {
+			margin-top: 4px;
+		}
+
+		form,
+		label,
+		details {
+			min-width: 0;
+			overflow-wrap: anywhere;
+		}
+		input {
+			width: 100%;
+		}
+		.check input {
+			width: 20px;
+		}
+		button {
+			justify-self: start;
+		}
+		article {
+			padding: 16px;
+		}
 	}
 </style>

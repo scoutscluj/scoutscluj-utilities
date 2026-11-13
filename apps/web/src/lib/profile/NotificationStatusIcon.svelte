@@ -99,7 +99,7 @@
 		color: var(--sc-ink);
 	}
 	.notification-icon:focus-visible {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 3px;
 	}
 	.ready {
@@ -118,7 +118,7 @@
 	.status-badge {
 		width: 15px;
 		height: 15px;
-		color: white;
+		color: var(--sc-on-accent);
 		background: var(--sc-success);
 	}
 	.unknown-badge {

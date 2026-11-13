@@ -42,22 +42,22 @@
 		flex-shrink: 0;
 	}
 	.green {
-		color: #166534;
-		background: #ecfdf3;
-		border-color: #bbf7d0;
+		color: var(--sc-success);
+		background: var(--sc-success-soft);
+		border-color: var(--sc-border);
 	}
 	.amber {
-		color: #92400e;
-		background: #fffbeb;
-		border-color: #fde68a;
+		color: var(--sc-warning);
+		background: var(--sc-warning-soft);
+		border-color: var(--sc-border);
 	}
 	.red {
-		color: #b42318;
-		background: #fff1f2;
-		border-color: #fecdd3;
+		color: var(--sc-danger);
+		background: var(--sc-accent-soft);
+		border-color: var(--sc-border);
 	}
 	.slate {
-		color: #475569;
+		color: var(--sc-muted);
 		background: var(--sc-inset);
 		border-color: var(--sc-border);
 	}

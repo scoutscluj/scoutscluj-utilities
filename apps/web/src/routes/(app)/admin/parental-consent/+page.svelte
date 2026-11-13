@@ -21,8 +21,8 @@
 	<a href={resolve('/activities')}>Deschide activitățile →</a>
 	<p>
 		Acordurile și fișierele generate anterior sunt păstrate. Participanții descarcă acordul
-		completat la finalul înscrierii, îl semnează olograf sau digital și îl predau ori îl încarcă în
-		pagina personală.
+		completat la finalul înscrierii. Pentru predare fizică, îl semnează olograf (de mână). Pentru
+		încărcare online în pagina personală, PDF-ul trebuie semnat digital.
 	</p>
 </section>
 
@@ -52,7 +52,7 @@
 		margin-top: 10px;
 	}
 	a {
-		color: var(--sc-accent);
+		color: var(--sc-link);
 		font-weight: 600;
 	}
 </style>

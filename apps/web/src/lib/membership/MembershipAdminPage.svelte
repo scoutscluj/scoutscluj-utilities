@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import WalletCards from '@lucide/svelte/icons/wallet-cards';
 	import type { MembershipAdminForm } from './admin-ledger';
 	let {
 		title,
@@ -27,7 +26,6 @@
 <svelte:head><title>{title} · Admin financiar · Scouts Cluj</title></svelte:head>
 <div class="membership-admin">
 	<header>
-		<span class="page-eyebrow"><WalletCards size={15} aria-hidden="true" /> Admin financiar</span>
 		<h1>{title}</h1>
 		<p>{description}</p>
 	</header>
@@ -37,23 +35,15 @@
 
 <style>
 	h1 {
-		margin: 0 0 10px;
-		font-size: clamp(1.6rem, 3vw, 2.2rem);
+		margin: 0 0 8px;
+		font-size: clamp(24px, 3vw, 28px);
+		line-height: 1.25;
+		overflow-wrap: anywhere;
 	}
 	header {
-		margin-bottom: 24px;
+		margin-bottom: 20px;
 	}
-	.page-eyebrow {
-		display: inline-flex;
-		align-items: center;
-		gap: 7px;
-		color: #15803d;
-		font-size: 0.72rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.09em;
-		margin-bottom: 12px;
-	}
+
 	header p {
 		margin: 0;
 		color: var(--sc-muted);
@@ -62,11 +52,10 @@
 	.membership-admin :global(section),
 	.membership-admin :global(details) {
 		margin: 20px 0;
-		border: 1px solid #e1e8e4;
-		border-radius: 16px;
-		padding: 24px;
-		background: white;
-		box-shadow: 0 3px 14px #163a2410;
+		border: 1px solid var(--sc-border);
+		border-radius: 10px;
+		padding: 20px;
+		background: var(--sc-surface);
 	}
 	.membership-admin :global(h2) {
 		margin: 0 0 16px;
@@ -80,7 +69,7 @@
 	}
 	.membership-admin :global(.grid) {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
 		gap: 16px;
 		margin-top: 20px;
 	}
@@ -96,7 +85,7 @@
 		display: grid;
 		gap: 6px;
 		font-size: 0.9rem;
-		color: #475569;
+		color: var(--sc-muted);
 	}
 	.membership-admin :global(input),
 	.membership-admin :global(select),
@@ -104,23 +93,23 @@
 	.membership-admin :global(button) {
 		font: inherit;
 		padding: 10px;
-		border: 1px solid var(--sc-border-strong);
+		border: 1px solid var(--sc-control-border);
 		border-radius: 8px;
 		max-width: 100%;
 	}
-	.membership-admin :global(input:not([type='checkbox'])),
+	.membership-admin :global(input:not([type='checkbox'], [type='radio'], [type='hidden'])),
 	.membership-admin :global(select),
 	.membership-admin :global(textarea) {
 		width: 100%;
 		min-width: 0;
-		background: white;
+		background: var(--sc-surface);
 	}
 	.membership-admin :global(input[type='checkbox']) {
-		accent-color: #166534;
+		accent-color: var(--sc-accent);
 	}
 	.membership-admin :global(button) {
-		background: #166534;
-		color: white;
+		background: var(--sc-surface);
+		color: var(--sc-ink);
 		cursor: pointer;
 		margin-top: 12px;
 	}
@@ -160,7 +149,7 @@
 		color: var(--sc-muted);
 	}
 	.membership-admin :global(.empty-state svg) {
-		color: #15803d;
+		color: var(--sc-muted);
 		margin: 0 auto 12px;
 	}
 	.membership-admin :global(.empty-state h2) {
@@ -194,7 +183,7 @@
 	}
 	.membership-admin :global(th) {
 		background: var(--sc-canvas);
-		color: #475569;
+		color: var(--sc-muted);
 		font-size: 0.8rem;
 		font-weight: 600;
 		white-space: nowrap;
@@ -218,7 +207,7 @@
 		margin-top: 3px;
 	}
 	.membership-admin :global(.notice) {
-		background: #fff7ed;
+		background: var(--sc-warning-soft);
 		padding: 16px;
 		border-radius: 8px;
 	}
@@ -231,9 +220,8 @@
 	.membership-admin :global(.stat) {
 		padding: 20px;
 		border: 1px solid var(--sc-border);
-		border-radius: 14px;
-		background: white;
-		box-shadow: 0 3px 12px #163a2408;
+		border-radius: 10px;
+		background: var(--sc-surface);
 	}
 	.membership-admin :global(.stat span) {
 		display: block;
@@ -252,7 +240,7 @@
 		margin-bottom: 20px;
 	}
 	.membership-admin :global(fieldset) {
-		border: 1px solid var(--sc-border-strong);
+		border: 1px solid var(--sc-control-border);
 		border-radius: 8px;
 		padding: 12px;
 	}
@@ -266,7 +254,7 @@
 		border-bottom: 1px solid var(--sc-border);
 	}
 	.membership-admin :global(:is(button, input, select, textarea, a, summary):focus-visible) {
-		outline: 3px solid #86efac;
+		outline: 3px solid var(--sc-focus);
 		outline-offset: 3px;
 	}
 	@media (max-width: 800px) {
@@ -280,10 +268,68 @@
 	@media (max-width: 480px) {
 		.membership-admin :global(section),
 		.membership-admin :global(details) {
-			padding: 18px;
+			padding: 16px;
 		}
 		.membership-admin :global(.grid) {
 			grid-template-columns: minmax(0, 1fr);
+		}
+	}
+
+	.membership-admin {
+		min-width: 0;
+		container: finance / inline-size;
+	}
+	.membership-admin :global(section),
+	.membership-admin :global(details),
+	.membership-admin :global(.stat) {
+		min-width: 0;
+	}
+	.membership-admin :global(:is(button, select, textarea)),
+	.membership-admin :global(input:not([type='checkbox'], [type='radio'], [type='hidden'])) {
+		min-height: 44px;
+		color: var(--sc-ink);
+	}
+	.membership-admin :global(button) {
+		color: var(--sc-ink);
+	}
+	.membership-admin :global(button:not([type='button'])),
+	.membership-admin :global(.panel-heading > button) {
+		background: var(--sc-accent);
+		color: var(--sc-on-accent);
+		border-color: var(--sc-accent);
+	}
+	.membership-admin :global(a) {
+		color: var(--sc-link);
+		text-underline-offset: 3px;
+	}
+	.membership-admin :global(summary) {
+		min-height: 44px;
+		align-content: center;
+	}
+	.membership-admin :global(.check),
+	.membership-admin :global(.confirm) {
+		min-height: 44px;
+	}
+	.membership-admin :global(.stat strong) {
+		overflow-wrap: anywhere;
+		font-variant-numeric: tabular-nums;
+	}
+	.membership-admin :global(.scroll) {
+		max-width: 100%;
+	}
+	@media (max-width: 480px) {
+		.membership-admin :global(.stats-grid) {
+			gap: 8px;
+		}
+		.membership-admin :global(.stat) {
+			padding: 12px;
+		}
+		.membership-admin :global(.stat strong) {
+			font-size: 1.15rem;
+		}
+		.membership-admin :global(th),
+		.membership-admin :global(td) {
+			padding: 10px;
 		}
 	}
 </style>

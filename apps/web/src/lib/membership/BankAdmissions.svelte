@@ -313,7 +313,7 @@
 
 <style>
 	fieldset {
-		border: 1px solid #dce5df;
+		border: 1px solid var(--sc-border);
 		border-radius: 10px;
 		margin: 20px 0;
 		padding: 16px;
@@ -323,11 +323,11 @@
 		font-weight: 600;
 	}
 	article {
-		border-bottom: 1px solid #dce5df;
+		border-bottom: 1px solid var(--sc-border);
 		padding: 12px 0;
 	}
 	.secondary {
-		background: white !important;
-		color: var(--sc-accent) !important;
+		background: var(--sc-surface) !important;
+		color: var(--sc-link) !important;
 	}
 </style>

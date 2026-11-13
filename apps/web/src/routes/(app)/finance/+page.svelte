@@ -62,6 +62,7 @@
 <style>
 	.finance-dashboard {
 		display: grid;
+		container-type: inline-size;
 		gap: 22px;
 	}
 
@@ -106,7 +107,7 @@
 
 	.page-heading a,
 	.settings-band a {
-		min-height: 38px;
+		min-height: 44px;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -120,7 +121,7 @@
 
 	.stats-grid {
 		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
+		grid-template-columns: repeat(3, minmax(0, 1fr));
 		gap: 14px;
 	}
 
@@ -145,7 +146,7 @@
 		font-size: 2rem;
 	}
 
-	@media (min-width: 900px) {
+	@container (min-width: 1100px) {
 		.stats-grid {
 			grid-template-columns: repeat(6, minmax(0, 1fr));
 		}
@@ -159,7 +160,15 @@
 		}
 
 		.stats-grid {
-			grid-template-columns: minmax(0, 1fr);
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 10px;
+		}
+		.stat-card {
+			padding: 12px;
+			gap: 6px;
+		}
+		.stat-card strong {
+			font-size: 26px;
 		}
 
 		.page-heading a,

@@ -36,12 +36,14 @@
 	description="Înregistrează transferul bancar și urmărește confirmarea cotizațiilor în ORGO."
 	{form}
 >
-	<p>
-		Transferul de bani se face din contul bancar al asociației. După înregistrarea sa aici, sistemul
-		verifică și marchează automat perioada cotizației în ORGO, separat pentru fiecare membru. <a
-			href={resolve('/admin/finance/guide#transferuri')}>Vezi pașii în ghid</a
-		>.
-	</p>
+	<details class="transfer-help">
+		<summary>Cum funcționează transferurile</summary>
+		<p>
+			Transferul de bani se face din contul bancar al asociației. După înregistrarea sa aici,
+			sistemul verifică și marchează automat perioada cotizației în ORGO, separat pentru fiecare
+			membru. <a href={resolve('/admin/finance/guide#transferuri')}>Vezi pașii în ghid</a>.
+		</p>
+	</details>
 	{#if ledger.orgoIntegration !== 'configured'}<p class="notice">
 			Tokenul tău ORGO nu este disponibil. Autentifică-te din nou. Transferurile se păstrează în
 			Resurse, dar marcarea automată folosește tokenul utilizatorului care înregistrează transferul,
@@ -138,7 +140,7 @@
 		margin: 8px 0;
 	}
 	.confirmed {
-		color: #166534;
+		color: var(--sc-success);
 		font-weight: 700;
 	}
 	.evidence {
@@ -149,7 +151,7 @@
 	.notice {
 		padding: 12px;
 		border-radius: 8px;
-		background: #fffbeb;
-		border: 1px solid #fde68a;
+		background: var(--sc-warning-soft);
+		border: 1px solid var(--sc-border);
 	}
 </style>

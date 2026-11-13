@@ -21,6 +21,7 @@
 <style>
 	.finance-admin {
 		max-width: 1320px;
+		min-width: 0;
 		margin: 0 auto;
 	}
 	.breadcrumb {
@@ -30,16 +31,20 @@
 		align-items: center;
 		color: var(--sc-muted);
 		font-size: 0.86rem;
-		margin-bottom: 24px;
+		margin-bottom: 16px;
 	}
 	.breadcrumb a {
 		text-decoration: none;
+		color: var(--sc-link);
+		min-height: 44px;
+		display: inline-flex;
+		align-items: center;
 	}
 	.breadcrumb a:hover {
 		text-decoration: underline;
 	}
 	a:focus-visible {
-		outline: 3px solid #fca5a5;
+		outline: 3px solid var(--sc-focus);
 		outline-offset: 3px;
 	}
 </style>

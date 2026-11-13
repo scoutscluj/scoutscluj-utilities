@@ -1,5 +1,6 @@
 <script lang="ts">
 	import DateInput from '$lib/components/ui/DateInput.svelte';
+	import FormFeedback from '$lib/components/ui/FormFeedback.svelte';
 	import { onMount } from 'svelte';
 	import { Dialog } from 'bits-ui';
 	import { enhance } from '$app/forms';
@@ -183,7 +184,7 @@
 								disabled={busy}
 							/></label
 						>
-						{#if message}<p class="form-error" role="alert">{message}</p>{/if}
+						<FormFeedback {message} />
 						<div class="dialog-actions">
 							<Dialog.Close type="button" disabled={busy}>Anulează</Dialog.Close><button
 								type="submit"
@@ -227,12 +228,12 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 8px;
-		min-height: 38px;
+		min-height: 44px;
 		padding: 8px 14px;
 		background: var(--sc-accent);
 		border: 1px solid var(--sc-accent);
 		border-radius: 7px;
-		color: white;
+		color: var(--sc-on-accent);
 		font: inherit;
 		font-size: 14px;
 		cursor: pointer;
@@ -304,7 +305,7 @@
 		margin-top: 12px;
 		padding: 4px 8px;
 		border-radius: 5px;
-		color: #991b1b;
+		color: var(--sc-danger);
 		background: var(--sc-accent-soft);
 		font-size: 12px;
 	}
@@ -313,11 +314,6 @@
 		flex-wrap: wrap;
 		justify-content: flex-end;
 		gap: 10px;
-	}
-	.form-error {
-		margin: 0;
-		color: #991b1b;
-		font-size: 14px;
 	}
 	form :disabled {
 		opacity: 0.6;
@@ -328,5 +324,13 @@
 			flex-direction: column;
 			gap: 8px;
 		}
+	}
+
+	input:not([type='hidden'], [type='checkbox'], [type='radio']),
+	textarea {
+		min-width: 0;
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
 	}
 </style>

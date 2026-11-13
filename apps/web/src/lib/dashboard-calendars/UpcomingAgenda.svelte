@@ -161,7 +161,7 @@
 		align-items: center;
 		gap: 7px;
 		margin: 0 0 12px;
-		color: #667085;
+		color: var(--sc-muted);
 		font-size: 0.75rem;
 	}
 	.events-agenda {
@@ -188,18 +188,18 @@
 		margin: 9px 0 0;
 		text-align: center;
 		font-size: 0.72rem;
-		color: #667085;
+		color: var(--sc-muted);
 	}
 	.empty-state {
 		padding: 24px 12px;
 		text-align: center;
-		color: #667085;
+		color: var(--sc-muted);
 	}
 	.empty-state :global(svg) {
-		color: #5278a8;
+		color: var(--sc-info);
 	}
 	.empty-state p {
-		color: #344054;
+		color: var(--sc-ink);
 		font-size: 0.88rem;
 		margin: 10px 0 5px;
 	}

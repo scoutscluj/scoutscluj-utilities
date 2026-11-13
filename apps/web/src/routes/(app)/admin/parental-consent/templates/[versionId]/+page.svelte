@@ -148,7 +148,7 @@
 		gap: 14px;
 		max-width: 1280px;
 		margin: 0 auto;
-		color: #172033;
+		color: var(--sc-ink);
 		padding-bottom: 70px;
 	}
 	header {
@@ -158,7 +158,7 @@
 		gap: 14px;
 	}
 	header a {
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 		text-decoration: none;
 		font-weight: 600;
 	}
@@ -177,14 +177,14 @@
 	}
 	button,
 	.button {
-		min-height: 38px;
+		min-height: 44px;
 		display: inline-flex;
 		align-items: center;
 		border: 0;
 		border-radius: 7px;
 		background: var(--sc-accent-hover);
 		padding: 7px 12px;
-		color: #fff;
+		color: var(--sc-on-accent);
 		font: inherit;
 		font-weight: 600;
 		text-decoration: none;
@@ -192,7 +192,7 @@
 	}
 	.button.secondary {
 		border: 1px solid var(--sc-border-strong);
-		background: #fff;
+		background: var(--sc-surface);
 		color: var(--sc-ink);
 		font-size: 0.84rem;
 	}
@@ -204,15 +204,15 @@
 		display: grid;
 		grid-template-columns: 2fr repeat(5, 1fr);
 		gap: 9px;
-		border: 1px solid #dbe3ef;
+		border: 1px solid var(--sc-border);
 		border-radius: 10px;
-		background: #fff;
+		background: var(--sc-surface);
 		padding: 12px;
 	}
 	label {
 		display: grid;
 		gap: 5px;
-		color: #475569;
+		color: var(--sc-muted);
 		font-size: 0.78rem;
 		font-weight: 600;
 	}
@@ -227,27 +227,27 @@
 		border-radius: 8px;
 		background: var(--sc-inset);
 		padding: 10px;
-		color: #475569;
+		color: var(--sc-muted);
 	}
 	.notice.warning {
-		background: #fff7ed;
-		color: #9a3412;
+		background: var(--sc-warning-soft);
+		color: var(--sc-warning);
 	}
 	.notice.error {
 		background: var(--sc-accent-soft);
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 	}
 	.notice.success {
-		background: #ecfdf5;
-		color: #047857;
+		background: var(--sc-success-soft);
+		color: var(--sc-success);
 	}
 	pre {
 		max-height: 600px;
 		overflow: auto;
 		border-radius: 9px;
-		background: var(--sc-ink);
+		background: var(--sc-inset);
 		padding: 14px;
-		color: var(--sc-border);
+		color: var(--sc-ink);
 	}
 	.save-bar {
 		position: sticky;
@@ -257,7 +257,7 @@
 		align-items: center;
 		border: 1px solid var(--sc-border-strong);
 		border-radius: 10px;
-		background: rgba(255, 255, 255, 0.95);
+		background: color-mix(in srgb, var(--sc-surface-raised) 95%, transparent);
 		padding: 10px 12px;
 		box-shadow: 0 12px 30px rgba(15, 23, 42, 0.15);
 	}
@@ -271,5 +271,12 @@
 		.settings {
 			grid-template-columns: repeat(2, 1fr);
 		}
+	}
+
+	input:not([type='hidden'], [type='checkbox'], [type='radio']) {
+		min-width: 0;
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
 	}
 </style>

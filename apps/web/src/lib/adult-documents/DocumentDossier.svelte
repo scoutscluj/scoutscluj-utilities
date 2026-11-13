@@ -385,7 +385,7 @@
 		line-height: 1.4;
 	}
 	a {
-		color: var(--sc-accent);
+		color: var(--sc-link);
 		overflow-wrap: anywhere;
 		font-size: 13px;
 	}
@@ -422,7 +422,7 @@
 		font: inherit;
 		font-size: 13px;
 		font-weight: 500;
-		min-height: 38px;
+		min-height: 44px;
 		padding: 8px 12px;
 		border-radius: 7px;
 		border: 1px solid var(--sc-border-strong);
@@ -435,8 +435,8 @@
 	}
 	button.primary {
 		background: var(--sc-accent);
-		border-color: var(--sc-accent);
-		color: white;
+		border-color: var(--sc-link);
+		color: var(--sc-on-accent);
 	}
 	button:hover {
 		filter: brightness(0.96);
@@ -452,7 +452,7 @@
 	textarea:focus-visible,
 	a:focus-visible,
 	summary:focus-visible {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 3px;
 	}
 	.review-actions {
@@ -481,7 +481,7 @@
 	.rejection,
 	.error {
 		background: var(--sc-accent-soft);
-		color: var(--sc-accent);
+		color: var(--sc-link);
 	}
 	.feedback {
 		margin: 0;
@@ -524,5 +524,14 @@
 		.coverage {
 			max-width: 140px;
 		}
+	}
+
+	input:not([type='hidden'], [type='checkbox'], [type='radio']),
+	select,
+	textarea {
+		min-width: 0;
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
 	}
 </style>

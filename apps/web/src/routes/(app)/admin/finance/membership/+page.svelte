@@ -10,6 +10,6 @@
 	description="Situația cotizațiilor pentru fiecare membru, în perioada selectată."
 	{form}
 >
-	<BankAdmissions ledger={data.ledger} />
 	<MembershipRegistry ledger={data.ledger} />
+	<BankAdmissions ledger={data.ledger} />
 </MembershipAdminPage>

@@ -20,7 +20,9 @@
 		(data.status?.provider ?? data.activeProvider) === 'stripe' ? 'Stripe' : 'NETOPIA'
 	);
 	const periodLabel = $derived(
-		data.period ? `${data.period.startsOn.slice(0, 4)}–${data.period.endsOn.slice(0, 4)}` : ''
+		data.period && !data.admission
+			? `${data.period.startsOn.slice(0, 4)}–${data.period.endsOn.slice(0, 4)}`
+			: ''
 	);
 </script>
 
@@ -42,7 +44,9 @@
 		<div class="flow-icon" aria-hidden="true">ID</div>
 		<p class="eyebrow">Plată pentru alt cercetaș</p>
 		<h2 id="guest-title">Introdu ID-ul beneficiarului</h2>
-		{#if data.period}<p class="period-caption">Perioada: {data.period.name}</p>{/if}
+		{#if data.period && !data.admission}<p class="period-caption">
+				Perioada: {data.period.name}
+			</p>{/if}
 		<p class="section-intro">
 			Verificăm că ID-ul aparține unui membru eligibil din Centrul Local Cluj înainte de plată.
 		</p>
@@ -140,10 +144,10 @@
 					<dt>Membru</dt>
 					<dd>{own.memberName}</dd>
 				</div>
-				<div>
-					<dt>Perioada</dt>
-					<dd>{data.period?.name}</dd>
-				</div>
+				{#if !data.admission}<div>
+						<dt>Perioada</dt>
+						<dd>{data.period?.name}</dd>
+					</div>{/if}
 				<div>
 					<dt>{feeName} totală</dt>
 					<dd>{money(data.admission ? (own.admissionAmountBani ?? 5500) : own.totalBani)}</dd>
@@ -262,14 +266,11 @@
 		</h1>
 		<p class="section-intro">
 			{data.admission
-				? 'Taxa de adeziune este de 55 lei, respectiv 105 lei pentru membrii care au Florești în numele din Orgo (membri.scout.ro). Se plătește o singură dată, la alăturarea în organizație. Plata online este disponibilă pentru conturile Orgo (membri.scout.ro) create în ultimele 6 luni.'
+				? 'Taxă unică: 55 lei, respectiv 105 lei dacă ai Florești în numele din Orgo. Plata online este disponibilă pentru conturile create în ultimele 6 luni.'
 				: 'Situația cotizației și plata cu cardul, într-un singur loc.'}
 		</p>
 		{#if data.admission}<p class="admission-link">
 				<a href={resolve('/cotizatie')}>Înapoi la plata cotizației</a>
-			</p>{:else}<p class="admission-link">
-				Ești membru nou? <a href={resolve('/cotizatie?tip=adeziune')}>Plătește adeziunea aici</a> · 55
-				lei / 105 lei pentru Florești, o singură dată.
 			</p>{/if}
 	</div>
 	{#if (data.status?.environment ?? data.environment) !== 'live'}<p class="environment-notice">
@@ -333,6 +334,10 @@
 				{@render ownFlow()}{/if}
 		</div>
 	{/if}
+	{#if !data.admission}<p class="admission-link">
+			Ești membru nou? <a href={resolve('/cotizatie?tip=adeziune')}>Plătește adeziunea aici</a> · 55 lei
+			/ 105 lei pentru Florești, o singură dată.
+		</p>{/if}
 </main>
 
 <style>
@@ -341,7 +346,7 @@
 		color: var(--sc-muted);
 	}
 	.admission-link a {
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 	}
 	.public-topbar {
 		min-height: 64px;
@@ -349,7 +354,7 @@
 		align-items: center;
 		justify-content: space-between;
 		border-bottom: 1px solid var(--sc-border);
-		background: rgb(255 255 255/0.94);
+		background: var(--sc-surface);
 		padding: 10px max(20px, calc((100vw - 1040px) / 2));
 		backdrop-filter: blur(10px);
 	}
@@ -374,11 +379,13 @@
 		object-fit: contain;
 	}
 	.topbar-link {
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 		font-weight: 600;
 	}
 	.payment-page {
 		width: min(100%, 1120px);
+		min-width: 0;
+		color: var(--sc-ink);
 		margin: 16px auto 40px;
 		padding: 0 16px;
 	}
@@ -394,9 +401,10 @@
 		text-transform: uppercase;
 	}
 	h1 {
-		margin: 8px 0 10px;
-		font-size: clamp(2rem, 5vw, 3rem);
-		line-height: 1.05;
+		margin: 0 0 10px;
+		font-size: 32px;
+		line-height: 1.2;
+		overflow-wrap: anywhere;
 	}
 	.section-intro {
 		color: var(--sc-muted);
@@ -411,14 +419,14 @@
 	}
 	.environment-notice,
 	.notice {
-		border: 1px solid #fed7aa;
-		background: #fff7ed;
-		color: #9a3412;
+		border: 1px solid var(--sc-warning);
+		background: var(--sc-warning-soft);
+		color: var(--sc-warning);
 	}
 	.flows {
 		display: grid;
 		grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-		gap: 24px;
+		gap: 20px;
 		align-items: start;
 	}
 	.flow-card,
@@ -427,9 +435,9 @@
 		position: relative;
 		border: 1px solid var(--sc-border);
 		border-radius: 12px;
-		background: #fff;
-		padding: clamp(20px, 3vw, 28px);
-		box-shadow: 0 4px 16px rgb(15 23 42/0.03);
+		background: var(--sc-surface);
+		padding: clamp(16px, 3vw, 24px);
+		min-width: 0;
 	}
 	.flow-icon {
 		width: 42px;
@@ -439,7 +447,7 @@
 		float: right;
 		border-radius: 10px;
 		background: var(--sc-accent-soft);
-		color: #b91c1c;
+		color: var(--sc-link);
 		font-size: 0.78rem;
 		font-weight: 600;
 	}
@@ -447,18 +455,20 @@
 		width: 42px;
 		height: 42px;
 		object-fit: contain;
-		background: #fff;
+		background: var(--sc-surface);
 	}
 	.flow-card h2 {
 		margin: 7px 0 0;
-		font-size: 1.55rem;
+		font-size: 22px;
+		line-height: 1.3;
+		color: var(--sc-ink);
 	}
 	.account-summary {
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 18px;
-		margin: 24px 0;
-		padding: 20px;
+		gap: 14px;
+		margin: 20px 0;
+		padding: 16px;
 		border-radius: 12px;
 		background: var(--sc-canvas);
 	}
@@ -486,6 +496,8 @@
 		}
 	}
 	input {
+		background: var(--sc-inset);
+		color: var(--sc-ink);
 		min-width: 0;
 		width: 100%;
 	}
@@ -495,7 +507,7 @@
 	button:focus-visible,
 	a:focus-visible,
 	input:focus-visible {
-		outline: 3px solid #fca5a5;
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 3px;
 	}
 	.lookup-form,
@@ -517,13 +529,25 @@
 	button,
 	.primary-button {
 		min-height: 46px;
-		border: 1px solid #94a3b8;
+		border: 1px solid var(--sc-control-border);
 		border-radius: 8px;
 		padding: 11px 13px;
 		font: inherit;
 	}
+	input::placeholder {
+		color: var(--sc-muted);
+		opacity: 1;
+	}
+	button {
+		background: var(--sc-accent);
+		color: var(--sc-on-accent);
+		cursor: pointer;
+	}
+	a {
+		color: var(--sc-link);
+	}
 	.secondary-button {
-		background: #fff;
+		background: var(--sc-surface);
 		color: var(--sc-ink);
 		font-weight: 600;
 		cursor: pointer;
@@ -533,9 +557,9 @@
 		align-items: center;
 		justify-content: center;
 		gap: 9px;
-		border-color: #b91c1c;
+		border-color: var(--sc-accent);
 		background: var(--sc-accent);
-		color: #fff;
+		color: var(--sc-on-accent);
 		font-weight: 600;
 		text-decoration: none;
 		cursor: pointer;
@@ -550,7 +574,7 @@
 		object-fit: contain;
 		padding: 3px;
 		border-radius: 4px;
-		background: #fff;
+		background: var(--sc-surface);
 	}
 	button:disabled {
 		cursor: not-allowed;
@@ -562,10 +586,14 @@
 		align-items: center;
 		gap: 13px;
 		margin-top: 20px;
-		border: 1px solid #bbf7d0;
+		border: 1px solid var(--sc-success);
 		border-radius: 10px;
-		background: #f0fdf4;
+		background: var(--sc-success-soft);
 		padding: 15px;
+	}
+	.member-result > div {
+		min-width: 0;
+		overflow-wrap: anywhere;
 	}
 	.member-result > div:nth-child(2) {
 		display: grid;
@@ -581,14 +609,14 @@
 		display: grid;
 		place-items: center;
 		border-radius: 999px;
-		background: #16a34a;
-		color: #fff;
+		background: var(--sc-success-soft);
+		color: var(--sc-success);
 		font-weight: 600;
 	}
 	.result-amount {
 		display: grid;
 		gap: 4px;
-		color: #166534;
+		color: var(--sc-success);
 		text-align: right;
 	}
 	.status-amount {
@@ -598,7 +626,7 @@
 		display: flex;
 		align-items: flex-start;
 		gap: 10px;
-		color: #475569;
+		color: var(--sc-ink);
 		font-size: 0.9rem;
 		line-height: 1.5;
 	}
@@ -611,16 +639,16 @@
 		margin-top: 4px;
 	}
 	.error-message {
-		border: 1px solid #fecaca;
-		background: var(--sc-accent-soft);
-		color: var(--sc-accent-hover);
-		font-weight: 700;
+		border: 1px solid var(--sc-danger);
+		background: var(--sc-surface);
+		color: var(--sc-danger);
+		font-weight: 600;
 	}
 	.success-message,
 	.success-panel {
-		border: 1px solid #bbf7d0;
-		background: #f0fdf4;
-		color: #166534;
+		border: 1px solid var(--sc-success);
+		background: var(--sc-success-soft);
+		color: var(--sc-success);
 	}
 	.success-panel {
 		display: grid;
@@ -631,7 +659,23 @@
 	}
 	@media (max-width: 640px) {
 		.payment-page {
-			margin-top: 28px;
+			margin-top: 16px;
+		}
+		h1 {
+			font-size: 28px;
+			line-height: 34px;
+		}
+		.flow-card h2 {
+			font-size: 20px;
+		}
+		.public-topbar {
+			padding: 10px 16px;
+			gap: 12px;
+		}
+		.topbar-link {
+			min-height: 44px;
+			display: inline-flex;
+			align-items: center;
 		}
 		.lookup-row {
 			grid-template-columns: 1fr;
@@ -642,6 +686,14 @@
 		.result-amount {
 			grid-column: 2;
 			text-align: left;
+		}
+	}
+	@media (max-width: 360px) {
+		.account-summary {
+			grid-template-columns: minmax(0, 1fr);
+		}
+		.balance dd {
+			white-space: nowrap;
 		}
 	}
 </style>

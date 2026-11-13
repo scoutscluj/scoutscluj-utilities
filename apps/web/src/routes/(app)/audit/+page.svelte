@@ -6,66 +6,40 @@
 
 <section class="audit-page">
 	<header>
-		<p class="eyebrow">Audit</p>
 		<h1>Jurnal global</h1>
+		<span>{data.entries.length} {data.entries.length === 1 ? 'eveniment' : 'evenimente'}</span>
 	</header>
-
-	<section class="panel">
-		<div class="section-heading">
-			<h2>Ultimele evenimente</h2>
-			<span>{data.entries.length} evenimente</span>
-		</div>
-
-		<AuditEntryTable entries={data.entries} showActivity />
-	</section>
+	<section class="panel"><AuditEntryTable entries={data.entries} showActivity /></section>
 </section>
 
 <style>
-	.audit-page,
-	.panel {
+	.audit-page {
 		display: grid;
-		gap: 18px;
+		min-width: 0;
+		gap: 16px;
 	}
-
-	header,
-	h1,
-	h2,
-	p {
-		margin: 0;
-	}
-
-	h1 {
-		color: var(--sc-ink);
-		font-size: clamp(2rem, 4vw, 3rem);
-	}
-
-	.panel {
-		border: 1px solid #dbe3ef;
-		background: var(--sc-surface);
-		border-radius: 8px;
-		padding: 18px;
-		box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
-	}
-
-	.section-heading {
+	header {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 12px;
 		align-items: center;
 		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 8px 16px;
 	}
-
-	.section-heading span {
+	h1 {
+		margin: 0;
+		color: var(--sc-ink);
+		font-size: clamp(24px, 3vw, 30px);
+		line-height: 1.2;
+	}
+	header span {
 		color: var(--sc-muted);
-		font-weight: 600;
+		font-size: 13px;
 	}
-
-	.eyebrow {
-		margin: 0 0 8px;
-		color: #2563eb;
-		font-size: 0.78rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0;
+	.panel {
+		min-width: 0;
+		border: 1px solid var(--sc-border);
+		background: var(--sc-surface);
+		border-radius: 8px;
+		padding: 14px;
 	}
 </style>

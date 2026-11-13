@@ -75,7 +75,7 @@
 		place-items: center;
 		border-radius: 50%;
 		background: var(--sc-accent-soft);
-		color: var(--sc-accent);
+		color: var(--sc-link);
 		font-size: 26px;
 		font-weight: 600;
 	}
@@ -128,10 +128,10 @@
 	}
 	.profile-actions button:hover {
 		background: var(--sc-inset);
-		color: var(--sc-accent);
+		color: var(--sc-link);
 	}
 	.profile-actions button:focus-visible {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 3px;
 	}
 	@media (max-width: 650px) {

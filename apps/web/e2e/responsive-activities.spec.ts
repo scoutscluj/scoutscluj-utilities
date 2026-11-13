@@ -158,7 +158,7 @@ test('appearance is selectable, persistent, and follows the device in system mod
 	await page.goto('/activities/1/registrations');
 	await expect(page.locator('html')).toHaveAttribute('data-app-ready', 'true');
 	await expect(page.locator('html')).toHaveAttribute('data-theme', 'system');
-	await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(17, 22, 29)');
+	await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(25, 25, 25)');
 	await page.getByRole('button', { name: /^Deschide meniul profilului/ }).click();
 	await page.getByRole('menuitem', { name: 'Aspectul aplicației' }).click();
 	await page.getByRole('radio', { name: /^Luminoasă/ }).check();
@@ -171,7 +171,7 @@ test('appearance is selectable, persistent, and follows the device in system mod
 	await page.getByRole('menuitem', { name: 'Aspectul aplicației' }).click();
 	await page.getByRole('radio', { name: /^Sistem/ }).check();
 	await page.getByRole('dialog').getByRole('button', { name: 'Închide dialogul' }).click();
-	await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(17, 22, 29)');
+	await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(25, 25, 25)');
 	await page.emulateMedia({ colorScheme: 'light' });
 	await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(247, 248, 250)');
 });

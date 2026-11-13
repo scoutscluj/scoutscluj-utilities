@@ -190,7 +190,7 @@
 		flex-direction: column;
 		gap: 18px;
 		border-right: 1px solid var(--sc-border);
-		background: var(--sc-surface);
+		background: var(--sc-navigation);
 		padding: 18px 14px;
 		overflow: hidden;
 		transform: translateX(-100%);

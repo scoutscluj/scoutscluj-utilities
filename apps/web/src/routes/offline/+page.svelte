@@ -42,7 +42,7 @@
 	}
 
 	.eyebrow {
-		color: #b45309;
+		color: var(--sc-warning);
 		font-size: 0.78rem;
 		font-weight: 600;
 		letter-spacing: 0;
@@ -78,6 +78,6 @@
 
 	a:hover {
 		border-color: var(--sc-accent-hover);
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 	}
 </style>

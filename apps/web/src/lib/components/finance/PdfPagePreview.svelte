@@ -101,28 +101,29 @@
 		display: grid;
 		place-items: center;
 		overflow: hidden;
-		background: #e5e7eb;
+		background: var(--sc-inset);
 	}
 
 	canvas {
 		display: block;
 		max-width: 100%;
 		max-height: 100%;
-		background: var(--sc-surface);
+		background: #fff;
 		box-shadow: 0 4px 16px rgb(15 23 42 / 0.18);
 	}
 
 	.preview-state {
 		grid-area: 1 / 1;
 		border-radius: 999px;
-		background: rgb(15 23 42 / 0.78);
+		background: var(--sc-surface-raised);
 		padding: 4px 8px;
-		color: var(--sc-surface);
+		color: var(--sc-ink);
 		font-size: 0.72rem;
 		font-weight: 600;
 	}
 
 	.preview-state.error {
-		background: var(--sc-accent-hover);
+		background: var(--sc-accent-soft);
+		color: var(--sc-danger);
 	}
 </style>

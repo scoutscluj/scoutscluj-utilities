@@ -29,7 +29,7 @@
 {#if entries.length}
 	<div class="table-wrap">
 		<TableView compact label="Caută în jurnal"
-			><table>
+			><table class="audit-table">
 				<thead>
 					<tr>
 						<th>Când</th>
@@ -45,6 +45,21 @@
 					{#each entries as entry (entry.id)}
 						{@const display = formatAuditEntry(entry)}
 						<tr>
+							<td class="audit-compact-cell" colspan={showActivity ? 5 : 4}>
+								<button
+									class="entry-button compact-entry-button"
+									type="button"
+									aria-label={`Vezi detalii pentru ${display.title}`}
+									onclick={() => openDetails(entry)}><strong>{display.title}</strong></button
+								>
+								<div class="audit-meta">
+									<time datetime={entry.createdAt}>{formatAuditDateTime(entry.createdAt)}</time
+									><span>{entry.actorName ?? 'Sistem'}</span
+									>{#if showActivity && entry.activityId}<span>Activitate #{entry.activityId}</span
+										>{/if}
+								</div>
+								<p class="audit-summary">{display.summary}</p>
+							</td>
 							<td class="date-cell" data-label="Când">{formatAuditDateTime(entry.createdAt)}</td>
 							<td class="actor-cell" data-label="Cine">{entry.actorName ?? 'Sistem'}</td>
 							{#if showActivity}
@@ -77,6 +92,7 @@
 <style>
 	.table-wrap {
 		container-type: inline-size;
+		min-width: 0;
 		overflow-x: visible;
 	}
 
@@ -147,44 +163,68 @@
 		margin: 0;
 	}
 
+	.audit-table > tbody > tr > td.audit-compact-cell {
+		display: none;
+	}
 	@container (max-width: 900px) {
-		table,
-		tbody {
+		.audit-table,
+		.audit-table > tbody {
 			display: block;
+			min-width: 0;
 		}
-		thead {
+		.audit-table > thead {
 			position: absolute;
 			width: 1px;
 			height: 1px;
 			overflow: hidden;
 			clip-path: inset(50%);
 		}
-		tr {
-			display: grid;
-			grid-template-columns: minmax(0, 1fr);
-			gap: 6px;
-			padding: 14px 0;
+		.audit-table > tbody > tr {
+			display: block;
+			padding: 12px 0;
 			border-bottom: 1px solid var(--sc-border);
 		}
-		td {
+		.audit-table > tbody > tr:global([hidden]) {
+			display: none;
+		}
+		.audit-table > tbody > tr > td {
+			display: none;
 			border: 0;
 			padding: 0;
 			min-width: 0;
+		}
+		.audit-table > tbody > tr > td.audit-compact-cell {
+			display: block;
+			width: auto;
+			border: 0;
+			padding: 0;
 			overflow-wrap: anywhere;
 		}
-		.date-cell {
-			min-width: 0;
-			font-size: 12px;
+		.audit-compact-cell .compact-entry-button {
+			min-height: 44px;
+			padding: 0;
+			background: transparent;
+			border: 0;
 		}
-		.actor-cell {
+		.audit-meta {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: baseline;
+			gap: 4px 10px;
 			color: var(--sc-muted);
-			font-size: 13px;
+			font-size: 12px;
+			line-height: 1.4;
 		}
-		.entry-button {
-			padding: 4px 0;
+		.audit-meta time,
+		.audit-meta span {
+			color: inherit;
 		}
-		.summary-cell {
+		.audit-compact-cell .audit-summary {
+			margin: 6px 0 0;
+			padding: 0;
+			color: var(--sc-ink);
 			font-size: 13px;
+			line-height: 1.45;
 		}
 	}
 </style>

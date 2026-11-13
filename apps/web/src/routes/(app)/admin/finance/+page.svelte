@@ -9,7 +9,6 @@
 <svelte:head><title>Administrare financiară · Scouts Cluj</title></svelte:head>
 
 <header>
-	<p class="eyebrow">Admin · Financiar</p>
 	<h1>Administrare financiară</h1>
 	<p>Gestionează cotizațiile membrilor și configurarea plăților online.</p>
 </header>
@@ -67,16 +66,10 @@
 	header {
 		margin-bottom: 28px;
 	}
-	.eyebrow {
-		margin: 0;
-		text-transform: uppercase;
-		font-size: 0.76rem;
-		font-weight: 700;
-		color: var(--sc-muted);
-	}
+
 	h1 {
 		margin: 8px 0 12px;
-		font-size: clamp(1.8rem, 3vw, 2.3rem);
+		font-size: clamp(24px, 3vw, 28px);
 	}
 	p {
 		color: var(--sc-muted);
@@ -91,15 +84,15 @@
 		display: flex;
 		flex-direction: column;
 		align-items: flex-start;
-		background: white;
+		background: var(--sc-surface);
 		border: 1px solid var(--sc-border);
 		border-radius: 14px;
-		padding: 28px;
+		padding: 20px;
 		text-decoration: none;
 		box-shadow: 0 4px 16px rgb(15 23 42 / 0.03);
 	}
 	.module-card:hover {
-		border-color: #fca5a5;
+		border-color: var(--sc-focus);
 	}
 	.icon {
 		display: grid;
@@ -108,7 +101,7 @@
 		height: 48px;
 		border-radius: 12px;
 		background: var(--sc-accent-soft);
-		color: #b91c1c;
+		color: var(--sc-link);
 	}
 	h2 {
 		margin: 20px 0 0;
@@ -122,11 +115,11 @@
 		align-items: center;
 		gap: 10px;
 		margin-top: 12px;
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 		font-weight: 650;
 	}
 	a:focus-visible {
-		outline: 3px solid #fca5a5;
+		outline: 3px solid var(--sc-focus);
 		outline-offset: 3px;
 	}
 	@media (max-width: 760px) {
@@ -136,6 +129,44 @@
 		}
 		.module-card {
 			padding: 22px;
+		}
+	}
+
+	@media (max-width: 760px) {
+		header {
+			margin-bottom: 16px;
+		}
+		.modules {
+			gap: 10px;
+		}
+		.module-card {
+			display: grid;
+			grid-template-columns: 36px minmax(0, 1fr);
+			gap: 6px 12px;
+			padding: 16px;
+			border-radius: 10px;
+		}
+		.module-card .icon {
+			width: 36px;
+			height: 36px;
+			border-radius: 8px;
+			grid-row: 1 / 3;
+		}
+		.module-card h2 {
+			margin: 0;
+			font-size: 17px;
+			align-self: center;
+		}
+		.module-card p {
+			grid-column: 2;
+			margin: 0;
+			font-size: 13px;
+			line-height: 1.5;
+		}
+		.module-card .action {
+			grid-column: 2;
+			margin-top: 4px;
+			font-size: 13px;
 		}
 	}
 </style>

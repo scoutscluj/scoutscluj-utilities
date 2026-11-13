@@ -53,7 +53,7 @@
 			>
 		</div>
 	</div>
-	<section>
+	<section class="payment-search">
 		<h2>Găsește o plată în curs</h2>
 		<div class="payment-filters">
 			<label
@@ -72,10 +72,13 @@
 				></label
 			>
 		</div>
-		<p class="muted">
-			Închiderea ferestrei de plată nu anulează linkul. Anularea de aici păstrează istoricul și
-			deblochează o nouă încercare; nu efectuează o rambursare.
-		</p>
+		<details class="payment-help">
+			<summary>Despre anularea unei încercări</summary>
+			<p class="muted">
+				Închiderea ferestrei de plată nu anulează linkul. Anularea de aici păstrează istoricul și
+				deblochează o nouă încercare; nu efectuează o rambursare.
+			</p>
+		</details>
 	</section>
 	<div class="payment-cards">
 		{#each visible as c (c.id)}
@@ -105,28 +108,33 @@
 								: 'Test'}
 						</dd>
 					</div>
-					<div>
-						<dt>Perioadă</dt>
-						<dd>{ledger.periods.find((p) => p.id === c.periodId)?.name ?? c.periodId}</dd>
-					</div>
-					<div>
-						<dt>Inițiată la</dt>
-						<dd>
-							{c.createdAt
-								? new Date(c.createdAt).toLocaleString('ro-RO', { timeZone: 'Europe/Bucharest' })
-								: '—'}
-						</dd>
-					</div>
-					<div>
-						<dt>ID beneficiar</dt>
-						<dd>{c.identifier}</dd>
-					</div>
-					<div>
-						<dt>Referință procesator</dt>
-						<dd>{c.providerId ?? 'Referință neconfirmată'}</dd>
-					</div>
 				</dl>
-				<small>Încercare: {c.id}</small>
+				<details class="payment-metadata">
+					<summary>Detaliile încercării</summary>
+					<dl>
+						<div>
+							<dt>Perioadă</dt>
+							<dd>{ledger.periods.find((p) => p.id === c.periodId)?.name ?? c.periodId}</dd>
+						</div>
+						<div>
+							<dt>Inițiată la</dt>
+							<dd>
+								{c.createdAt
+									? new Date(c.createdAt).toLocaleString('ro-RO', { timeZone: 'Europe/Bucharest' })
+									: '—'}
+							</dd>
+						</div>
+						<div>
+							<dt>ID beneficiar</dt>
+							<dd>{c.identifier}</dd>
+						</div>
+						<div>
+							<dt>Referință procesator</dt>
+							<dd>{c.providerId ?? 'Referință neconfirmată'}</dd>
+						</div>
+					</dl>
+					<small>Încercare: {c.id}</small>
+				</details>
 				{#if c.reviewRequired}<p class="warning">
 						Necesită verificare financiară. Compară tranzacția la procesator înainte de închidere.
 					</p>{/if}
@@ -227,18 +235,18 @@
 		color: var(--sc-muted);
 	}
 	.stat :global(svg) {
-		color: #15803d;
+		color: var(--sc-success);
 		margin-bottom: 10px;
 	}
 	.cancel-payment {
-		background: #fffaf8 !important;
-		border-color: #ffe0d4 !important;
+		background: var(--sc-warning-soft) !important;
+		border-color: var(--sc-border) !important;
 		box-shadow: none !important;
 		padding: 16px !important;
 	}
 	.cancel-payment button {
-		background: #9a3412 !important;
-		border-color: #9a3412 !important;
+		background: var(--sc-accent) !important;
+		border-color: var(--sc-accent) !important;
 	}
 	.heading {
 		display: flex;
@@ -274,8 +282,8 @@
 		margin-top: 16px;
 	}
 	.warning {
-		color: #92400e;
-		background: #fffbeb;
+		color: var(--sc-warning);
+		background: var(--sc-warning-soft);
 		padding: 12px;
 		border-radius: 8px;
 	}
@@ -299,5 +307,84 @@
 		dl {
 			grid-template-columns: 1fr;
 		}
+	}
+
+	.stats-grid[aria-label='Rezumat plăți în curs'] .stat {
+		padding: 12px;
+	}
+	.stats-grid[aria-label='Rezumat plăți în curs'] .stat :global(svg) {
+		display: none;
+	}
+	.stats-grid[aria-label='Rezumat plăți în curs'] .stat strong {
+		margin-top: 4px;
+		font-size: 20px;
+	}
+	.payment-card .payment-metadata,
+	.payment-search .payment-help {
+		padding: 0;
+		border: 0;
+		background: transparent;
+		margin: 8px 0;
+	}
+	.payment-card .payment-metadata summary,
+	.payment-search .payment-help summary {
+		margin-left: 16px;
+	}
+	.payment-card > dl {
+		margin: 12px 0;
+	}
+	.payment-card .heading strong {
+		white-space: nowrap;
+		font-variant-numeric: tabular-nums;
+	}
+	.payment-card .cancel-payment {
+		padding: 8px 12px !important;
+		margin: 8px 0 0;
+	}
+	@container finance (max-width: 900px) {
+		.payment-search.payment-search {
+			padding: 12px;
+		}
+		.payment-search > h2 {
+			display: none;
+		}
+		.stats-grid[aria-label='Rezumat plăți în curs'] {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 8px;
+		}
+		.stats-grid[aria-label='Rezumat plăți în curs'] .stat span {
+			font-size: 12px;
+		}
+		.stats-grid[aria-label='Rezumat plăți în curs'] .stat strong {
+			font-size: 18px;
+		}
+		.payment-card > dl {
+			grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
+			gap: 12px;
+		}
+		.payment-card.payment-card {
+			padding: 16px;
+		}
+		.payment-cards {
+			gap: 10px;
+		}
+		.payment-card .heading {
+			gap: 8px;
+		}
+		.payment-card .heading h2 {
+			font-size: 17px;
+		}
+		.payment-card .heading strong {
+			font-size: 18px;
+		}
+	}
+
+	.payment-card > dl > div {
+		min-width: 0;
+	}
+	.payment-card > dl :global(.finance-status) {
+		white-space: normal;
+		max-width: 100%;
+		overflow-wrap: anywhere;
 	}
 </style>

@@ -30,7 +30,8 @@
 		toast.loading('Sincronizare cu ORGO în curs…', {
 			id: syncToastId,
 			duration: Infinity,
-			style: 'background: #eff6ff; color: #1d4ed8; border-color: #93c5fd;'
+			style:
+				'background: var(--sc-info-soft); color: var(--sc-info); border-color: var(--sc-border);'
 		});
 		return async ({ result, update }) => {
 			try {
@@ -281,8 +282,8 @@
 		gap: 14px;
 		align-items: center;
 		padding: 20px;
-		background: white;
-		border: 1px solid #e1e8e4;
+		background: var(--sc-surface);
+		border: 1px solid var(--sc-border);
 		border-radius: 14px;
 	}
 	.setup-overview strong {
@@ -300,12 +301,12 @@
 		width: 44px;
 		height: 44px;
 		border-radius: 12px;
-		background: #f0fdf4;
-		color: #15803d;
+		background: var(--sc-success-soft);
+		color: var(--sc-success);
 	}
 	.sync-panel {
-		background: linear-gradient(120deg, #f0fdf4, white) !important;
-		border-color: #cee7d5 !important;
+		background: var(--sc-surface) !important;
+		border-color: var(--sc-border) !important;
 	}
 	.sync-status {
 		display: flex;
@@ -315,35 +316,70 @@
 	}
 	.price-plans {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
 		gap: 14px;
 		margin-top: 22px;
 	}
 	.price-plan {
 		padding: 20px;
-		background: #f8faf9;
-		border: 1px solid #e1e8e4;
+		background: var(--sc-inset);
+		border: 1px solid var(--sc-border);
 		border-radius: 12px;
 	}
 	.price-plan > span {
 		font-size: 0.85rem;
 		font-weight: 600;
-		color: #475569;
+		color: var(--sc-muted);
 	}
 	.price-plan strong {
 		display: block;
 		font-size: 1.5rem;
-		color: #166534;
+		color: var(--sc-success);
 		margin: 12px 0;
 	}
 	.preview {
 		margin-top: 22px;
 		padding-top: 20px;
-		border-top: 1px solid #dce5df;
+		border-top: 1px solid var(--sc-border);
 	}
 	@media (max-width: 850px) {
 		.setup-overview {
 			grid-template-columns: 1fr;
+		}
+	}
+
+	.price-plan {
+		min-width: 0;
+	}
+	.price-plan strong {
+		white-space: nowrap;
+		font-variant-numeric: tabular-nums;
+		font-size: clamp(18px, 2vw, 24px);
+	}
+	@media (max-width: 620px) {
+		.price-plans {
+			grid-template-columns: minmax(0, 1fr);
+			gap: 8px;
+		}
+		.price-plan {
+			padding: 12px;
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 4px 12px;
+			align-items: center;
+		}
+		.price-plan strong {
+			margin: 0;
+			font-size: 20px;
+		}
+		.price-plan small {
+			grid-column: 1 / -1;
+		}
+		.setup-overview {
+			gap: 8px;
+		}
+		.setup-overview > div {
+			padding: 12px;
 		}
 	}
 </style>

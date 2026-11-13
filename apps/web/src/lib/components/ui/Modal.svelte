@@ -4,11 +4,13 @@
 	import type { Snippet } from 'svelte';
 	let {
 		open = $bindable(false),
+		wide = false,
 		title,
 		description,
 		children
 	}: {
 		open?: boolean;
+		wide?: boolean;
 		title: string;
 		description?: string;
 		children: Snippet;
@@ -18,7 +20,7 @@
 <Dialog.Root bind:open>
 	<Dialog.Portal>
 		<Dialog.Overlay class="sc-dialog-overlay" />
-		<Dialog.Content class="sc-dialog-content">
+		<Dialog.Content class={wide ? 'sc-dialog-content sc-dialog-wide' : 'sc-dialog-content'}>
 			<header class="sc-dialog-heading">
 				<div>
 					<Dialog.Title class="sc-dialog-title">{title}</Dialog.Title>

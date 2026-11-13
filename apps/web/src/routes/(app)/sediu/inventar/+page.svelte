@@ -1,7 +1,9 @@
 <script lang="ts">
+	import Modal from '$lib/components/ui/Modal.svelte';
 	import { highlightSearch } from '$lib/components/ui/table-search';
 	import TablePagination from '$lib/components/ui/TablePagination.svelte';
 	import { goto } from '$app/navigation';
+	import { enhance } from '$app/forms';
 	import { browser } from '$app/environment';
 	import { resolve } from '$app/paths';
 	import {
@@ -725,6 +727,28 @@
 						{#if item.notes}
 							<p class="card-notes">{item.notes}</p>
 						{/if}
+						<details class="card-secondary">
+							<summary>Detalii</summary>
+							<dl>
+								<div>
+									<dt>Centru local</dt>
+									<dd>{item.owner ?? '—'}</dd>
+								</div>
+								<div>
+									<dt>Subcategorie</dt>
+									<dd>{subcategoryLabel(item)}</dd>
+								</div>
+								<div>
+									<dt>Adăugat de</dt>
+									<dd>{item.createdByDisplayName ?? '—'}</dd>
+								</div>
+							</dl>
+							{#if thumbnailProxyUrl(item)}<a
+									href={imageProxyUrl(item.id)}
+									target="_blank"
+									rel="noreferrer">Deschide imaginea</a
+								>{/if}
+						</details>
 					</div>
 				</article>
 			{/each}
@@ -760,184 +784,213 @@
 </section>
 
 {#if editorOpen && data.canEdit}
-	<div class="modal-backdrop">
-		<section class="modal-panel" aria-labelledby="inventory-editor-title">
-			<div class="modal-heading">
-				<div>
-					<p class="eyebrow">Inventar</p>
-					<h2 id="inventory-editor-title">{draft.id ? 'Editează obiectul' : 'Adaugă obiect'}</h2>
+	<Modal
+		wide
+		bind:open={
+			() => editorOpen,
+			(open) => {
+				if (!open) closeEditor();
+			}
+		}
+		title={draft.id ? 'Editează obiectul' : 'Adaugă obiect'}
+		description="Identifică obiectul, clasificarea și locul de depozitare."
+	>
+		{#if actionForm?.intent === 'save' && form?.message}
+			<p class="error-message">{form.message}</p>
+		{/if}
+
+		<form
+			class="editor-form"
+			method="POST"
+			action="?/save"
+			enctype="multipart/form-data"
+			use:enhance={() =>
+				async ({ result, update }) => {
+					await update({ reset: result.type === 'success' });
+					if (result.type === 'success') closeEditor();
+				}}
+		>
+			<input type="hidden" name="itemId" value={draft.id} />
+
+			<fieldset>
+				<legend>Identitate</legend>
+				<div class="form-grid two">
+					<label>
+						<span>Nume</span>
+						<input name="name" type="text" bind:value={draft.name} maxlength="255" required />
+					</label>
+					<label>
+						<span>Cantitate</span>
+						<input name="quantity" type="number" min="0" bind:value={draft.quantity} />
+					</label>
 				</div>
-				<button class="icon-button" type="button" aria-label="Închide" onclick={closeEditor}>
-					<X size={18} aria-hidden="true" />
+			</fieldset>
+
+			<fieldset>
+				<legend>Clasificare</legend>
+				<div class="form-grid two">
+					<label>
+						<span>Categorie</span>
+						<select name="category" bind:value={draft.category} onchange={handleCategoryChange}>
+							<option value="">Fără categorie</option>
+							{#each categoryOptions as option (option.value)}
+								<option value={option.value}>{option.label}</option>
+							{/each}
+						</select>
+					</label>
+					<label>
+						<span>Subcategorie</span>
+						<select name="subcategory" bind:value={draft.subcategory} disabled={!draft.category}>
+							<option value="">Fără subcategorie</option>
+							{#each subcategoryOptions as option (option.value)}
+								<option value={option.value}>{option.label}</option>
+							{/each}
+						</select>
+					</label>
+				</div>
+			</fieldset>
+
+			<fieldset>
+				<legend>Depozitare</legend>
+				<div class="form-grid two">
+					<label>
+						<span>Centru Local</span>
+						<select name="owner" bind:value={draft.owner}>
+							<option value="">Fără centru</option>
+							{#each ownerOptions as option (option.value)}
+								<option value={option.value}>{option.label}</option>
+							{/each}
+						</select>
+					</label>
+					<label>
+						<span>Locație</span>
+						<select name="locationDescription" bind:value={draft.locationDescription}>
+							<option value="">Fără locație</option>
+							{#each locationOptions as option (option.value)}
+								<option value={option.value}>{option.label}</option>
+							{/each}
+						</select>
+					</label>
+				</div>
+			</fieldset>
+
+			<fieldset>
+				<legend>Stare</legend>
+				<div class="form-grid two">
+					<label>
+						<span>Stare</span>
+						<select name="condition" bind:value={draft.condition}>
+							{#each conditionOptions as option (option.value)}
+								<option value={option.value}>{option.label}</option>
+							{/each}
+						</select>
+					</label>
+					<label class="checkbox-card">
+						<input name="isConsumable" type="checkbox" bind:checked={draft.isConsumable} />
+						<span>Consumabil</span>
+					</label>
+				</div>
+				<label>
+					<span>Observații</span>
+					<textarea name="notes" rows="3" bind:value={draft.notes}></textarea>
+				</label>
+			</fieldset>
+
+			<fieldset>
+				<legend>Imagine</legend>
+				<div class="image-editor">
+					<div class="image-preview">
+						{#if filePreview}
+							<img src={filePreview} alt="Previzualizare imagine" />
+						{:else if draft.imageUrl && !draft.removeImage}
+							<img src={draft.imageUrl} alt={draft.name || 'Imagine obiect'} />
+						{:else}
+							<ImageIcon size={28} aria-hidden="true" />
+						{/if}
+					</div>
+					<div class="image-controls">
+						<label class="upload-button">
+							<Upload size={16} aria-hidden="true" />
+							<span>{selectedFileName || 'Încarcă imagine'}</span>
+							<input
+								name="image"
+								type="file"
+								accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+								onchange={handleImageChange}
+							/>
+						</label>
+						{#if draft.imageUrl}
+							<label class="checkbox-card slim">
+								<input name="removeImage" type="checkbox" bind:checked={draft.removeImage} />
+								<span>Elimină imaginea</span>
+							</label>
+						{/if}
+					</div>
+				</div>
+			</fieldset>
+
+			<div class="modal-actions">
+				<button class="secondary-button" type="button" onclick={closeEditor}>Anulează</button>
+				<button class="primary-button" type="submit">
+					<Check size={16} aria-hidden="true" />
+					Salvează
 				</button>
 			</div>
-
-			{#if actionForm?.intent === 'save' && form?.message}
-				<p class="error-message">{form.message}</p>
-			{/if}
-
-			<form class="editor-form" method="POST" action="?/save" enctype="multipart/form-data">
-				<input type="hidden" name="itemId" value={draft.id} />
-
-				<fieldset>
-					<legend>Identitate</legend>
-					<div class="form-grid two">
-						<label>
-							<span>Nume</span>
-							<input name="name" type="text" bind:value={draft.name} maxlength="255" required />
-						</label>
-						<label>
-							<span>Cantitate</span>
-							<input name="quantity" type="number" min="0" bind:value={draft.quantity} />
-						</label>
-					</div>
-				</fieldset>
-
-				<fieldset>
-					<legend>Clasificare</legend>
-					<div class="form-grid two">
-						<label>
-							<span>Categorie</span>
-							<select name="category" bind:value={draft.category} onchange={handleCategoryChange}>
-								<option value="">Fără categorie</option>
-								{#each categoryOptions as option (option.value)}
-									<option value={option.value}>{option.label}</option>
-								{/each}
-							</select>
-						</label>
-						<label>
-							<span>Subcategorie</span>
-							<select name="subcategory" bind:value={draft.subcategory} disabled={!draft.category}>
-								<option value="">Fără subcategorie</option>
-								{#each subcategoryOptions as option (option.value)}
-									<option value={option.value}>{option.label}</option>
-								{/each}
-							</select>
-						</label>
-					</div>
-				</fieldset>
-
-				<fieldset>
-					<legend>Depozitare</legend>
-					<div class="form-grid two">
-						<label>
-							<span>Centru Local</span>
-							<select name="owner" bind:value={draft.owner}>
-								<option value="">Fără centru</option>
-								{#each ownerOptions as option (option.value)}
-									<option value={option.value}>{option.label}</option>
-								{/each}
-							</select>
-						</label>
-						<label>
-							<span>Locație</span>
-							<select name="locationDescription" bind:value={draft.locationDescription}>
-								<option value="">Fără locație</option>
-								{#each locationOptions as option (option.value)}
-									<option value={option.value}>{option.label}</option>
-								{/each}
-							</select>
-						</label>
-					</div>
-				</fieldset>
-
-				<fieldset>
-					<legend>Stare</legend>
-					<div class="form-grid two">
-						<label>
-							<span>Stare</span>
-							<select name="condition" bind:value={draft.condition}>
-								{#each conditionOptions as option (option.value)}
-									<option value={option.value}>{option.label}</option>
-								{/each}
-							</select>
-						</label>
-						<label class="checkbox-card">
-							<input name="isConsumable" type="checkbox" bind:checked={draft.isConsumable} />
-							<span>Consumabil</span>
-						</label>
-					</div>
-					<label>
-						<span>Observații</span>
-						<textarea name="notes" rows="3" bind:value={draft.notes}></textarea>
-					</label>
-				</fieldset>
-
-				<fieldset>
-					<legend>Imagine</legend>
-					<div class="image-editor">
-						<div class="image-preview">
-							{#if filePreview}
-								<img src={filePreview} alt="Previzualizare imagine" />
-							{:else if draft.imageUrl && !draft.removeImage}
-								<img src={draft.imageUrl} alt={draft.name || 'Imagine obiect'} />
-							{:else}
-								<ImageIcon size={28} aria-hidden="true" />
-							{/if}
-						</div>
-						<div class="image-controls">
-							<label class="upload-button">
-								<Upload size={16} aria-hidden="true" />
-								<span>{selectedFileName || 'Încarcă imagine'}</span>
-								<input
-									name="image"
-									type="file"
-									accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-									onchange={handleImageChange}
-								/>
-							</label>
-							{#if draft.imageUrl}
-								<label class="checkbox-card slim">
-									<input name="removeImage" type="checkbox" bind:checked={draft.removeImage} />
-									<span>Elimină imaginea</span>
-								</label>
-							{/if}
-						</div>
-					</div>
-				</fieldset>
-
-				<div class="modal-actions">
-					<button class="secondary-button" type="button" onclick={closeEditor}>Anulează</button>
-					<button class="primary-button" type="submit">
-						<Check size={16} aria-hidden="true" />
-						Salvează
-					</button>
-				</div>
-			</form>
-		</section>
-	</div>
+		</form>
+	</Modal>
 {/if}
 
 {#if deleteTarget && data.canEdit}
-	<div class="modal-backdrop">
-		<section class="confirm-panel" aria-labelledby="delete-title">
-			<div class="modal-heading">
-				<h2 id="delete-title">Șterge obiectul?</h2>
-				<button
-					class="icon-button"
-					type="button"
-					aria-label="Închide"
-					onclick={() => (deleteTarget = null)}
-				>
-					<X size={18} aria-hidden="true" />
-				</button>
-			</div>
-			<p>Obiectul "{deleteTarget.name}" va fi șters din inventar.</p>
-			<form class="modal-actions" method="POST" action="?/delete">
-				<input type="hidden" name="itemId" value={deleteTarget.id} />
-				<button class="secondary-button" type="button" onclick={() => (deleteTarget = null)}
-					>Anulează</button
-				>
-				<button class="danger-button" type="submit">
-					<Trash2 size={16} aria-hidden="true" />
-					Șterge
-				</button>
-			</form>
-		</section>
-	</div>
+	<Modal
+		bind:open={
+			() => !!deleteTarget,
+			(open) => {
+				if (!open) deleteTarget = null;
+			}
+		}
+		title="Șterge obiectul?"
+	>
+		<p>Obiectul "{deleteTarget.name}" va fi șters din inventar.</p>
+		<form class="modal-actions" method="POST" action="?/delete">
+			<input type="hidden" name="itemId" value={deleteTarget.id} />
+			<button class="secondary-button" type="button" onclick={() => (deleteTarget = null)}
+				>Anulează</button
+			>
+			<button class="danger-button" type="submit">
+				<Trash2 size={16} aria-hidden="true" />
+				Șterge
+			</button>
+		</form>
+	</Modal>
 {/if}
 
 <style>
+	.inventory-page {
+		container: inventory / inline-size;
+		min-width: 0;
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.card-secondary summary {
+		min-height: 44px;
+		display: flex;
+		align-items: center;
+		cursor: pointer;
+		color: var(--sc-link);
+	}
+	.card-secondary dl {
+		display: grid;
+		gap: 8px;
+		margin: 0 0 8px;
+	}
+	.card-secondary dt {
+		color: var(--sc-muted);
+		font-size: 12px;
+	}
+	.card-secondary dd {
+		margin: 2px 0 0;
+		overflow-wrap: anywhere;
+	}
+
 	.inventory-page,
 	.filter-panel,
 	.editor-form,
@@ -948,7 +1001,6 @@
 
 	.page-heading,
 	.card-title-row,
-	.modal-heading,
 	.modal-actions,
 	.page-actions,
 	.filter-actions,
@@ -959,8 +1011,7 @@
 		gap: 12px;
 	}
 
-	.page-heading,
-	.modal-heading {
+	.page-heading {
 		align-items: flex-start;
 	}
 
@@ -989,7 +1040,7 @@
 	h1 {
 		margin-top: 5px;
 		color: var(--sc-ink);
-		font-size: clamp(1.75rem, 2.4vw, 2.35rem);
+		font-size: clamp(28px, 2.4vw, 32px);
 	}
 
 	h2 {
@@ -1001,21 +1052,8 @@
 	.table-shell,
 	.inventory-card,
 	.empty-state,
-	.modal-panel,
-	.confirm-panel {
-		border: 1px solid var(--sc-border);
-		border-radius: 8px;
-		background: var(--sc-surface);
-		box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
-	}
-
 	.filter-panel,
 	.empty-state,
-	.modal-panel,
-	.confirm-panel {
-		padding: 16px;
-	}
-
 	.filter-panel {
 		position: relative;
 		gap: 10px;
@@ -1170,9 +1208,9 @@
 		align-items: center;
 		gap: 6px;
 		border-radius: 999px;
-		background: #eef6ff;
+		background: var(--sc-info-soft);
 		padding: 4px 9px;
-		color: #164e63;
+		color: var(--sc-info);
 		font-size: 0.78rem;
 		font-weight: 600;
 		text-decoration: none;
@@ -1180,7 +1218,7 @@
 	}
 
 	.filter-chip:hover {
-		background: #dbeafe;
+		background: var(--sc-info-soft);
 	}
 
 	.clear-filters,
@@ -1188,7 +1226,7 @@
 		border: 0;
 		background: transparent;
 		padding: 4px;
-		color: #475569;
+		color: var(--sc-muted);
 		font: inherit;
 		font-size: 0.8rem;
 		font-weight: 600;
@@ -1262,7 +1300,7 @@
 	}
 
 	.column-option {
-		min-height: 38px;
+		min-height: 44px;
 		display: flex;
 		align-items: center;
 		gap: 8px;
@@ -1326,7 +1364,7 @@
 	.danger-button,
 	.icon-button,
 	.upload-button {
-		min-height: 38px;
+		min-height: 44px;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -1344,7 +1382,7 @@
 		border: 0;
 		background: var(--sc-accent);
 		padding: 0 14px;
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 		cursor: pointer;
 	}
 
@@ -1357,11 +1395,11 @@
 	}
 
 	.primary-button:hover {
-		background: #a91515;
+		background: var(--sc-accent-hover);
 	}
 
 	.secondary-button:hover {
-		border-color: #94a3b8;
+		border-color: var(--sc-muted);
 		background: var(--sc-canvas);
 	}
 
@@ -1377,15 +1415,15 @@
 
 	.danger-button {
 		border: 0;
-		background: #b91c1c;
+		background: var(--sc-accent);
 		padding: 0 12px;
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 		cursor: pointer;
 	}
 
 	.icon-button {
-		width: 34px;
-		min-height: 34px;
+		width: 44px;
+		min-height: 44px;
 		border: 1px solid var(--sc-border-strong);
 		background: var(--sc-surface);
 		color: var(--sc-ink);
@@ -1393,7 +1431,7 @@
 	}
 
 	.icon-button.danger {
-		color: #b91c1c;
+		color: var(--sc-danger);
 	}
 
 	.count-chip,
@@ -1402,9 +1440,9 @@
 		align-items: center;
 		gap: 6px;
 		border-radius: 999px;
-		background: #eef6ff;
+		background: var(--sc-info-soft);
 		padding: 6px 9px;
-		color: #164e63;
+		color: var(--sc-info);
 		font-size: 0.82rem;
 		font-weight: 600;
 	}
@@ -1416,13 +1454,13 @@
 	}
 
 	.warn-chip {
-		background: #fff7ed;
-		color: #9a3412;
+		background: var(--sc-warning-soft);
+		color: var(--sc-warning);
 	}
 
 	.error-chip {
 		background: var(--sc-accent-soft);
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 	}
 
 	.success-message,
@@ -1433,15 +1471,15 @@
 	}
 
 	.success-message {
-		border: 1px solid #bbf7d0;
-		background: #f0fdf4;
-		color: #166534;
+		border: 1px solid var(--sc-success);
+		background: var(--sc-success-soft);
+		color: var(--sc-success);
 	}
 
 	.error-message {
-		border: 1px solid #fecaca;
+		border: 1px solid var(--sc-danger);
 		background: var(--sc-accent-soft);
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 	}
 
 	.table-shell {
@@ -1465,7 +1503,7 @@
 
 	thead th {
 		background: var(--sc-canvas);
-		color: #475569;
+		color: var(--sc-muted);
 		font-size: 0.78rem;
 		text-transform: uppercase;
 		letter-spacing: 0;
@@ -1502,7 +1540,7 @@
 		place-items: center;
 		overflow: hidden;
 		background: var(--sc-inset);
-		color: #94a3b8;
+		color: var(--sc-muted);
 	}
 
 	.thumb-link {
@@ -1567,29 +1605,6 @@
 		align-content: center;
 		gap: 12px;
 		text-align: center;
-	}
-
-	.modal-backdrop {
-		position: fixed;
-		inset: 0;
-		z-index: 80;
-		display: grid;
-		place-items: center;
-		background: rgb(15 23 42 / 0.46);
-		padding: 16px;
-	}
-
-	.modal-panel,
-	.confirm-panel {
-		width: min(820px, 100%);
-		max-height: calc(100vh - 32px);
-		overflow: auto;
-	}
-
-	.confirm-panel {
-		width: min(440px, 100%);
-		display: grid;
-		gap: 16px;
 	}
 
 	fieldset {
@@ -1661,7 +1676,7 @@
 	}
 
 	.muted-icon {
-		color: #94a3b8;
+		color: var(--sc-muted);
 	}
 
 	@media (max-width: 1100px) {
@@ -1763,6 +1778,28 @@
 		.icon-button,
 		.upload-button {
 			transition: none;
+		}
+	}
+
+	input:not([type='hidden'], [type='checkbox'], [type='radio']),
+	select,
+	textarea {
+		min-width: 0;
+		background: var(--sc-inset);
+		color: var(--sc-ink);
+		border-color: var(--sc-control-border);
+	}
+	@container inventory (max-width: 1000px) {
+		.table-shell,
+		.table-tools {
+			display: none;
+		}
+		.card-list {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+		}
+		.inventory-card {
+			display: grid;
 		}
 	}
 </style>

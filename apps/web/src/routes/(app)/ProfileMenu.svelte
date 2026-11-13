@@ -162,7 +162,7 @@
 		width: min(280px, calc(100vw - 24px));
 		border: 1px solid var(--sc-border);
 		border-radius: 8px;
-		background: var(--sc-surface);
+		background: var(--sc-surface-raised);
 		padding: 6px;
 		box-shadow: var(--sc-shadow);
 	}

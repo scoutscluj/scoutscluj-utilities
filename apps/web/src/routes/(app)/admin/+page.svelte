@@ -74,8 +74,8 @@
 	}
 
 	.module-card:hover {
-		border-color: #166534;
-		background: #f0fdf4;
+		border-color: var(--sc-border-strong);
+		background: var(--sc-inset);
 	}
 
 	.module-card span {

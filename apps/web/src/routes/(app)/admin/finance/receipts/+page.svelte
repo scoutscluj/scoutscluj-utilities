@@ -56,7 +56,6 @@
 	description="Urmărește plățile primite și alocă sumele la cotizațiile membrilor."
 	{form}
 >
-	<BankAdmissions ledger={data.ledger} />
 	<div class="stats-grid receipt-stats" aria-label="Rezumat încasări">
 		<div class="stat">
 			<Wallet size={18} /><span>Încasări înregistrate</span><strong>{ledger.receipts.length}</strong
@@ -115,21 +114,21 @@
 			{/snippet}
 		</TableToolbar>
 		<div class="scroll">
-			<table use:highlightSearch={search}>
+			<table class="receipt-ledger" use:highlightSearch={search}>
 				<thead><tr><th>Încasare</th><th>Sumă</th><th>Nealocat</th><th>Detalii</th></tr></thead
 				><tbody>
 					{#each pageRows as r (r.id)}{@const checkout = ledger.checkouts.find(
 							(c) => c.id === r.checkoutId
 						)}<tr
-							><td
+							><td class="receipt-identity"
 								><strong>{receiptMethodLabels[r.method] ?? r.method}</strong><small
 									>{r.receivedOn} · {ledger.periods.find((p) => p.id === r.periodId)?.name}</small
 								><small>{r.reference}</small></td
-							><td
+							><td data-label="Sumă"
 								>{money(r.amountBani)}{#if r.refundedBani > 0}<small
 										>Restituit: {money(r.refundedBani)}</small
 									>{/if}</td
-							><td
+							><td data-label="Nealocat"
 								>{money(receiptAvailable(r))}
 								<div class="receipt-state">
 									<FinanceStatus
@@ -145,7 +144,7 @@
 												: 'Alocat integral'}
 									/>{#if r.payoutId}<small>Decontat în bancă</small>{/if}
 								</div></td
-							><td
+							><td class="receipt-note"
 								>{r.note}{#if checkout}<small
 										>ID declarat: {checkout.identifier} · Plan declarat: {checkout.plan}</small
 									>{/if}</td
@@ -322,22 +321,97 @@
 			reîncearcă automat o inițiere cu rezultat necunoscut.
 		</p>
 	</details>
+	<BankAdmissions ledger={data.ledger} />
 </MembershipAdminPage>
 
 <ManualReceiptDialog {ledger} bind:open={receiptOpen} />
 
 <style>
 	.new-receipt {
-		background: #f0fdf4 !important;
-		border-color: #cee7d5 !important;
+		background: var(--sc-success-soft) !important;
+		border-color: var(--sc-border) !important;
 	}
 	.receipt-state {
 		margin-top: 7px;
 	}
 	.stat :global(svg) {
-		color: #15803d;
+		color: var(--sc-success);
 		margin-bottom: 10px;
 	}
 	@media (max-width: 600px) {
+	}
+
+	.receipt-stats .stat {
+		padding: 12px;
+	}
+	.receipt-stats .stat strong {
+		margin-top: 4px;
+		font-size: 20px;
+	}
+	.receipt-stats .stat :global(svg) {
+		display: none;
+	}
+	.new-receipt.new-receipt {
+		background: var(--sc-surface) !important;
+		padding: 16px;
+	}
+	@container finance (max-width: 900px) {
+		.receipt-stats .stat span {
+			font-size: 12px;
+		}
+		.receipt-stats .stat strong {
+			font-size: 18px;
+		}
+		.new-receipt .panel-heading {
+			gap: 8px;
+		}
+		.new-receipt .panel-heading h2 {
+			font-size: 16px;
+		}
+		.new-receipt .panel-heading p {
+			display: none;
+		}
+	}
+
+	@container finance (max-width: 900px) {
+		.receipt-ledger,
+		.receipt-ledger tbody {
+			display: block;
+		}
+		.receipt-ledger thead {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+		}
+		.receipt-ledger tbody tr {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			border-bottom: 1px solid var(--sc-border);
+			padding: 8px 0;
+		}
+		.receipt-ledger tbody td {
+			display: block;
+			padding: 8px 4px;
+			border: 0;
+			min-width: 0;
+			overflow-wrap: anywhere;
+		}
+		.receipt-ledger td.receipt-identity,
+		.receipt-ledger td.receipt-note,
+		.receipt-ledger td[colspan] {
+			grid-column: 1 / -1;
+		}
+		.receipt-ledger td[data-label]::before {
+			content: attr(data-label);
+			display: block;
+			color: var(--sc-muted);
+			font-size: 12px;
+			margin-bottom: 4px;
+		}
+		.receipt-ledger :global(.finance-status) {
+			white-space: normal;
+		}
 	}
 </style>

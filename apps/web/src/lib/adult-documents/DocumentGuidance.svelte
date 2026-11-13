@@ -52,7 +52,7 @@
 	}
 	summary:focus-visible,
 	a:focus-visible {
-		outline: 2px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 3px;
 	}
 	h3 {
@@ -67,7 +67,7 @@
 		margin: 8px 0;
 	}
 	a {
-		color: var(--sc-accent);
+		color: var(--sc-link);
 		font-size: 13px;
 		overflow-wrap: anywhere;
 	}

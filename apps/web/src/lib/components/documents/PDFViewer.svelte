@@ -464,7 +464,7 @@
 	}
 
 	.download-button:hover {
-		background: #2f3b47;
+		background: color-mix(in srgb, var(--sc-ink) 85%, var(--sc-surface));
 	}
 
 	svg {
@@ -480,7 +480,7 @@
 	.search-bar {
 		gap: 10px;
 		border-top: 1px solid var(--sc-border);
-		background: #fff7ed;
+		background: var(--sc-warning-soft);
 		padding: 10px 14px;
 	}
 
@@ -516,7 +516,7 @@
 
 	.search-status {
 		min-width: 104px;
-		color: #475569;
+		color: var(--sc-muted);
 		font-size: 0.82rem;
 		font-weight: 600;
 		text-align: center;
@@ -544,7 +544,7 @@
 		border: 1px solid var(--sc-border-strong);
 		border-radius: 7px;
 		background: var(--sc-surface);
-		color: #263442;
+		color: var(--sc-ink);
 		padding: 0 11px;
 		font: inherit;
 		font-size: 0.88rem;
@@ -567,13 +567,13 @@
 	.download-button:focus-visible,
 	.viewer-state a:focus-visible,
 	input:focus-visible {
-		outline: 3px solid rgb(200 30 30 / 0.35);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 2px;
 	}
 
 	.page-status,
 	.zoom-controls span {
-		color: #475569;
+		color: var(--sc-muted);
 		font-variant-numeric: tabular-nums;
 		font-size: 0.88rem;
 		font-weight: 600;
@@ -599,7 +599,7 @@
 	.viewer-frame {
 		position: relative;
 		min-height: min(72vh, 820px);
-		background: #dfe5eb;
+		background: var(--sc-inset);
 	}
 
 	.viewer-frame.has-error {
@@ -644,8 +644,8 @@
 		justify-items: center;
 		gap: 10px;
 		padding: 28px;
-		background: #e9eef3;
-		color: #475569;
+		background: var(--sc-inset);
+		color: var(--sc-muted);
 		text-align: center;
 	}
 
@@ -656,7 +656,7 @@
 
 	.viewer-state.error {
 		position: static;
-		color: #7f1d1d;
+		color: var(--sc-danger);
 	}
 
 	.viewer-state.error svg {
@@ -668,7 +668,7 @@
 		margin-top: 6px;
 		border-radius: 8px;
 		background: var(--sc-accent-hover);
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 		padding: 10px 14px;
 		text-decoration: none;
 		font-weight: 600;

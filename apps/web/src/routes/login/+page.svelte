@@ -116,7 +116,7 @@
 		border: 1px solid var(--sc-accent);
 		border-radius: 8px;
 		background: var(--sc-accent);
-		color: var(--sc-surface);
+		color: var(--sc-on-accent);
 		font-weight: 600;
 		cursor: pointer;
 	}
@@ -160,19 +160,19 @@
 
 	.register-action {
 		border-color: var(--sc-accent);
-		color: var(--sc-accent);
+		color: var(--sc-link);
 		background: var(--sc-accent-soft);
 	}
 
 	.register-action:hover {
 		border-color: var(--sc-accent-hover);
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 		background: var(--sc-accent-soft);
 	}
 
 	.orgo-button:focus-visible,
 	.public-action:focus-visible {
-		outline: 3px solid var(--sc-accent);
+		outline: 2px solid var(--sc-focus);
 		outline-offset: 3px;
 	}
 
@@ -209,7 +209,7 @@
 		border: 1px solid #fecaca;
 		border-radius: 8px;
 		background: var(--sc-accent-soft);
-		color: var(--sc-accent-hover);
+		color: var(--sc-link);
 		padding: 12px;
 		font-weight: 700;
 	}

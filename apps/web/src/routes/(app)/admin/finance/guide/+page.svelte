@@ -323,11 +323,14 @@
 	}
 	nav a {
 		padding: 10px 14px;
+		min-height: 44px;
+		display: inline-flex;
+		align-items: center;
 		border-radius: 8px;
-		background: #eef2f7;
+		background: var(--sc-inset);
 	}
 	a {
-		color: #285a84;
+		color: var(--sc-link);
 		text-underline-offset: 3px;
 	}
 	section {

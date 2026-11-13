@@ -535,7 +535,9 @@
 		color: var(--sc-link);
 	}
 	.danger {
-		background: var(--sc-danger);
+		background: var(--sc-accent-soft);
+		color: var(--sc-danger);
+		border-color: var(--sc-danger);
 	}
 	.hint,
 	small {

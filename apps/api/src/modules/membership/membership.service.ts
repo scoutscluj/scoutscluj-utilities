@@ -1,4 +1,5 @@
 import type { MemberOrgoService } from '../members/orgo.service';
+import { RequestContext } from '@mikro-orm/core';
 import { MembersService } from '../members/members.service';
 import { MemberSync } from '../members/entities/member.entity';
 import { OrgoNationalService } from './orgo-national.service';
@@ -269,10 +270,28 @@ export class MembershipService {
   async refreshNational(user: CurrentUser, input: unknown) {
     const b = record(input);
     const obligationId = uuid(b.obligationId);
+    return this.verifyNationalCredit(obligationId, user);
+  }
+
+  // Payment callers have already resolved the exact beneficiary. They use only
+  // server read credentials and never impersonate a financial administrator.
+  private async verifyNationalCredit(
+    obligationId: string,
+    user?: CurrentUser,
+    payment = false,
+  ) {
+    const authorize = async (em: EntityManager, row: Obligation) => {
+      if (!payment) return this.feeAccess(em, user!, row, false);
+      if (user && user.orgoConnection?.orgoUserId !== row.orgoUserId)
+        throw new ForbiddenException();
+      const period = await em.findOneOrFail(Period, { id: row.periodId });
+      if (!(await collectionAllowed(em, row.orgoUserId, period.startsOn)))
+        throw new ForbiddenException();
+    };
     const initial = await this.em.findOneOrFail(Obligation, {
       id: obligationId,
     });
-    await this.feeAccess(this.em, user, initial, false);
+    await authorize(this.em, initial);
     const period = await this.em.findOneOrFail(Period, {
       id: initial.periodId,
     });
@@ -291,16 +310,38 @@ export class MembershipService {
       endsOn: period.endsOn,
       amountBani: initial.nationalBani,
     };
-    const checked = await this.orgoNational.synchronize(user.id, target, false);
-    if (checked.state !== 'synced')
+    const checked = await this.orgoNational.synchronize(
+      payment ? undefined : user!.id,
+      target,
+      false,
+    );
+    if (payment && checked.state === 'failed')
+      throw new ServiceUnavailableException(
+        'Cotizația nu a putut fi verificată în Orgo. Reîncearcă înainte de a plăti.',
+      );
+    if (payment && checked.state === 'pending_approval')
+      throw new ConflictException(
+        'Există o plată în curs de aprobare în Orgo. Verifică situația înainte de o nouă plată.',
+      );
+    if (checked.state !== 'synced' && checked.state !== 'partially_paid')
       return { state: checked.state, message: checked.message };
+    const creditBani =
+      checked.state === 'synced' ? initial.nationalBani : checked.paidBani;
+    if (
+      !Number.isSafeInteger(creditBani) ||
+      creditBani! <= 0 ||
+      creditBani! > initial.nationalBani
+    )
+      throw new ServiceUnavailableException(
+        'Suma confirmată în Orgo este invalidă.',
+      );
     return this.mutate(async (em) => {
       const o = await em.findOneOrFail(
         Obligation,
         { id: obligationId },
         { refresh: true },
       );
-      await this.feeAccess(em, user, o, false);
+      await authorize(em, o);
       if (
         o.orgoUserId !== target.orgoUserId ||
         o.periodId !== expected.periodId ||
@@ -311,8 +352,8 @@ export class MembershipService {
         throw new ConflictException(
           'Cotizația s-a schimbat. Reîncearcă verificarea.',
         );
-      if ((o.nationalDirectBani ?? 0) === o.nationalBani)
-        return { state: 'synced', message: checked.message };
+      if ((o.nationalDirectBani ?? 0) >= creditBani!)
+        return { state: checked.state, message: checked.message };
       const items = await em.find(Item, { obligationId });
       // A confirmed local settlement already accounts for the national amount.
       if (items.length && items.every((item) => item.orgoState === 'synced'))
@@ -331,32 +372,33 @@ export class MembershipService {
         o.reviewState ||
         items.length ||
         checkout ||
-        centerPaid > base - o.nationalBani
+        centerPaid > base - creditBani!
       ) {
         if (checkout) checkout.reviewRequired = true;
         if (!o.reviewState) {
           o.reviewState = 'national_overlap';
           o.reviewReason =
             'Național confirmat în Orgo; verifică suprapunerea cu încasările sau transferurile existente.';
-          this.audit(em, user.id, 'national.overlap', o.id);
+          this.audit(em, user?.id, 'national.overlap', o.id);
         }
         await em.flush();
         return { state: 'review', message: o.reviewReason };
       }
       o.totalBani = base;
-      o.nationalDirectBani = o.nationalBani;
+      o.nationalDirectBani = creditBani!;
       o.nationalDirectEvidence = JSON.stringify({
         checkedAt: new Date().toISOString(),
-        actorId: user.id,
+        actorId: user?.id ?? null,
+        paidBani: creditBani,
         ...target,
         message: checked.message,
       });
-      this.audit(em, user.id, 'national.imported', o.id, {
-        nationalBani: o.nationalBani,
+      this.audit(em, user?.id, 'national.imported', o.id, {
+        nationalBani: creditBani,
         periodId: o.periodId,
       });
       await em.flush();
-      return { state: 'synced', message: checked.message };
+      return { state: checked.state, message: checked.message };
     });
   }
 
@@ -378,6 +420,51 @@ export class MembershipService {
       : null;
     if (!obligation) return { state: 'absent' };
     return this.refreshNational(user, { obligationId: obligation.id });
+  }
+
+  async refreshNationalBatch(user: CurrentUser, input: unknown) {
+    const body = record(input);
+    if (!Array.isArray(body.memberIds) || body.memberIds.length > 10)
+      throw new BadRequestException('Selectează cel mult 10 membri.');
+    const ids = [...new Set(body.memberIds.map((id) => uuid(id)))];
+    // Authorize the whole batch before contacting Orgo; each mutation rechecks.
+    for (const id of ids) {
+      const member = await this.em.findOneOrFail(ScoutMember, { id });
+      if (
+        !this.members ||
+        !(await this.members.access(this.em, user, member)).fees
+      )
+        throw new ForbiddenException();
+    }
+    const results: {
+      id: string;
+      state: string;
+      message?: string | null;
+      fees?: Awaited<ReturnType<MembersService['memberFees']>>;
+    }[] = [];
+    let next = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(3, ids.length) }, async () => {
+        while (next < ids.length) {
+          const id = ids[next++];
+          await RequestContext.create(this.em.fork(), async () => {
+            try {
+              const result = await this.refreshMemberNational(user, id);
+              const fees = await this.members!.memberFees(user, id);
+              results.push({ id, ...result, fees });
+            } catch {
+              results.push({
+                id,
+                state: 'failed',
+                message:
+                  'Verificarea în Orgo nu este disponibilă. Se păstrează situația salvată.',
+              });
+            }
+          });
+        }
+      }),
+    );
+    return { results };
   }
 
   // Small-center financial mutations share a database lock across API replicas.
@@ -1444,6 +1531,14 @@ export class MembershipService {
       throw new NotFoundException(
         'ID-ul nu corespunde unui membru eligibil din Centrul Local Cluj.',
       );
+    if (purpose === 'membership') {
+      await this.verifyNationalCredit(obligation.id, undefined, true);
+      obligation = await this.em.findOneOrFail(
+        Obligation,
+        { id: obligation.id },
+        { refresh: true },
+      );
+    }
     if (
       !(await collectionAllowed(
         this.em,
@@ -1579,6 +1674,20 @@ export class MembershipService {
         await this.refreshPaymentIdentity(key, currentPeriod.id);
     }
     const obligations = await this.em.find(Obligation, { orgoUserId });
+    const currentObligation = obligations.find(
+      (o) => o.periodId === currentPeriod.id,
+    );
+    if (
+      currentObligation &&
+      (await collectionAllowed(this.em, orgoUserId, currentPeriod.startsOn))
+    ) {
+      await this.verifyNationalCredit(currentObligation.id, user, true);
+      await this.em.findOneOrFail(
+        Obligation,
+        { id: currentObligation.id },
+        { refresh: true },
+      );
+    }
     const eligible: Obligation[] = [];
     for (const obligation of obligations) {
       const period = await this.em.findOne(Period, { id: obligation.periodId });
@@ -2640,6 +2749,22 @@ export class MembershipService {
         ))
       )
         await this.refreshPaymentIdentity(key, currentPeriod.id);
+    }
+    if (purpose === 'membership') {
+      const key = identifier(lookupKey);
+      const obligation = await this.findObligationByIdentifier(
+        this.em,
+        periodId,
+        key,
+      );
+      if (obligation) {
+        await this.verifyNationalCredit(obligation.id, user, true);
+        await this.em.findOneOrFail(
+          Obligation,
+          { id: obligation.id },
+          { refresh: true },
+        );
+      }
     }
     const tokenHash = hash(token);
     const selected = await this.paymentSettings();

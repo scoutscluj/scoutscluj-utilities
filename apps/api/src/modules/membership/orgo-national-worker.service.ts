@@ -140,13 +140,23 @@ export class OrgoNationalWorker implements OnModuleInit, OnModuleDestroy {
             item.orgoLastAttemptAt?.getTime() !== job.claimedAt
           )
             return;
-          item.orgoState = result.state;
-          item.orgoError = result.state === 'synced' ? null : result.message;
+          // A partially settled remote period needs reconciliation of the
+          // center's transfer, never another attempt to create the full amount.
+          item.orgoState =
+            result.state === 'partially_paid'
+              ? 'correction_required'
+              : result.state;
+          item.orgoError =
+            result.state === 'partially_paid'
+              ? 'Există o plată națională parțială în Orgo. Verifică transferul înainte de continuare.'
+              : result.state === 'synced'
+                ? null
+                : result.message;
           if (result.state === 'synced') item.evidence = result.message;
           tx.persist(
             tx.create(AuditEntry, {
               actorId: job.actorId,
-              action: `membership.orgo.${result.state}`,
+              action: `membership.orgo.${item.orgoState}`,
               entityType: 'membership',
               entityId: item.id,
               metadata: { message: result.message },

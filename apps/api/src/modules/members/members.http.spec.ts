@@ -289,6 +289,30 @@ describe('member HTTP scope and lifecycle', () => {
     await app.close();
   });
   const http = () => request(app.getHttpServer() as Server);
+  it('scopes the fast member context and fee reads to current member permissions', async () => {
+    const response = await http()
+      .get('/members/' + childId + '/context')
+      .expect(200);
+    expect(
+      (JSON.parse(response.text) as { members: { id: string }[] }).members.map(
+        (m) => m.id,
+      ),
+    ).toEqual([childId]);
+    await http()
+      .get('/members/' + otherId + '/context')
+      .expect(403);
+    f.list('assignment')[0].role = 'helper';
+    await http()
+      .get('/members/' + childId + '/fees')
+      .expect(403);
+    f.list('assignment')[0].canSeeFees = true;
+    await http()
+      .get('/members/' + childId + '/fees')
+      .expect(200);
+    await http()
+      .get('/members/' + otherId + '/fees')
+      .expect(403);
+  });
   it('rechecks manual fee authority against subgroup, structure and mandate expiry', async () => {
     const service = new MembersService(f.em);
     const actor = { id: 1, displayName: 'Leader', roles: [] };

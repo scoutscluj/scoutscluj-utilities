@@ -15,7 +15,9 @@
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
-	import { tick, type Snippet } from 'svelte';
+	import type { Snippet } from 'svelte';
+	import { onDestroy } from 'svelte';
+	import NationalFeeRefresh from './NationalFeeRefresh.svelte';
 	import TableToolbar from '$lib/components/ui/TableToolbar.svelte';
 	import TablePagination from '$lib/components/ui/TablePagination.svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
@@ -74,8 +76,13 @@
 	let manualPayment = $state(false);
 	let pending = $state(false);
 	let displayedFees = $state<typeof feeMenu>();
-	let feeTarget = $state('');
-	let feeForm: HTMLFormElement;
+	let feesBusy = $state(false),
+		feesError = $state('');
+	let feeController: AbortController | undefined;
+	const feeMemberId = $derived(feesOpen && !feesBusy ? displayedFees?.id : undefined);
+	const feeMemberIds = $derived(feeMemberId ? [feeMemberId] : []);
+	const feeRefreshToken = $derived(displayedFees?.id);
+	onDestroy(() => feeController?.abort());
 	let inactiveSearch = $state('');
 	let page = $derived.by(() => {
 		void members;
@@ -258,9 +265,26 @@
 		};
 	async function loadFees(m: Member, manual = false) {
 		manualPayment = manual;
-		feeTarget = m.id;
-		await tick();
-		feeForm.requestSubmit();
+		feeController?.abort();
+		const current = new AbortController();
+		feeController = current;
+		displayedFees = { id: m.id, name: m.name, fees: [] };
+		feesOpen = true;
+		feesBusy = true;
+		feesError = '';
+		try {
+			const response = await fetch(`${resolve('/units/fees')}?id=${encodeURIComponent(m.id)}`, {
+				signal: current.signal
+			});
+			if (!response.ok) throw new Error();
+			const fees = await response.json();
+			if (!current.signal.aborted && displayedFees?.id === m.id)
+				displayedFees = { id: m.id, name: m.name, fees };
+		} catch {
+			if (!current.signal.aborted) feesError = 'Cotizațiile nu au putut fi încărcate. Reîncearcă.';
+		} finally {
+			if (!current.signal.aborted) feesBusy = false;
+		}
 	}
 	function rowActions(m: Member) {
 		return [
@@ -407,13 +431,6 @@
 		>
 	</div>
 {/if}
-<form method="POST" use:enhance bind:this={feeForm} hidden>
-	<input type="hidden" name="action" value="fee-menu" /><input
-		type="hidden"
-		name="id"
-		value={feeTarget}
-	/>
-</form>
 <Modal
 	bind:open={editing}
 	title={chosen.length === 1
@@ -758,6 +775,16 @@
 >
 	{#if message}<p role="status">{message}</p>{/if}
 	{#if displayedFees}
+		{#if feesBusy}<p role="status">Se încarcă situația salvată…</p>{/if}
+		{#if feesError}<p role="alert">{feesError}</p>{/if}
+		<NationalFeeRefresh
+			memberIds={feesError ? [] : feeMemberIds}
+			refreshToken={feeRefreshToken}
+			onUpdate={(results) => {
+				const result = results.find((r) => r.id === displayedFees?.id);
+				if (result?.fees && displayedFees) displayedFees = { ...displayedFees, fees: result.fees };
+			}}
+		/>
 		<div class="editor">
 			{#each displayedFees.fees as fee (fee.period)}<article>
 					<strong>{fee.period}</strong>

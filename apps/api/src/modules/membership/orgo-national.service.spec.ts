@@ -78,6 +78,38 @@ function fixture() {
 }
 
 describe('national ORGO marking', () => {
+  it('deduplicates only concurrent reads and reads again on the next request', async () => {
+    const f = fixture();
+    await Promise.all([
+      f.service.synchronize(1, target, false),
+      f.service.synchronize(1, target, false),
+    ]);
+    expect(f.read).toHaveBeenCalledTimes(4);
+    await f.service.synchronize(1, target, false);
+    expect(f.read).toHaveBeenCalledTimes(8);
+    expect(f.post).not.toHaveBeenCalled();
+  });
+
+  it('reports verified partial national credit without creating a remote payment', async () => {
+    const f = fixture();
+    f.setPeriod({ ...unpaid, paid: 50, unpaid: 100 });
+    await expect(
+      f.service.synchronize(undefined, target, false),
+    ).resolves.toMatchObject({ state: 'partially_paid', paidBani: 5000 });
+    expect(f.post).not.toHaveBeenCalled();
+  });
+
+  it('does not credit an inconsistent or pending partial amount', async () => {
+    const f = fixture();
+    f.setPeriod({ ...unpaid, paid: 50, unpaid: 50 });
+    await expect(
+      f.service.synchronize(1, target, false),
+    ).resolves.toMatchObject({ state: 'unknown' });
+    f.setPeriod({ ...unpaid, paid: 50, unpaid: 100, isPending: true });
+    await expect(
+      f.service.synchronize(1, target, false),
+    ).resolves.toMatchObject({ state: 'pending_approval' });
+  });
   it('confirms an existing national payment with read credentials when actor OAuth is unavailable', async () => {
     const f = fixture();
     f.setPeriod({ ...unpaid, status: 'paid', paid: 150, unpaid: 0 });

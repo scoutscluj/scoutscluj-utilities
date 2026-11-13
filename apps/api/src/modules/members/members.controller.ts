@@ -78,6 +78,20 @@ export class MembersController {
     const photo = await this.orgo.photo(u, id);
     return new StreamableFile(photo.bytes, { type: photo.type });
   }
+  @Get(':id/context')
+  @Header('Cache-Control', 'private, no-store')
+  memberContext(
+    @CurrentUser() u: Actor,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.members.dashboard(u, id);
+  }
+  @Get(':id/fees') @Header('Cache-Control', 'private, no-store') fees(
+    @CurrentUser() u: Actor,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.members.memberFees(u, id);
+  }
   @Post(':id/photo') savePhoto(
     @CurrentUser() u: Actor,
     @Param('id', ParseUUIDPipe) id: string,

@@ -202,7 +202,8 @@ createServer(async (req, res) => {
 					structureId: member.structureId
 				}))
 		});
-	if (path === '/api/members') return send(res, registry);
+	if (path === '/api/members' || /^\/api\/members\/[^/]+\/context$/.test(path))
+		return send(res, registry);
 	if (path === '/api/members/bulk') {
 		bulkRequests.push(input);
 		if (bulkError)

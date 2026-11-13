@@ -1,6 +1,8 @@
 <script lang="ts">
 	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import FeePaymentForm from '$lib/members/FeePaymentForm.svelte';
+	import NationalFeeRefresh from '$lib/members/NationalFeeRefresh.svelte';
+	import type { Detail } from '$lib/members/types';
 	import TableView from '$lib/components/ui/TableView.svelte';
 	import { resolve } from '$app/paths';
 	import OrgoProfile from '$lib/members/OrgoProfile.svelte';
@@ -15,6 +17,11 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	const m = $derived(data.detail.member),
 		a = $derived(data.detail.access);
+	let refreshedFees = $state.raw<{ source: Detail; fees: Detail['fees'] }>();
+	const fees = $derived(
+		refreshedFees?.source === data.detail ? refreshedFees.fees : data.detail.fees
+	);
+	const feeMemberIds = $derived(a.fees ? [m.id] : []);
 	let transferUnit = $state(''),
 		transferGroup = $state('');
 	let role = $state('helper'),
@@ -202,8 +209,15 @@
 		</section>{/if}
 	{#if a.fees}<section id="member-fees">
 			<h2>Cotizații și adeziune</h2>
-			{#if data.nationalMessage}<p role="status">{data.nationalMessage}</p>{/if}
-			{#each data.detail.fees as fee (fee.period)}
+			<NationalFeeRefresh
+				memberIds={feeMemberIds}
+				refreshToken={data.detail}
+				onUpdate={(results) => {
+					const result = results.find((r) => r.id === m.id);
+					if (result?.fees) refreshedFees = { source: data.detail, fees: result.fees };
+				}}
+			/>
+			{#each fees as fee (fee.period)}
 				<p>
 					{fee.period} · Național: {money(fee.nationalBani ?? 0)}{fee.nationalDirectBani
 						? ' · achitat direct în Orgo'
@@ -225,7 +239,7 @@
 					><table>
 						<thead><tr><th>Perioadă</th><th>Total</th><th>Plătit</th><th>Rămas</th></tr></thead
 						><tbody
-							>{#each data.detail.fees as fee (fee.period)}<tr
+							>{#each fees as fee (fee.period)}<tr
 									><td data-label="Perioadă"
 										>{fee.period}{#if !fee.collectible}<small>În afara urmăririi la plată</small
 											>{/if}</td

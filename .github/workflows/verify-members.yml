@@ -87,6 +87,7 @@ jobs:
           pnpm --filter web exec playwright test --config playwright.registration.config.ts
           pnpm --filter web exec playwright test --config playwright.admissions.config.ts
           pnpm --filter web exec playwright test --config playwright.members.config.ts
+          pnpm --filter web exec playwright test --config playwright.national-fees.config.ts
           pnpm --filter web exec playwright test --config playwright.design.config.ts
           pnpm --filter web exec playwright test --config playwright.self-service.config.ts
           pnpm --filter web exec playwright test --config playwright.calendar-appearance.config.ts

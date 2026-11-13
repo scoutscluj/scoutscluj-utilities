@@ -93,9 +93,13 @@ export class OrgoTokenService {
     };
   }
 
-  async apiJson(userId: number, path: string) {
+  async apiJson(userId: number | undefined, path: string) {
     const serverToken = this.config.get<string>('ORGO_API_TOKEN')?.trim();
-    const delegated = serverToken ? null : await this.accessToken(userId);
+    if (!serverToken && userId === undefined)
+      throw new ServiceUnavailableException(
+        'Verificarea cotizației în Orgo nu este disponibilă. Reîncearcă mai târziu.',
+      );
+    const delegated = serverToken ? null : await this.accessToken(userId!);
     const base = this.config.getOrThrow<string>('ORGO_OAUTH_BASE_URL');
     const url = new URL(path, base);
     if (url.origin !== new URL(base).origin || url.protocol !== 'https:')

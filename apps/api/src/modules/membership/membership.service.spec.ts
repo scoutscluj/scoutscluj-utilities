@@ -15,6 +15,9 @@ jest.mock('../auth/guards/auth.guard', () => ({
   },
 }));
 jest.mock('@mikro-orm/postgresql', () => ({ EntityManager: class {} }));
+jest.mock('@mikro-orm/core', () => ({
+  RequestContext: { create: (_em: unknown, fn: () => unknown) => fn() },
+}));
 jest.mock('../members/member-collection', () => ({
   collectionAllowed: jest.fn().mockResolvedValue(true),
 }));
@@ -49,6 +52,7 @@ import type { Server } from 'node:http';
 import { MembershipController } from './membership.controller';
 import type { NetopiaConfiguration } from './payment-provider';
 import { MembershipService } from './membership.service';
+import type { NationalResult } from './orgo-national.service';
 import { PaymentNotSubmittedException } from './payment-provider';
 import { NetopiaService } from './netopia.service';
 import type { StripeService } from './stripe.service';
@@ -268,6 +272,7 @@ function fixture() {
       return (row[key] ?? null) === value;
     });
   const em = {
+    fork: () => em,
     transactional: jest.fn(
       <T>(fn: (tx: EntityManager) => Promise<T>): Promise<T> =>
         fn(em as unknown as EntityManager),
@@ -471,8 +476,12 @@ function fixture() {
       },
     ]),
   );
-  const nationalCheck = jest.fn(() =>
-    Promise.resolve({ state: 'synced', message: 'Verified in Orgo' }),
+  const nationalCheck = jest.fn(
+    (actor?: number): Promise<NationalResult> =>
+      Promise.resolve({
+        state: actor === undefined ? 'unknown' : 'synced',
+        message: 'Verified in Orgo',
+      }),
   );
   const feeContext = jest.fn(() =>
     Promise.resolve({
@@ -489,6 +498,7 @@ function fixture() {
   const memberAccess = jest.fn(() =>
     Promise.resolve({ fees: false, recordFees: false }),
   );
+  const memberFees = jest.fn(() => Promise.resolve([]));
   const service = new MembershipService(
     em as unknown as EntityManager,
     netopia as unknown as NetopiaService,
@@ -501,7 +511,7 @@ function fixture() {
       queueFeePlan,
       verifyIdentity: jest.fn(() => Promise.resolve(null)),
     } as never,
-    { access: memberAccess } as never,
+    { access: memberAccess, memberFees } as never,
   );
   const staff: CurrentUser = {
     id: 1,
@@ -519,6 +529,7 @@ function fixture() {
     feeContext,
     queueFeePlan,
     memberAccess,
+    memberFees,
     nationalReady,
     service,
     staff,
@@ -2636,6 +2647,137 @@ describe('bank admission evidence and shared receipt limits', () => {
 });
 
 describe('independent national credit and scoped manual receipts', () => {
+  it('checks Orgo during ID lookup and quotes only the remaining local amount', async () => {
+    const f = await setup();
+    f.nationalCheck.mockResolvedValue({
+      state: 'synced',
+      message: 'Confirmed',
+    });
+    await expect(
+      f.service.guestLookup({ identifier: '36805' }),
+    ).resolves.toMatchObject({ amountBani: 15000 });
+    expect(f.nationalCheck).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({ orgoUserId: 36805 }),
+      false,
+    );
+    expect(f.rows.filter((r) => r.table === 'receipt')).toHaveLength(0);
+  });
+
+  it('credits a confirmed partial national amount once and can advance to full credit', async () => {
+    const f = await setup();
+    f.nationalCheck.mockResolvedValue({
+      state: 'partially_paid',
+      paidBani: 5000,
+      message: 'Partial',
+    });
+    for (let i = 0; i < 2; i++)
+      await expect(
+        f.service.guestLookup({ identifier: '36805' }),
+      ).resolves.toMatchObject({ amountBani: 25000 });
+    expect(f.obligation.nationalDirectBani).toBe(5000);
+    f.nationalCheck.mockResolvedValue({
+      state: 'synced',
+      message: 'Confirmed',
+    });
+    await expect(
+      f.service.guestLookup({ identifier: '36805' }),
+    ).resolves.toMatchObject({ amountBani: 15000 });
+    expect(f.obligation.nationalDirectBani).toBe(15000);
+  });
+
+  it('checks Orgo again at checkout even without an earlier lookup', async () => {
+    const f = await setup();
+    f.nationalCheck.mockResolvedValue({
+      state: 'synced',
+      message: 'Confirmed',
+    });
+    await f.service.checkout({
+      periodId: f.period.id,
+      identifier: '36805',
+      acceptTerms: true,
+      attemptToken: 'q'.repeat(43),
+      amountBani: 15000,
+    });
+    expect(f.rows.find((r) => r.table === 'checkout')?.amountBani).toBe(15000);
+    expect(f.netopia.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('requires confirmation of a changed amount before starting the payment processor', async () => {
+    const f = await setup();
+    f.nationalCheck.mockResolvedValue({
+      state: 'synced',
+      message: 'Confirmed',
+    });
+    await expect(
+      f.service.checkout({
+        periodId: f.period.id,
+        identifier: '36805',
+        acceptTerms: true,
+        attemptToken: 'q'.repeat(43),
+        amountBani: 30000,
+      }),
+    ).rejects.toThrow('Suma de plată s-a schimbat');
+    expect(f.netopia.start).not.toHaveBeenCalled();
+  });
+
+  it.each(['failed', 'pending_approval'] as const)(
+    'does not start payment when Orgo is %s',
+    async (state) => {
+      const f = await setup();
+      f.nationalCheck.mockResolvedValue({ state, message: state });
+      await expect(
+        f.service.guestLookup({ identifier: '36805' }),
+      ).rejects.toThrow();
+      await expect(
+        f.service.checkout({
+          periodId: f.period.id,
+          identifier: '36805',
+          acceptTerms: true,
+          attemptToken: 'q'.repeat(43),
+        }),
+      ).rejects.toThrow();
+      expect(f.netopia.start).not.toHaveBeenCalled();
+      expect(f.rows.filter((r) => r.table === 'checkout')).toHaveLength(0);
+    },
+  );
+
+  it('refreshes list fee batches with no more than three concurrent checks', async () => {
+    const f = await setup();
+    const ids = Array.from({ length: 7 }, () => randomUUID());
+    ids.forEach((id) => f.rows.push({ table: 'member', id, orgoId: 36805 }));
+    f.memberAccess.mockResolvedValue({ fees: true, recordFees: false });
+    let active = 0,
+      peak = 0;
+    jest
+      .spyOn(f.service, 'refreshMemberNational')
+      .mockImplementation(async () => {
+        peak = Math.max(peak, ++active);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        active--;
+        return { state: 'synced', message: 'Confirmed' };
+      });
+    const result = await f.service.refreshNationalBatch(f.staff, {
+      memberIds: ids,
+    });
+    expect(result.results).toHaveLength(7);
+    expect(peak).toBe(3);
+  });
+
+  it('rejects unauthorized or oversized fee batches before contacting Orgo', async () => {
+    const f = await setup();
+    const id = randomUUID();
+    f.rows.push({ table: 'member', id, orgoId: 36805 });
+    await expect(
+      f.service.refreshNationalBatch(f.staff, { memberIds: [id] }),
+    ).rejects.toThrow();
+    await expect(
+      f.service.refreshNationalBatch(f.staff, {
+        memberIds: Array.from({ length: 11 }, () => id),
+      }),
+    ).rejects.toThrow();
+    expect(f.nationalCheck).not.toHaveBeenCalled();
+  });
   it('recognizes current national credit during roster initialization and preserves it on the next refresh', async () => {
     const f = await setup();
     f.nationalReady.mockResolvedValue(true);
@@ -2681,7 +2823,7 @@ describe('independent national credit and scoped manual receipts', () => {
     );
   });
 
-  it.each(['unknown', 'failed', 'pending_approval'])(
+  it.each(['unknown', 'failed', 'pending_approval'] as const)(
     'does not credit an Orgo result of %s',
     async (state) => {
       const f = await setup();

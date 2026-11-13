@@ -691,13 +691,14 @@ export class MembersService {
     }
   }
 
-  async dashboard(user: CurrentUser) {
+  async dashboard(user: CurrentUser, memberId?: string) {
     const ctx = await this.context(this.em, user);
     const all = await this.em.find(
       ScoutMember,
-      {},
+      memberId ? { id: memberId } : {},
       { orderBy: { name: 'asc' } },
     );
+    if (memberId && !all.length) throw new NotFoundException('Membrul nu există.');
     const allAssignments = ctx.activeAssignments;
     const allUnits = [
       ...(await this.em.find(
@@ -718,10 +719,11 @@ export class MembersService {
         assignments: allAssignments,
         units: allUnits,
       });
+      if (memberId && !grant.detail) denied();
       grants.set(m.id, grant);
       if (grant.read) visible.push(m);
     }
-    const feeMembers = visible.filter(
+    const feeMembers = (memberId ? [] : visible).filter(
       (m) => grants.get(m.id)?.fees && m.orgoId,
     );
     const periods = feeMembers.length
@@ -1117,9 +1119,13 @@ export class MembersService {
   }
   private async fees(member: ScoutMember) {
     if (!member.orgoId) return [];
-    const obligations = await this.em.find(MembershipObligation, {
-      orgoUserId: member.orgoId,
-    });
+    const obligations = await this.em.find(
+      MembershipObligation,
+      {
+        orgoUserId: member.orgoId,
+      },
+      { refresh: true },
+    );
     const periods = await this.em.find(MembershipPeriod, {});
     const allocations = obligations.length
       ? await this.em.find(MembershipAllocation, {
@@ -1128,6 +1134,11 @@ export class MembersService {
         })
       : [];
     return this.feeRows(member, obligations, periods, allocations);
+  }
+  async memberFees(user: CurrentUser, id: string) {
+    const member = await this.get(this.em, id);
+    if (!(await this.access(this.em, user, member)).fees) denied();
+    return this.fees(member);
   }
   private feeRows(
     member: ScoutMember,

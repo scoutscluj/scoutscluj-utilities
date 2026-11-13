@@ -41,31 +41,61 @@ export type NationalTarget = {
   amountBani: number;
 };
 export type NationalResult = {
-  state: 'synced' | 'pending_approval' | 'failed' | 'unknown';
+  state:
+    | 'synced'
+    | 'partially_paid'
+    | 'pending_approval'
+    | 'failed'
+    | 'unknown';
+  paidBani?: number;
   message: string;
 };
 
 @Injectable()
 export class OrgoNationalService {
+  private readonly reads = new Map<string, Promise<NationalResult>>();
   constructor(
     private readonly tokens: OrgoTokenService,
     private readonly config: ConfigService,
   ) {}
 
   async synchronize(
-    actorId: number,
+    actorId: number | undefined,
+    target: NationalTarget,
+    allowCreate: boolean,
+  ): Promise<NationalResult> {
+    if (allowCreate) return this.perform(actorId, target, true);
+    const credential = this.config.get<string>('ORGO_API_TOKEN')?.trim()
+      ? 'server'
+      : actorId;
+    const key = JSON.stringify([credential, target]);
+    const existing = this.reads.get(key);
+    if (existing) return existing;
+    const pending = this.perform(actorId, target, false);
+    this.reads.set(key, pending);
+    try {
+      return await pending;
+    } finally {
+      if (this.reads.get(key) === pending) this.reads.delete(key);
+    }
+  }
+
+  private async perform(
+    actorId: number | undefined,
     target: NationalTarget,
     allowCreate: boolean,
   ): Promise<NationalResult> {
     let submitted = false;
     try {
+      if (allowCreate && actorId === undefined)
+        throw new Error('Scrierea în Orgo necesită un responsabil financiar.');
       if (!Number.isSafeInteger(target.amountBani) || target.amountBani <= 0)
         throw new Error('Suma națională trebuie să fie pozitivă.');
       // Read-only confirmation can use the center's server credentials. Writes
       // and their readback must still use the financial actor's OAuth token.
       const read = (path: string): Promise<unknown> =>
         allowCreate
-          ? this.tokens.administrativeJson(actorId, path)
+          ? this.tokens.administrativeJson(actorId!, path)
           : this.tokens.apiJson(actorId, path);
       const member = object(await read(`/api/v1/users/${target.orgoUserId}`));
       if (Number(member.id) !== target.orgoUserId)
@@ -148,6 +178,7 @@ export class OrgoNationalService {
         const unpaid = amount(period.unpaid);
         if (
           (period.status === 'paid' || period.status === undefined) &&
+          price.currency === 'RON' &&
           paid !== null &&
           paid > 0 &&
           unpaid === 0 &&
@@ -156,6 +187,22 @@ export class OrgoNationalService {
           return {
             state: 'synced',
             message: `Cotizație ORGO confirmată pentru ${intervalId?.replace('_', '–')}.`,
+          };
+        // A partial read is credit only, never permission to create a payment.
+        if (
+          !allowCreate &&
+          (period.status === undefined || period.status === 'short') &&
+          price.currency === 'RON' &&
+          paid !== null &&
+          paid > 0 &&
+          unpaid !== null &&
+          unpaid > 0 &&
+          Math.round((paid + unpaid) * 100) === target.amountBani
+        )
+          return {
+            state: 'partially_paid',
+            paidBani: Math.round(paid * 100),
+            message: 'Plată națională parțială confirmată în Orgo.',
           };
         return null;
       };
@@ -180,7 +227,7 @@ export class OrgoNationalService {
           'Suma sau situația perioadei ORGO nu corespunde transferului național. Verifică manual.',
         );
       submitted = true;
-      await this.tokens.administrativeJson(actorId, '/api/v1/fee_payments', {
+      await this.tokens.administrativeJson(actorId!, '/api/v1/fee_payments', {
         userId: target.orgoUserId,
         fees: {
           [`${target.orgoUserId}:${intervalId}`]: target.amountBani / 100,

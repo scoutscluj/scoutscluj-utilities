@@ -81,6 +81,8 @@
 	import TableToolbar from '$lib/components/ui/TableToolbar.svelte';
 	import TablePagination from '$lib/components/ui/TablePagination.svelte';
 	import MemberTable from '$lib/members/MemberTable.svelte';
+	import NationalFeeRefresh from './NationalFeeRefresh.svelte';
+	import type { NationalFeeResult } from './national-fees';
 	import MultiSelectFilter from '$lib/components/ui/MultiSelectFilter.svelte';
 	import { filterMembers } from './registry-table';
 	import Modal from '$lib/components/ui/Modal.svelte';
@@ -92,6 +94,8 @@
 	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 	import type { Unit, Member } from '$lib/members/types';
 	let pendingAction = $state('');
+	let nationalFees = $state.raw<{ source: Registry; results: Record<string, NationalFeeResult> }>();
+	import type { Registry } from './types';
 	let submissionError = $state('');
 	let actionFailed = $state(false);
 	let refreshOpen = $state(false);
@@ -144,6 +148,17 @@
 		form,
 		management = true
 	}: { data: PageData; form: ActionData; management?: boolean } = $props();
+	const feeMemberIds = $derived(
+		data.registry.members.filter((m) => m.access?.fees && m.orgoId).map((m) => m.id)
+	);
+	const feeMembers = $derived(
+		data.registry.members.map((m) => {
+			const result =
+				nationalFees?.source === data.registry ? nationalFees.results[m.id] : undefined;
+			const fee = result?.fees?.find((f) => f.current);
+			return result?.fees ? { ...m, feeSummary: fee ?? null } : m;
+		})
+	);
 	const activeSection = $derived(
 		form && 'section' in form && typeof form.section === 'string' ? form.section : ''
 	);
@@ -171,7 +186,7 @@
 		status = $state<string[]>(['active']);
 	const units = $derived(data.registry.units.filter((u) => !u.parentId && !u.archived));
 	const visible = $derived(
-		filterMembers(data.registry.members, {
+		filterMembers(feeMembers, {
 			search,
 			structures: structureFilter,
 			categories: categoryFilter,
@@ -440,6 +455,17 @@
 		</div>
 	</Modal>
 	<section class="registry-panel" aria-label="Registrul membrilor">
+		<NationalFeeRefresh
+			memberIds={feeMemberIds}
+			refreshToken={data.registry}
+			onUpdate={(results) => {
+				const previous = nationalFees?.source === data.registry ? nationalFees.results : {};
+				nationalFees = {
+					source: data.registry,
+					results: { ...previous, ...Object.fromEntries(results.map((r) => [r.id, r])) }
+				};
+			}}
+		/>
 		{#snippet registrySearch()}
 			<label class="registry-search">
 				<span>Caută membru</span>

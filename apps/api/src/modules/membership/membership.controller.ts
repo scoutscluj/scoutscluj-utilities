@@ -213,6 +213,15 @@ export class MembershipController {
   }
 
   @UseGuards(AuthGuard)
+  @Post('national-status/batch')
+  nationalStatusBatch(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: unknown,
+  ) {
+    return this.membership.refreshNationalBatch(user, body);
+  }
+
+  @UseGuards(AuthGuard)
   @Post('members/:id/national-status')
   memberNationalStatus(
     @CurrentUser() user: AuthenticatedUser,

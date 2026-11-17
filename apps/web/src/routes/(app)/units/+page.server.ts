@@ -4,6 +4,7 @@ import type { PageServerLoad, Actions } from './$types';
 import type { Registry } from '$lib/members/types';
 import { memberRead, memberAction } from '$lib/server/members';
 export const load: PageServerLoad = async (event) => {
+	event.depends('app:member-registry');
 	event.setHeaders({ 'cache-control': 'private, no-store' });
 	const [registry, countResponse] = await Promise.all([
 		memberRead<Registry>(event, ''),

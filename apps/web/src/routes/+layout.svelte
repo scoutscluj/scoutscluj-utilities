@@ -5,6 +5,7 @@
 	import { page } from '$app/state';
 	import { usesAuthenticatedShell } from '$lib/auth/authenticated-shell';
 	import { Toaster } from '$lib/components/ui/sonner';
+	import NavigationProgress from '$lib/components/ui/NavigationProgress.svelte';
 	import PWAStatusToasts from '$lib/components/pwa/PWAStatusToasts.svelte';
 	import SiteFooter from '$lib/legal/SiteFooter.svelte';
 	import AppShell from './(app)/AppShell.svelte';
@@ -44,6 +45,7 @@
 		{/if}
 	</div>
 {/if}
+<NavigationProgress />
 <Toaster />
 <PWAStatusToasts />
 

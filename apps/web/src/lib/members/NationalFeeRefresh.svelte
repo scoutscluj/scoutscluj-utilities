@@ -15,8 +15,10 @@
 		failures = $state(0),
 		running = $state(false);
 	let retry = $state(0);
+	const memberKey = $derived(JSON.stringify(memberIds));
 	$effect(() => {
-		const ids = memberIds;
+		void memberKey;
+		const ids = untrack(() => memberIds);
 		void refreshToken;
 		void retry;
 		const controller = new AbortController();

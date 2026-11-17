@@ -200,6 +200,9 @@ export async function expectRenderedContrast(page: Page) {
 		for (const element of document.querySelectorAll(
 			'nav a, [role="menuitem"], .department-heading, .utility-label, :is(main,[role="dialog"],.topbar) :is(h1,h2,h3,h4,p,label,dt,dd,strong,small,span,summary,a,button,legend,th,td,li)'
 		)) {
+			// PDF.js paints glyphs on canvas. Its transparent text overlay exists
+			// for selection/accessibility and has no rendered ink to contrast-test.
+			if (element.closest('.textLayer')) continue;
 			if (!visible(element) || transparent(element) || disabled(element) || !ownText(element))
 				continue;
 			const ratio = contrast(foreground(element), background(element));

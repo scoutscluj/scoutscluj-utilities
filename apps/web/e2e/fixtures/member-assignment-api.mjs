@@ -112,6 +112,7 @@ let assignment = null;
 let assignmentError = false;
 let bulkError = false;
 let bulkRequests = [];
+let sessionExpired = false;
 const send = (res, body, status = 200) => {
 	res.writeHead(status, { 'Content-Type': 'application/json' });
 	res.end(JSON.stringify(body));
@@ -125,6 +126,7 @@ createServer(async (req, res) => {
 		if (data) input = JSON.parse(data);
 	}
 	if (path === '/test/reset') {
+		sessionExpired = false;
 		designMode = false;
 		pendingApplications = 0;
 		assignment = null;
@@ -132,12 +134,20 @@ createServer(async (req, res) => {
 		bulkError = false;
 		bulkRequests = [];
 		Object.assign(child, structuredClone(initialChildren[0]));
+		delete child.syncState;
+		delete child.orgoId;
 		Object.assign(secondChild, structuredClone(initialChildren[1]));
 		registry.admin = true;
 		registry.notices = [];
 		return send(res, {});
 	}
 	if (path === '/test/configure') {
+		if (input.pendingSync) child.syncState = 'pending';
+		if (input.fees) {
+			child.orgoId = 90002;
+			child.access = { ...child.access, fees: true };
+		}
+		if (typeof input.sessionExpired === 'boolean') sessionExpired = input.sessionExpired;
 		if (typeof input.designMode === 'boolean') designMode = input.designMode;
 		if (typeof input.pendingApplications === 'number')
 			pendingApplications = input.pendingApplications;
@@ -151,12 +161,27 @@ createServer(async (req, res) => {
 	if (path === '/test/assignment') return send(res, assignment);
 	if (path === '/test/bulk') return send(res, bulkRequests);
 	if (path === '/test/members') return send(res, registry.members);
+	if (path.startsWith('/api/') && sessionExpired)
+		return send(res, { message: 'Expired session token.' }, 401);
 	if (path === '/api/auth/me')
 		return send(res, {
 			id: 1,
 			displayName: 'Administrator test',
 			roles: ['super_admin'],
 			orgoConnection: { orgoUserId: 1 }
+		});
+	if (path === '/api/adult-documents/access') return send(res, { admin: true });
+	if (path === '/api/adult-documents')
+		return send(res, {
+			year: 2026,
+			currentYear: 2026,
+			years: [2026],
+			rows: [],
+			total: 0,
+			loadedTotal: 0,
+			unknownBirthDates: 0,
+			page: 0,
+			pageSize: 0
 		});
 	if (path === '/api/activities' || path === '/api/activity-registrations/eligible')
 		return send(res, []);

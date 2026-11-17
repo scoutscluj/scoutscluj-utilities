@@ -6,11 +6,23 @@
 	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import DateInput from '$lib/components/ui/DateInput.svelte';
 	import { onMount, untrack } from 'svelte';
-	import { invalidateAll, goto } from '$app/navigation';
+	import { invalidate, goto } from '$app/navigation';
+	import { navigating } from '$app/state';
 	type Refresh = { state: string; message: string | null; lastSucceededAt: string | null };
 	let refresh = $state<Refresh>({ state: 'idle', message: null, lastSucceededAt: null });
 	let controller: AbortController | undefined;
 	let pollTimer: ReturnType<typeof setTimeout> | undefined;
+	let registryReloading = false;
+	let stopped = false;
+	async function reloadRegistry() {
+		if (stopped || registryReloading || navigating.to) return;
+		registryReloading = true;
+		try {
+			await invalidate('app:member-registry');
+		} finally {
+			registryReloading = false;
+		}
+	}
 	async function refreshRoster() {
 		controller?.abort();
 		if (pollTimer) clearTimeout(pollTimer);
@@ -37,7 +49,7 @@
 	async function pollRefresh(current: AbortController) {
 		if (current.signal.aborted) return;
 		if (refresh.state !== 'running') {
-			await invalidateAll();
+			await reloadRegistry();
 			return;
 		}
 		pollTimer = setTimeout(() => {
@@ -62,13 +74,15 @@
 		void refreshRoster();
 		const deliveryTimer = setInterval(() => {
 			if (
+				!document.hidden &&
 				data.registry.members.some((m) =>
 					['pending', 'running', 'uncertain'].includes(m.syncState ?? '')
 				)
 			)
-				void invalidateAll().catch(() => undefined);
+				void reloadRegistry().catch(() => undefined);
 		}, 5000);
 		return () => {
+			stopped = true;
 			clearInterval(deliveryTimer);
 			controller?.abort();
 			if (pollTimer) clearTimeout(pollTimer);
@@ -94,8 +108,7 @@
 	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 	import type { Unit, Member } from '$lib/members/types';
 	let pendingAction = $state('');
-	let nationalFees = $state.raw<{ source: Registry; results: Record<string, NationalFeeResult> }>();
-	import type { Registry } from './types';
+	let nationalFees = $state.raw<{ source: string; results: Record<string, NationalFeeResult> }>();
 	let submissionError = $state('');
 	let actionFailed = $state(false);
 	let refreshOpen = $state(false);
@@ -151,10 +164,19 @@
 	const feeMemberIds = $derived(
 		data.registry.members.filter((m) => m.access?.fees && m.orgoId).map((m) => m.id)
 	);
+	// Roster polling replaces the registry object even when financial data is unchanged.
+	// Keep an in-flight national check and its results until its actual inputs change.
+	const feeRefreshToken = $derived(
+		JSON.stringify(
+			data.registry.members
+				.filter((m) => m.access?.fees && m.orgoId)
+				.map((m) => [m.id, m.orgoId, m.feeSummary])
+		)
+	);
 	const feeMembers = $derived(
 		data.registry.members.map((m) => {
 			const result =
-				nationalFees?.source === data.registry ? nationalFees.results[m.id] : undefined;
+				nationalFees?.source === feeRefreshToken ? nationalFees.results[m.id] : undefined;
 			const fee = result?.fees?.find((f) => f.current);
 			return result?.fees ? { ...m, feeSummary: fee ?? null } : m;
 		})
@@ -457,11 +479,11 @@
 	<section class="registry-panel" aria-label="Registrul membrilor">
 		<NationalFeeRefresh
 			memberIds={feeMemberIds}
-			refreshToken={data.registry}
+			refreshToken={feeRefreshToken}
 			onUpdate={(results) => {
-				const previous = nationalFees?.source === data.registry ? nationalFees.results : {};
+				const previous = nationalFees?.source === feeRefreshToken ? nationalFees.results : {};
 				nationalFees = {
-					source: data.registry,
+					source: feeRefreshToken,
 					results: { ...previous, ...Object.fromEntries(results.map((r) => [r.id, r])) }
 				};
 			}}

@@ -1,13 +1,40 @@
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 vi.mock('$service-worker', () => ({
 	build: [],
-	files: [],
+	files: ['/tutoriale/inscriere-parinti.mp4'],
 	prerendered: [],
 	version: 'worker-build-123'
 }));
 
+beforeEach(() => vi.resetModules());
 afterEach(() => vi.unstubAllGlobals());
+
+it('leaves video byte-range requests to the network instead of returning a cached full response', async () => {
+	vi.resetModules();
+	const worker = Object.assign(new EventTarget(), {
+		location: { origin: 'https://app.example.test' }
+	});
+	const match = vi.fn().mockResolvedValue(new Response('cached full video', { status: 200 }));
+	vi.stubGlobal('self', worker);
+	vi.stubGlobal('caches', { open: vi.fn().mockResolvedValue({ match }) });
+	const workerModule = './service-worker';
+	await import(workerModule);
+	const respondWith = vi.fn();
+	worker.dispatchEvent(
+		Object.assign(new Event('fetch'), {
+			request: {
+				method: 'GET',
+				url: 'https://app.example.test/tutoriale/inscriere-parinti.mp4',
+				mode: 'cors',
+				headers: new Headers({ range: 'bytes=1000-' })
+			},
+			respondWith
+		})
+	);
+	expect(respondWith).not.toHaveBeenCalled();
+	expect(match).not.toHaveBeenCalled();
+});
 
 it('returns the actual worker build identifier to the page', async () => {
 	const worker = Object.assign(new EventTarget(), { skipWaiting: vi.fn() });

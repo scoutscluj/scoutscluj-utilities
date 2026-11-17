@@ -128,6 +128,9 @@ worker.addEventListener('fetch', (event) => {
 	if (request.method !== 'GET') {
 		return;
 	}
+	// A cached 200 response is not a valid replacement for a requested byte
+	// range. Let the server return 206 responses for media seeking/streaming.
+	if (request.headers.has('range')) return;
 
 	const url = new URL(request.url);
 	const accept = request.headers.get('accept') ?? '';

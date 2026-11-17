@@ -278,6 +278,12 @@ test('parent tutorial plays the published media and chapters without horizontal 
 	await video.evaluate((el) => {
 		el.muted = true;
 	});
+	// Metadata alone does not guarantee that the requested chapter is seekable.
+	await expect
+		.poll(() =>
+			video.evaluate((el) => (el.seekable.length ? el.seekable.end(el.seekable.length - 1) : 0))
+		)
+		.toBeGreaterThanOrEqual(52.35);
 	await page.getByRole('button', { name: /Emailul pentru cont/ }).click();
 	await expect.poll(() => video.evaluate((el) => el.currentTime)).toBeGreaterThanOrEqual(52.35);
 	await expect(page.getByRole('button', { name: /Emailul pentru cont/ })).toHaveAttribute(
@@ -325,6 +331,9 @@ test('parent tutorial plays the published media and chapters without horizontal 
 		'Fiecare copil are nevoie de o adresă de cont unică'
 	);
 	await page.screenshot({ path: 'test-results/parent-tutorial-mobile.png', fullPage: true });
+	// Chromium can suspend offscreen muted video; bring the player back into view
+	// before checking the fallback codec's playback clock.
+	await video.scrollIntoViewIfNeeded();
 	await video.evaluate((el) => {
 		el.src = '/tutoriale/inscriere-parinti.webm';
 		el.load();

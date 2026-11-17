@@ -1,4 +1,20 @@
 import { expect, test } from '@playwright/test';
+import { expectRenderedContrast } from './design-helpers';
+
+test('contrast checks ignore transparent PDF selection text and still reject unreadable UI text', async ({
+	page
+}) => {
+	await page.setContent(
+		'<main style="background:white;color:black"><h1>Document</h1><div class="textLayer"><span style="color:transparent">Selectable PDF text painted by canvas</span></div></main>'
+	);
+	await expectRenderedContrast(page);
+	await page.setContent(
+		'<main style="background:white"><p style="color:#ddd">Unreadable interface label</p></main>'
+	);
+	await expect(expectRenderedContrast(page)).rejects.toThrow(
+		'Rendered navigation and control contrast'
+	);
+});
 
 test('an open tab recovers when an old deployment chunk is missing', async ({
 	browser,

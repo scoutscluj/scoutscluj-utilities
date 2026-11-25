@@ -1059,6 +1059,171 @@ describe('member HTTP scope and lifecycle', () => {
     expect(child.status).toBe('active');
     expect(old.endedAt).toBeInstanceOf(Date);
   });
+  it.each([true, false])(
+    'allows simultaneous Seniori chief and Temerari helper responsibilities (helper first: %s)',
+    async (helperFirst) => {
+      const seniorUnit = randomUUID();
+      const senior = f.list('member').find((m) => m.id === childId)!;
+      Object.assign(senior, {
+        category: 'seniori',
+        unitId: seniorUnit,
+        groupId: null,
+        birthDate: '2005-01-01',
+      });
+      f.list('unit').push({
+        id: seniorUnit,
+        branch: 'seniori',
+        archived: false,
+        parentId: null,
+        fixed: true,
+      });
+      const assign = (data: Row) =>
+        http()
+          .post(`/members/${childId}/assignments`)
+          .set('x-actor', '2')
+          .send(data);
+
+      if (!helperFirst)
+        await assign({ role: 'chief', unitId: seniorUnit }).expect(201);
+      await assign({ role: 'helper', unitId, groupId: groupA }).expect(201);
+      const helper = f.list('assignment').find((a) => a.memberId === childId)!;
+      if (helperFirst)
+        await assign({ role: 'chief', unitId: seniorUnit }).expect(201);
+      expect(helper.endedAt).toBeUndefined();
+      expect(
+        f
+          .list('assignment')
+          .filter((a) => a.memberId === childId && !a.endedAt),
+      ).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ role: 'helper', unitId, groupId: groupA }),
+          expect.objectContaining({ role: 'chief', unitId: seniorUnit }),
+        ]),
+      );
+      expect(senior.category).toBe('seniori');
+      expect(senior.unitId).toBe(seniorUnit);
+      expect(
+        f
+          .list('assignment')
+          .filter((a) => a.memberId === childId && !a.endedAt),
+      ).toHaveLength(2);
+    },
+  );
+  it.each([
+    {
+      category: 'seniori',
+      ownBranch: 'seniori',
+      targetBranch: 'temerari',
+      role: 'chief',
+      birthDate: '2005-01-01',
+    },
+    {
+      category: 'seniori',
+      ownBranch: 'seniori',
+      targetBranch: 'seniori',
+      role: 'leader',
+      birthDate: '2005-01-01',
+    },
+    {
+      category: 'seniori',
+      ownBranch: 'seniori',
+      targetBranch: 'seniori',
+      role: 'chief',
+      birthDate: null,
+    },
+    {
+      category: 'seniori',
+      ownBranch: 'seniori',
+      targetBranch: 'seniori',
+      role: 'chief',
+      birthDate: '2020-01-01',
+    },
+    {
+      category: 'seniori',
+      ownBranch: 'seniori',
+      targetBranch: 'seniori',
+      role: 'chief',
+      birthDate: '2005-01-01',
+      promiseDate: '2999-01-01',
+    },
+    {
+      category: 'seniori',
+      ownBranch: 'seniori',
+      targetBranch: 'seniori',
+      role: 'chief',
+      birthDate: '2005-01-01',
+      groupId: groupA,
+    },
+    {
+      category: 'seniori',
+      ownBranch: 'seniori',
+      targetBranch: 'seniori',
+      role: 'chief',
+      birthDate: '2005-01-01',
+      structureId: 'floresti',
+    },
+    {
+      category: 'seniori',
+      ownBranch: 'temerari',
+      targetBranch: 'temerari',
+      role: 'chief',
+      birthDate: '2005-01-01',
+    },
+    {
+      category: 'lideri',
+      ownBranch: 'seniori',
+      targetBranch: 'temerari',
+      role: 'chief',
+      birthDate: '2005-01-01',
+    },
+  ])(
+    'rejects an ineligible senior responsibility: %j',
+    async ({
+      category,
+      ownBranch,
+      targetBranch,
+      role,
+      birthDate,
+      promiseDate,
+      groupId,
+      structureId,
+    }) => {
+      const seniorUnit = randomUUID();
+      Object.assign(f.list('member').find((m) => m.id === childId)!, {
+        category,
+        unitId: seniorUnit,
+        birthDate,
+      });
+      f.list('unit').push({
+        id: seniorUnit,
+        branch: ownBranch,
+        archived: false,
+        fixed: true,
+      });
+      const targetUnit = randomUUID();
+      f.list('unit').push({
+        id: targetUnit,
+        branch: targetBranch,
+        structureId,
+        archived: false,
+        fixed: true,
+      });
+      if (groupId)
+        f.list('subunit').push({
+          id: groupId,
+          parentId: targetUnit,
+          archived: false,
+        });
+      await http()
+        .post(`/members/${childId}/assignments`)
+        .set('x-actor', '2')
+        .send({ role, unitId: targetUnit, birthDate, promiseDate, groupId })
+        .expect(400);
+      expect(
+        f.list('assignment').filter((a) => a.memberId === childId),
+      ).toHaveLength(0);
+    },
+  );
   it('refuses leader status for a senior even if a promise date is supplied', async () => {
     const seniorUnit = randomUUID(),
       child = f.list('member').find((m) => m.id === childId)!;

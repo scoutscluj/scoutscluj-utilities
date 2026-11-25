@@ -1834,11 +1834,11 @@ export class MembersService {
           !m.birthDate ||
           m.birthDate >
             `${Number(localDate(new Date()).slice(0, 4)) - 18}${localDate(new Date()).slice(4)}` ||
-          m.category === 'seniori' ||
-          ownUnit?.branch === 'seniori'
+          ((m.category === 'seniori' || ownUnit?.branch === 'seniori') &&
+            !(role === 'chief' && unit?.branch === 'seniori'))
         )
           throw new BadRequestException(
-            'Rolul cere un adult care nu este beneficiar la Seniori; data promisiunii, dacă este completată, nu poate fi în viitor.',
+            'Rolul cere un adult; un beneficiar Senior poate fi șef doar la o unitate de Seniori și nu poate fi lider. Data promisiunii, dacă este completată, nu poate fi în viitor.',
           );
         m.promiseDate = promise;
       }
